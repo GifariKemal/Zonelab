@@ -306,6 +306,7 @@ cd backend
 cd ..\frontend
 npm run e2e                # 76 asersi: setiap kontrol, kontras, mobile
 npm run e2e:resilience     # 12 asersi: API mati, pulih, API key salah
+npm run e2e:pixels 15m     # baca ulang kanvas: tepi tercat lawan catatan zona
 ```
 
 40 pengujian unit, semuanya lulus. Setiap seri harga dibangun dengan tangan
@@ -318,6 +319,15 @@ perubahan perilaku dan pengujiannya harus mengatakan demikian.
 > yang tertutup candle, dan chart yang kolaps setinggi nol di layar ponsel.
 > Keduanya hanya terlihat pada tangkapan layar. Asersi `chart is actually tall
 > enough to read` lahir dari kejadian kedua.
+
+> [!TIP]
+> Lapis kelima, `e2e:pixels`, ada karena keempat lapis di atas membandingkan
+> angka dengan angka. Ia membaca kembali kanvasnya, mencari garis batas yang
+> benar-benar tercat, lalu mengubahnya menjadi harga lewat skala chart. Itu yang
+> menemukan tepi kiri kotak tertambat ke titik tengah bar base pertama, bukan ke
+> tepinya, sehingga separuh bar itu berada di luar kotaknya sendiri dan garis
+> batasnya terkubur di bawah candle. Rinciannya di
+> [`docs/FIDELITY.md`](docs/FIDELITY.md).
 
 <details>
 <summary>Yang dijamin oleh pengujian</summary>

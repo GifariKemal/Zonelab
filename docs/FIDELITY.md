@@ -93,6 +93,65 @@ pasangannya yang memastikan base datar tetap lolos.
 > berlaku. Dua standar yang berbeda: sebuah gambar yang ditolak praktisi begitu
 > melihatnya adalah gambar yang salah, terlepas dari apakah ia memprediksi.
 
+### 4. Kotak digambar dari titik tengah bar, bukan dari tepinya
+
+Semua uji yang ada sebelum ini membandingkan **angka dengan angka**. Uji kontrak
+membandingkan catatan zona terhadap aritmetika pada candle, `zone-audit.mjs`
+membandingkannya lagi di dalam browser terhadap candle yang diambil halaman.
+Tidak satu pun melihat satu piksel pun, jadi bug penggambaran yang menempatkan
+zona yang benar di tempat yang salah akan lolos semuanya.
+
+`e2e/pixel-truth.mjs` membaca kembali kanvasnya. Untuk tiap zona ia mencari
+garis batas yang benar-benar tercat, mengubah baris piksel itu kembali menjadi
+harga lewat skala chart, lalu membandingkannya dengan catatan zona.
+
+**Penempatannya sudah tepat.** Tepi atas jatuh dalam 1.3 piksel dari tempat
+skala harga menaruh `zone.top`, tepi bawah dalam 1.9 piksel. Selisih satu sampai
+dua piksel itu rasteriser, bukan cacat: `strokeRect(x+0.5, y+0.5, w-1, h-1)`
+menaruh baris tercat terakhir di `y+h-1`, satu piksel di dalam tinggi kotaknya.
+
+**Yang salah adalah tepi kirinya.** `timeToCoordinate` mengembalikan **titik
+tengah** sebuah bar, dan kotaknya ditambatkan langsung ke koordinat itu. Akibatnya
+dua hal sekaligus:
+
+- separuh bar base pertama berada **di luar** kotak yang justru dipotong darinya;
+- garis batas kiri mendarat tepat di posisi x candle itu sendiri, dan karena
+  badan zona sengaja digambar **di bawah** candle, candle-nya menutupi garis itu.
+
+| Timeframe | Tepi kiri terbaca, sebelum | Sesudah |
+|---|---|---|
+| 15m | 2 dari 8 | 8 dari 8 |
+| 1h | 2 dari 9 | 9 dari 9 |
+| 1d | 8 dari 14 | 14 dari 14 |
+
+**Perbaikan:** kotak dilebarkan setengah jarak bar ke kiri dan ke kanan, jadi ia
+menutup bar utuh. Diverifikasi ulang pada **72 zona di 8 timeframe** (1m sampai
+1w): seluruh tepi kiri terbaca, dan bagian bar base pertama yang tersisa di luar
+kotak paling buruk 0.01 bar.
+
+> [!IMPORTANT]
+> Ini juga menutup pertanyaan mengapa empat peninjau visual menyatu pada klaim
+> yang salah. Mereka melaporkan kotak melar ke candle impuls tetangga; aritmetika
+> mengatakan padding-nya 0.0% dan klaim itu ditolak. Keduanya benar tentang apa
+> yang mereka ukur. Angkanya memang tepat, tetapi tepi kirinya tidak bisa dilihat,
+> jadi tidak ada cara bagi mata untuk memisahkan "kotaknya melar" dari "kotaknya
+> pas tetapi tertimbun candle". Mata tidak bisa menjawabnya, dan sampai sekarang
+> tidak ada uji yang bisa.
+
+Dua kesalahan alat ukurnya sendiri layak dicatat, karena keduanya menghasilkan
+angka yang tampak masuk akal:
+
+1. Kanvas lapisan atas seluruhnya transparan, dan piksel transparan terbaca
+   sebagai rgb(0,0,0), yaitu **lebih jauh** dari warna latar daripada cat chart
+   yang sesungguhnya. Probe yang hanya menguji warna memilih lapisan kosong itu
+   sebagai yang paling ramai, lalu melaporkan nol di mana-mana, yang terlihat
+   persis seperti gambar yang hilang.
+2. Rata-rata warna per baris dibatalkan oleh candle berlawanan warna. Harga
+   kembali masuk ke zona, jadi sebagian besar lebar kotak adalah candle, dan satu
+   badan candle merah cukup untuk menarik rata-rata baris batas yang **asli** ke
+   bawah rata-rata baris kosong. Menghitung piksel yang mencapai kekuatan warna
+   batasnya kebal terhadap itu.
+
 ## Yang sengaja TIDAK saya ubah
 
 ### Aturan 1:3 tidak dipasang sebagai default

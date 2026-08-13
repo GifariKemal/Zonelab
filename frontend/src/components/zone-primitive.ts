@@ -240,6 +240,19 @@ export class ZoneSeriesPrimitive implements ISeriesPrimitive<Time> {
 
     const timeScale = chart.timeScale();
     const rightEdge = timeScale.width();
+    // `timeToCoordinate` returns a bar's CENTRE. Anchoring the box to those
+    // coordinates draws it from the middle of the first base bar to the middle
+    // of the last, which is wrong twice over: half of the first base bar hangs
+    // outside the box that was cut from it, and the left border lands on that
+    // candle's own x-position, where the candle - drawn on top - hides it.
+    //
+    // Both were measured before this line existed. `e2e/pixel-truth.mjs` reads
+    // the canvas back and found the left border legible on 2 of 8 zones at 15m
+    // and 2 of 9 at 1h, with a median of ~20px of the first base bar outside
+    // its own box. It is also the reason four visual reviewers agreed the box
+    // was padded onto neighbouring impulse candles when the arithmetic says the
+    // padding is 0.0%: they could not see where the box actually ended.
+    const halfBar = timeScale.options().barSpacing / 2;
     const boxes: Box[] = [];
 
     for (const zone of this.zones) {
@@ -248,14 +261,16 @@ export class ZoneSeriesPrimitive implements ISeriesPrimitive<Time> {
       const proximal = series.priceToCoordinate(zone.proximal);
       if (top === null || bottom === null || proximal === null) continue;
 
-      const left = timeScale.timeToCoordinate(zone.time_from as Time);
-      if (left === null) continue;
+      const leftCentre = timeScale.timeToCoordinate(zone.time_from as Time);
+      if (leftCentre === null) continue;
+      const left = leftCentre - halfBar;
 
       // A live zone runs to the last bar, and the chart may be scrolled so that
       // bar sits past the right edge. Clamp rather than drop it: a zone that
       // vanishes when you scroll looks like a bug.
       const rightRaw = timeScale.timeToCoordinate(zone.time_to as Time);
-      const right = rightRaw === null ? rightEdge : Math.min(rightRaw, rightEdge);
+      const right =
+        rightRaw === null ? rightEdge : Math.min(rightRaw + halfBar, rightEdge);
       if (right <= left) continue;
 
       boxes.push({

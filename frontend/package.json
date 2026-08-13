@@ -10,7 +10,8 @@
     "e2e": "node e2e/sweep.mjs .playwright-shots",
     "e2e:resilience": "node e2e/resilience.mjs .playwright-shots",
     "e2e:zones": "node e2e/zone-audit.mjs .playwright-shots",
-    "e2e:visual": "node e2e/visual-audit.mjs .playwright-shots/visual"
+    "e2e:visual": "node e2e/visual-audit.mjs .playwright-shots/visual",
+    "e2e:pixels": "node e2e/pixel-truth.mjs .playwright-shots/pixel"
   },
   "dependencies": {
     "lightweight-charts": "^5.2.1",
