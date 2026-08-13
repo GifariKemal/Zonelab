@@ -8,7 +8,8 @@
     "start": "next start",
     "lint": "eslint",
     "e2e": "node e2e/sweep.mjs .playwright-shots",
-    "e2e:resilience": "node e2e/resilience.mjs .playwright-shots"
+    "e2e:resilience": "node e2e/resilience.mjs .playwright-shots",
+    "e2e:zones": "node e2e/zone-audit.mjs .playwright-shots"
   },
   "dependencies": {
     "lightweight-charts": "^5.2.1",

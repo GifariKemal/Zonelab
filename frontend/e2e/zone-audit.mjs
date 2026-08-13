@@ -24,6 +24,15 @@ const page = await browser.newPage({ viewport: { width: 1400, height: 800 }, dev
 await page.goto("http://127.0.0.1:3100/", { waitUntil: "networkidle" });
 await page.waitForTimeout(6000);
 
+// Put the CHART on the interval being audited before fetching anything.
+// Without this the page keeps its default series while the script frames
+// timestamps from another timeframe, and every screenshot silently shows the
+// wrong candles at a meaningless zoom. The arithmetic still passes, which is
+// what makes the failure mode dangerous.
+await page.locator(`div[aria-label="Timeframe"] button:text-is("${INTERVAL}")`).click();
+await page.locator("select").nth(2).selectOption(String(BARS));
+await page.waitForTimeout(6000);
+
 // Same request the page made, so the zones framed are the zones on screen.
 const drawn = await page.evaluate(
   async ([api, interval, bars]) => {
@@ -38,8 +47,23 @@ const drawn = await page.evaluate(
 );
 
 const { candles, drawing } = drawn;
-const step = candles[1].time - candles[0].time;
-const index = new Map(candles.map((c, i) => [c.time, i]));
+
+// Prove the chart is showing these bars, not merely that the API returned them.
+// A frame drawn from timestamps the series does not contain is not a picture of
+// anything, and it looks entirely normal.
+const onScreen = await page.evaluate(() => {
+  const range = window.__zonelabChart.chart.timeScale().getVisibleRange();
+  return range ? { from: Number(range.from), to: Number(range.to) } : null;
+});
+if (!onScreen || onScreen.to < candles[0].time || onScreen.from > candles.at(-1).time) {
+  console.error(
+    `the chart is not showing the ${INTERVAL} series that was fetched ` +
+      `(visible ${JSON.stringify(onScreen)}, data ${candles[0].time}..${candles.at(-1).time})`,
+  );
+  await browser.close();
+  process.exit(2);
+}
+
 const records = [];
 
 for (const [n, zone] of drawing.zones.entries()) {
