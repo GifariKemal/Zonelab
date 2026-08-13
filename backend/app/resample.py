@@ -30,8 +30,17 @@ from .models import Candle
 from .providers.base import INTERVALS
 
 
-def resample(candles: list[Candle], target: str, source: str) -> list[Candle]:
+def resample(
+    candles: list[Candle], target: str, source: str, session_offset_hours: float = 0.0
+) -> list[Candle]:
     """Aggregate `candles` up to the `target` interval.
+
+    `session_offset_hours` shifts the grid off UTC midnight. This is not a
+    nicety: a broker whose trading day starts at 22:00 or 01:00 puts its H4 and
+    D1 candles on a different grid than a UTC-anchored aggregate, and the result
+    is a zone drawn one candle away from where the same zone appears in the
+    trading terminal. It is the most common cause of "the H4 zone is off by
+    one" and it is invisible unless you compare the two charts side by side.
 
     Returns an empty list when the target is not strictly higher than the
     source; callers treat that as "no higher timeframe available" rather than
@@ -42,9 +51,13 @@ def resample(candles: list[Candle], target: str, source: str) -> list[Candle]:
     if step <= INTERVALS[source] or not candles:
         return []
 
+    # Floor-divide handles negative offsets correctly in Python, so a broker day
+    # starting at 22:00 the previous evening can be written as -2.
+    shift = int(session_offset_hours * 3600)
     buckets: dict[int, list[Candle]] = {}
     for candle in candles:
-        buckets.setdefault(candle.time // step * step, []).append(candle)
+        start = ((candle.time - shift) // step) * step + shift
+        buckets.setdefault(start, []).append(candle)
 
     out: list[Candle] = []
     for start in sorted(buckets):

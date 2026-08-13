@@ -27,6 +27,9 @@ export default function Page() {
   // Supply and demand is top-down: the zone belongs to the higher timeframe,
   // the entry to the lower. Off by default so the chart starts uncluttered.
   const [htf, setHtf] = useState<string>("off");
+  // Brokers do not all start their day at UTC midnight. Getting this wrong puts
+  // every H4 and D1 zone one candle away from the terminal's own.
+  const [sessionOffset, setSessionOffset] = useState("0");
   const [params, setParams] = useState<SupplyDemandParams>(DEFAULT_PARAMS);
 
   const [data, setData] = useState<DrawResponse | null>(null);
@@ -59,6 +62,7 @@ export default function Page() {
         bars,
         provider,
         htf: htf === "off" ? null : htf,
+        session_offset_hours: Number(sessionOffset),
         supply_demand: params,
         signal: controller.signal,
       })
@@ -76,7 +80,7 @@ export default function Page() {
     }, DEBOUNCE_MS);
 
     return () => clearTimeout(timer);
-  }, [symbol, interval, bars, provider, htf, params]);
+  }, [symbol, interval, bars, provider, htf, sessionOffset, params]);
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -148,6 +152,15 @@ export default function Page() {
             ),
           ]}
         />
+
+        {htf !== "off" ? (
+          <Picker
+            label="Session"
+            value={sessionOffset}
+            onChange={setSessionOffset}
+            options={["0", "-2", "1", "2", "3"]}
+          />
+        ) : null}
 
         <div className="flex border border-line-strong" role="group" aria-label="Timeframe">
           {(config?.intervals ?? ["15m"]).map((id) => (

@@ -27,7 +27,7 @@ def get(path: str, **params) -> httpx.Response:
 
 
 def draw(**body) -> httpx.Response:
-    payload = {
+    payload: dict = {
         "symbol": "XAUUSD",
         "interval": "15m",
         "bars": 300,
@@ -196,6 +196,29 @@ def main() -> int:
           all(z["timeframe"] == "15m" for z in draw(interval="15m", htf="15m").json()["drawing"]["zones"]))
     check("an htf below the interval is ignored",
           all(z["timeframe"] == "1h" for z in draw(interval="1h", htf="15m").json()["drawing"]["zones"]))
+
+    # The session offset must actually move the higher-timeframe grid. A broker
+    # whose day does not start at UTC midnight otherwise gets zones one candle
+    # away from the ones in its own terminal.
+    shifted = draw(bars=1000, interval="15m", htf="4h", session_offset_hours=1).json()
+    shifted_zones = [z for z in shifted["drawing"]["zones"] if z["timeframe"] == "4h"]
+    check("a session offset shifts the htf grid", len(shifted_zones) > 0)
+    check(
+        "shifted htf zones sit on the offset grid, not the UTC one",
+        all((z["time_from"] - 3600) % 14400 == 0 for z in shifted_zones),
+        str([z["time_from"] % 14400 for z in shifted_zones][:4]),
+    )
+
+    # Higher-timeframe nesting. Both cohorts must exist, or the flag is
+    # measuring nothing: an "always true" label cannot distinguish anything.
+    nested = [z for z in htf["drawing"]["zones"] if z["timeframe"] == "15m" and z["nested_in"]]
+    alone = [z for z in htf["drawing"]["zones"] if z["timeframe"] == "15m" and not z["nested_in"]]
+    check("nesting produces both cohorts", len(nested) > 0 and len(alone) > 0,
+          f"{len(nested)} nested, {len(alone)} alone")
+    check("nesting names only higher timeframes",
+          all(tf == "4h" for z in nested for tf in z["nested_in"]))
+    check("nothing is nested when no higher timeframe is requested",
+          all(not z["nested_in"] for z in draw(bars=400).json()["drawing"]["zones"]))
 
     # ---- parameter response ----------------------------------------------
     loose = len(draw(bars=800, supply_demand={"departure_min_atr": 0.0})

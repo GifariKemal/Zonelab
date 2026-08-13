@@ -41,8 +41,10 @@ from dataclasses import dataclass, field
 
 import numpy as np
 
+from app.confluence import mark_nesting
 from app.detect.supply_demand import detect
 from app.indicators import wilder_atr
+from app.resample import resample
 from app.models import Candle, SupplyDemandParams, Zone, ZoneSide
 from tools import history
 
@@ -69,6 +71,7 @@ class Observation:
     factors: dict[str, float]
     strength: float  # the composite under test; today that is formation_score
     departure: float  # raw ATR multiple, kept out of the composite on purpose
+    nested: bool = False  # sits inside a higher-timeframe zone of the same side
 
 
 @dataclass
@@ -139,8 +142,22 @@ def evaluate(
     reward_atr: float,
     horizon: int,
     label: str,
+    interval: str = "",
 ) -> Dataset:
     zones, _ = detect(candles, params)
+
+    # Stamp higher-timeframe nesting so it can be measured alongside everything
+    # else. The step up is 4x, which sits in the middle of the 3x to 12x band
+    # practitioners actually use, and matters only in that it must be the same
+    # for every series or the cohorts are not comparable.
+    step_up = {"15m": "1h", "1h": "4h", "4h": "1d"}.get(interval)
+    if step_up:
+        higher_bars = resample(candles, step_up, interval)
+        if len(higher_bars) >= params.atr_period + 3:
+            higher_zones, _ = detect(higher_bars, params)
+            for hz in higher_zones:
+                hz.timeframe = step_up
+            mark_nesting(zones, higher_zones)
     high = np.array([c.high for c in candles])
     low = np.array([c.low for c in candles])
     close = np.array([c.close for c in candles])
@@ -165,7 +182,8 @@ def evaluate(
 
         strength, factors, departure = scored
         observation = Observation(
-            zone.side.value, zone.kind.value, touch, outcome, factors, strength, departure
+            zone.side.value, zone.kind.value, touch, outcome, factors, strength,
+            departure, bool(zone.nested_in),
         )
 
         if departure < SHIPPED_GATE:
@@ -186,7 +204,7 @@ def evaluate(
                 data.placebo.append(
                     Observation(
                         zone.side.value, zone.kind.value, p_touch, p_outcome,
-                        factors, strength, departure,
+                        factors, strength, departure, bool(zone.nested_in),
                     )
                 )
     return data
@@ -307,6 +325,16 @@ def report(datasets: list[Dataset], reward_atr: float, horizon: int) -> dict:
     p_labels = np.array([o.held for o in placebo]) if placebo else np.array([], dtype=bool)
     r_labels = np.array([o.held for o in rejected]) if rejected else np.array([], dtype=bool)
 
+    out: dict = {
+        "n": len(real),
+        "base_rate": base,
+        "placebo_rate": float(p_labels.mean()) if len(p_labels) else None,
+        "rejected_rate": float(r_labels.mean()) if len(r_labels) else None,
+        "rejected_n": len(r_labels),
+        "gate_test": _two_proportion(labels, r_labels) if len(r_labels) else None,
+        "factors": {},
+    }
+
     print(f"\n{'=' * 78}")
     print(f"REWARD {reward_atr} ATR, HORIZON {horizon} bars")
     print(f"{'=' * 78}")
@@ -323,6 +351,27 @@ def report(datasets: list[Dataset], reward_atr: float, horizon: int) -> dict:
             f"   {_two_proportion(labels, r_labels)}"
         )
 
+    # The one multi-timeframe rule every school agrees on, and one the published
+    # record never puts a number to. Both cohorts are drawn zones from the same
+    # detector on the same bars; the only difference is whether a
+    # higher-timeframe zone of the same side already enclosed them.
+    nested = np.array([o.held for o in real if o.nested])
+    alone = np.array([o.held for o in real if not o.nested])
+    if len(nested) and len(alone):
+        print(
+            f"\n  nested in an HTF zone   n={len(nested):<4} held={nested.mean():.1%}"
+            f"\n  standing alone          n={len(alone):<4} held={alone.mean():.1%}"
+            f"\n  difference              {nested.mean() - alone.mean():+.1%}"
+            f"   {_two_proportion(nested, alone)}"
+        )
+        out["nesting"] = {
+            "nested_n": len(nested),
+            "nested_held": float(nested.mean()),
+            "alone_n": len(alone),
+            "alone_held": float(alone.mean()),
+            "test": _two_proportion(nested, alone),
+        }
+
     # An AUC needs both classes to mean anything. At tight geometries the hold
     # rate is so high that a handful of failures carry every negative, and the
     # bootstrap happily reports a narrow interval around a number computed from
@@ -334,16 +383,6 @@ def report(datasets: list[Dataset], reward_atr: float, horizon: int) -> dict:
 
     print(f"\n  {'factor':<14}{'AUC':>8}{'95% CI':>18}   reading")
     factor_names = list(real[0].factors)
-    out: dict = {
-        "n": len(real),
-        "base_rate": base,
-        "placebo_rate": float(p_labels.mean()) if len(p_labels) else None,
-        "rejected_rate": float(r_labels.mean()) if len(r_labels) else None,
-        "rejected_n": len(r_labels),
-        "gate_test": _two_proportion(labels, r_labels) if len(r_labels) else None,
-        "factors": {},
-    }
-
     for name in [*factor_names, "strength"]:
         values = np.array(
             [o.strength if name == "strength" else o.factors[name] for o in real]
@@ -464,7 +503,7 @@ def main() -> None:
     everything: dict = {}
     for reward_atr, horizon in [(0.5, 40), (1.0, 40), (2.0, 80)]:
         datasets = [
-            evaluate(candles, params, reward_atr, horizon, f"{s}-{tf}")
+            evaluate(candles, params, reward_atr, horizon, f"{s}-{tf}", tf)
             for s, tf, candles in loaded
         ]
         for d in datasets:

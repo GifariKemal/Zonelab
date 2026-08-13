@@ -31,6 +31,10 @@ export interface Zone {
   /** Which timeframe's candles formed this zone. Higher than the chart's own
    *  interval means it was projected down from a top-down pass. */
   timeframe: string;
+  /** Higher timeframes whose same-side zone encloses this one and predates it.
+   *  Measured and found not to help; reported because it is the one MTF rule
+   *  every school of the method asserts. */
+  nested_in: string[];
   /** One-way travel across the base as a fraction of its height. Near 1 means
    *  the base was a staircase rather than a pause. Reported, not filtered. */
   base_drift: number;

@@ -149,8 +149,46 @@ Siklus hidup zona HTF dievaluasi pada bar HTF-nya sendiri, bukan pada bar chart.
 Zona demand H4 tidak boleh mati hanya karena satu candle M15 menutup beberapa sen
 di bawahnya.
 
-Semua ini dijaga oleh lima pengujian resample dan enam asersi kontrak API,
+Semua ini dijaga oleh lima pengujian resample dan sebelas asersi kontrak API,
 termasuk bahwa setiap zona 4h jatuh tepat di grid 4 jam.
+
+### Jam sesi broker
+
+Grid HTF sekarang bisa digeser dari tengah malam UTC lewat `session_offset_hours`.
+Ini bukan kenyamanan: broker yang harinya mulai pukul 22:00 atau 01:00 menaruh
+candle H4 dan D1-nya di grid yang berbeda dari agregat berbasis UTC, dan hasilnya
+zona tergambar **satu candle meleset** dari zona yang sama di terminalnya.
+Penyebab paling umum keluhan "zona H4-nya geser satu", dan tidak terlihat kecuali
+kedua chart dibandingkan berdampingan. Picker-nya muncul di header begitu HTF
+dinyalakan.
+
+### Aturan MTF yang disepakati semua aliran, diuji
+
+"Zona timeframe rendah yang berada di dalam zona timeframe tinggi lebih mungkin
+menang." Seiden, ICT, dan literatur SMC sama-sama menyatakannya. Menurut penelusuran
+sumber, **belum ada yang pernah menerbitkan angkanya.**
+
+Kondisi bersarang harus ketat, dan ini bagian pentingnya. Percobaan pertama saya
+memakai sekadar *tumpang tindih* harga dan menandai **226 dari 234** zona sebagai
+bersarang. Syarat yang dipenuhi 97% kasus tidak bisa membedakan apa pun. Definisi
+final: minimal 80% tinggi zona lokal berada di dalam zona HTF, sisi sama, zona HTF
+lahir lebih dulu, dan zona HTF masih hidup saat zona lokal terbentuk.
+
+| Reward | Bersarang | Berdiri sendiri | Selisih | Uji |
+|---|---|---|---|---|
+| 0.5 ATR | 97.2% (n=141) | 98.9% (n=93) | -1.8 pp | z=-0.91, p=0.36 |
+| 1.0 ATR | 83.7% (n=141) | 86.0% (n=93) | -2.3 pp | z=-0.48, p=0.63 |
+| 2.0 ATR | 59.4% (n=138) | 63.4% (n=93) | -4.0 pp | z=-0.61, p=0.54 |
+
+**Tidak ada manfaat terukur**, dan titik estimasinya sedikit negatif di ketiga
+geometri. Tidak satu pun signifikan, jadi efek positif kecil belum bisa
+disingkirkan; yang bisa dikatakan adalah efek besar yang tersirat dalam doktrinnya
+tidak muncul di sini.
+
+Batasannya jujur: langkah naiknya hanya 4x (15m ke 1h, 1h ke 4h) sedangkan praktisi
+sering memakai lompatan jauh lebih besar, detektor yang sama dipakai di kedua
+timeframe, dan n=234 tidak akan pernah bisa menyelesaikan efek 2 poin persen.
+Karena itu hasilnya **dilaporkan lewat medan `nested_in`, tidak dijadikan skor.**
 
 ## Yang belum diuji
 

@@ -130,6 +130,16 @@ class Zone(BaseModel):
         ),
     )
 
+    nested_in: list[str] = Field(
+        default_factory=list,
+        description=(
+            "Higher timeframes whose zone of the same side encloses this one, "
+            "and which already existed when this zone formed. The one "
+            "multi-timeframe claim every school of this method agrees on, and "
+            "one nobody has published a number for. Reported, not scored."
+        ),
+    )
+
     touches: int = 0
     penetration_pct: float = Field(
         default=0.0, description="Deepest entry into the zone, 0..1 of its height"
@@ -233,6 +243,17 @@ class DrawRequest(BaseModel):
         description=(
             "Optional higher timeframe to also draw zones from, aggregated from "
             "the same bars. Ignored unless strictly higher than `interval`."
+        ),
+    )
+    session_offset_hours: float = Field(
+        default=0.0,
+        ge=-12.0,
+        le=12.0,
+        description=(
+            "Shifts the higher-timeframe grid off UTC midnight, to match the "
+            "broker's trading day. Gold and FX brokers commonly start at 22:00 "
+            "or 01:00; leaving this at 0 puts every H4 and D1 zone one candle "
+            "away from where the terminal draws it."
         ),
     )
     detectors: list[str] = Field(default_factory=lambda: ["supply_demand"])

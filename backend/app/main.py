@@ -11,6 +11,7 @@ from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 
 from .config import settings
+from .confluence import mark_nesting
 from .detect import DETECTORS
 from .models import Candle, DrawRequest, DrawResponse, Drawing, Zone, ZoneState
 from .resample import resample
@@ -108,6 +109,8 @@ async def draw(request: DrawRequest) -> DrawResponse:
 
         if request.htf:
             higher, htf_stats = _htf_zones(rows, request)
+            mark_nesting(zones, higher)
+            htf_stats["nested_local_zones"] = sum(1 for z in zones if z.nested_in)
             drawing.zones = higher + drawing.zones
             meta["htf"] = htf_stats
 
@@ -135,7 +138,9 @@ def _htf_zones(rows: list[Candle], request: DrawRequest) -> tuple[list[Zone], di
     if request.htf is None or request.htf not in INTERVALS:
         return [], {"error": f"unknown timeframe '{request.htf}'"}
 
-    higher = resample(rows, request.htf, request.interval)
+    higher = resample(
+        rows, request.htf, request.interval, request.session_offset_hours
+    )
     if len(higher) < request.supply_demand.atr_period + 3:
         return [], {
             "bars": len(higher),
