@@ -26,9 +26,12 @@ the output is trustworthy:
 
 from __future__ import annotations
 
+from dataclasses import dataclass
+
 import numpy as np
 
 from ..indicators import EPS, classify_candles, runs, wilder_atr
+from ..profit_zone import mark_crowding, mark_profit_zones
 from ..models import (
     Anatomy,
     Candle,
@@ -81,6 +84,87 @@ _STATE_PRIORITY = {
 # Kept for the calibration harness, which needs a stable scale to bucket raw
 # departure on. Nothing in the shipped score uses it any more.
 _DEPARTURE_SATURATION = 5.0
+
+
+@dataclass
+class Lifecycle:
+    """What price did to a zone after its leg-out."""
+
+    state: ZoneState
+    touches: int
+    penetration: float
+    first_test_time: int | None
+    arrival_atr: float | None
+    break_index: int | None
+
+
+def replay_lifecycle(
+    time: np.ndarray,
+    high: np.ndarray,
+    low: np.ndarray,
+    close: np.ndarray,
+    atr: np.ndarray,
+    top: float,
+    bottom: float,
+    distal: float,
+    is_demand: bool,
+    start: int,
+    params: SupplyDemandParams,
+) -> Lifecycle:
+    """Walk the bars from `start` and report what became of this box.
+
+    Separate from `detect` because refinement shrinks a zone AFTER detection,
+    and a tighter distal is a different question about the same bars: price that
+    never closed past the wide edge may well have closed past the narrow one. A
+    refined zone that kept its old `state` would be drawn as fresh when the
+    chart plainly shows it broken.
+    """
+    height = max(top - bottom, EPS)
+    touches = 0
+    penetration = 0.0
+    first_test_time: int | None = None
+    arrival_atr: float | None = None
+    break_index: int | None = None
+    was_inside = False
+
+    for i in range(start, len(close)):
+        if close[i] < distal if is_demand else close[i] > distal:
+            break_index = i
+            break
+
+        inside = low[i] <= top and high[i] >= bottom
+        if inside:
+            # Consecutive bars sitting in the zone are one visit, not five.
+            if not was_inside:
+                touches += 1
+                if first_test_time is None:
+                    first_test_time = int(time[i])
+                    # How hard price came back. Measured once, at the first
+                    # touch, because that is the only moment the question is
+                    # actionable. The doctrine disagrees with itself about
+                    # whether fast is good or bad, so it is recorded and left
+                    # unscored.
+                    arr_from = max(0, i - params.arrival_bars)
+                    if atr[i] > EPS and i > arr_from:
+                        arrival_atr = round(
+                            abs(close[i] - close[arr_from]) / float(atr[i]), 3
+                        )
+            depth = (top - low[i]) if is_demand else (high[i] - bottom)
+            penetration = max(penetration, min(1.0, depth / height))
+        was_inside = inside
+
+    if break_index is not None:
+        state = ZoneState.BROKEN
+    elif penetration >= params.mitigation_pct:
+        state = ZoneState.MITIGATED
+    elif touches > 0:
+        state = ZoneState.TESTED
+    else:
+        state = ZoneState.FRESH
+
+    return Lifecycle(
+        state, touches, penetration, first_test_time, arrival_atr, break_index
+    )
 
 
 def detect(
@@ -257,50 +341,16 @@ def detect(
         curve_favourable = curve <= 1 / 3 if is_demand else curve >= 2 / 3
 
         # --- lifecycle: replay every bar after the leg-out ------------------
-        touches = 0
-        penetration = 0.0
-        first_test_time: int | None = None
-        arrival_atr: float | None = None
-        break_index: int | None = None
-        was_inside = False
-
-        for i in range(leg_out[2] + 1, n):
-            if is_demand and close[i] < distal:
-                break_index = i
-                break
-            if not is_demand and close[i] > distal:
-                break_index = i
-                break
-
-            inside = low[i] <= top and high[i] >= bottom
-            if inside:
-                # Consecutive bars sitting in the zone are one visit, not five.
-                if not was_inside:
-                    touches += 1
-                    if first_test_time is None:
-                        first_test_time = int(time[i])
-                        # How hard price came back. Measured once, at the first
-                        # touch, because that is the only moment the question is
-                        # actionable. The doctrine disagrees with itself about
-                        # whether fast is good or bad, so it is recorded and
-                        # left unscored.
-                        arr_from = max(0, i - params.arrival_bars)
-                        if atr[i] > EPS and i > arr_from:
-                            arrival_atr = round(
-                                abs(close[i] - close[arr_from]) / float(atr[i]), 3
-                            )
-                depth = (top - low[i]) if is_demand else (high[i] - bottom)
-                penetration = max(penetration, min(1.0, depth / height))
-            was_inside = inside
-
-        if break_index is not None:
-            state = ZoneState.BROKEN
-        elif penetration >= params.mitigation_pct:
-            state = ZoneState.MITIGATED
-        elif touches > 0:
-            state = ZoneState.TESTED
-        else:
-            state = ZoneState.FRESH
+        life = replay_lifecycle(
+            time, high, low, close, atr, top, bottom, distal, is_demand,
+            leg_out[2] + 1, params,
+        )
+        state = life.state
+        touches = life.touches
+        penetration = life.penetration
+        first_test_time = life.first_test_time
+        arrival_atr = life.arrival_atr
+        break_index = life.break_index
 
         # --- formation description -------------------------------------------
         # Everything here is fixed when the zone forms and never moves again.
@@ -381,13 +431,30 @@ def detect(
     visible = [z for z in kept if z.state in allowed]
     stats["rejected_state_filter"] = len(kept) - len(visible)
 
+    # The two cross-zone passes run HERE, on everything that survived detection,
+    # and not in the caller on what survived the display cap. A wall the chart
+    # did not have room to draw is still a wall, and measuring the road against
+    # the drawn subset makes it look longer than it is - by exactly the amount
+    # the cap threw away. Same class of error as calibrating through the cap.
+    if visible:
+        mark_profit_zones(visible, int(time[-1]))
+        mark_crowding(visible, params.min_profit_zone_rr)
+
     result: list[Zone] = []
     for side in (ZoneSide.DEMAND, ZoneSide.SUPPLY):
         # Cap per side by recency: the zones price can actually reach next are
         # the ones nearest in time, not the strongest one from 400 bars ago.
+        #
+        # Zero disables it, and that escape hatch is not a nicety. This cap is a
+        # READABILITY limit, but it selects on time, so any measurement taken
+        # through it is a measurement of the recent tail wearing the whole
+        # history's name. It did exactly that here until 2026-08-13.
         per_side = [z for z in visible if z.side is side]
         per_side.sort(key=lambda z: z.time_from, reverse=True)
-        result.extend(per_side[: params.max_zones_per_side])
+        result.extend(
+            per_side if params.max_zones_per_side == 0
+            else per_side[: params.max_zones_per_side]
+        )
 
     result.sort(key=lambda z: z.time_from)
     stats["zones"] = len(result)

@@ -45,6 +45,7 @@ export function fetchDrawing(request: {
   bars: number;
   provider: string;
   htf: string | null;
+  refine: boolean;
   session_offset_hours: number;
   supply_demand: SupplyDemandParams;
   signal?: AbortSignal;

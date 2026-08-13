@@ -76,9 +76,15 @@ class ZoneBodyRenderer implements IPrimitivePaneRenderer {
         const y = Math.round(box.top * ky);
         const h = Math.max(Math.round((box.bottom - box.top) * ky), 2);
 
+        // A zone whose road has been shut is still a real zone - price may well
+        // turn there - but the trade it offered is gone, and a wall built by
+        // some LATER zone is invisible in this box's own geometry. Halving the
+        // fill is the whole treatment: dimmer than its neighbours, still
+        // clickable, still carrying its evidence in the inspector.
+        const crowded = zone.crowded_at !== null;
         ctx.fillStyle = rgba(
           zone.side,
-          FILL_ALPHA[zone.state] * (selected ? 1.9 : 1),
+          FILL_ALPHA[zone.state] * (selected ? 1.9 : 1) * (crowded ? 0.45 : 1),
         );
         ctx.fillRect(x, y, w, h);
 
@@ -87,7 +93,7 @@ class ZoneBodyRenderer implements IPrimitivePaneRenderer {
         ctx.save();
         ctx.strokeStyle = rgba(
           zone.side,
-          selected ? 1 : EDGE_ALPHA[zone.state],
+          (selected ? 1 : EDGE_ALPHA[zone.state]) * (crowded ? 0.5 : 1),
         );
         ctx.lineWidth = (selected ? 2.5 : box.projected ? 2 : 1) * ky;
         if (!zone.confirmed) ctx.setLineDash([4 * kx, 3 * kx]);

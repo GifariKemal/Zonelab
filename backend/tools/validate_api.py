@@ -299,6 +299,61 @@ def main() -> int:
     check("the per-side cap is enforced",
           all(sum(1 for z in capped if z["side"] == s) <= 1 for s in ("demand", "supply")))
 
+    # Zero has to mean OFF and not "keep none". The cap selects the NEWEST zones,
+    # so any measurement taken through it silently becomes a measurement of the
+    # tail of the history - which is exactly what happened to this project's own
+    # calibration until 2026-08-13.
+    uncapped = draw(bars=800, supply_demand={"max_zones_per_side": 0}).json()["drawing"]["zones"]
+    check("a cap of zero means no cap at all", len(uncapped) > len(capped),
+          f"{len(uncapped)} vs {len(capped)}")
+
+    # ---- refinement ------------------------------------------------------
+    plain = draw(bars=1500, interval="15m", htf="4h").json()["drawing"]["zones"]
+    fine = draw(bars=1500, interval="15m", htf="4h", refine=True).json()
+    refined = [z for z in fine["drawing"]["zones"] if z.get("refinement")]
+    check("refinement is off unless asked for",
+          all(z.get("refinement") is None for z in plain))
+    check("refining an htf chart refines something", len(refined) > 0,
+          str(fine["meta"].get("htf")))
+    check("a refined box is strictly smaller than the one it replaced",
+          all(0 < z["refinement"]["shrank_to"] < 1 for z in refined))
+    check(
+        "a refined box never reaches outside the original",
+        all(
+            z["top"] <= z["refinement"]["from_top"] + 1e-6
+            and z["bottom"] >= z["refinement"]["from_bottom"] - 1e-6
+            for z in refined
+        ),
+    )
+    check("a refined box still has the distal on the far side",
+          all((z["proximal"] > z["distal"]) == (z["side"] == "demand") for z in refined))
+    check("refinement names the timeframe it cut from",
+          all(z["refinement"]["timeframe"] == "15m" for z in refined))
+    check("refinement is only offered to higher-timeframe zones",
+          all(z["timeframe"] == "4h" for z in refined))
+
+    # ---- the road ahead --------------------------------------------------
+    open_road = draw(bars=1500).json()["drawing"]["zones"]
+    check("nothing is stamped crowded while the check is off",
+          all(z["crowded_at"] is None for z in open_road))
+    shut = draw(bars=1500, supply_demand={"min_profit_zone_rr": 2.0}).json()
+    kept = shut["drawing"]["zones"]
+    check("the road filter removes zones", len(kept) < len(open_road),
+          f"{len(kept)} vs {len(open_road)}")
+    check(
+        "every surviving zone has the road it was asked for",
+        all(z["profit_zone_rr"] is None or z["profit_zone_rr"] >= 2.0 for z in kept),
+    )
+    check("the filter trace counts what it removed",
+          shut["meta"]["supply_demand"].get("rejected_crowded", 0) > 0)
+    check(
+        "a zone is never marked crowded before it existed",
+        all(
+            z["crowded_at"] is None or z["time_from"] <= z["crowded_at"] <= z["time_to"]
+            for z in kept
+        ),
+    )
+
     # ---- bad input must be rejected, not absorbed -------------------------
     check("unknown interval is a 502 with a reason",
           draw(interval="7m").status_code == 502)

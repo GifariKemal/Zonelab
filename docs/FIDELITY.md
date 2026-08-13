@@ -343,14 +343,147 @@ piksel dan tidak bisa dipisahkan dengan mata pada zoom itu.
 > mereka pada ambang drift dipercaya karena aritmetika mendukungnya, dan
 > konvergensi mereka pada padding ditolak karena aritmetika membantahnya.
 
+## Penyempurnaan zona, dan angka yang belum pernah diterbitkan siapa pun
+
+Praktisi mengecilkan zona HTF dengan melihat candle LTF di dalamnya. `app/refine.py`
+melakukannya memakai **bar chart yang sudah ada**: zona HTF dibangun dari agregasi
+candle chart itu sendiri, jadi detail LTF di dalam tiap base HTF sudah ada di
+permintaan yang sama. Tidak ada fetch kedua, dan tidak ada cara kotak hasilnya
+dihitung dari bar yang tidak sedang ditampilkan chart.
+
+### Sumbernya lemah, dan itu harus dikatakan
+
+Ditelusuri 2026-08-13. **Tidak ada satu pun sumber primer dalam garis keturunan
+ini yang menerbitkan prosedur refinement.** Kolom Seiden di FXStreet dan MoneyShow,
+panduan pengguna Online Trading Academy, dan paten OTA (US8650115B1, Seiden
+tercantum sebagai inventor) semuanya bekerja pada satu timeframe tanpa langkah
+turun. Refinement adalah kodifikasi pihak ketiga yang dinisbatkan ke garis itu.
+Tidak adanya aturan terbitan bukan berarti tidak ada aturan, materi kursus
+berbayarnya memang tidak pernah publik, tetapi artinya tidak ada yang bisa
+dikutip. Jadi pilihannya dinyatakan, bukan disandarkan pada otoritas:
+
+| Pilihan | Dasarnya |
+|---|---|
+| Kedua tepi bergeser, stop pindah ke distal hasil refinement | Bacaan pihak ketiga yang dominan. Satu panduan SMC menyebut memakai stop HTF di bawah entri LTF sebagai kesalahan. Tidak ada yang membela posisi ketiga (entri LTF, distal HTF dipertahankan) |
+| Jeda **terakhir** yang dipilih, bukan yang tersempit | Kubu "cluster" menggambarkannya sebagai mencari sumber tempat pergerakan berangkat, dan itu yang terakhir. **Aturan "cluster tersempit" tidak ada di sumber mana pun**; mengarangnya lalu menyebutnya doktrin persis yang dihindari proyek ini |
+| Timeframe bawahnya adalah chart itu sendiri | Tidak ada rasio yang diterbitkan. Triplet "daily ke H1, H4 ke H1, M15 ke M5" yang beredar hanya bisa dilacak ke satu blog sekunder dan isinya lantai, bukan pembagi |
+
+> [!WARNING]
+> Refinement sub-candle milik ICT (mean threshold, entri di 50% badan, stop tetap
+> di luar wick penuh) melakukan **kebalikannya**: ia mempertahankan distal yang
+> lebih lebar. Tidak ada sumber yang mendamaikan dua konvensi ini. Modul ini
+> mengimplementasikan versi turun-timeframe.
+
+### Diukur, berpasangan
+
+Klaim yang beredar untuk refinement adalah aritmetika, bukan bukti: kotak 40 pip
+berisi kotak 5 pip, jadi target yang sama menjadi kelipatan risiko 8 kali lipat.
+Pembagian itu benar dan ia **mengandaikan hal yang sedang dipersoalkan**, yaitu
+bahwa stop yang lebih ketat bertahan sesering yang lebar.
+
+Setiap zona muncul dua kali, sebagaimana digambar detektor dan setelah
+disempurnakan, pada bar yang sama dan dinilai dengan aturan yang sama.
+`tools/refinement.py`, uji McNemar eksak pada pasangan yang berbeda pendapat.
+
+| Reward | n pasangan | Digambar | Disempurnakan | Selisih | Uji eksak |
+|---|---|---|---|---|---|
+| 0,5 ATR | 2336 | 84,2% | 80,1% | **-4,2 pp** | p<0,0001 |
+| 1,0 ATR | 2317 | 68,4% | 62,6% | **-5,8 pp** | p<0,0001 |
+| 2,0 ATR | 2329 | 47,7% | 37,9% | **-9,9 pp** | p<0,0001 |
+
+Jarak stop menyusut ke **48,6% dari aslinya** (median 45,6%), jadi reward per
+satuan risiko naik ke 2,19 kali (median).
+
+**Jawabannya: refinement memang membeli reward per risiko, dan ia membayarnya
+dengan tingkat bertahan, secara signifikan, di setiap geometri.** Kolom leverage
+adalah aritmetika dan bukan temuan; satu-satunya besaran yang diukur di sini
+adalah tingkat bertahan, dan ia turun. Apakah pertukarannya sepadan bergantung
+pada biaya transaksi trader, yang tidak dimodelkan proyek ini sama sekali.
+
+Karena itu `refine` **mati secara bawaan** dan muncul sebagai pilihan di header
+begitu HTF menyala. Dijaga oleh enam pengujian unit dan enam asersi kontrak API,
+termasuk bahwa kotak hasilnya tidak pernah keluar dari kotak asalnya, karena
+distal yang melar keluar akan **melonggarkan** stop yang justru ingin diketatkan
+refinement.
+
+> [!IMPORTANT]
+> Siklus hidup dihitung ulang setelah kotaknya bergeser. Distal yang lebih sempit
+> adalah pertanyaan berbeda atas bar yang sama: harga yang tidak pernah menutup
+> melewati tepi lebar bisa saja sudah menutup melewati tepi sempit. Zona yang
+> membawa `state` lamanya akan digambar segar di chart yang jelas-jelas
+> menunjukkannya sudah jebol. Dijaga oleh
+> `test_refinement_recomputes_the_lifecycle_it_invalidated`.
+
+## Invalidasi karena zona lawan baru
+
+Sebuah zona berhenti layak ketika jalan di depannya tertutup, dan jalan bisa
+tertutup **tanpa harga bergerak sama sekali**: cukup ada zona lawan baru terbentuk
+di jalurnya. Artinya validitas harus dievaluasi ulang pada peristiwa yang belum
+pernah didengarkan kode ini, yaitu **zona lain lahir**.
+
+`crowded_at` mencatat kapan itu pertama kali terjadi.
+
+### Ini formalisasi saya, bukan doktrin
+
+Penelusuran yang sama menemukan hal yang harus dinyatakan terang-terangan:
+
+- **Tidak ada sumber primer yang menyatakan sebuah zona menjadi tidak valid
+  ketika zona lawan baru terbentuk.** Paten OTA, yang merupakan kodifikasi
+  algoritmik penuh dari metode ini, tidak memuat logika diskualifikasi berbasis
+  zona lawan dan tidak memuat konstanta ambang reward:risk sama sekali.
+- Prosa Seiden bersifat **monotonik tanpa titik potong**: "abaikan sebagian besar
+  level dan fokus hanya pada yang jaraknya besar". Itu memilih yang lapang, bukan
+  mematikan yang sempit.
+- Lembar kerja OTA sendiri memberi skor 0 sampai 2 untuk reward:risk di dalam
+  komposit, sehingga jalan yang buruk **tidak bisa membatalkan zona sendirian**.
+  Itu bertentangan langsung dengan aturan invalidasi yang keras.
+- Setiap kriteria invalidasi yang diterbitkan dalam literatur ini digerakkan
+  **harga**: penutupan menembus zona, jumlah sentuhan, kedalaman penetrasi.
+  Evaluasi ulang saat zona lain terbentuk tidak ada di mana pun.
+
+> [!CAUTION]
+> **Tabrakan istilah yang harus diketahui siapa pun yang membaca sumber sekunder
+> metode ini.** "Profit margin" dipakai untuk dua hal yang berlawanan arah waktu.
+> Seiden memakai aturan 3:1 untuk **perjalanan awal menjauh dari zona saat zona
+> itu terbentuk** (mundur), sedangkan kompilasi pihak ketiga mengutipnya sebagai
+> **jarak ke target pertama** (maju). Seiden sendiri menyumbang ambiguitasnya
+> dengan menyebut uji mundur itu "1:3 risk/reward". Kode ini memakai dua nama
+> berbeda dan tidak pernah mencampurnya: `profit_margin` mundur, `profit_zone_rr`
+> maju.
+
+### Karena itu ia sumbu terpisah, bukan `state`
+
+`state` seluruhnya digerakkan harga: tersentuh, termakan, jebol. `crowded_at`
+tidak. Zona yang dimakan harga dan zona yang terkurung pendatang baru adalah dua
+situasi berbeda yang kebetulan sama-sama tidak bisa didagangkan, dan menggabungkan
+keduanya ke satu enum akan membuang satu-satunya informasi yang membedakannya.
+
+`crowded_at` adalah fakta historis dan tidak kedaluwarsa. Bila zona lawannya
+kemudian jebol, jalannya terbuka lagi dan `profit_zone_rr` yang berlaku
+mengatakannya; stempelnya tetap mencatat bahwa jalan itu pernah tertutup. Filter
+opsional di API membuang zona yang jalannya tertutup **sekarang**, karena itu
+pertanyaan yang sebenarnya sedang ditanyakan trader.
+
+### Dan hasilnya diukur
+
+Ini juga angka yang belum pernah diterbitkan siapa pun. Hasilnya ada di
+[`CALIBRATION.md`](CALIBRATION.md) dan patut diringkas di sini karena ia
+menentukan bawaannya: **jalan di depan adalah faktor peringkat pertama yang pernah
+lolos di proyek ini** (AUC 0,565 sampai 0,584, CI bersih dari 0,5, dan bertahan di
+kedua sisi sehingga drift tidak bisa memalsukannya). Meski begitu, sebagai gerbang
+ia hanya sepakat 7 dari 8 potongan waktu di luar sampel, sementara gerbang
+departure sepakat 8 dari 8 di ketiga geometri.
+
+Jadi `min_profit_zone_rr` **mati secara bawaan**. Memeringkat di dalam sampel dan
+bertahan sebagai gerbang di luar sampel adalah dua hal berbeda, dan hanya yang
+kedua yang cukup untuk menyalakan sesuatu.
+
 ## Yang belum diuji
 
-- **Penyempurnaan zona (zone refinement).** Praktisi mengecilkan zona HTF dengan
-  melihat candle LTF di dalamnya. Belum diimplementasikan.
-- **Invalidasi karena zona lawan baru.** Panduan OTA menyebut sebuah zona berhenti
-  layak ketika profit zone-nya jatuh di bawah minimum karena zona lawan baru
-  terbentuk. Artinya validitas harus dievaluasi ulang saat **zona lain lahir**,
-  bukan hanya saat harga bergerak. Belum ada.
 - **Premis mekaniknya sendiri.** Cerita "order institusional yang belum terisi"
   diperdebatkan dan tidak bisa diverifikasi dari data harga. Yang bisa diuji hanya
   apakah zonanya informatif, dan itulah yang diuji di `CALIBRATION.md`.
+- **Sentuhan kedua dan seterusnya.** Semua pengukuran hasil di sini berhenti pada
+  sentuhan pertama, termasuk yang baru.
+- **Refinement bertingkat.** Turun satu timeframe diuji; turun dua tidak, dan
+  tidak ada sumber yang menerbitkan lantai di mana turun lagi berhenti masuk akal.

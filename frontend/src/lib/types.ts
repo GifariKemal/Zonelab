@@ -26,6 +26,18 @@ export interface Anatomy {
   leg_out_to: number;
 }
 
+export interface Refinement {
+  /** Interval of the candles the refined box was cut from. */
+  timeframe: string;
+  from_top: number;
+  from_bottom: number;
+  /** Refined height as a fraction of the original, 0..1. */
+  shrank_to: number;
+  bars: number;
+  time_from: number;
+  time_to: number;
+}
+
 export interface Zone {
   id: string;
   kind: ZoneKind;
@@ -62,6 +74,13 @@ export interface Zone {
   /** Distance to the nearest live opposing zone, in units of this zone's own
    *  height. Null when nothing stands in the way. */
   profit_zone_rr: number | null;
+  /** When a newly formed OPPOSING zone first shut the road, epoch seconds.
+   *  Driven by other zones rather than by price, which is why it is not a
+   *  `state`. Null unless the road check is switched on and did fire. */
+  crowded_at: number | null;
+  /** Set when the box was shrunk to the lower-timeframe base inside it. Carries
+   *  the geometry it had before, so the change can be audited. */
+  refinement: Refinement | null;
   /** How hard price travelled in before the first touch, in ATR. Null until
    *  touched. Sources disagree on whether fast is good; measured, it is
    *  indistinguishable either way. */
@@ -86,6 +105,10 @@ export interface SupplyDemandParams {
   departure_lookahead: number;
   proximal_basis: "wick" | "body";
   min_profit_margin: number;
+  /** Clear road a zone needs ahead of it, in units of its own height. Above 0
+   *  it also filters. Ships at 0, i.e. reported only: it ranks in sample but
+   *  does not survive walk-forward. */
+  min_profit_zone_rr: number;
   zone_min_atr: number;
   mitigation_pct: number;
   show_broken: boolean;
@@ -104,6 +127,7 @@ export interface DrawResponse {
   meta: {
     bars_returned?: number;
     supply_demand?: Record<string, number>;
+    htf?: Record<string, number>;
   };
 }
 
@@ -126,6 +150,7 @@ export const DEFAULT_PARAMS: SupplyDemandParams = {
   departure_lookahead: 20,
   proximal_basis: "wick",
   min_profit_margin: 0,
+  min_profit_zone_rr: 0,
   zone_min_atr: 0.05,
   mitigation_pct: 0.5,
   show_broken: false,

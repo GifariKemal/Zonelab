@@ -53,8 +53,16 @@ from tools import history
 # off, because a display cap would silently bias the sample toward recent zones.
 # The departure gate is set to zero so the rejected cohort exists at all; the
 # split back into accepted and rejected happens on the as-of departure below.
+#
+# `max_zones_per_side=0` means NO CAP, and it has to be zero rather than a big
+# number. Until 2026-08-13 this said 100 - the schema maximum, which reads like
+# "off" and is not. The detector was finding 2030 zones per series and returning
+# 200, the newest, so every number in docs/CALIBRATION.md was computed on the
+# last 10% of each series while claiming 20,000 bars. That is the same display
+# cap that had already flattened three earlier measurements, caught a fourth
+# time, and it is the reason the cap can now be switched off outright.
 POPULATION = dict(
-    merge_overlap_pct=1.0, max_zones_per_side=100, show_broken=True, departure_min_atr=0.0
+    merge_overlap_pct=1.0, max_zones_per_side=0, show_broken=True, departure_min_atr=0.0
 )
 SHIPPED_GATE = SupplyDemandParams().departure_min_atr
 
@@ -273,7 +281,13 @@ def score_as_of(
     # against the last bar and therefore knows about opposing zones that formed
     # after the touch. Recompute it against what stood in the way at the time.
     forward = profit_zone_at(zone, all_zones, candles[touch].time)
-    factors["profit_zone_rr"] = min(forward or 0.0, 30.0)
+    # `None` means NO opposing zone stands in the way, which is the longest road
+    # there is, not the shortest. Folding it to 0.0 - which `or` does silently -
+    # ranks a completely clear road below a wall sitting on the entry, i.e. it
+    # inverts the best case into the worst one. Capped rather than infinite so a
+    # single unbounded value cannot dominate a rank statistic.
+    factors["profit_zone_rr"] = 30.0 if forward is None else min(forward, 30.0)
+    factors["road_is_clear"] = float(forward is None)
 
     return formation, factors, departure
 
@@ -445,6 +459,12 @@ def report(datasets: list[Dataset], reward_atr: float, horizon: int) -> dict:
                 [0, 1, 2, 3, 4, 6, 99],
                 "doctrine asks for 3",
             ),
+            (
+                "profit zone (x zone)",
+                np.array([o.factors["profit_zone_rr"] for o in everything]),
+                [0, 1, 2, 3, 4, 6, 30.01],
+                "road ahead; 30 is 'no wall at all'",
+            ),
         ):
             print(f"\n  {name:<22}  n     held     <- {note}")
             buckets = []
@@ -467,31 +487,64 @@ def report(datasets: list[Dataset], reward_atr: float, horizon: int) -> dict:
     # the two sides: AUC below 0.5 for demand, above 0.5 for supply. If both
     # sides point the same way, the variable is tracking drift in a trending
     # sample and has nothing to do with the curve.
-    print(f"\n  curve by side       n     AUC    reading")
-    curve_sides = {}
-    for side in ("demand", "supply"):
-        picked = [o for o in real if o.side == side]
-        if len(picked) < 30:
-            print(f"  {side:<18}{len(picked):>5}      -    too few")
-            continue
-        values = np.array([o.factors["curve_position"] for o in picked])
-        marks = np.array([o.held for o in picked])
-        if values.std() < 1e-12 or marks.all() or not marks.any():
-            print(f"  {side:<18}{len(picked):>5}      -    no contrast")
-            continue
-        value = auc(values, marks)
-        curve_sides[side] = value
-        want = "low is better" if side == "demand" else "high is better"
-        got = "low is better" if value < 0.5 else "high is better"
-        print(f"  {side:<18}{len(picked):>5}  {value:>6.3f}   {got}, doctrine says {want}")
-    if len(curve_sides) == 2:
-        opposed = (curve_sides["demand"] - 0.5) * (curve_sides["supply"] - 0.5) < 0
-        print(
-            "  -> sides point in opposite directions, consistent with a real curve effect"
-            if opposed
-            else "  -> BOTH SIDES POINT THE SAME WAY: this is drift, not the curve"
-        )
-        out["curve_by_side"] = {**curve_sides, "opposed": bool(opposed)}
+    #
+    # `profit_zone_rr` needs the same split for the opposite reason, and getting
+    # the expectation backwards would be easy. A long road for DEMAND means no
+    # supply above it, which on a rising sample is simply "price is at its
+    # highs" - a description of the drift. A long road for SUPPLY means no
+    # demand below, which is the opposite location. So a mechanical road effect
+    # must show up as high-is-better on BOTH sides; a drift artefact shows up on
+    # one side and dies or inverts on the other.
+    for factor, expectation in (
+        ("curve_position", "opposed"),
+        ("profit_zone_rr", "same"),
+    ):
+        print(f"\n  {factor} by side   n     AUC    reading")
+        sides = {}
+        for side in ("demand", "supply"):
+            picked = [o for o in real if o.side == side]
+            if len(picked) < 30:
+                print(f"  {side:<18}{len(picked):>5}      -    too few")
+                continue
+            values = np.array([o.factors[factor] for o in picked])
+            marks = np.array([o.held for o in picked])
+            if values.std() < 1e-12 or marks.all() or not marks.any():
+                print(f"  {side:<18}{len(picked):>5}      -    no contrast")
+                continue
+            value = auc(values, marks)
+            lo, hi = bootstrap_auc(values, marks)
+            sides[side] = value
+            if factor == "curve_position":
+                want = "low is better" if side == "demand" else "high is better"
+            else:
+                want = "high is better"
+            got = "low is better" if value < 0.5 else "high is better"
+            clean = "CI clear of 0.5" if lo > 0.5 or hi < 0.5 else "CI crosses 0.5"
+            print(
+                f"  {side:<18}{len(picked):>5}  {value:>6.3f}   {got}, wanted {want}"
+                f"   [{lo:.3f}, {hi:.3f}] {clean}"
+            )
+        if len(sides) == 2:
+            opposed = (sides["demand"] - 0.5) * (sides["supply"] - 0.5) < 0
+            if expectation == "opposed":
+                print(
+                    "  -> sides point in opposite directions, consistent with a real effect"
+                    if opposed
+                    else "  -> BOTH SIDES POINT THE SAME WAY: this is drift, not the curve"
+                )
+                verdict = opposed
+            else:
+                both_up = sides["demand"] > 0.5 and sides["supply"] > 0.5
+                print(
+                    "  -> both sides say a longer road is better, which drift alone"
+                    " cannot produce"
+                    if both_up
+                    else "  -> ONE SIDE CARRIES IT: consistent with drift, not with the road"
+                )
+                verdict = both_up
+            out[f"{factor}_by_side"] = {**sides, "as_expected": bool(verdict)}
+    curve_sides = out.get("curve_position_by_side", {})
+    out["curve_by_side"] = curve_sides  # kept: docs/CALIBRATION.md cites this key
 
     # Split-half on time. A factor that only works in one half is a window fit.
     print(f"\n  {'factor':<14}{'AUC 1st half':>14}{'AUC 2nd half':>14}   stable?")
@@ -511,6 +564,29 @@ def report(datasets: list[Dataset], reward_atr: float, horizon: int) -> dict:
             f"{'same sign' if same_side else 'SIGN FLIPS'}"
         )
         out["factors"][name]["halves"] = [a, b]
+
+    # What a road gate would actually cost and buy, on DRAWN zones only. The
+    # bucket table above mixes in the gate-rejected cohort and so answers a
+    # different question; this one answers "if `min_profit_zone_rr` shipped at
+    # this value, what changes on the chart the user is looking at".
+    roads = np.array([o.factors["profit_zone_rr"] for o in real])
+    print(f"\n  road gate      kept    held kept   held cut     test")
+    gates = []
+    for threshold in (0.5, 1.0, 1.5, 2.0, 3.0):
+        keep = roads >= threshold
+        if keep.sum() < 30 or (~keep).sum() < 30:
+            continue
+        print(
+            f"  >= {threshold:<10.1f}{keep.mean():>6.1%}{labels[keep].mean():>11.1%}"
+            f"{labels[~keep].mean():>11.1%}     {_two_proportion(labels[keep], labels[~keep])}"
+        )
+        gates.append({
+            "threshold": threshold, "kept": float(keep.mean()),
+            "held_kept": float(labels[keep].mean()),
+            "held_cut": float(labels[~keep].mean()),
+            "test": _two_proportion(labels[keep], labels[~keep]),
+        })
+    out["road_gates"] = gates
 
     # Decile lift on the composite. If the top decile does not beat the base
     # rate, the composite is not usable as a ranking however good its AUC.

@@ -14,7 +14,8 @@ from .config import settings
 from .confluence import mark_nesting
 from .detect import DETECTORS
 from .models import Candle, DrawRequest, DrawResponse, Drawing, Zone, ZoneState
-from .profit_zone import mark_profit_zones
+from .profit_zone import mark_crowding, mark_profit_zones
+from .refine import refine_zones
 from .resample import resample
 from .providers import (
     INTERVALS,
@@ -108,17 +109,29 @@ async def draw(request: DrawRequest) -> DrawResponse:
         drawing.zones = zones
         meta["supply_demand"] = stats
 
-        # A zone's worth depends on the zones around it, so this runs over the
-        # finished set rather than inside the detector.
-        mark_profit_zones(zones, rows[-1].time)
-
+        # The road ahead and the crowding stamp are already on these zones: the
+        # detector runs both passes over its full population, before the display
+        # cap, which is the only place they can be measured honestly.
         if request.htf:
             higher, htf_stats = _htf_zones(rows, request)
             mark_nesting(zones, higher)
-            mark_profit_zones(higher, rows[-1].time)
             htf_stats["nested_local_zones"] = sum(1 for z in zones if z.nested_in)
             drawing.zones = higher + drawing.zones
             meta["htf"] = htf_stats
+
+        # The road-ahead filter, and it is a filter on the road as it stands
+        # NOW, not on whether the road was ever shut. `crowded_at` records the
+        # history either way; a zone whose opposing wall has since been broken
+        # is tradeable again and is not removed here.
+        min_rr = request.supply_demand.min_profit_zone_rr
+        if min_rr > 0:
+            before = len(drawing.zones)
+            drawing.zones = [
+                z
+                for z in drawing.zones
+                if z.profit_zone_rr is None or z.profit_zone_rr >= min_rr
+            ]
+            stats["rejected_crowded"] = before - len(drawing.zones)
 
     return DrawResponse(
         symbol=request.symbol,
@@ -154,6 +167,26 @@ def _htf_zones(rows: list[Candle], request: DrawRequest) -> tuple[list[Zone], di
         }
 
     zones, stats = DETECTORS["supply_demand"](higher, request.supply_demand)
+
+    # Refinement happens BEFORE the timeframe stamp and before the carry-forward
+    # below, because it moves both the box and its lifecycle. Doing it after
+    # would carry a broken zone's right edge forward as though it were alive.
+    if request.refine:
+        stats.update(
+            refine_zones(zones, higher, rows, request.htf, request.supply_demand)
+        )
+        for zone in zones:
+            if zone.refinement is not None:
+                zone.refinement.timeframe = request.interval
+        # Refining moves the proximal line, and the road is measured from it, so
+        # both cross-zone answers are stale the moment a box shrinks.
+        # ponytail: this second pass sees the display-capped set, unlike the one
+        # inside the detector. Refined zones can therefore read a slightly
+        # longer road than they have. Fix by refining before the cap, which
+        # means handing the lower-timeframe bars to the detector.
+        mark_profit_zones(zones, higher[-1].time)
+        mark_crowding(zones, request.supply_demand.min_profit_zone_rr)
+
     last_chart_bar = rows[-1].time
 
     for zone in zones:

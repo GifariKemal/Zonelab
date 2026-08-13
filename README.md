@@ -158,10 +158,23 @@ jalankan ulang dengan `python -m tools.calibrate`.
 
 | Klaim | Putusan |
 |---|---|
-| Zona yang digambar bertahan lebih sering daripada level di harga acak | **Terbukti**, +29 sampai +38 poin persen di tiga geometri |
-| Gerbang `departure` menyaring sesuatu yang nyata | **Terbukti**, zona lolos 84.6% lawan 68.3% untuk formasi yang ditolak, p < 0.0001 |
-| `departure` di atas 2 ATR makin besar makin baik | **Terbantah**, held datar di 87.2 / 83.0 / 85.7 / 82.4 persen untuk bucket 2-3, 3-4, 4-5, dan 5+ ATR |
-| `formation_score` memeringkat zona yang akan bertahan | **Tidak terbukti**, AUC 0.53 sampai 0.59 dengan CI melintasi 0.5 |
+| Zona yang digambar bertahan lebih sering daripada level di harga acak | **Terbukti**, +19 sampai +35 poin persen di tiga geometri |
+| Gerbang `departure` menyaring sesuatu yang nyata | **Terbukti**, zona lolos 85.8% lawan 64.4% untuk formasi yang ditolak, p < 0.0001, n = 2707 |
+| Gerbang itu bertahan di bar yang belum pernah dilihat | **Terbukti**, selisihnya menunjuk arah yang benar di 8 dari 8 potongan waktu, di ketiga geometri |
+| `departure` di atas 2 ATR makin besar makin baik | **Terbantah**, held mendatar di atas bucket 2-3 ATR |
+| `formation_score` memeringkat zona yang akan bertahan | **Terbantah**, AUC 0.46 dan 0.48, yaitu memeringkat terbalik |
+| Panjang jalan ke zona lawan memeringkat | **Terbukti di dalam sampel**, AUC 0.565 sampai 0.584 dengan CI bersih dari 0.5 dan bertahan di kedua sisi |
+| ...dan layak dijadikan gerbang | **Tidak terbukti**, hanya 7 dari 8 potongan di luar sampel, jadi tetap mati |
+| Harga berbalik di zona lebih sering daripada di kotak acak | **Terbantah**, pembalikannya nyata tetapi placebo melakukannya sama banyak, p = 0.73 |
+| Zona meramalkan arah 40 bar ke depan | **Terbantah**, perpindahan bersihnya nol di semua kelompok |
+
+> [!CAUTION]
+> Angka-angka di atas berubah pada 2026-08-13 karena **populasinya dulu salah**.
+> `tools/calibrate.py` menyetel `max_zones_per_side=100`, yaitu maksimum skema dan
+> bukan mati, sedangkan batas itu memilih zona **terbaru**. Sampelnya karena itu
+> hidup di 9.6% terakhir tiap deret sambil mengklaim 20.000 bar, dan n-nya 234
+> bukan 2707. Nol kini berarti tanpa batas, dan sebuah pengujian menjaganya.
+> Kesimpulan pokoknya bertahan dan menguat; setiap angkanya bergeser.
 
 > [!IMPORTANT]
 > Deteksinya tervalidasi. Peringkat mutunya tidak. Karena itu angka skor sudah
@@ -177,9 +190,10 @@ sebuah zona pasti masih segar pada sentuhan pertamanya. Keduanya dijaga oleh
 `test_formation_score_holds_only_formation_factors` agar tidak masuk kembali
 tanpa pengukuran baru.
 
-Bobot tiga faktor sisanya **sengaja tidak dipaskan ke data**: sepertiga rata.
-Dengan n=234, lebar CI AUC saja sudah sekitar plus-minus 0.10, jadi memaskan
-bobot berarti memaskan derau.
+Bobot tiga faktor sisanya **sengaja tidak dipaskan ke data**: sepertiga rata. Pada
+sampel yang sudah diperbaiki, komposit itu bukan hanya gagal memeringkat, ia
+memeringkat **terbalik** (AUC 0.46 dan 0.48), jadi memaskan bobot ke sana akan
+memaskan sesuatu yang tandanya sendiri salah.
 
 ### Kesetiaan pada metode, diaudit terpisah
 
@@ -296,8 +310,12 @@ Empat lapis, dan masing-masing menangkap hal yang tidak tertangkap lapis lain.
 cd backend
 .\.venv\Scripts\python.exe -m pytest
 
-# 2. Kalibrasi. Butuh internet pada jalan pertama, lalu memakai cache.
-.\.venv\Scripts\python.exe -m tools.calibrate
+# 2. Kalibrasi dan pengukuran hasil. Butuh internet pada jalan pertama,
+#    lalu memakai cache. Empat pertanyaan yang berbeda.
+.\.venv\Scripts\python.exe -m tools.calibrate    # apakah zonanya membedakan hasil
+.\.venv\Scripts\python.exe -m tools.walkforward  # apakah itu bertahan di luar sampel
+.\.venv\Scripts\python.exe -m tools.reaction     # apakah harganya benar-benar berbalik
+.\.venv\Scripts\python.exe -m tools.refinement   # apa yang dibeli penyempurnaan zona
 
 # 3. Kontrak API. Butuh API menyala.
 .\.venv\Scripts\python.exe -m tools.validate_api
@@ -367,8 +385,12 @@ perubahan perilaku dan pengujiannya harus mengatakan demikian.
 - Volume dari sebagian provider adalah tick volume, bukan kontrak yang benar-benar
   diperdagangkan. Faktor volume di sini adalah proksi keaktifan, bukan volume
   institusional.
-- Belum ada zona multi-timeframe. Zona timeframe tinggi yang diproyeksikan ke chart
-  timeframe rendah membutuhkan stempel konfirmasi tersendiri agar tetap kausal.
+- Zona multi-timeframe sudah ada dan kausal (bar HTF yang belum selesai dibuang),
+  tetapi aturan bersarang yang disepakati semua aliran **tidak menunjukkan manfaat
+  terukur** pada 2707 zona. Ia dilaporkan lewat `nested_in`, tidak diskor.
+- Penyempurnaan zona menaikkan reward per satuan risiko sekitar 2.2 kali dan
+  menurunkan tingkat bertahan 4 sampai 10 poin persen. Pertukaran itu hanya bisa
+  diselesaikan oleh biaya transaksi trader, yang tidak dimodelkan di sini.
 - Pemutaran siklus hidup melihat bar setelah zona terbentuk. Itu benar untuk
   menggambar riwayat, tetapi bukan mesin backtest dan tidak boleh dipakai sebagai
   backtest.
@@ -380,6 +402,10 @@ perubahan perilaku dan pengujiannya harus mengatakan demikian.
 - [x] Panel parameter langsung plus jejak filter
 - [x] Inspektur zona dengan rincian skor
 - [x] Kalibrasi terhadap 100.000 bar dengan dua kelompok kontrol
+- [x] Penyempurnaan zona HTF memakai candle LTF, diukur berpasangan
+- [x] Invalidasi saat zona lawan baru menutup jalan di depan
+- [x] Uji reaksi sebelum dan sesudah sentuhan, dengan kontrol drift
+- [x] Walk-forward dengan purging, delapan potongan di luar sampel
 - [ ] FVG dan IFVG
 - [ ] Order Block dan Breaker Block
 - [ ] Liquidity sweep, BOS, dan CHoCH

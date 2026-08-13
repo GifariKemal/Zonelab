@@ -66,6 +66,27 @@ class Anatomy(BaseModel):
     leg_out_to: int
 
 
+class Refinement(BaseModel):
+    """Evidence that a zone was shrunk to the lower-timeframe base inside it.
+
+    Kept alongside the refined geometry rather than replacing it silently. A box
+    that moved without saying where it moved from is exactly the kind of drawing
+    this engine refuses to produce.
+    """
+
+    timeframe: str = Field(
+        default="", description="Interval of the candles the refined box was cut from"
+    )
+    from_top: float = Field(description="Top of the box before refinement")
+    from_bottom: float = Field(description="Bottom of the box before refinement")
+    shrank_to: float = Field(
+        description="Refined height as a fraction of the original, 0..1"
+    )
+    bars: int = Field(description="Lower-timeframe bars the refined box was cut from")
+    time_from: int = Field(description="Open time of the first of those bars")
+    time_to: int = Field(description="Open time of the last of those bars")
+
+
 class Zone(BaseModel):
     id: str
     kind: ZoneKind
@@ -149,6 +170,27 @@ class Zone(BaseModel):
             "most-overlooked enhancer, and the reason zone validity depends on "
             "the pair of zones rather than on one alone. None when no opposing "
             "zone stands in the way."
+        ),
+    )
+    crowded_at: int | None = Field(
+        default=None,
+        description=(
+            "When a NEWLY FORMED opposing zone first pushed this zone's profit "
+            "zone below `min_profit_zone_rr`, epoch seconds. The guidance says a "
+            "zone stops being worth trading when the road ahead of it closes, "
+            "which means validity has to be re-checked when ANOTHER ZONE IS "
+            "BORN, not only when price moves. Every other lifecycle field here "
+            "answers 'what did price do'; this one answers 'what did the rest of "
+            "the chart do', and mixing the two into `state` would hide which "
+            "cause applied. None when the road never closed."
+        ),
+    )
+    refinement: Refinement | None = Field(
+        default=None,
+        description=(
+            "Set when this zone was shrunk to the lower-timeframe base inside "
+            "it. Carries the geometry it had before, so the refinement can be "
+            "audited or undone. None when the zone was never refined."
         ),
     )
     arrival_atr: float | None = Field(
@@ -262,6 +304,21 @@ class SupplyDemandParams(BaseModel):
             "leaves it off and reported only, pending measurement."
         ),
     )
+    min_profit_zone_rr: float = Field(
+        default=0.0,
+        ge=0.0,
+        le=10.0,
+        description=(
+            "How much clear road a zone needs ahead of it, measured from its "
+            "proximal line to the nearest live opposing zone in units of its own "
+            "height. The guidance calls the road closing an invalidation: a "
+            "textbook demand zone with fresh supply sitting 1.5x its height "
+            "above it is not a trade however cleanly it formed. Above 0 this "
+            "also becomes a filter. Default 0 leaves it OFF and reported only, "
+            "because nobody has published a measured number for it and this "
+            "project does not ship gates it has not measured."
+        ),
+    )
     zone_min_atr: float = Field(
         default=0.05,
         ge=0.0,
@@ -311,7 +368,19 @@ class SupplyDemandParams(BaseModel):
 
     show_broken: bool = False
     show_mitigated: bool = True
-    max_zones_per_side: int = Field(default=12, ge=1, le=100)
+    max_zones_per_side: int = Field(
+        default=12,
+        ge=0,
+        le=100,
+        description=(
+            "Most zones to return per side, newest first. **0 means no cap**, "
+            "and measurement code must use 0: this is a readability limit, and "
+            "leaving it at any finite value keeps only the most RECENT zones, "
+            "which silently confines a sample to the tail of the history. At its "
+            "own schema maximum of 100 it still cut 2030 candidate zones down to "
+            "200, all of them inside the last 10% of a 20,000-bar series."
+        ),
+    )
     merge_overlap_pct: float = Field(default=0.6, ge=0.0, le=1.0)
 
 
@@ -325,6 +394,17 @@ class DrawRequest(BaseModel):
         description=(
             "Optional higher timeframe to also draw zones from, aggregated from "
             "the same bars. Ignored unless strictly higher than `interval`."
+        ),
+    )
+    refine: bool = Field(
+        default=False,
+        description=(
+            "Shrink each higher-timeframe zone to the lower-timeframe base "
+            "inside it, using the chart's own candles. Ignored unless `htf` is "
+            "set, because there is no lower timeframe to refine from otherwise. "
+            "Off by default: it tightens the stop, which is both the point of "
+            "refining and a reason it can score worse, and that is a question "
+            "for measurement rather than for a default."
         ),
     )
     session_offset_hours: float = Field(

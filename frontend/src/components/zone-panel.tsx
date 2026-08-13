@@ -144,10 +144,27 @@ function Inspector({ zone, lastPrice }: { zone: Zone; lastPrice: number | null }
               : `${zone.profit_zone_rr.toFixed(1)}x to the wall`
           }
         />
+        {zone.crowded_at !== null ? (
+          <Row
+            label="Road shut"
+            value={`${new Date(zone.crowded_at * 1000)
+              .toISOString()
+              .slice(0, 16)
+              .replace("T", " ")} UTC`}
+          />
+        ) : null}
         <Row
           label="Curve"
           value={`${(zone.curve * 100).toFixed(0)}%${zone.curve_favourable ? ", favourable" : ""}`}
         />
+        {zone.refinement ? (
+          <Row
+            label="Refined"
+            value={`${(zone.refinement.shrank_to * 100).toFixed(0)}% of ${(
+              zone.refinement.from_top - zone.refinement.from_bottom
+            ).toFixed(2)}, from ${zone.refinement.bars} ${zone.refinement.timeframe} bars`}
+          />
+        ) : null}
         {zone.arrival_atr !== null ? (
           <Row label="Arrival" value={`${zone.arrival_atr.toFixed(1)} ATR`} />
         ) : null}

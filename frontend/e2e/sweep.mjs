@@ -120,13 +120,33 @@ await page.locator("select").nth(2).selectOption("500");
 await settle(page, 3000);
 
 // ================================================= every slider at both ends
+// The exact set, not a count. A count says "twelve things exist" and passes
+// happily when one of them is renamed or swapped for another, which is the same
+// blindness that let an assertion here drive the wrong slider for weeks.
+const EXPECTED_SLIDERS = [
+  "ATR period", "Impulse body", "Impulse size", "Max base bars",
+  "Max base height", "Max base drift", "Departure gate", "Profit margin",
+  "Road ahead", "Mitigation depth", "Zones per side", "Merge overlap",
+];
 const sliders = page.locator('input[type="range"]');
 const sliderCount = await sliders.count();
-check("all eleven parameters are exposed", sliderCount === 11, `${sliderCount}`);
+const labels = [];
+for (let i = 0; i < sliderCount; i++) {
+  labels.push(
+    await sliders.nth(i).evaluate((el) => el.closest("label")?.innerText.split("\n")[0] ?? "?"),
+  );
+}
+const missing = EXPECTED_SLIDERS.filter((l) => !labels.includes(l));
+const extra = labels.filter((l) => !EXPECTED_SLIDERS.includes(l));
+check(
+  "every parameter is exposed, and only those",
+  missing.length === 0 && extra.length === 0,
+  `missing [${missing}] extra [${extra}]`,
+);
 
 for (let i = 0; i < sliderCount; i++) {
   const s = sliders.nth(i);
-  const label = await s.evaluate((el) => el.closest("label")?.innerText.split("\n")[0] ?? "?");
+  const label = labels[i];
   const min = await s.getAttribute("min");
   const max = await s.getAttribute("max");
   for (const v of [min, max]) {

@@ -666,3 +666,43 @@ def test_normalize_dedupes_and_sorts():
     assert out[-1].close == 9
 
     assert [c.time for c in normalize(rows, bars=2)] == [200, 300]
+
+
+# --------------------------------------------------------------------------
+# the display cap, which is a measurement hazard and not only a UI setting
+# --------------------------------------------------------------------------
+
+
+def test_zero_disables_the_per_side_cap():
+    """The cap selects on TIME, so any sample taken through it is the recent
+    tail of the history wearing the whole history's name.
+
+    Found on 2026-08-13 in `tools/calibrate.py`, which set the cap to 100 - the
+    schema maximum, which reads like "off" and is not. The detector was finding
+    2030 zones in a 20,000-bar series and returning 200, every one of them
+    inside the last 10%. Zero is the only value that means off, and this test
+    exists so that stays true.
+    """
+    rows: list[tuple[float, float, float, float]] = []
+    price = 100.0
+    for _ in range(8):  # eight identical drop-base-rally formations in a row
+        rows += leg(price, -3.0, 3)
+        price -= 9.0
+        rows += flat(price, 3)
+        rows += leg(price, 3.0, 3)
+        price += 9.0
+        rows += flat(price, 3)
+    candles = build(rows)
+
+    uncapped, _ = detect(candles, params(max_zones_per_side=0, merge_overlap_pct=1.0))
+    capped, _ = detect(candles, params(max_zones_per_side=2, merge_overlap_pct=1.0))
+
+    assert len(uncapped) > len(capped), "the fixture must produce more than the cap"
+    for side in (ZoneSide.DEMAND, ZoneSide.SUPPLY):
+        assert sum(1 for z in capped if z.side is side) <= 2
+
+    # And what survives the cap is the NEWEST, which is the whole reason a
+    # measurement must not look through it.
+    newest = max(z.time_from for z in uncapped)
+    assert max(z.time_from for z in capped) == newest
+    assert min(z.time_from for z in capped) > min(z.time_from for z in uncapped)

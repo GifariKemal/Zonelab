@@ -7,10 +7,14 @@ interface Props {
   onChange: (patch: Partial<SupplyDemandParams>) => void;
   onReset: () => void;
   stats?: Record<string, number>;
+  /** The higher-timeframe pass reports separately, because refinement happens
+   *  there and folding its counters into the local trace would claim the local
+   *  detector had done something it did not. */
+  htfStats?: Record<string, number>;
   config: ServerConfig | null;
 }
 
-export function Toolbox({ params, onChange, onReset, stats }: Props) {
+export function Toolbox({ params, onChange, onReset, stats, htfStats }: Props) {
   return (
     <div className="scroll-thin flex h-full flex-col overflow-y-auto">
       <Group title="Detector">
@@ -73,6 +77,24 @@ export function Toolbox({ params, onChange, onReset, stats }: Props) {
         <Note>
           The method asks for 3. Measured, the effect flattens near 2 and adds
           nothing over the ATR gate, so it ships off.
+        </Note>
+        <Slider
+          label="Road ahead"
+          hint="Clear distance to the nearest live opposing zone, in units of this zone's own height. Off at 0."
+          suffix="x zone"
+          min={0}
+          max={4}
+          step={0.5}
+          value={params.min_profit_zone_rr}
+          onChange={(v) => onChange({ min_profit_zone_rr: v })}
+        />
+        <Note>
+          The first factor here that ever ranked: zones with a longer road held
+          more often, on both sides, at every geometry (AUC 0.56 to 0.57, CI
+          clear of 0.5). It still ships off, because as a gate it held up in
+          only 7 of 8 unseen time slices where the ATR gate held up in 8 of 8.
+          Above 0 it also stamps zones a newly formed opposing zone has boxed
+          in, which is the one check driven by other zones rather than by price.
         </Note>
       </Group>
 
@@ -175,6 +197,17 @@ export function Toolbox({ params, onChange, onReset, stats }: Props) {
           <Stat label="Thin profit margin" value={stats.rejected_thin_profit_margin} muted />
           <Stat label="Merged as duplicate" value={stats.rejected_overlap} muted />
           <Stat label="Hidden by state" value={stats.rejected_state_filter} muted />
+          {stats.rejected_crowded ? (
+            <Stat label="Road shut" value={stats.rejected_crowded} muted />
+          ) : null}
+          {htfStats?.refine_candidates ? (
+            <>
+              <div className="mt-2 border-t border-line pt-2" />
+              <Stat label="HTF zones refined" value={htfStats.refined} muted />
+              <Stat label="No inner base" value={htfStats.refine_no_inner_base} muted />
+              <Stat label="Already tight" value={htfStats.refine_no_gain} muted />
+            </>
+          ) : null}
           <div className="mt-2 border-t border-line pt-2">
             <Stat label="Drawn" value={stats.zones} strong />
           </div>

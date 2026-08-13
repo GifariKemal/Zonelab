@@ -30,6 +30,7 @@ export default function Page() {
   // Brokers do not all start their day at UTC midnight. Getting this wrong puts
   // every H4 and D1 zone one candle away from the terminal's own.
   const [sessionOffset, setSessionOffset] = useState("0");
+  const [refine, setRefine] = useState(false);
   const [params, setParams] = useState<SupplyDemandParams>(DEFAULT_PARAMS);
 
   const [data, setData] = useState<DrawResponse | null>(null);
@@ -62,6 +63,7 @@ export default function Page() {
         bars,
         provider,
         htf: htf === "off" ? null : htf,
+        refine,
         session_offset_hours: Number(sessionOffset),
         supply_demand: params,
         signal: controller.signal,
@@ -80,7 +82,7 @@ export default function Page() {
     }, DEBOUNCE_MS);
 
     return () => clearTimeout(timer);
-  }, [symbol, interval, bars, provider, htf, sessionOffset, params]);
+  }, [symbol, interval, bars, provider, htf, refine, sessionOffset, params]);
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -154,12 +156,23 @@ export default function Page() {
         />
 
         {htf !== "off" ? (
-          <Picker
-            label="Session"
-            value={sessionOffset}
-            onChange={setSessionOffset}
-            options={["0", "-2", "1", "2", "3"]}
-          />
+          <>
+            <Picker
+              label="Session"
+              value={sessionOffset}
+              onChange={setSessionOffset}
+              options={["0", "-2", "1", "2", "3"]}
+            />
+            {/* Only offered with HTF on, because there is no lower timeframe to
+                refine from otherwise. Measured: it halves the stop and costs
+                4 to 10 points of survival, so it is a choice, not a default. */}
+            <Picker
+              label="Refine"
+              value={refine ? "on" : "off"}
+              onChange={(v) => setRefine(v === "on")}
+              options={["off", "on"]}
+            />
+          </>
         ) : null}
 
         <div className="flex border border-line-strong" role="group" aria-label="Timeframe">
@@ -230,6 +243,7 @@ export default function Page() {
             onChange={patchParams}
             onReset={() => setParams(DEFAULT_PARAMS)}
             stats={data?.meta.supply_demand}
+            htfStats={data?.meta.htf}
             config={config}
           />
         </aside>
