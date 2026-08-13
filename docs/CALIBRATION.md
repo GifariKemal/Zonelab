@@ -310,12 +310,34 @@ Jadi yang sebenarnya dilakukan gerbang departure bukan memilih zona yang bekerja
 melainkan **membuang formasi yang aktif gagal**. Itu konsisten dengan +11 sampai
 +21 pp terhadap kelompok ditolak, dan menjelaskan mekanismenya.
 
-> [!WARNING]
-> Satu kaveat yang memotong dua arah. Zona placebo digeser 1,5 sampai 5 ATR, jadi
-> sentuhannya menyusul lari yang lebih besar, dan pembalikan setelah lari besar
-> memang lebih besar. Itu bisa menaikkan angka placebo secara artifisial.
-> Kelompok **tercocokkan** tidak punya masalah itu dan tetap menunjukkan bahwa
-> yang membedakan adalah kedatangan, bukan lokasinya.
+### Kaveat placebo, ditutup
+
+Zona placebo digeser 1,5 sampai 5 ATR, jadi sentuhannya menyusul lari yang lebih
+besar, dan pembalikan setelah lari besar memang lebih besar. Kalau itu yang
+sebenarnya diukur, maka "digambar tak terbedakan dari placebo" bukan temuan
+tentang zona sama sekali, melainkan artefak cara kontrolnya dibangun.
+
+Cara menutupnya: bandingkan keduanya **di dalam pita besar-lari yang sama**. Di
+dalam satu pita, kedua kelompok tiba dari jarak yang setara, jadi apa pun yang
+memisahkan mereka adalah kotaknya.
+
+| Lari masuk (ATR) | n digambar | Digambar | n placebo | Placebo | Selisih | p |
+|---|---|---|---|---|---|---|
+| -8,36 sampai -0,87 | 678 | -0,1708 | 3966 | -0,1293 | -0,0415 | 0,0001 |
+| -0,87 sampai 1,19 | 677 | -0,0511 | 1250 | +0,0040 | -0,0551 | 0,0001 |
+| 1,19 sampai 3,55 | 678 | +0,0564 | 1984 | +0,0689 | -0,0125 | 0,09 |
+| 3,55 sampai 13,35 | 678 | +0,2042 | 2493 | +0,2053 | -0,0011 | 0,90 |
+
+**Kotaknya mengalahkan level pada jarak yang sama di 0 dari 4 pita**, dan dua pita
+yang signifikan justru berlawanan arah. Perhatikan ke mana risikonya menunjuk:
+uji ini hanya bisa **melemahkan** kesimpulan sebelumnya, jadi hasil nol di sini
+membuatnya kokoh, bukan sekadar bertahan dengan kaveat.
+
+Yang juga terlihat di kolom itu adalah mekanismenya. Pembalikan naik monoton
+mengikuti besar lari masuk (-0,17, -0,05, +0,06, +0,20) dan naik **sama
+persisnya** untuk kotak acak. Jadi pembalikan di sentuhan pertama nyaris
+seluruhnya fungsi dari seberapa jauh harga berlari masuk, bukan fungsi dari apa
+yang ada di titik itu.
 
 Perpindahan bersih 40 bar sesudahnya: **nol di semua kelompok**, p>0,3 di
 mana-mana. Tidak ada ramalan arah pada horizon itu.

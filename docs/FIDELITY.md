@@ -152,6 +152,62 @@ angka yang tampak masuk akal:
    bawah rata-rata baris kosong. Menghitung piksel yang mencapai kekuatan warna
    batasnya kebal terhadap itu.
 
+## Akurasi dan presisi, diukur pada 28.476 zona
+
+Dua pertanyaan berbeda yang sering dicampur, dan sebuah gambar bisa lolos satu
+sambil gagal yang lain:
+
+- **Akurasi**, apakah kotaknya duduk di tempat base-nya secara rata-rata, tanpa
+  bias sistematis ke atas atau ke bawah.
+- **Presisi**, apakah ia duduk di sana pada **setiap** zona, tanpa sebaran dan
+  tanpa pencilan sesekali yang tertutup oleh rata-rata.
+
+Uji yang ada sebelumnya tidak menjawab keduanya pada skala. `tests/` memeriksa
+geometri persis pada fixture buatan tangan, `validate_api` memeriksanya pada
+beberapa puluh zona nyata, `e2e/pixel-truth.mjs` membaca piksel untuk tujuh zona
+yang kebetulan masuk satu tangkapan layar. Tidak satu pun mengatakan apa yang
+terjadi pada ribuan zona di setiap timeframe, dan "benar pada yang kami lihat"
+justru klaim tempat cacat langka bertahan hidup.
+
+`tools/drawing_accuracy.py` melaporkan **kasus terburuk, bukan rata-rata**.
+Rata-rata nol juga yang dilaporkan gambar dengan dua bug bertanda berlawanan.
+
+| Besaran | Hasil |
+|---|---|
+| Zona diperiksa | 28.476, tujuh deret x dua varian proximal |
+| Galat tepi atas terburuk | **0,000** dari tinggi zona |
+| Galat tepi bawah terburuk | **0,000** dari tinggi zona |
+| Pelanggaran aturan | **0** |
+| Zona dilebarkan melewati base | **0** |
+| Distal bukan ekstrem wick | **0** |
+| Zona ditumbuhkan ke tinggi minimum | 479 dari 28.476, semuanya dari sisi proximal |
+
+Nol di sini berarti nol, bukan pembulatan: perbandingannya persis, dengan
+toleransi 1e-9 pada harga.
+
+> [!NOTE]
+> Ada 1485 zona yang punya satu atau dua bar tetangga yang **seluruh rentangnya
+> kebetulan muat di dalam kotak**. Itu fakta tentang bar tersebut, bukan tentang
+> kotaknya: tepi kotaknya persis ekstrem base, sebagaimana tabel di atas. Inilah
+> yang dulu dibaca empat peninjau visual sebagai "kotaknya melar".
+
+**Dua kekeliruan alat ukurnya sendiri, dicatat karena keduanya lebih dulu
+menghasilkan temuan palsu yang tampak meyakinkan.** Versi pertama file ini
+melaporkan galat tepi sebesar 18 kali tinggi zona dan 33 pelanggaran proximal.
+Keduanya milik auditornya:
+
+1. Ia membandingkan terhadap rentang **wick** pada kedua varian, padahal mode
+   body memakai badan candle, lalu melaporkan pertumbuhan tinggi minimum yang
+   bekerja sebagaimana mestinya sebagai cacat. Auditor yang tidak mereproduksi
+   aturan yang diauditnya akan mengarang temuan.
+2. Ia menghitung padding mundur dari `base_from`, padahal ketika konsolidasi
+   panjang dipotong, bar sebelum `base_from` adalah sisa jeda yang sama dan tentu
+   saja duduk di dalam rentang harga kotaknya. Itu melaporkan 4325 zona melar
+   yang sama sekali bukan.
+
+Angka yang tampak masuk akal keluar lebih dulu, sebelum angka yang jelas-jelas
+salah. Itu pola yang sudah tiga kali terjadi di proyek ini.
+
 ## Yang sengaja TIDAK saya ubah
 
 ### Aturan 1:3 tidak dipasang sebagai default

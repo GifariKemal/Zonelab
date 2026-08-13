@@ -165,7 +165,8 @@ jalankan ulang dengan `python -m tools.calibrate`.
 | `formation_score` memeringkat zona yang akan bertahan | **Terbantah**, AUC 0.46 dan 0.48, yaitu memeringkat terbalik |
 | Panjang jalan ke zona lawan memeringkat | **Terbukti di dalam sampel**, AUC 0.565 sampai 0.584 dengan CI bersih dari 0.5 dan bertahan di kedua sisi |
 | ...dan layak dijadikan gerbang | **Tidak terbukti**, hanya 7 dari 8 potongan di luar sampel, jadi tetap mati |
-| Harga berbalik di zona lebih sering daripada di kotak acak | **Terbantah**, pembalikannya nyata tetapi placebo melakukannya sama banyak, p = 0.73 |
+| Kotaknya digambar persis di ekstrem base-nya | **Terbukti**, galat terburuk 0.000 pada 28476 zona, nol pelanggaran aturan |
+| Harga berbalik di zona lebih sering daripada di kotak acak | **Terbantah**, pembalikannya nyata tetapi placebo melakukannya sama banyak, dan tetap begitu ketika besar lari masuk disamakan (0 dari 4 pita) |
 | Zona meramalkan arah 40 bar ke depan | **Terbantah**, perpindahan bersihnya nol di semua kelompok |
 
 > [!CAUTION]
@@ -316,6 +317,7 @@ cd backend
 .\.venv\Scripts\python.exe -m tools.walkforward  # apakah itu bertahan di luar sampel
 .\.venv\Scripts\python.exe -m tools.reaction     # apakah harganya benar-benar berbalik
 .\.venv\Scripts\python.exe -m tools.refinement   # apa yang dibeli penyempurnaan zona
+.\.venv\Scripts\python.exe -m tools.drawing_accuracy  # apakah kotaknya di tempat yang benar, setiap kali
 
 # 3. Kontrak API. Butuh API menyala.
 .\.venv\Scripts\python.exe -m tools.validate_api

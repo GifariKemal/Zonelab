@@ -83,6 +83,7 @@ class Event:
     touch: int
     move: float  # raw post-touch displacement, UP-POSITIVE, in ATR
     turn: float  # slope after minus slope before, UP-POSITIVE, in ATR per bar
+    approach: float  # how far price ran INTO the level, in ATR, always positive
     path: np.ndarray  # displacement from the touch price, tau = -PRE..+POST
 
 
@@ -197,7 +198,15 @@ def _measure(
     before = np.polyfit(taus[: PRE + 1], path[: PRE + 1], 1)[0]
     after = np.polyfit(taus[PRE:], path[PRE:], 1)[0]
 
-    return Event(cohort, side, touch, float(path[-1]), float(after - before), path)
+    # The run into the level, flipped so it is positive for both sides: a demand
+    # zone is reached from above, a supply zone from below. This is the variable
+    # the placebo cohort is NOT matched on, and the one that could otherwise
+    # explain away the whole comparison.
+    approach = float(path[0]) * (1.0 if side == "demand" else -1.0)
+
+    return Event(
+        cohort, side, touch, float(path[-1]), float(after - before), approach, path
+    )
 
 
 # --------------------------------------------------------------------------
@@ -346,6 +355,64 @@ def _cohort_table(events: list[Event], field: str, out: dict) -> None:
         }
 
 
+def _stratified(events: list[Event], field: str, out: dict) -> None:
+    """Drawn against placebo WITHIN bands of equal approach size.
+
+    This closes the one hole in the comparison. A placebo level is a real zone
+    moved 1.5 to 5 ATR away, so price has to travel further to reach it, and a
+    reversion after a long run is larger than a reversion after a short one -
+    for reasons that have nothing to do with levels. If that is what the placebo
+    cohort is measuring, then "drawn is indistinguishable from placebo" is not a
+    finding about zones at all, it is an artefact of how the control was built.
+
+    Splitting on the run into the level removes it. Inside a band, both cohorts
+    arrived from the same distance, so whatever separates them is the level.
+
+    Note which way the risk points: this test can only WEAKEN the earlier
+    conclusion. If drawn zones beat placebo once approach is held equal, the
+    claim that the box adds nothing was wrong and has to be withdrawn.
+    """
+    drawn = [e for e in events if e.cohort == "drawn"]
+    placebo = [e for e in events if e.cohort == "placebo"]
+    if len(drawn) < 100 or len(placebo) < 100:
+        return
+
+    # Quartiles of the DRAWN cohort's approach, so the bands describe the
+    # population being defended rather than the control.
+    edges = np.quantile([e.approach for e in drawn], [0, 0.25, 0.5, 0.75, 1.0])
+    print(f"\n  {field}, drawn vs placebo at EQUAL approach size")
+    print(f"  {'run into it':<16}{'n drawn':>9}{'drawn':>10}{'n plac':>9}{'placebo':>10}{'diff':>9}{'p':>9}")
+
+    rows = []
+    for i in range(4):
+        lo, hi = edges[i], edges[i + 1]
+        pick = lambda pool: [  # noqa: E731 - four lines of filtering, inline is clearer
+            e for e in pool if lo <= e.approach <= hi if i == 3 or e.approach < hi
+        ]
+        a, b = pick(drawn), pick(placebo)
+        if len(a) < 30 or len(b) < 30:
+            print(f"  {lo:.2f} to {hi:.2f} ATR   too few: {len(a)} vs {len(b)}")
+            continue
+        x, y = signed(a, field), signed(b, field)
+        p = cohort_p(a, b, field)
+        print(
+            f"  {f'{lo:.2f} to {hi:.2f} ATR':<16}{len(a):>9}{x.mean():>10.4f}"
+            f"{len(b):>9}{y.mean():>10.4f}{x.mean() - y.mean():>+9.4f}{p:>9.4f}"
+        )
+        rows.append({
+            "from": float(lo), "to": float(hi), "n_drawn": len(a), "n_placebo": len(b),
+            "drawn": float(x.mean()), "placebo": float(y.mean()),
+            "diff": float(x.mean() - y.mean()), "p": p,
+        })
+    out[f"{field}_stratified"] = rows
+    if rows:
+        beat = sum(1 for r in rows if r["diff"] > 0 and r["p"] < 0.05)
+        print(
+            f"  -> the box beats a level at the same distance in {beat} of"
+            f" {len(rows)} bands"
+        )
+
+
 def report(events: list[Event]) -> dict:
     out: dict = {}
     print(f"\n{'=' * 78}")
@@ -391,6 +458,7 @@ def report(events: list[Event]) -> dict:
                 "delta": delta, "p": p, "ci": [lo, hi], "verdict": verdict,
             }
         _cohort_table(events, field, out)
+        _stratified(events, field, out)
 
     # The shape is the evidence. A zone that works turns price AT the touch; a
     # number that is really drift slopes straight through tau = 0 without
