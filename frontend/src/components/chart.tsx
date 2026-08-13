@@ -6,6 +6,7 @@ import {
   ColorType,
   CrosshairMode,
   createChart,
+  createSeriesMarkers,
   type IChartApi,
   type ISeriesApi,
   type Time,
@@ -136,9 +137,25 @@ export function Chart({ candles, zones, interval, selectedId, onSelect, onHover 
       // formation at a time so its edges can be checked against the candles
       // that produced them. Reaching that through UI gestures would be far
       // more code than exposing the handle a driver already needs.
+      //
+      // `markBars` is what makes the audit answerable by eye rather than by
+      // guesswork: without seeing WHICH candles the engine called the base, a
+      // reviewer can only judge whether the box looks plausible, not whether
+      // the classification behind it was right.
+      const markers = createSeriesMarkers(candleSeries, []);
       (window as unknown as Record<string, unknown>).__zonelabChart = {
         chart: instance,
         series: candleSeries,
+        markBars: (marks: { time: number; text: string; color: string }[]) =>
+          markers.setMarkers(
+            marks.map((m) => ({
+              time: m.time as UTCTimestamp,
+              position: "belowBar" as const,
+              shape: "arrowUp" as const,
+              color: m.color,
+              text: m.text,
+            })),
+          ),
       };
     }
 

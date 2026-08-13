@@ -386,6 +386,12 @@ def detect(
 
     result.sort(key=lambda z: z.time_from)
     stats["zones"] = len(result)
+    # Per-side counts BEFORE the display cap. Without these the only visible
+    # numbers are post-cap, so a detector that genuinely found more of one side
+    # than the other is indistinguishable from one whose output was simply
+    # truncated at the cap on both.
+    stats["found_demand"] = sum(1 for z in found if z.side is ZoneSide.DEMAND)
+    stats["found_supply"] = len(found) - stats["found_demand"]
     return result, stats
 
 
