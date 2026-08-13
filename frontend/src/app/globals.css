@@ -1,0 +1,104 @@
+@import "tailwindcss";
+
+/* Zonelab is an instrument, not a landing page. The whole surface is one dark
+   theme, locked - a chart that inverts mid-session ruins dark adaptation. */
+
+:root {
+  --bg: #0b0d10;
+  --panel: #0f1216;
+  --panel-2: #131820;
+  --line: #1c222b;
+  --line-strong: #2a323e;
+
+  --text: #e4e8ed;
+  --text-dim: #8d99a8;
+  --text-faint: #5c6673;
+
+  /* Semantic, not decorative: green and red are forced by the domain. */
+  --demand: #2ea36f;
+  --demand-soft: #2ea36f29;
+  --supply: #d4574f;
+  --supply-soft: #d4574f29;
+
+  /* Single UI accent. Gold, because the instrument is a gold chart. */
+  --accent: #d9a441;
+  --accent-dim: #8a6a2c;
+}
+
+@theme inline {
+  --color-bg: var(--bg);
+  --color-panel: var(--panel);
+  --color-panel-2: var(--panel-2);
+  --color-line: var(--line);
+  --color-line-strong: var(--line-strong);
+  --color-text: var(--text);
+  --color-text-dim: var(--text-dim);
+  --color-text-faint: var(--text-faint);
+  --color-demand: var(--demand);
+  --color-supply: var(--supply);
+  --color-accent: var(--accent);
+
+  --font-sans: var(--font-plex-sans);
+  --font-mono: var(--font-plex-mono);
+}
+
+html,
+body {
+  height: 100%;
+}
+
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--font-plex-sans), system-ui, sans-serif;
+  /* A workstation never scrolls the page; panels scroll inside themselves. */
+  overflow: hidden;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Every number on screen is tabular. Columns of prices that jitter as digits
+   change are unreadable at a glance, which is the only way they get read. */
+.num {
+  font-family: var(--font-plex-mono), ui-monospace, monospace;
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: "tnum";
+}
+
+.hair {
+  border-color: var(--line);
+}
+
+/* Panel scrollbars: present, but not competing with the data. */
+.scroll-thin {
+  scrollbar-width: thin;
+  scrollbar-color: var(--line-strong) transparent;
+}
+.scroll-thin::-webkit-scrollbar {
+  width: 7px;
+  height: 7px;
+}
+.scroll-thin::-webkit-scrollbar-thumb {
+  background: var(--line-strong);
+  border-radius: 4px;
+}
+.scroll-thin::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+input[type="range"] {
+  accent-color: var(--accent);
+}
+
+:focus-visible {
+  outline: 1px solid var(--accent);
+  outline-offset: 1px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
+}

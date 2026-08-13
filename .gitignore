@@ -1,0 +1,19 @@
+# Python
+backend/.venv/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+
+# Secrets. .env.example is committed, .env never is.
+.env
+backend/.env
+frontend/.env.local
+
+# Node
+node_modules/
+.next/
+out/
+
+# Local scratch
+*.log
+.shot.mjs
