@@ -12,7 +12,8 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from .config import settings
 from .detect import DETECTORS
-from .models import Candle, DrawRequest, DrawResponse, Drawing
+from .models import Candle, DrawRequest, DrawResponse, Drawing, Zone, ZoneState
+from .resample import resample
 from .providers import (
     INTERVALS,
     PROVIDERS,
@@ -100,8 +101,15 @@ async def draw(request: DrawRequest) -> DrawResponse:
 
     if "supply_demand" in request.detectors:
         zones, stats = DETECTORS["supply_demand"](rows, request.supply_demand)
+        for zone in zones:
+            zone.timeframe = request.interval
         drawing.zones = zones
         meta["supply_demand"] = stats
+
+        if request.htf:
+            higher, htf_stats = _htf_zones(rows, request)
+            drawing.zones = higher + drawing.zones
+            meta["htf"] = htf_stats
 
     return DrawResponse(
         symbol=request.symbol,
@@ -111,6 +119,44 @@ async def draw(request: DrawRequest) -> DrawResponse:
         drawing=drawing,
         meta=meta,
     )
+
+
+def _htf_zones(rows: list[Candle], request: DrawRequest) -> tuple[list[Zone], dict]:
+    """Zones from a higher timeframe, projected onto this chart.
+
+    The zones are detected on aggregated bars and their lifecycle is replayed on
+    those same bars, not on the chart's. That is deliberate: an H4 demand zone
+    should not die because one M15 candle closed a few cents under it. The zone
+    belongs to its own timeframe and is judged there.
+
+    Every HTF bar used here is complete, because `resample` drops the forming
+    one, so nothing drawn is a zone the trader could not already have seen.
+    """
+    if request.htf is None or request.htf not in INTERVALS:
+        return [], {"error": f"unknown timeframe '{request.htf}'"}
+
+    higher = resample(rows, request.htf, request.interval)
+    if len(higher) < request.supply_demand.atr_period + 3:
+        return [], {
+            "bars": len(higher),
+            "note": "not enough higher-timeframe bars in this window",
+        }
+
+    zones, stats = DETECTORS["supply_demand"](higher, request.supply_demand)
+    last_chart_bar = rows[-1].time
+
+    for zone in zones:
+        zone.timeframe = request.htf
+        # Ids must not collide with a local zone that happens to share a price.
+        zone.id = f"{request.htf}:{zone.id}"
+        # A live HTF zone ends on its own last bar, which sits up to one HTF
+        # period behind the chart's right edge. Carry it forward so it does not
+        # appear to stop early for a reason the user cannot see.
+        if zone.state is not ZoneState.BROKEN:
+            zone.time_to = max(zone.time_to, last_chart_bar)
+
+    stats["bars"] = len(higher)
+    return zones, stats
 
 
 async def _fetch(

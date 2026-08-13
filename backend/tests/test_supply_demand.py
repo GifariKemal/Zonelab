@@ -215,8 +215,8 @@ def test_body_basis_makes_a_tighter_zone_than_wick_basis():
         flat(100, 10) + leg(100, -4.0, 3) + flat(88, 2) + leg(88, +4.0, 3) + flat(100, 5)
     )
 
-    wick = detect(candles, params(zone_basis="wick"))[0][0]
-    body = detect(candles, params(zone_basis="body"))[0][0]
+    wick = detect(candles, params(proximal_basis="wick"))[0][0]
+    body = detect(candles, params(proximal_basis="body"))[0][0]
 
     assert (wick.top, wick.bottom) == pytest.approx((88.5, 87.5))
     # Doji bodies collapse to a single price, so the body zone is the minimum
@@ -395,16 +395,53 @@ def test_unconfirmed_zone_is_flagged_while_its_leg_out_is_still_open():
     assert settled[0].confirmed is True
 
 
-def test_doji_base_is_grown_to_the_minimum_height():
-    """A zero-height zone can never register a touch, so it is never zero."""
+@pytest.mark.parametrize("basis", ["wick", "body"])
+@pytest.mark.parametrize("in_step,out_step,kind,side", FORMATIONS)
+def test_the_distal_is_always_the_wick_extreme(basis, in_step, out_step, kind, side):
+    """The two lines are not symmetric, and this is the mistake that matters.
+
+    The distal is the line the stop sits beyond, so it must cover the base's
+    lowest low (demand) or highest high (supply) in BOTH variants. Only the
+    proximal moves between aggressive (wick) and conservative (body). Drawing
+    the distal at the body puts the stop inside the base it is protecting.
+    """
+    base_price = 100 + in_step * 3
+    candles = build(
+        flat(100, 10)
+        + leg(100, in_step, 3)
+        + flat(base_price, 2)
+        + leg(base_price, out_step, 3)
+        + flat(base_price + out_step * 3, 5)
+    )
+
+    zone = detect(candles, params(proximal_basis=basis))[0][0]
+
+    # Base bars are doji at base_price with 0.5 pads, so wick extremes are
+    # +/- 0.5 and both body edges collapse onto base_price itself.
+    if side is ZoneSide.DEMAND:
+        assert zone.distal == pytest.approx(base_price - 0.5), "demand distal is the low"
+        assert zone.proximal == pytest.approx(base_price + (0.5 if basis == "wick" else 0.0))
+    else:
+        assert zone.distal == pytest.approx(base_price + 0.5), "supply distal is the high"
+        assert zone.proximal == pytest.approx(base_price - (0.5 if basis == "wick" else 0.0))
+
+
+def test_the_minimum_height_grows_the_proximal_not_the_distal():
+    """Widening a thin zone must not move the stop line.
+
+    A symmetric expansion would push the distal past the base's own extreme,
+    which is the same defect as drawing the distal at the body, arrived at by
+    a different route.
+    """
     candles = build(
         flat(100, 10) + leg(100, -4.0, 3) + flat(88, 2) + leg(88, +4.0, 3) + flat(100, 5)
     )
 
-    zone = detect(candles, params(zone_basis="body", zone_min_atr=0.2))[0][0]
-    assert zone.top > zone.bottom
-    # Grown symmetrically about the doji price, which is 88.
-    assert (zone.top + zone.bottom) / 2 == pytest.approx(88.0)
+    zone = detect(candles, params(proximal_basis="body", zone_min_atr=2.0))[0][0]
+
+    assert zone.top - zone.bottom > 0.5, "the zone was widened"
+    assert zone.distal == pytest.approx(87.5), "the distal stayed on the base's low"
+    assert zone.proximal > 88.0, "the proximal absorbed the whole widening"
 
 
 # --------------------------------------------------------------------------
@@ -461,6 +498,82 @@ def test_dedupe_prefers_the_less_consumed_zone():
 
     assert survivors, "the demand level must still be drawn once"
     assert survivors[0].state is ZoneState.FRESH
+
+
+# --------------------------------------------------------------------------
+# higher timeframe aggregation
+# --------------------------------------------------------------------------
+
+
+def test_resample_aggregates_ohlcv_correctly():
+    from app.resample import resample
+
+    # Four 15m bars make one complete hour, then four more make a second.
+    candles = build([(10, 12, 1, 1), (12, 11, 0, 2), (11, 15, 3, 0), (15, 14, 0, 0)] * 2)
+    hourly = resample(candles, target="1h", source="15m")
+
+    assert len(hourly) == 2
+    assert hourly[0].open == 10, "open comes from the first bar in the bucket"
+    assert hourly[0].close == 14, "close comes from the last"
+    assert hourly[0].high == 18, "high is the max across the bucket"
+    assert hourly[0].low == 9, "low is the min across the bucket"
+    assert hourly[0].volume == 4000, "volume sums"
+    assert hourly[1].time - hourly[0].time == 3600
+
+
+def test_resample_drops_an_incomplete_final_bar():
+    """A forming HTF bar's high and low are still moving. A zone built on it
+    would shift under the user and would be look-ahead in any measurement."""
+    from app.resample import resample
+
+    complete = build([(10, 11, 0, 0)] * 8)  # exactly two hours of 15m bars
+    partial = build([(10, 11, 0, 0)] * 9)  # two hours plus one bar
+
+    assert len(resample(complete, "1h", "15m")) == 2
+    assert len(resample(partial, "1h", "15m")) == 2, "the third hour is unfinished"
+
+
+def test_resample_anchors_to_the_epoch_not_the_window():
+    """Bucket boundaries must not move when the requested bar count changes,
+    or every HTF zone shifts whenever the user changes the lookback."""
+    from app.resample import resample
+
+    candles = build([(10, 11, 0, 0)] * 40)
+    full = resample(candles, "1h", "15m")
+    trimmed = resample(candles[7:], "1h", "15m")
+
+    shared = {c.time for c in full} & {c.time for c in trimmed}
+    assert shared, "the two windows must share buckets"
+    for time in shared:
+        a = next(c for c in full if c.time == time)
+        b = next(c for c in trimmed if c.time == time)
+        assert (a.high, a.low) == (b.high, b.low) or time == min(shared), (
+            "a shared complete bucket must aggregate identically"
+        )
+
+
+def test_resample_does_not_invent_bars_across_a_gap():
+    """Weekends leave holes in gold and FX. Filling them with flat bars would
+    manufacture exactly the consolidation this detector hunts for."""
+    from app.resample import resample
+
+    before = build([(10, 11, 0, 0)] * 4)
+    after = [
+        Candle(time=c.time + 86400 * 2, open=c.open, high=c.high, low=c.low, close=c.close)
+        for c in before
+    ]
+    hourly = resample(before + after, "1h", "15m")
+
+    assert len(hourly) == 2, "two real hours, and nothing in the weekend gap"
+    assert hourly[1].time - hourly[0].time == 86400 * 2
+
+
+def test_resample_refuses_a_target_that_is_not_higher():
+    from app.resample import resample
+
+    candles = build([(10, 11, 0, 0)] * 8)
+    assert resample(candles, "15m", "15m") == []
+    assert resample(candles, "5m", "15m") == []
 
 
 # --------------------------------------------------------------------------

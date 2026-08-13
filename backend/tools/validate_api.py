@@ -147,6 +147,56 @@ def main() -> int:
     check("stats account for every candidate",
           stats["candidates"] >= stats["zones"], str(stats))
 
+    # The distal is the line the stop sits beyond, so it must be the base's own
+    # extreme in BOTH proximal variants. Checked against the returned candles,
+    # not against the zone's own numbers.
+    for basis in ("wick", "body"):
+        payload_b = draw(bars=800, supply_demand={
+            "proximal_basis": basis, "show_broken": True, "max_zones_per_side": 50
+        }).json()
+        bars = payload_b["candles"]
+        off = 0
+        for z in payload_b["drawing"]["zones"]:
+            base = bars[z["anatomy"]["base_from"] : z["anatomy"]["base_to"] + 1]
+            want = (
+                min(b["low"] for b in base)
+                if z["side"] == "demand"
+                else max(b["high"] for b in base)
+            )
+            if abs(z["distal"] - want) > 1e-9:
+                off += 1
+        check(f"distal is the base extreme with proximal_basis={basis}", off == 0, f"{off} off")
+
+    check(
+        "the conservative variant never widens the zone",
+        min(z["top"] - z["bottom"] for z in draw(bars=800, supply_demand={"proximal_basis": "body"})
+            .json()["drawing"]["zones"])
+        <= max(z["top"] - z["bottom"] for z in zones),
+    )
+
+    # Higher-timeframe projection.
+    htf = draw(bars=1000, interval="15m", htf="4h").json()
+    projected = [z for z in htf["drawing"]["zones"] if z["timeframe"] == "4h"]
+    check("htf zones are produced", len(projected) > 0, str(htf["meta"].get("htf")))
+    check("every htf zone is stamped with its own timeframe",
+          all(z["timeframe"] == "4h" for z in projected))
+    check(
+        "htf zones sit on the higher timeframe's own grid",
+        all(z["time_from"] % 14400 == 0 for z in projected),
+        "a zone off the 4h boundary means the resample anchored to the window",
+    )
+    check(
+        "htf zones stay inside the chart window",
+        all(
+            htf["candles"][0]["time"] <= z["time_from"] <= z["time_to"] <= htf["candles"][-1]["time"]
+            for z in projected
+        ),
+    )
+    check("an htf equal to the interval is ignored",
+          all(z["timeframe"] == "15m" for z in draw(interval="15m", htf="15m").json()["drawing"]["zones"]))
+    check("an htf below the interval is ignored",
+          all(z["timeframe"] == "1h" for z in draw(interval="1h", htf="15m").json()["drawing"]["zones"]))
+
     # ---- parameter response ----------------------------------------------
     loose = len(draw(bars=800, supply_demand={"departure_min_atr": 0.0})
                 .json()["drawing"]["zones"])
@@ -177,8 +227,8 @@ def main() -> int:
           draw(supply_demand={"mitigation_pct": 5.0}).status_code == 422)
     check("negative parameter is a 422",
           draw(supply_demand={"atr_period": -3}).status_code == 422)
-    check("nonsense zone_basis is a 422",
-          draw(supply_demand={"zone_basis": "banana"}).status_code == 422)
+    check("nonsense proximal_basis is a 422",
+          draw(supply_demand={"proximal_basis": "banana"}).status_code == 422)
     check("unknown symbol on a keyless provider is a spoken 502",
           draw(symbol="NOTREAL", provider="yahoo").status_code == 502)
 

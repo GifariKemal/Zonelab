@@ -28,6 +28,13 @@ export interface Zone {
   kind: ZoneKind;
   side: ZoneSide;
   state: ZoneState;
+  /** Which timeframe's candles formed this zone. Higher than the chart's own
+   *  interval means it was projected down from a top-down pass. */
+  timeframe: string;
+  /** One-way travel across the base as a fraction of its height. Near 1 means
+   *  the base was a staircase rather than a pause. Reported, not filtered. */
+  base_drift: number;
+  base_overlap: number;
   top: number;
   bottom: number;
   proximal: number;
@@ -38,6 +45,9 @@ export interface Zone {
    *  price does on the return, so it orders the display and nothing else. */
   formation_score: number;
   departure_atr: number;
+  /** Leg-out travel as a multiple of the zone's own height. The doctrine's own
+   *  test, which asks for 3; calibration puts the knee nearer 2. */
+  profit_margin: number;
   touches: number;
   penetration_pct: number;
   first_test_time: number | null;
@@ -55,7 +65,8 @@ export interface SupplyDemandParams {
   base_max_atr: number;
   departure_min_atr: number;
   departure_lookahead: number;
-  zone_basis: "wick" | "body";
+  proximal_basis: "wick" | "body";
+  min_profit_margin: number;
   zone_min_atr: number;
   mitigation_pct: number;
   show_broken: boolean;
@@ -68,6 +79,7 @@ export interface DrawResponse {
   symbol: string;
   interval: string;
   provider: string;
+  htf?: string | null;
   candles: Candle[];
   drawing: { zones: Zone[] };
   meta: {
@@ -92,7 +104,8 @@ export const DEFAULT_PARAMS: SupplyDemandParams = {
   base_max_atr: 2.5,
   departure_min_atr: 2.0,
   departure_lookahead: 20,
-  zone_basis: "wick",
+  proximal_basis: "wick",
+  min_profit_margin: 0,
   zone_min_atr: 0.05,
   mitigation_pct: 0.5,
   show_broken: false,

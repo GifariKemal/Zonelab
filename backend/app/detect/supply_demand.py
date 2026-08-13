@@ -93,6 +93,7 @@ def detect(
         "candidates": 0,
         "rejected_base_too_tall": 0,
         "rejected_weak_departure": 0,
+        "rejected_thin_profit_margin": 0,
         "rejected_overlap": 0,
         "rejected_state_filter": 0,
     }
@@ -149,23 +150,39 @@ def detect(
         if atr_base <= EPS:
             continue
 
-        if params.zone_basis == "body":
-            body_hi = np.maximum(open_[base_from : base_to + 1], close[base_from : base_to + 1])
-            body_lo = np.minimum(open_[base_from : base_to + 1], close[base_from : base_to + 1])
-            top = float(body_hi.max())
-            bottom = float(body_lo.min())
-        else:
-            top = float(high[base_from : base_to + 1].max())
-            bottom = float(low[base_from : base_to + 1].min())
+        # The two lines are NOT symmetric, and getting that wrong is the most
+        # consequential drawing mistake in the method. The distal is always the
+        # wick extreme of the base, because the stop sits beyond it and a distal
+        # drawn at the body puts the stop inside the base it is protecting. Only
+        # the proximal moves between the aggressive (wick) and conservative
+        # (body) variants, and the doctrine never settled which is right.
+        span = slice(base_from, base_to + 1)
+        wick_hi = float(high[span].max())
+        wick_lo = float(low[span].min())
 
-        # A base of doji bodies can be zero-height. Grow it symmetrically about
-        # its midpoint to the floor so it stays visible, hoverable, and able to
-        # register a touch - a zero-height zone can never be tested.
+        if params.proximal_basis == "body":
+            body_hi = float(np.maximum(open_[span], close[span]).max())
+            body_lo = float(np.minimum(open_[span], close[span]).min())
+        else:
+            body_hi, body_lo = wick_hi, wick_lo
+
+        if side is ZoneSide.DEMAND:
+            top, bottom = body_hi, wick_lo  # proximal above, distal below
+        else:
+            top, bottom = wick_hi, body_lo  # distal above, proximal below
+
+        # A base of doji bodies can be near zero-height. Grow it to the floor so
+        # it stays visible, hoverable and able to register a touch, but grow it
+        # from the PROXIMAL side only: the distal is a wick extreme the stop
+        # sits beyond, and widening it symmetrically would quietly move the
+        # stop into the base.
         floor = params.zone_min_atr * atr_base
         height = top - bottom
         if height < floor:
-            mid = (top + bottom) / 2.0
-            top, bottom = mid + floor / 2.0, mid - floor / 2.0
+            if side is ZoneSide.DEMAND:
+                top = bottom + floor
+            else:
+                bottom = top - floor
             height = top - bottom
 
         if height > params.base_max_atr * atr_base:
@@ -175,6 +192,23 @@ def detect(
         is_demand = side is ZoneSide.DEMAND
         proximal, distal = (top, bottom) if is_demand else (bottom, top)
 
+        # Did the base actually pause? "No single candle here was big enough to
+        # be an impulse" is not the same test as "price stopped going
+        # anywhere", and a slow staircase satisfies the first while failing the
+        # second. Both are reported so the question can be measured before any
+        # threshold is invented.
+        drift = abs(close[base_to] - open_[base_from]) / height
+        if base_to > base_from:
+            span = np.maximum(high[base_from + 1 : base_to + 1], high[base_from:base_to]) - np.minimum(
+                low[base_from + 1 : base_to + 1], low[base_from:base_to]
+            )
+            shared = np.minimum(high[base_from + 1 : base_to + 1], high[base_from:base_to]) - np.maximum(
+                low[base_from + 1 : base_to + 1], low[base_from:base_to]
+            )
+            overlap = float(np.mean(np.where(span > EPS, np.maximum(shared, 0.0) / np.maximum(span, EPS), 1.0)))
+        else:
+            overlap = 1.0  # a single bar trivially overlaps itself
+
         # --- departure: how far the leg-out ran away from the zone ---------
         look_to = min(n, leg_out[1] + params.departure_lookahead)
         if is_demand:
@@ -183,8 +217,18 @@ def detect(
             excursion = proximal - float(low[leg_out[1] : look_to].min())
         departure_atr = max(0.0, excursion) / atr_base
 
+        # The doctrine's own test, and the only hard number in it: a base is not
+        # a level unless the initial move away is at least three times the level
+        # itself. It measures the same leg against a different yardstick than
+        # `departure_min_atr` does - the zone's own height rather than the
+        # market's volatility - so a wide zone has to earn a wider departure.
+        profit_margin = max(0.0, excursion) / height
+
         if departure_atr < params.departure_min_atr:
             stats["rejected_weak_departure"] += 1
+            continue
+        if profit_margin < params.min_profit_margin:
+            stats["rejected_thin_profit_margin"] += 1
             continue
 
         # --- lifecycle: replay every bar after the leg-out ------------------
@@ -260,6 +304,9 @@ def detect(
                 time_to=time_to,
                 formation_score=round(formation_score, 4),
                 departure_atr=round(departure_atr, 3),
+                profit_margin=round(min(profit_margin, 99.9), 2),
+                base_drift=round(min(drift, 9.99), 3),
+                base_overlap=round(overlap, 3),
                 touches=touches,
                 penetration_pct=round(penetration, 4),
                 first_test_time=first_test_time,

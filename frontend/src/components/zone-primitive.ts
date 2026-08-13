@@ -47,6 +47,10 @@ interface Box {
   top: number;
   bottom: number;
   proximalY: number;
+  /** True when the zone came from a higher timeframe than the chart. Those are
+   *  drawn heavier because in a top-down method they are the structure and the
+   *  local zones are the refinement, not the other way round. */
+  projected: boolean;
 }
 
 /** Fills, borders and the proximal rule. Drawn beneath the candles so the price
@@ -85,7 +89,7 @@ class ZoneBodyRenderer implements IPrimitivePaneRenderer {
           zone.side,
           selected ? 1 : EDGE_ALPHA[zone.state],
         );
-        ctx.lineWidth = (selected ? 2 : 1) * ky;
+        ctx.lineWidth = (selected ? 2.5 : box.projected ? 2 : 1) * ky;
         if (!zone.confirmed) ctx.setLineDash([4 * kx, 3 * kx]);
         ctx.strokeRect(x + 0.5, y + 0.5, w - 1, h - 1);
         ctx.restore();
@@ -143,7 +147,10 @@ class ZoneLabelRenderer implements IPrimitivePaneRenderer {
         // does not predict the outcome, so putting it here was a claim the
         // number cannot support. Lifecycle is already carried by the fill
         // opacity, and the panel has the detail.
-        const text = zone.kind;
+        // A projected zone says which timeframe drew it. Two boxes at the same
+        // price mean different things when one is H4 and one is M15, and the
+        // chart cannot show that with colour alone.
+        const text = box.projected ? `${zone.timeframe} ${zone.kind}` : zone.kind;
         // Clamped into view so a zone whose origin is scrolled off the left
         // stays identifiable.
         const x = Math.max(Math.round(box.left * kx), 0) + 5 * kx;
@@ -178,6 +185,7 @@ export class ZoneSeriesPrimitive implements ISeriesPrimitive<Time> {
   private requestUpdate: (() => void) | null = null;
   private zones: readonly Zone[] = [];
   private selectedId: string | null = null;
+  private chartInterval = "";
   private boxes: Box[] = [];
 
   private readonly views: readonly IPrimitivePaneView[] = [
@@ -206,8 +214,9 @@ export class ZoneSeriesPrimitive implements ISeriesPrimitive<Time> {
 
   /** New data or a new selection only reaches the canvas once the library is
    *  told to repaint; nothing else in the chart changed to trigger it. */
-  setZones(zones: readonly Zone[]): void {
+  setZones(zones: readonly Zone[], chartInterval: string): void {
     this.zones = zones;
+    this.chartInterval = chartInterval;
     this.requestUpdate?.();
   }
 
@@ -249,7 +258,15 @@ export class ZoneSeriesPrimitive implements ISeriesPrimitive<Time> {
       const right = rightRaw === null ? rightEdge : Math.min(rightRaw, rightEdge);
       if (right <= left) continue;
 
-      boxes.push({ zone, left, right, top, bottom, proximalY: proximal });
+      boxes.push({
+        zone,
+        left,
+        right,
+        top,
+        bottom,
+        proximalY: proximal,
+        projected: Boolean(zone.timeframe) && zone.timeframe !== this.chartInterval,
+      });
     }
 
     this.boxes = boxes;

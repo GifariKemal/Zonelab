@@ -21,9 +21,17 @@ interface Props {
   selectedId: string | null;
   onSelect: (id: string | null) => void;
   lastPrice: number | null;
+  /** The chart's own timeframe, so projected zones can be badged. */
+  chartInterval: string;
 }
 
-export function ZonePanel({ zones, selectedId, onSelect, lastPrice }: Props) {
+export function ZonePanel({
+  zones,
+  selectedId,
+  onSelect,
+  lastPrice,
+  chartInterval,
+}: Props) {
   const selected = zones.find((z) => z.id === selectedId) ?? null;
 
   // Nearest-first: the zone price has to travel least far to reach is the one
@@ -73,6 +81,11 @@ export function ZonePanel({ zones, selectedId, onSelect, lastPrice }: Props) {
                   <span className="num text-[12px] font-medium text-text">
                     {zone.kind}
                   </span>
+                  {zone.timeframe && zone.timeframe !== chartInterval ? (
+                    <span className="num shrink-0 border border-line-strong px-1 text-[10px] text-accent">
+                      {zone.timeframe}
+                    </span>
+                  ) : null}
                   <span className="truncate text-[11px] text-text-faint">
                     {STATE_LABEL[zone.state]}
                     {zone.confirmed ? "" : ", forming"}
@@ -122,6 +135,15 @@ function Inspector({ zone, lastPrice }: { zone: Zone; lastPrice: number | null }
         <Row label="Height" value={height.toFixed(2)} />
         {away ? <Row label="Distance from price" value={`${away}%`} /> : null}
         <Row label="Departure" value={`${zone.departure_atr.toFixed(2)} ATR`} />
+        <Row label="Profit margin" value={`${zone.profit_margin.toFixed(1)}x zone`} />
+        <Row
+          label="Base drift"
+          value={
+            zone.base_drift > 0.7
+              ? `${zone.base_drift.toFixed(2)}, drifted`
+              : zone.base_drift.toFixed(2)
+          }
+        />
         <Row label="Tests" value={String(zone.touches)} />
         <Row
           label="Eaten"

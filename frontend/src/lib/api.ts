@@ -44,6 +44,7 @@ export function fetchDrawing(request: {
   interval: string;
   bars: number;
   provider: string;
+  htf: string | null;
   supply_demand: SupplyDemandParams;
   signal?: AbortSignal;
 }): Promise<DrawResponse> {

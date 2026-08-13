@@ -122,7 +122,7 @@ await settle(page, 3000);
 // ================================================= every slider at both ends
 const sliders = page.locator('input[type="range"]');
 const sliderCount = await sliders.count();
-check("all nine parameters are exposed", sliderCount === 9, `${sliderCount}`);
+check("all ten parameters are exposed", sliderCount === 10, `${sliderCount}`);
 
 for (let i = 0; i < sliderCount; i++) {
   const s = sliders.nth(i);
@@ -150,7 +150,7 @@ check("show broken adds zones", (await zoneCount(page)) >= beforeBroken,
 // Raise the per-side cap first. At the default 12 the cap binds, freed slots
 // refill from the hidden pool, and the count does not move - which would make
 // this assertion pass without testing anything.
-await sliders.nth(7).fill("40");
+await sliders.nth(8).fill("40"); // zones per side
 await settle(page);
 const beforeMitigated = await zoneCount(page);
 await page.getByRole("switch", { name: "Show mitigated" }).click();
@@ -161,12 +161,42 @@ check("hiding mitigated removes zones", (await zoneCount(page)) < beforeMitigate
 await page.locator("text=Reset parameters").click();
 await settle(page, 3000);
 
-// ============================================================== zone basis
+// ============================================================ proximal line
 await page.locator('button:text-is("Body")').click();
 await settle(page);
-check("body basis renders", (await appAlert(page)).length === 0);
+check("conservative proximal renders", (await appAlert(page)).length === 0);
 await page.locator('button:text-is("Wick")').click();
 await settle(page);
+
+// ======================================================= higher timeframe
+const htfSelect = page.locator("select").nth(3);
+const htfOptions = await htfSelect.locator("option").allTextContents();
+check("htf offers only higher timeframes", !htfOptions.slice(1).includes("15m"),
+      htfOptions.join(","));
+check("htf can be switched off", htfOptions[0] === "off", htfOptions[0]);
+
+const beforeHtf = await zoneCount(page);
+await htfSelect.selectOption("4h");
+await settle(page, 4000);
+const withHtf = await zoneCount(page);
+check("switching on a higher timeframe adds zones", withHtf > beforeHtf,
+      `${beforeHtf} -> ${withHtf}`);
+check("projected zones are badged with their timeframe",
+      (await page.locator("aside").last().locator("text=/^4h$/").count()) > 0);
+check("no error from the higher timeframe pass", (await appAlert(page)).length === 0);
+await page.screenshot({ path: `${SHOTS}/sweep-04-htf.png` });
+
+// The picker must re-scope when the chart timeframe changes, or it will offer
+// a "higher" timeframe that is now lower than the chart.
+await page.locator('div[aria-label="Timeframe"] button:text-is("1d")').click();
+await settle(page, 3500);
+const afterSwitch = await page.locator("select").nth(3).locator("option").allTextContents();
+check("htf options re-scope when the chart timeframe changes",
+      !afterSwitch.includes("4h"), afterSwitch.join(","));
+await page.locator('div[aria-label="Timeframe"] button:text-is("15m")').click();
+await settle(page, 3500);
+await page.locator("select").nth(3).selectOption("off");
+await settle(page, 3000);
 
 // ========================================================= zone inspection
 const rail = page.locator("aside").last();

@@ -89,20 +89,39 @@ hanya menjadi gerbang, sebagaimana mestinya.
 
 AUC peringkat pada zona yang digambar. 0.5 berarti tidak membedakan sama sekali.
 
+> [!WARNING]
+> **Kolom reward 0.5 ATR tidak bisa dipakai untuk memeringkat apa pun.** Di
+> geometri itu tingkat bertahan 97.9%, artinya hanya **5 kegagalan dari 234**.
+> AUC yang dihitung dari 5 titik negatif tidak stabil, dan bootstrap-nya tetap
+> melaporkan selang yang tampak sempit. Harness sekarang mencetak ukuran kelas
+> minoritas di atas tabel dan menandai seluruh kolomnya `unusable` bila di bawah
+> 30. Perbandingan antar kelompok di atas tetap sah, karena itu uji dua proporsi
+> antara dua kelompok besar, bukan peringkat di dalam satu kelompok.
+
 | Faktor | AUC @0.5 | AUC @1.0 | AUC @2.0 | Putusan |
 |---|---|---|---|---|
+| | *(5 negatif, tak terpakai)* | *(36 negatif)* | *(90 negatif)* | |
 | tightness | 0.447 | 0.534 | 0.484 | tidak terbedakan, tanda berbalik antar paruh |
 | compactness | 0.520 | 0.546 | 0.529 | tidak terbedakan, tanda berbalik antar paruh |
-| volume | 0.705 | **0.610** | 0.519 | satu-satunya CI yang lolos, hanya di satu geometri |
+| volume | 0.705 | **0.610** | 0.519 | satu CI lolos di satu geometri, efeknya terkonsentrasi |
+| base_drift | 0.206 | 0.508 | 0.505 | tidak terbukti, lihat catatan di bawah |
+| base_overlap | 0.495 | 0.544 | 0.525 | tidak terbedakan |
 | **formation_score** | 0.592 | 0.588 | 0.527 | **CI melintasi 0.5 di ketiganya** |
 
 CI 95% untuk `formation_score` pada reward 1.0 adalah [0.482, 0.691]. Melintasi
 0.5, jadi tidak terbukti.
 
-`volume` adalah satu-satunya yang CI-nya pernah lepas dari 0.5 (reward 1.0:
-[0.517, 0.704]). Tetapi ia gagal pada dua geometri lain, dan paruh pertama versus
-paruh kedua adalah 0.710 lawan 0.504. Efeknya terkonsentrasi di satu bagian data.
-**Tidak dijadikan dasar pembobotan.**
+`volume` adalah satu-satunya yang CI-nya pernah lepas dari 0.5 pada kolom yang
+terpakai (reward 1.0: [0.517, 0.704]). Tetapi ia gagal pada reward 2.0, dan paruh
+pertama versus paruh kedua adalah 0.710 lawan 0.504. Efeknya terkonsentrasi di
+satu bagian data. **Tidak dijadikan dasar pembobotan.**
+
+`base_drift` sempat terbaca kuat dan terbalik pada reward 0.5 (AUC 0.206), dan
+itulah persis jebakan yang diperingatkan di atas: angka itu lahir dari 5
+kegagalan. Pada dua geometri dengan sampel nyata ia 0.508 dan 0.505, dan tandanya
+berbalik antar paruh pada reward 1.0. **Tidak ada bukti bahwa base yang melayang
+berkinerja lebih buruk.** Alasan untuk mempersoalkannya bersifat kesetiaan pada
+metode, bukan kinerja, dan keduanya harus dibedakan.
 
 **Konsekuensi pada kode:**
 - Bobot **tidak dipaskan ke data**. Tiga faktor, sepertiga masing-masing. Tidak

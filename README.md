@@ -3,7 +3,7 @@
 
 <p align="center">
   <img alt="status" src="https://img.shields.io/badge/status-tahap%20awal-orange">
-  <img alt="tests" src="https://img.shields.io/badge/tests-24%20passed-brightgreen">
+  <img alt="tests" src="https://img.shields.io/badge/tests-38%20passed-brightgreen">
   <img alt="calibrated" src="https://img.shields.io/badge/detection-validated%20p%3C0.0001-brightgreen">
   <img alt="license" src="https://img.shields.io/badge/license-proprietary-lightgrey">
 </p>
@@ -20,6 +20,7 @@
 - [Sumber data](#sumber-data)
 - [Cara zona ditentukan](#cara-zona-ditentukan)
 - [Apa yang sudah terukur](#apa-yang-sudah-terukur)
+- [Multi-timeframe](#multi-timeframe)
 - [Yang membuatnya dapat diaudit](#yang-membuatnya-dapat-diaudit)
 - [Arsitektur](#arsitektur)
 - [Pengujian](#pengujian)
@@ -180,6 +181,46 @@ Bobot tiga faktor sisanya **sengaja tidak dipaskan ke data**: sepertiga rata.
 Dengan n=234, lebar CI AUC saja sudah sekitar plus-minus 0.10, jadi memaskan
 bobot berarti memaskan derau.
 
+### Kesetiaan pada metode, diaudit terpisah
+
+Kalibrasi menjawab "apakah zona ini membedakan hasil". Pertanyaan lain yang sama
+pentingnya adalah "apakah kotaknya digambar di tempat yang benar menurut metodenya
+sendiri", dan itu diaudit terhadap materi Sam Seiden dan panduan resmi Online
+Trading Academy di [`docs/FIDELITY.md`](docs/FIDELITY.md).
+
+Audit itu menemukan satu cacat yang penting: **garis distal digambar salah.**
+Doktrinnya tidak ambigu, distal harus selalu ekstrem wick base, karena stop
+diletakkan di luarnya dan distal yang digambar di body menaruh stop **di dalam
+base yang seharusnya ia lindungi**. Parameter lama menggeser kedua tepi sekaligus,
+sehingga mode "body" bukan varian konservatif maupun agresif. Sekarang hanya
+proximal yang berpindah, dan invarian distal diverifikasi pada 200 zona nyata di
+kedua varian, nol pelanggaran.
+
+Audit yang sama juga menguji **aturan 1:3 milik doktrin**, satu-satunya angka
+keras di dalamnya. Diukur, lututnya ada di sekitar 2 dan bukan 3, dan di atas itu
+datar. Jadi aturannya tersedia sebagai knob tetapi mati secara bawaan.
+
+## Multi-timeframe
+
+Supply dan demand adalah metode top-down: zonanya milik timeframe lebih tinggi,
+entrinya milik yang lebih rendah. Pilih HTF di header dan zona timeframe itu
+digambar di atas chart yang sedang tampil, bergaris lebih tebal dan berlabel
+timeframe asalnya.
+
+Tiga aturan yang membuatnya benar, bukan sekadar masuk akal:
+
+1. **Bucket ditambatkan ke epoch, bukan ke bar pertama di jendela.** Kalau tidak,
+   setiap zona HTF bergeser saat pengguna mengubah jumlah bar, dan itu terlihat
+   persis seperti bug detektor.
+2. **Bar HTF terakhir dibuang bila belum selesai.** High dan low bar yang masih
+   terbentuk masih bergerak, jadi zona di atasnya akan berpindah sendiri.
+3. **Bucket kosong tidak diciptakan.** Akhir pekan meninggalkan lubang pada emas
+   dan FX; mengisinya dengan bar datar akan mengarang justru bentuk konsolidasi
+   yang dicari detektor ini.
+
+Siklus hidup zona HTF dinilai pada bar HTF-nya sendiri. Zona demand H4 tidak mati
+hanya karena satu candle M15 menutup beberapa sen di bawahnya.
+
 ## Yang membuatnya dapat diaudit
 
 - **Setiap zona menyimpan anatominya.** Indeks bar kaki masuk, base, dan kaki
@@ -263,11 +304,11 @@ cd backend
 
 # 4. End to end lewat browser. Butuh API dan web app menyala.
 cd ..\frontend
-npm run e2e                # 66 asersi: setiap kontrol, kontras, mobile
+npm run e2e                # 74 asersi: setiap kontrol, kontras, mobile
 npm run e2e:resilience     # 12 asersi: API mati, pulih, API key salah
 ```
 
-25 pengujian unit, semuanya lulus. Setiap seri harga dibangun dengan tangan
+38 pengujian unit, semuanya lulus. Setiap seri harga dibangun dengan tangan
 sehingga jawaban benarnya diketahui secara konstruksi, bukan dari mengamati
 chart. Asersi geometrinya eksak: bila satu batas bergeser satu tik, itu
 perubahan perilaku dan pengujiannya harus mengatakan demikian.

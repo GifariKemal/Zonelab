@@ -24,6 +24,9 @@ export default function Page() {
   const [interval, setInterval] = useState("15m");
   const [provider, setProvider] = useState("binance");
   const [bars, setBars] = useState(500);
+  // Supply and demand is top-down: the zone belongs to the higher timeframe,
+  // the entry to the lower. Off by default so the chart starts uncluttered.
+  const [htf, setHtf] = useState<string>("off");
   const [params, setParams] = useState<SupplyDemandParams>(DEFAULT_PARAMS);
 
   const [data, setData] = useState<DrawResponse | null>(null);
@@ -55,6 +58,7 @@ export default function Page() {
         interval,
         bars,
         provider,
+        htf: htf === "off" ? null : htf,
         supply_demand: params,
         signal: controller.signal,
       })
@@ -72,7 +76,7 @@ export default function Page() {
     }, DEBOUNCE_MS);
 
     return () => clearTimeout(timer);
-  }, [symbol, interval, bars, provider, params]);
+  }, [symbol, interval, bars, provider, htf, params]);
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -88,6 +92,7 @@ export default function Page() {
     [],
   );
 
+  const allIntervals = config?.intervals ?? [];
   const candles = data?.candles ?? [];
   const zones = data?.drawing.zones ?? [];
   const last = candles.at(-1) ?? null;
@@ -128,6 +133,20 @@ export default function Page() {
           value={String(bars)}
           onChange={(v) => setBars(Number(v))}
           options={["200", "500", "1000"]}
+        />
+
+        <Picker
+          label="HTF"
+          value={htf}
+          onChange={setHtf}
+          options={[
+            "off",
+            // Only genuinely higher timeframes; anything at or below the
+            // chart's own would aggregate to nothing.
+            ...(config?.intervals ?? []).filter(
+              (id) => allIntervals.indexOf(id) > allIntervals.indexOf(interval),
+            ),
+          ]}
         />
 
         <div className="flex border border-line-strong" role="group" aria-label="Timeframe">
@@ -217,6 +236,7 @@ export default function Page() {
               <Chart
                 candles={candles}
                 zones={zones}
+                interval={interval}
                 selectedId={selectedId}
                 onSelect={setSelectedId}
                 onHover={setHovered}
@@ -237,6 +257,7 @@ export default function Page() {
             selectedId={selectedId}
             onSelect={setSelectedId}
             lastPrice={last?.close ?? null}
+            chartInterval={interval}
           />
         </aside>
       </div>

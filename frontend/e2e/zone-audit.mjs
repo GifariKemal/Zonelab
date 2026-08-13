@@ -1,0 +1,95 @@
+/**
+ * Frame every drawn zone and screenshot it, so the geometry can be checked by
+ * eye against the candles that produced it.
+ *
+ *   node e2e/zone-audit.mjs <out-dir> [interval] [bars]
+ *
+ * The statistical calibration answers "do these zones discriminate outcomes".
+ * It cannot answer "is this box in the right place", which is a question about
+ * whether the drawing matches the method. Only looking answers that.
+ *
+ * Each crop is written next to a JSON record of what the backend claims the
+ * zone is, so the picture and the numbers can be compared directly.
+ */
+import { writeFileSync } from "node:fs";
+import { chromium } from "playwright";
+
+const OUT = process.argv[2];
+const INTERVAL = process.argv[3] ?? "15m";
+const BARS = Number(process.argv[4] ?? 500);
+const API = "http://127.0.0.1:8100";
+
+const browser = await chromium.launch({ args: ["--no-proxy-server"] });
+const page = await browser.newPage({ viewport: { width: 1400, height: 800 }, deviceScaleFactor: 2 });
+await page.goto("http://127.0.0.1:3100/", { waitUntil: "networkidle" });
+await page.waitForTimeout(6000);
+
+// Same request the page made, so the zones framed are the zones on screen.
+const drawn = await page.evaluate(
+  async ([api, interval, bars]) => {
+    const r = await fetch(`${api}/api/draw`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ symbol: "XAUUSD", interval, bars, detectors: ["supply_demand"] }),
+    });
+    return r.json();
+  },
+  [API, INTERVAL, BARS],
+);
+
+const { candles, drawing } = drawn;
+const step = candles[1].time - candles[0].time;
+const index = new Map(candles.map((c, i) => [c.time, i]));
+const records = [];
+
+for (const [n, zone] of drawing.zones.entries()) {
+  const a = zone.anatomy;
+  // Frame the whole formation plus a few bars either side, so the leg-in, the
+  // base and the leg-out are all visible in one picture.
+  const from = candles[Math.max(0, a.leg_in_from - 4)].time;
+  const to = candles[Math.min(candles.length - 1, a.leg_out_to + 10)].time;
+
+  await page.evaluate(
+    ([f, t]) => window.__zonelabChart.chart.timeScale().setVisibleRange({ from: f, to: t }),
+    [from, to],
+  );
+  await page.waitForTimeout(350);
+
+  const name = `zone-${String(n).padStart(2, "0")}-${zone.kind}-${zone.state}`;
+  await page.locator("main").screenshot({ path: `${OUT}/${name}.png` });
+
+  // What the picture SHOULD show, from the candles themselves rather than from
+  // the zone record. If these disagree with the zone, the detector is wrong.
+  const base = candles.slice(a.base_from, a.base_to + 1);
+  records.push({
+    file: `${name}.png`,
+    kind: zone.kind,
+    side: zone.side,
+    state: zone.state,
+    claimed: { top: zone.top, bottom: zone.bottom, proximal: zone.proximal, distal: zone.distal },
+    base_bars: base.length,
+    base_high_from_candles: Math.max(...base.map((c) => c.high)),
+    base_low_from_candles: Math.min(...base.map((c) => c.low)),
+    leg_in_bars: a.leg_in_to - a.leg_in_from + 1,
+    leg_out_bars: a.leg_out_to - a.leg_out_from + 1,
+    departure_atr: zone.departure_atr,
+  });
+}
+
+writeFileSync(`${OUT}/zone-audit.json`, JSON.stringify(records, null, 1));
+await browser.close();
+
+// Independent arithmetic on the candles, not a restatement of the zone record.
+const mismatched = records.filter(
+  (r) =>
+    Math.abs(r.claimed.top - r.base_high_from_candles) > 1e-6 ||
+    Math.abs(r.claimed.bottom - r.base_low_from_candles) > 1e-6,
+);
+console.log(`framed ${records.length} zones at ${INTERVAL}`);
+console.log(
+  mismatched.length
+    ? `MISMATCH: ${mismatched.length} zone(s) do not match their own base candles\n` +
+        JSON.stringify(mismatched, null, 1)
+    : "every zone's top and bottom equal its base candles' high and low",
+);
+process.exit(mismatched.length ? 1 : 0);

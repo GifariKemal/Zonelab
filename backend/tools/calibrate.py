@@ -221,12 +221,23 @@ def score_as_of(
     else:
         excursion = zone.proximal - float(low[window].min())
     departure = max(0.0, excursion) / atr_base
+    # The doctrine's 1:3 rule, recomputed as of the touch for the same reason
+    # departure is: the finished chart's value knows more than the trader did.
+    height = max(zone.top - zone.bottom, 1e-9)
+    profit_margin = max(0.0, excursion) / height
 
     # The shipped factors are all fixed at formation, so they need no
     # adjustment. Departure is returned separately: it is the gate's input and
     # the bucket table's x-axis, and deliberately no longer part of the score.
     factors = dict(zone.factors)
     formation = round(float(np.clip(sum(factors.values()), 0.0, 1.0)), 4)
+
+    # Candidates under evaluation, measured but NOT in the composite. The
+    # visual audit found bases that were slow staircases rather than pauses;
+    # these two say how much, and the AUC table says whether it matters.
+    factors["base_drift"] = zone.base_drift
+    factors["base_overlap"] = zone.base_overlap
+    factors["profit_margin"] = min(profit_margin, 20.0)  # capped so one outlier cannot dominate a rank
     return formation, factors, departure
 
 
@@ -312,6 +323,15 @@ def report(datasets: list[Dataset], reward_atr: float, horizon: int) -> dict:
             f"   {_two_proportion(labels, r_labels)}"
         )
 
+    # An AUC needs both classes to mean anything. At tight geometries the hold
+    # rate is so high that a handful of failures carry every negative, and the
+    # bootstrap happily reports a narrow interval around a number computed from
+    # five points. Printing the minority count next to the table is the only
+    # thing that stops that being read as a result.
+    minority = int(min(labels.sum(), (~labels).sum()))
+    warning = "  <- TOO FEW TO RANK ON" if minority < 30 else ""
+    print(f"\n  smaller class: {minority} of {len(real)}{warning}")
+
     print(f"\n  {'factor':<14}{'AUC':>8}{'95% CI':>18}   reading")
     factor_names = list(real[0].factors)
     out: dict = {
@@ -334,9 +354,14 @@ def report(datasets: list[Dataset], reward_atr: float, horizon: int) -> dict:
             continue
         value = auc(values, labels)
         lo, hi = bootstrap_auc(values, labels)
-        verdict = (
-            "discriminates" if lo > 0.5 else "inverted" if hi < 0.5 else "indistinguishable"
-        )
+        if minority < 30:
+            verdict = "unusable, minority class too small"
+        elif lo > 0.5:
+            verdict = "discriminates"
+        elif hi < 0.5:
+            verdict = "inverted"
+        else:
+            verdict = "indistinguishable"
         print(f"  {name:<14}{value:>8.3f}{f'[{lo:.3f}, {hi:.3f}]':>18}   {verdict}")
         out["factors"][name] = {"auc": value, "ci": [lo, hi], "verdict": verdict}
 
@@ -345,24 +370,36 @@ def report(datasets: list[Dataset], reward_atr: float, horizon: int) -> dict:
     # can be right. Bucketed over the FULL population, rejected included.
     everything = rejected + real
     if everything:
-        print(f"\n  departure (ATR)     n     held     <- gate sits at {SHIPPED_GATE}")
-        raw = np.array([o.departure for o in everything])
         held_all = np.array([o.held for o in everything])
-        edges = [0, 1, 2, 3, 4, 5, 99]
-        buckets = []
-        for lo_e, hi_e in zip(edges, edges[1:]):
-            pick = (raw >= lo_e) & (raw < hi_e)
-            if pick.sum() < 10:
-                continue
-            print(
-                f"  {lo_e:>3} to {hi_e:<3}      {pick.sum():>5}   "
-                f"{held_all[pick].mean():>6.1%}"
-            )
-            buckets.append(
-                {"from": lo_e, "to": hi_e, "n": int(pick.sum()),
-                 "held": float(held_all[pick].mean())}
-            )
-        out["departure_buckets"] = buckets
+        # An AUC is a rank test and is blind to a pure threshold: departure
+        # turned out to climb to 2 ATR and then go flat, which an AUC near 0.5
+        # cannot distinguish from "no effect at all". Bucketing shows the shape.
+        for name, values, edges, note in (
+            (
+                "departure (ATR)",
+                np.array([o.departure for o in everything]),
+                [0, 1, 2, 3, 4, 5, 99],
+                f"gate sits at {SHIPPED_GATE}",
+            ),
+            (
+                "profit margin (x zone)",
+                np.array([o.factors["profit_margin"] for o in everything]),
+                [0, 1, 2, 3, 4, 6, 99],
+                "doctrine asks for 3",
+            ),
+        ):
+            print(f"\n  {name:<22}  n     held     <- {note}")
+            buckets = []
+            for lo_e, hi_e in zip(edges, edges[1:]):
+                pick = (values >= lo_e) & (values < hi_e)
+                if pick.sum() < 10:
+                    continue
+                print(f"  {lo_e:>3} to {hi_e:<3}          {pick.sum():>5}   {held_all[pick].mean():>6.1%}")
+                buckets.append(
+                    {"from": lo_e, "to": hi_e, "n": int(pick.sum()),
+                     "held": float(held_all[pick].mean())}
+                )
+            out[f"{name.split()[0]}_buckets"] = buckets
 
     # Split-half on time. A factor that only works in one half is a window fit.
     print(f"\n  {'factor':<14}{'AUC 1st half':>14}{'AUC 2nd half':>14}   stable?")

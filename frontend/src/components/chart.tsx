@@ -18,12 +18,15 @@ import { ZoneSeriesPrimitive } from "./zone-primitive";
 interface Props {
   candles: Candle[];
   zones: Zone[];
+  /** The chart's own timeframe. Zones stamped with anything else came from a
+   *  higher timeframe and are drawn heavier. */
+  interval: string;
   selectedId: string | null;
   onSelect: (id: string | null) => void;
   onHover: (candle: Candle | null) => void;
 }
 
-export function Chart({ candles, zones, selectedId, onSelect, onHover }: Props) {
+export function Chart({ candles, zones, interval, selectedId, onSelect, onHover }: Props) {
   const host = useRef<HTMLDivElement>(null);
   const chart = useRef<IChartApi | null>(null);
   const series = useRef<ISeriesApi<"Candlestick", Time> | null>(null);
@@ -35,10 +38,16 @@ export function Chart({ candles, zones, selectedId, onSelect, onHover }: Props) 
   const candlesRef = useRef(candles);
   const onSelectRef = useRef(onSelect);
   const onHoverRef = useRef(onHover);
-  zonesRef.current = zones;
-  candlesRef.current = candles;
-  onSelectRef.current = onSelect;
-  onHoverRef.current = onHover;
+
+  // Written after commit, never during render. React may discard a render, and
+  // a ref assigned in the render body would then hold a value from a pass that
+  // never happened. No dependency array: this must run on every commit.
+  useEffect(() => {
+    zonesRef.current = zones;
+    candlesRef.current = candles;
+    onSelectRef.current = onSelect;
+    onHoverRef.current = onHover;
+  });
 
   useEffect(() => {
     if (!host.current) return;
@@ -122,6 +131,17 @@ export function Chart({ candles, zones, selectedId, onSelect, onHover }: Props) 
     series.current = candleSeries;
     primitive.current = zonePrimitive;
 
+    if (process.env.NODE_ENV !== "production") {
+      // Test seam. The zone audit drives the visible range to frame one
+      // formation at a time so its edges can be checked against the candles
+      // that produced them. Reaching that through UI gestures would be far
+      // more code than exposing the handle a driver already needs.
+      (window as unknown as Record<string, unknown>).__zonelabChart = {
+        chart: instance,
+        series: candleSeries,
+      };
+    }
+
     return () => {
       instance.remove();
       chart.current = null;
@@ -144,8 +164,8 @@ export function Chart({ candles, zones, selectedId, onSelect, onHover }: Props) 
   }, [candles]);
 
   useEffect(() => {
-    primitive.current?.setZones(zones);
-  }, [zones]);
+    primitive.current?.setZones(zones, interval);
+  }, [zones, interval]);
 
   useEffect(() => {
     primitive.current?.setSelected(selectedId);

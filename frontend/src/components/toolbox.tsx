@@ -15,15 +15,18 @@ export function Toolbox({ params, onChange, onReset, stats }: Props) {
     <div className="scroll-thin flex h-full flex-col overflow-y-auto">
       <Group title="Detector">
         <Segmented
-          label="Zone basis"
-          hint="Wick uses the base high/low. Body ignores wicks and draws tighter."
-          value={params.zone_basis}
+          label="Proximal line"
+          hint="Only the entry edge moves. The distal always covers the base's extreme, because the stop sits beyond it."
+          value={params.proximal_basis}
           options={[
             ["wick", "Wick"],
             ["body", "Body"],
           ]}
-          onChange={(v) => onChange({ zone_basis: v as "wick" | "body" })}
+          onChange={(v) => onChange({ proximal_basis: v as "wick" | "body" })}
         />
+        <Note>
+          Wick is aggressive, body is conservative. The distal never moves.
+        </Note>
         <Slider
           label="Impulse size"
           hint="A leg candle's range must exceed this many ATR. Lower finds more, weaker legs."
@@ -53,12 +56,24 @@ export function Toolbox({ params, onChange, onReset, stats }: Props) {
           value={params.departure_min_atr}
           onChange={(v) => onChange({ departure_min_atr: v })}
         />
-        <p className="text-[11px] leading-relaxed text-text-faint">
-          The one setting here with evidence behind it. Formations clearing 2 ATR
-          held 84.6% against 68.3% for those that did not, over 877 zones on five
-          series (p below 0.0001). Above 2 ATR the effect is flat, so raising this
-          only removes zones.
-        </p>
+        <Note tone="evidence">
+          The one measured setting. Clearing 2 ATR held 84.6% against 68.3%
+          (n=877, p&lt;0.0001). Flat above 2, so raising it only removes zones.
+        </Note>
+        <Slider
+          label="Profit margin"
+          hint="Leg-out travel as a multiple of the zone's own height. Off at 0."
+          suffix="x zone"
+          min={0}
+          max={6}
+          step={0.5}
+          value={params.min_profit_margin}
+          onChange={(v) => onChange({ min_profit_margin: v })}
+        />
+        <Note>
+          The method asks for 3. Measured, the effect flattens near 2 and adds
+          nothing over the ATR gate, so it ships off.
+        </Note>
       </Group>
 
       <Group title="Base">
@@ -135,13 +150,14 @@ export function Toolbox({ params, onChange, onReset, stats }: Props) {
 
       {stats ? (
         <Group title="Filter trace">
-          <p className="mb-2 text-[11px] leading-relaxed text-text-faint">
+          <Note>
             Why the chart looks the way it does. An empty chart and an
             over-filtered one are not the same problem.
-          </p>
+          </Note>
           <Stat label="Formations found" value={stats.candidates} />
           <Stat label="Base too tall" value={stats.rejected_base_too_tall} muted />
           <Stat label="Weak departure" value={stats.rejected_weak_departure} muted />
+          <Stat label="Thin profit margin" value={stats.rejected_thin_profit_margin} muted />
           <Stat label="Merged as duplicate" value={stats.rejected_overlap} muted />
           <Stat label="Hidden by state" value={stats.rejected_state_filter} muted />
           <div className="mt-2 border-t border-line pt-2">
@@ -159,6 +175,32 @@ export function Toolbox({ params, onChange, onReset, stats }: Props) {
         </button>
       </div>
     </div>
+  );
+}
+
+/** A short line of context under a control.
+ *
+ *  Deliberately terse. These earn their place only because most of the knobs
+ *  here are unmeasured and one of them is not, and a panel that does not say
+ *  which is which invites the user to trust them equally. The `evidence` tone
+ *  marks the one with a measurement behind it. */
+function Note({
+  children,
+  tone,
+}: {
+  children: React.ReactNode;
+  tone?: "evidence";
+}) {
+  return (
+    <p
+      className={`text-[11px] leading-relaxed ${
+        tone === "evidence"
+          ? "border-l border-accent/50 pl-2 text-text-dim"
+          : "text-text-faint"
+      }`}
+    >
+      {children}
+    </p>
   );
 }
 

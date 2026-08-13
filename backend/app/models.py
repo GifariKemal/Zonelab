@@ -61,6 +61,15 @@ class Zone(BaseModel):
     kind: ZoneKind
     side: ZoneSide
     state: ZoneState
+    timeframe: str = Field(
+        default="",
+        description=(
+            "The timeframe whose candles formed this zone. Equal to the chart's "
+            "interval for local zones, higher for projected ones. Supply and "
+            "demand is a top-down method, so which timeframe drew a zone is part "
+            "of what the zone means, not metadata."
+        ),
+    )
 
     # Geometry. top/bottom are absolute prices; proximal is the edge price
     # meets first on the way back, distal is the protective far edge.
@@ -94,6 +103,33 @@ class Zone(BaseModel):
             "above 2 ATR more departure buys nothing."
         )
     )
+    profit_margin: float = Field(
+        default=0.0,
+        description=(
+            "Leg-out travel as a multiple of the zone's own height. This is the "
+            "doctrine's own test, and the only hard number in it: a base is not "
+            "a level unless the initial move away is at least 3x the level. "
+            "Reported for every zone; gated only if `min_profit_margin` is set."
+        ),
+    )
+    # Two descriptions of whether the base actually paused. Reported, not yet
+    # filtered on: see docs/CALIBRATION.md before turning either into a gate.
+    base_drift: float = Field(
+        default=0.0,
+        description=(
+            "One-way travel across the base as a fraction of the base's own "
+            "height. Near 0 means price came back to where it started; near 1 "
+            "means the 'base' was a staircase that never paused."
+        ),
+    )
+    base_overlap: float = Field(
+        default=1.0,
+        description=(
+            "Mean shared range between consecutive base bars. A real "
+            "consolidation revisits the same prices; a slow trend does not."
+        ),
+    )
+
     touches: int = 0
     penetration_pct: float = Field(
         default=0.0, description="Deepest entry into the zone, 0..1 of its height"
@@ -146,9 +182,27 @@ class SupplyDemandParams(BaseModel):
     )
     departure_lookahead: int = Field(default=20, ge=1, le=500)
 
-    zone_basis: Literal["wick", "body"] = Field(
+    proximal_basis: Literal["wick", "body"] = Field(
         default="wick",
-        description="wick = base high/low; body = base candle bodies (tighter)",
+        description=(
+            "Which edge of the base the PROXIMAL line sits on. 'wick' is the "
+            "aggressive variant (wider zone, more likely to be reached); 'body' "
+            "is the conservative one (tighter zone, less risk to the distal). "
+            "The distal line is always the wick extreme in both variants, "
+            "because a distal drawn at the body puts the stop inside the base."
+        ),
+    )
+    min_profit_margin: float = Field(
+        default=0.0,
+        ge=0.0,
+        le=10.0,
+        description=(
+            "Doctrine's one hard number: the leg-out must travel at least this "
+            "many times the zone's own height for the base to count as a level "
+            "(Seiden states 3:1). Measured relative to the ZONE, unlike "
+            "`departure_min_atr` which is relative to volatility. Default 0 "
+            "leaves it off and reported only, pending measurement."
+        ),
     )
     zone_min_atr: float = Field(
         default=0.05,
@@ -174,6 +228,13 @@ class DrawRequest(BaseModel):
     interval: str = "15m"
     bars: int = Field(default=500, ge=50, le=5000)
     provider: str | None = None
+    htf: str | None = Field(
+        default=None,
+        description=(
+            "Optional higher timeframe to also draw zones from, aggregated from "
+            "the same bars. Ignored unless strictly higher than `interval`."
+        ),
+    )
     detectors: list[str] = Field(default_factory=lambda: ["supply_demand"])
     supply_demand: SupplyDemandParams = Field(default_factory=SupplyDemandParams)
 
