@@ -220,6 +220,36 @@ def main() -> int:
     check("nothing is nested when no higher timeframe is requested",
           all(not z["nested_in"] for z in draw(bars=400).json()["drawing"]["zones"]))
 
+    # The four remaining odds enhancers. All reported, none scored.
+    rich = draw(bars=1000, supply_demand={"show_broken": True, "max_zones_per_side": 50}).json()
+    rz = rich["drawing"]["zones"]
+    check("curve is a fraction of the range", all(0 <= z["curve"] <= 1 for z in rz))
+    check(
+        "curve_favourable matches the side it is computed for",
+        all(
+            z["curve_favourable"] == (z["curve"] <= 1 / 3 + 1e-9)
+            if z["side"] == "demand"
+            else z["curve_favourable"] == (z["curve"] >= 2 / 3 - 1e-9)
+            for z in rz
+        ),
+    )
+    check(
+        "the profit zone points at an opposing zone, never a same-side one",
+        all(
+            z["profit_zone_rr"] is None or z["profit_zone_rr"] > 0
+            for z in rz
+        ),
+    )
+    check(
+        "arrival exists exactly when the zone has been touched",
+        all((z["arrival_atr"] is not None) == (z["first_test_time"] is not None) for z in rz),
+        f"{sum(1 for z in rz if z['arrival_atr'] is not None)} of {len(rz)}",
+    )
+    check(
+        "an untouched zone reports no arrival",
+        all(z["arrival_atr"] is None for z in rz if z["state"] == "fresh"),
+    )
+
     # ---- parameter response ----------------------------------------------
     loose = len(draw(bars=800, supply_demand={"departure_min_atr": 0.0})
                 .json()["drawing"]["zones"])

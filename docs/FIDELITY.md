@@ -116,19 +116,45 @@ bahwa itu memperbaiki apa pun. Melaporkannya membiarkan penggunanya memutuskan,
 dan angkanya tampil di inspektur. Bila kelak ada sampel lebih besar dan efeknya
 bertahan, gerbangnya tinggal dipasang.
 
-### Enhancer yang belum ada, dan alasannya
+### Seluruh enhancer, dan hasil pengukurannya
 
-| Enhancer | Status | Alasan |
+| Enhancer | Status | Hasil |
 |---|---|---|
-| Strength of departure | **Ada**, tervalidasi | `departure_atr`, lutut di 2 ATR |
-| Time at level | **Ada** | `compactness`, dihukum bertahap bukan dipotong keras |
-| Freshness | **Ada** | `state` dan `touches` |
-| Profit zone (mundur) | **Ada**, mati | `profit_margin`, lihat di atas |
-| Profit zone (maju) | Belum | Perlu jarak ke zona lawan **segar** terdekat, artinya validitas zona bergantung pada pasangan zona, bukan pada zona sendiri |
-| The Curve | Belum | Perlu rentang timeframe lebih tinggi sebagai acuan. Mesin MTF-nya baru ada; batas sepertiganya tidak pernah diterbitkan doktrinnya |
-| Big picture / tren | Belum | Doktrinnya tidak pernah mendefinisikan cara mengukur tren |
-| Arrival | **Sengaja tidak** | Sumber-sumbernya **saling bertentangan soal arahnya**. Memasangnya berarti menebak tanda |
-| Skor gabungan dan gerbang 7/8/9 | **Sengaja tidak** | Tiga tabel terbit yang saling bertentangan, tanpa validasi di belakang satu pun. Kalibrasi di sini sudah menunjukkan skor gabungan tidak memeringkat apa pun |
+| Strength of departure | Ada | **Satu-satunya yang tervalidasi.** Lutut di 2 ATR, +16.3 pp lawan kontrol keras, p<0.0001 |
+| Profit zone (mundur, aturan 1:3) | Ada, gerbangnya mati | Lutut di 2 bukan 3, datar di atasnya, AUC 0.485 |
+| Profit zone (maju, ke zona lawan) | Ada | AUC 0.540 dan 0.539, CI melintasi 0.5 di keduanya. Tanda sama antar paruh, jadi marginal bukan nol, tetapi tidak terbukti |
+| The Curve | Ada | Versi doktrinnya (`curve_favourable`) **tidak terbukti**: 0.547 dan 0.518. Lihat catatan drift di bawah |
+| Arrival | Ada | 0.450 dan 0.470, tanda berbalik antar paruh. **Perselisihan sumbernya tidak terselesaikan karena tidak ada efeknya** |
+| Nesting HTF | Ada | Tidak ada manfaat, sedikit negatif di ketiga geometri |
+| Time at level | Ada | `compactness`, dihukum bertahap. AUC 0.529-0.546, tidak terbukti |
+| Freshness | Ada | `state` dan `touches`. Konstan pada sentuhan pertama, jadi tak terukur di sana |
+| Big picture / tren | **Sengaja tidak** | Doktrinnya tidak pernah mendefinisikan cara mengukur tren. Tidak ada yang bisa diimplementasikan tanpa mengarang |
+| Skor gabungan dan gerbang 7/8/9 | **Sengaja tidak** | Tiga tabel terbit yang saling bertentangan, tanpa validasi di belakang satu pun, dan komposit di sini sudah terbukti tidak memeringkat apa pun |
+
+### The Curve, dan artefak yang hampir saya laporkan sebagai temuan
+
+Nilai mentah `curve_position` tampak sebagai **faktor pertama yang lolos**: AUC
+0.648 dan 0.581, CI bersih dari 0.5 di kedua geometri yang sampelnya memadai, dan
+tanda yang sama di kedua paruh. Itu hasil terkuat dari semua yang saya ukur.
+
+Ia palsu, dan cara membuktikannya adalah memisahkan per sisi. Doktrinnya menuntut
+demand kuat **di bawah** rentang dan supply kuat **di atas**, jadi efek curve yang
+nyata harus menunjuk **arah berlawanan** untuk kedua sisi.
+
+| Reward | Demand | Supply | Putusan |
+|---|---|---|---|
+| 0.5 ATR | 0.604, high better | 0.927, high better | searah |
+| 1.0 ATR | 0.587, high better | 0.731, high better | searah |
+| 2.0 ATR | 0.531, high better | 0.636, high better | searah |
+
+**Kedua sisi menunjuk arah yang sama di ketiga geometri.** Yang diukur variabel itu
+adalah drift harga di sampel yang sedang menanjak, bukan posisi pada kurva: di
+tren naik, zona yang lebih tinggi dalam rentang adalah zona yang lebih baru, dan
+harga terus menjauh ke arah yang menguntungkan. Sisi demand bahkan **berlawanan
+dengan doktrinnya**.
+
+Harness sekarang mencetak pemisahan ini setiap kali, dengan verdict eksplisit,
+supaya artefak yang sama tidak lolos lagi.
 
 ## Multi-timeframe
 

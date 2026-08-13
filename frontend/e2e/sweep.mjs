@@ -147,16 +147,22 @@ await settle(page);
 check("show broken adds zones", (await zoneCount(page)) >= beforeBroken,
       `${beforeBroken} -> ${await zoneCount(page)}`);
 
-// Raise the per-side cap first. At the default 12 the cap binds, freed slots
-// refill from the hidden pool, and the count does not move - which would make
-// this assertion pass without testing anything.
+// Raise the per-side cap first. At the default 12 the cap binds and freed slots
+// refill from the hidden pool, so the total would not move.
 await sliders.nth(8).fill("40"); // zones per side
 await settle(page);
-const beforeMitigated = await zoneCount(page);
+
+// Assert the invariant, not the arithmetic. Counting zones before and after
+// depends on the live window happening to contain a mitigated one right now,
+// which is a coin flip that turns green or red with the market rather than
+// with the code. "No mitigated rows remain" is true whether there were nine or
+// none.
+const mitigatedRows = () => page.locator("aside").last().locator("text=Mitigated").count();
+const hadMitigated = await mitigatedRows();
 await page.getByRole("switch", { name: "Show mitigated" }).click();
 await settle(page);
-check("hiding mitigated removes zones", (await zoneCount(page)) < beforeMitigated,
-      `${beforeMitigated} -> ${await zoneCount(page)}`);
+check("hiding mitigated leaves no mitigated zones", (await mitigatedRows()) === 0,
+      `${hadMitigated} before`);
 
 await page.locator("text=Reset parameters").click();
 await settle(page, 3000);

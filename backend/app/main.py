@@ -14,6 +14,7 @@ from .config import settings
 from .confluence import mark_nesting
 from .detect import DETECTORS
 from .models import Candle, DrawRequest, DrawResponse, Drawing, Zone, ZoneState
+from .profit_zone import mark_profit_zones
 from .resample import resample
 from .providers import (
     INTERVALS,
@@ -107,9 +108,14 @@ async def draw(request: DrawRequest) -> DrawResponse:
         drawing.zones = zones
         meta["supply_demand"] = stats
 
+        # A zone's worth depends on the zones around it, so this runs over the
+        # finished set rather than inside the detector.
+        mark_profit_zones(zones, rows[-1].time)
+
         if request.htf:
             higher, htf_stats = _htf_zones(rows, request)
             mark_nesting(zones, higher)
+            mark_profit_zones(higher, rows[-1].time)
             htf_stats["nested_local_zones"] = sum(1 for z in zones if z.nested_in)
             drawing.zones = higher + drawing.zones
             meta["htf"] = htf_stats

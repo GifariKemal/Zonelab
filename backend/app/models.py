@@ -112,6 +112,44 @@ class Zone(BaseModel):
             "Reported for every zone; gated only if `min_profit_margin` is set."
         ),
     )
+    curve: float = Field(
+        default=0.5,
+        ge=0.0,
+        le=1.0,
+        description=(
+            "Where the zone sits in the prevailing range, 0 at the low and 1 at "
+            "the high, measured only on bars that preceded it. The doctrine's "
+            "'curve': demand is wholesale near 0, supply is retail near 1, and a "
+            "textbook formation sitting at equilibrium is held to be a weak one "
+            "because that is where imbalance is smallest."
+        ),
+    )
+    curve_favourable: bool = Field(
+        default=False,
+        description=(
+            "True when the zone is on the useful side of the curve for its own "
+            "side: demand in the lower third, supply in the upper third."
+        ),
+    )
+    profit_zone_rr: float | None = Field(
+        default=None,
+        description=(
+            "Distance from this zone's proximal line to the nearest live "
+            "opposing zone, in units of this zone's own height. The doctrine's "
+            "most-overlooked enhancer, and the reason zone validity depends on "
+            "the pair of zones rather than on one alone. None when no opposing "
+            "zone stands in the way."
+        ),
+    )
+    arrival_atr: float | None = Field(
+        default=None,
+        description=(
+            "How hard price travelled into the zone over the bars before its "
+            "first touch, in ATR. Sources contradict each other on whether a "
+            "fast arrival is good or bad, so this is measured rather than "
+            "scored. None until the zone has been touched."
+        ),
+    )
     # Two descriptions of whether the base actually paused. Reported, not yet
     # filtered on: see docs/CALIBRATION.md before turning either into a gate.
     base_drift: float = Field(
@@ -225,6 +263,23 @@ class SupplyDemandParams(BaseModel):
         ge=0.0,
         le=1.0,
         description="Fraction of zone depth eaten before it counts as mitigated",
+    )
+
+    curve_lookback: int = Field(
+        default=200,
+        ge=20,
+        le=2000,
+        description=(
+            "Bars before the zone used as the reference range for its curve "
+            "position. Only past bars, so the value never changes once the zone "
+            "has formed."
+        ),
+    )
+    arrival_bars: int = Field(
+        default=6,
+        ge=1,
+        le=50,
+        description="Bars before the first touch measured as the arrival move.",
     )
 
     show_broken: bool = False

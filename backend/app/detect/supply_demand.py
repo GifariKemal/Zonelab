@@ -231,10 +231,32 @@ def detect(
             stats["rejected_thin_profit_margin"] += 1
             continue
 
+        # --- curve: where in the prevailing range does this sit? ------------
+        # Read only from bars BEFORE the base, so the value is fixed the moment
+        # the zone forms and never moves again. Using the whole window instead
+        # would make every zone's curve shift when the user changed the bar
+        # count, which is the same class of defect as anchoring an HTF bucket
+        # to the window rather than the epoch.
+        look_from = max(0, base_from - params.curve_lookback)
+        if base_from > look_from:
+            ref_hi = float(high[look_from:base_from].max())
+            ref_lo = float(low[look_from:base_from].min())
+        else:
+            ref_hi = ref_lo = 0.0
+        ref_span = ref_hi - ref_lo
+        midpoint = (top + bottom) / 2.0
+        curve = (
+            float(np.clip((midpoint - ref_lo) / ref_span, 0.0, 1.0))
+            if ref_span > EPS
+            else 0.5
+        )
+        curve_favourable = curve <= 1 / 3 if is_demand else curve >= 2 / 3
+
         # --- lifecycle: replay every bar after the leg-out ------------------
         touches = 0
         penetration = 0.0
         first_test_time: int | None = None
+        arrival_atr: float | None = None
         break_index: int | None = None
         was_inside = False
 
@@ -253,6 +275,16 @@ def detect(
                     touches += 1
                     if first_test_time is None:
                         first_test_time = int(time[i])
+                        # How hard price came back. Measured once, at the first
+                        # touch, because that is the only moment the question is
+                        # actionable. The doctrine disagrees with itself about
+                        # whether fast is good or bad, so it is recorded and
+                        # left unscored.
+                        arr_from = max(0, i - params.arrival_bars)
+                        if atr[i] > EPS and i > arr_from:
+                            arrival_atr = round(
+                                abs(close[i] - close[arr_from]) / float(atr[i]), 3
+                            )
                 depth = (top - low[i]) if is_demand else (high[i] - bottom)
                 penetration = max(penetration, min(1.0, depth / height))
             was_inside = inside
@@ -305,6 +337,9 @@ def detect(
                 formation_score=round(formation_score, 4),
                 departure_atr=round(departure_atr, 3),
                 profit_margin=round(min(profit_margin, 99.9), 2),
+                curve=round(curve, 3),
+                curve_favourable=curve_favourable,
+                arrival_atr=arrival_atr,
                 base_drift=round(min(drift, 9.99), 3),
                 base_overlap=round(overlap, 3),
                 touches=touches,

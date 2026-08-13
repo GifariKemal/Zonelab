@@ -137,6 +137,24 @@ function Inspector({ zone, lastPrice }: { zone: Zone; lastPrice: number | null }
         <Row label="Departure" value={`${zone.departure_atr.toFixed(2)} ATR`} />
         <Row label="Profit margin" value={`${zone.profit_margin.toFixed(1)}x zone`} />
         <Row
+          label="Profit zone"
+          value={
+            zone.profit_zone_rr === null
+              ? "clear ahead"
+              : `${zone.profit_zone_rr.toFixed(1)}x to the wall`
+          }
+        />
+        <Row
+          label="Curve"
+          value={`${(zone.curve * 100).toFixed(0)}%${zone.curve_favourable ? ", favourable" : ""}`}
+        />
+        {zone.arrival_atr !== null ? (
+          <Row label="Arrival" value={`${zone.arrival_atr.toFixed(1)} ATR`} />
+        ) : null}
+        {zone.nested_in.length ? (
+          <Row label="Nested in" value={zone.nested_in.join(", ")} />
+        ) : null}
+        <Row
           label="Base drift"
           value={
             zone.base_drift > 0.7

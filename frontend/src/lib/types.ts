@@ -52,6 +52,17 @@ export interface Zone {
   /** Leg-out travel as a multiple of the zone's own height. The doctrine's own
    *  test, which asks for 3; calibration puts the knee nearer 2. */
   profit_margin: number;
+  /** Position in the prevailing range, 0 at the low and 1 at the high. The
+   *  doctrine's "curve". Measured: its side-adjusted form does not predict. */
+  curve: number;
+  curve_favourable: boolean;
+  /** Distance to the nearest live opposing zone, in units of this zone's own
+   *  height. Null when nothing stands in the way. */
+  profit_zone_rr: number | null;
+  /** How hard price travelled in before the first touch, in ATR. Null until
+   *  touched. Sources disagree on whether fast is good; measured, it is
+   *  indistinguishable either way. */
+  arrival_atr: number | null;
   touches: number;
   penetration_pct: number;
   first_test_time: number | null;

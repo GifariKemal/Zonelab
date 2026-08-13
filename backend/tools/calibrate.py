@@ -44,6 +44,7 @@ import numpy as np
 from app.confluence import mark_nesting
 from app.detect.supply_demand import detect
 from app.indicators import wilder_atr
+from app.profit_zone import profit_zone_at
 from app.resample import resample
 from app.models import Candle, SupplyDemandParams, Zone, ZoneSide
 from tools import history
@@ -172,7 +173,7 @@ def evaluate(
         if touch is None or touch <= zone.anatomy.leg_out_to:
             continue
 
-        scored = score_as_of(zone, high, low, atr, touch, params)
+        scored = score_as_of(zone, high, low, atr, touch, params, zones, candles)
         if scored is None:
             continue  # no measurable leg-out before the touch
 
@@ -217,6 +218,8 @@ def score_as_of(
     atr: np.ndarray,
     touch: int,
     params: SupplyDemandParams,
+    all_zones: list[Zone],
+    candles: list[Candle],
 ) -> tuple[float, dict[str, float], float] | None:
     """Recompute the score using only what was knowable before `touch`.
 
@@ -256,6 +259,22 @@ def score_as_of(
     factors["base_drift"] = zone.base_drift
     factors["base_overlap"] = zone.base_overlap
     factors["profit_margin"] = min(profit_margin, 20.0)  # capped so one outlier cannot dominate a rank
+
+    # Curve is causal by construction: the detector reads only bars before the
+    # base, so this is already the as-of value.
+    factors["curve_position"] = zone.curve
+    factors["curve_favourable"] = float(zone.curve_favourable)
+
+    # Arrival is recorded AT the first touch, which is exactly the decision
+    # moment, so it needs no adjustment either.
+    factors["arrival_atr"] = min(zone.arrival_atr or 0.0, 10.0)
+
+    # The profit zone does NOT come for free. The shipped value is computed
+    # against the last bar and therefore knows about opposing zones that formed
+    # after the touch. Recompute it against what stood in the way at the time.
+    forward = profit_zone_at(zone, all_zones, candles[touch].time)
+    factors["profit_zone_rr"] = min(forward or 0.0, 30.0)
+
     return formation, factors, departure
 
 
@@ -439,6 +458,40 @@ def report(datasets: list[Dataset], reward_atr: float, horizon: int) -> dict:
                      "held": float(held_all[pick].mean())}
                 )
             out[f"{name.split()[0]}_buckets"] = buckets
+
+    # Curve, split by side. This is the check that tells a real curve effect
+    # apart from a trend artefact, and without it the raw AUC is unreadable.
+    #
+    # The doctrine says demand is strong LOW in the range and supply strong
+    # HIGH, so a genuine curve effect must point in OPPOSITE raw directions for
+    # the two sides: AUC below 0.5 for demand, above 0.5 for supply. If both
+    # sides point the same way, the variable is tracking drift in a trending
+    # sample and has nothing to do with the curve.
+    print(f"\n  curve by side       n     AUC    reading")
+    curve_sides = {}
+    for side in ("demand", "supply"):
+        picked = [o for o in real if o.side == side]
+        if len(picked) < 30:
+            print(f"  {side:<18}{len(picked):>5}      -    too few")
+            continue
+        values = np.array([o.factors["curve_position"] for o in picked])
+        marks = np.array([o.held for o in picked])
+        if values.std() < 1e-12 or marks.all() or not marks.any():
+            print(f"  {side:<18}{len(picked):>5}      -    no contrast")
+            continue
+        value = auc(values, marks)
+        curve_sides[side] = value
+        want = "low is better" if side == "demand" else "high is better"
+        got = "low is better" if value < 0.5 else "high is better"
+        print(f"  {side:<18}{len(picked):>5}  {value:>6.3f}   {got}, doctrine says {want}")
+    if len(curve_sides) == 2:
+        opposed = (curve_sides["demand"] - 0.5) * (curve_sides["supply"] - 0.5) < 0
+        print(
+            "  -> sides point in opposite directions, consistent with a real curve effect"
+            if opposed
+            else "  -> BOTH SIDES POINT THE SAME WAY: this is drift, not the curve"
+        )
+        out["curve_by_side"] = {**curve_sides, "opposed": bool(opposed)}
 
     # Split-half on time. A factor that only works in one half is a window fit.
     print(f"\n  {'factor':<14}{'AUC 1st half':>14}{'AUC 2nd half':>14}   stable?")
