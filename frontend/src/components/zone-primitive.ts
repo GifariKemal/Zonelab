@@ -136,9 +136,14 @@ class ZoneLabelRenderer implements IPrimitivePaneRenderer {
       for (const box of this.boxes) {
         const { zone } = box;
         const h = box.bottom - box.top;
-        if (h < LABEL_MIN_HEIGHT || box.right - box.left < 46) continue;
+        if (h < LABEL_MIN_HEIGHT || box.right - box.left < 34) continue;
 
-        const text = `${zone.kind} ${zone.strength.toFixed(2)}`;
+        // Formation name only. The caption used to carry the composite score,
+        // which reads as a quality rating on a chart; calibration showed it
+        // does not predict the outcome, so putting it here was a claim the
+        // number cannot support. Lifecycle is already carried by the fill
+        // opacity, and the panel has the detail.
+        const text = zone.kind;
         // Clamped into view so a zone whose origin is scrolled off the left
         // stays identifiable.
         const x = Math.max(Math.round(box.left * kx), 0) + 5 * kx;

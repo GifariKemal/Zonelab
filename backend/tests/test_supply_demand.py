@@ -144,8 +144,8 @@ def test_each_formation_is_found_with_exact_geometry(in_step, out_step, kind, si
     assert zone.touches == 0
     assert zone.time_from == T0 + 13 * STEP
     assert zone.departure_atr > 2.0
-    assert 0.0 <= zone.strength <= 1.0
-    assert sum(zone.factors.values()) == pytest.approx(zone.strength, abs=1e-3)
+    assert 0.0 <= zone.formation_score <= 1.0
+    assert sum(zone.factors.values()) == pytest.approx(zone.formation_score, abs=1e-3)
 
 
 # --------------------------------------------------------------------------
@@ -408,8 +408,87 @@ def test_doji_base_is_grown_to_the_minimum_height():
 
 
 # --------------------------------------------------------------------------
+# calibration invariants
+# --------------------------------------------------------------------------
+
+
+def test_formation_score_holds_only_formation_factors():
+    """Guard on what docs/CALIBRATION.md concluded.
+
+    Two factors were removed from the composite on evidence, and both are easy
+    to reintroduce by accident because both look reasonable:
+
+    - `departure` measured as a threshold, not a gradient. Held rate rises to
+      2 ATR then goes flat, so scoring it as a gradient adds noise to a ranking
+      that is already indistinguishable from chance.
+    - `freshness` is constant at the exact moment the score is read, because a
+      zone is fresh by definition at its first touch.
+
+    If either name reappears here, the calibration doc is out of date and
+    whoever added it needs to re-measure first.
+    """
+    candles = build(
+        flat(100, 10) + leg(100, -4.0, 3) + flat(88, 2) + leg(88, +4.0, 3) + flat(100, 5)
+    )
+
+    zone = detect(candles, params())[0][0]
+
+    assert set(zone.factors) == {"tightness", "compactness", "volume"}
+    assert sum(zone.factors.values()) == pytest.approx(zone.formation_score, abs=1e-3)
+    # Equal thirds, deliberately unfitted: n=234 cannot justify a weighting.
+    assert all(v <= 1 / 3 + 1e-6 for v in zone.factors.values())
+
+    # The validated quantity is still reported, just not inside the composite.
+    assert zone.departure_atr > 0
+
+
+def test_dedupe_prefers_the_less_consumed_zone():
+    """Display priority, not a quality claim: given two zones at one price, the
+    one price has not eaten yet is the one worth drawing."""
+    candles = build(
+        flat(100, 10)
+        + leg(100, -4.0, 3)
+        + flat(88, 2)  # zone A, later revisited and eaten
+        + leg(88, +4.0, 3)
+        + leg(100, -4.0, 3)  # price returns and consumes A
+        + flat(88, 2)  # zone B forms at the same price, untouched after
+        + leg(88, +4.0, 3)
+        + flat(100, 6)
+    )
+
+    merged = detect(candles, params(merge_overlap_pct=0.5))[0]
+    survivors = [z for z in merged if z.side is ZoneSide.DEMAND]
+
+    assert survivors, "the demand level must still be drawn once"
+    assert survivors[0].state is ZoneState.FRESH
+
+
+# --------------------------------------------------------------------------
 # provider normalisation
 # --------------------------------------------------------------------------
+
+
+def test_broker_offset_is_converted_not_relabelled():
+    """The Aurix bridge stamps bars in the broker's timezone, offset included.
+
+    Parsing that and calling `.replace(tzinfo=UTC)` overwrites the offset rather
+    than converting it, shifting every bar by the broker's whole offset. It is
+    silent, it survives every shape check, and it puts the zones on the wrong
+    candles. `astimezone` converts; `replace` relabels.
+    """
+    from datetime import UTC, datetime
+
+    from app.providers.sources import _aurix_epoch
+
+    broker = _aurix_epoch("2026-08-13T17:45:00+07:00")
+    assert datetime.fromtimestamp(broker, UTC).hour == 10, "offset must be applied"
+
+    # Only a stamp with no offset at all may be assumed to already be UTC.
+    naive = _aurix_epoch("2026-08-13T17:45:00")
+    assert datetime.fromtimestamp(naive, UTC).hour == 17
+
+    assert _aurix_epoch(1786617900) == 1786617900
+    assert _aurix_epoch("1786617900") == 1786617900
 
 
 def test_normalize_dedupes_and_sorts():

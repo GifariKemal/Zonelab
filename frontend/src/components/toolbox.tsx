@@ -45,7 +45,7 @@ export function Toolbox({ params, onChange, onReset, stats }: Props) {
         />
         <Slider
           label="Departure gate"
-          hint="How far the leg-out must run from the zone. The main quality filter."
+          hint="How far the leg-out must run from the zone."
           suffix="ATR"
           min={0}
           max={6}
@@ -53,6 +53,12 @@ export function Toolbox({ params, onChange, onReset, stats }: Props) {
           value={params.departure_min_atr}
           onChange={(v) => onChange({ departure_min_atr: v })}
         />
+        <p className="text-[11px] leading-relaxed text-text-faint">
+          The one setting here with evidence behind it. Formations clearing 2 ATR
+          held 84.6% against 68.3% for those that did not, over 877 zones on five
+          series (p below 0.0001). Above 2 ATR the effect is flat, so raising this
+          only removes zones.
+        </p>
       </Group>
 
       <Group title="Base">

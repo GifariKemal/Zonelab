@@ -47,20 +47,39 @@ _FORMATION: dict[tuple[int, int], tuple[ZoneKind, ZoneSide]] = {
     (-1, -1): (ZoneKind.DBD, ZoneSide.SUPPLY),
 }
 
-# Score weights. They sum to 1.0; the assertion below keeps that true if someone
-# edits one and forgets the others.
-_W_DEPARTURE = 0.35
-_W_FRESHNESS = 0.25
-_W_TIGHTNESS = 0.20
-_W_COMPACTNESS = 0.10
-_W_VOLUME = 0.10
-assert (
-    abs(_W_DEPARTURE + _W_FRESHNESS + _W_TIGHTNESS + _W_COMPACTNESS + _W_VOLUME - 1.0)
-    < 1e-9
-)
+# Formation weights. Equal thirds, and deliberately not fitted: see
+# docs/CALIBRATION.md. On 234 resolved zones across five series no factor
+# separated held from failed with a confidence interval clear of 0.5, so fitting
+# weights here would be fitting noise.
+#
+# Two factors that used to be in this sum are gone, both because measurement
+# said so rather than because the code got tidier:
+#
+#   departure  - held rate rises steeply to 2 ATR and is FLAT above it
+#                (87.2% / 83.0% / 85.7% / 82.4% across the 2-3, 3-4, 4-5 and 5+
+#                buckets). It is a threshold, and it is already enforced as one
+#                by `departure_min_atr`. Scoring it as a gradient added noise.
+#   freshness  - a zone is fresh by definition at the moment it is first
+#                touched, so this term was constant exactly when it was read.
+#                Lifecycle now lives only in `state`, `touches` and
+#                `penetration_pct`, where it is not double counted.
+_W_TIGHTNESS = 1 / 3
+_W_COMPACTNESS = 1 / 3
+_W_VOLUME = 1 / 3
+assert abs(_W_TIGHTNESS + _W_COMPACTNESS + _W_VOLUME - 1.0) < 1e-9
 
-# Departure beyond this many ATR is treated as maximal; scoring saturates so a
-# freak 20-ATR run does not dominate the ranking on that factor alone.
+# Display priority when two overlapping zones collapse into one. This is a
+# presentation choice, not a quality claim: given two zones at the same price,
+# the one price has not yet consumed is the more useful one to draw.
+_STATE_PRIORITY = {
+    ZoneState.FRESH: 3,
+    ZoneState.TESTED: 2,
+    ZoneState.MITIGATED: 1,
+    ZoneState.BROKEN: 0,
+}
+
+# Kept for the calibration harness, which needs a stable scale to bucket raw
+# departure on. Nothing in the shipped score uses it any more.
 _DEPARTURE_SATURATION = 5.0
 
 
@@ -203,9 +222,10 @@ def detect(
         else:
             state = ZoneState.FRESH
 
-        # --- score ----------------------------------------------------------
-        f_departure = min(departure_atr / _DEPARTURE_SATURATION, 1.0)
-        f_freshness = 1.0 / (1.0 + touches)
+        # --- formation description -------------------------------------------
+        # Everything here is fixed when the zone forms and never moves again.
+        # That is the point: it describes how the zone was built, and makes no
+        # statement about what price will do when it comes back.
         f_tightness = float(
             np.clip(1.0 - (height / atr_base) / params.base_max_atr, 0.0, 1.0)
         )
@@ -218,13 +238,11 @@ def detect(
             f_volume = 0.5  # neutral: absent volume must not look like weak volume
 
         factors = {
-            "departure": round(f_departure * _W_DEPARTURE, 4),
-            "freshness": round(f_freshness * _W_FRESHNESS, 4),
             "tightness": round(f_tightness * _W_TIGHTNESS, 4),
             "compactness": round(f_compactness * _W_COMPACTNESS, 4),
             "volume": round(f_volume * _W_VOLUME, 4),
         }
-        strength = float(np.clip(sum(factors.values()), 0.0, 1.0))
+        formation_score = float(np.clip(sum(factors.values()), 0.0, 1.0))
 
         time_to = int(time[break_index]) if break_index is not None else int(time[-1])
 
@@ -240,7 +258,7 @@ def detect(
                 distal=distal,
                 time_from=int(time[base_from]),
                 time_to=time_to,
-                strength=round(strength, 4),
+                formation_score=round(formation_score, 4),
                 departure_atr=round(departure_atr, 3),
                 touches=touches,
                 penetration_pct=round(penetration, 4),
@@ -292,13 +310,22 @@ def detect(
 def _dedupe(
     zones: list[Zone], max_overlap: float, stats: dict[str, float]
 ) -> list[Zone]:
-    """Drop a zone that mostly repeats a stronger zone on the same side.
+    """Collapse zones that mostly repeat another zone at the same price.
 
     Overlap is measured against the *smaller* of the two heights, so a thin zone
     swallowed by a fat one is correctly seen as redundant.
+
+    The survivor is chosen by display priority, not by predicted quality: least
+    consumed first, then formation. Two zones at one price are one level, and
+    the one price has not eaten yet is the one worth drawing.
     """
     kept: list[Zone] = []
-    for zone in sorted(zones, key=lambda z: z.strength, reverse=True):
+    ranked = sorted(
+        zones,
+        key=lambda z: (_STATE_PRIORITY[z.state], z.formation_score),
+        reverse=True,
+    )
+    for zone in ranked:
         redundant = False
         for other in kept:
             if other.side is not zone.side:

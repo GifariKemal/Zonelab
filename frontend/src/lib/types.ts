@@ -34,7 +34,9 @@ export interface Zone {
   distal: number;
   time_from: number;
   time_to: number;
-  strength: number;
+  /** How cleanly the zone was built. Calibration says it does not predict what
+   *  price does on the return, so it orders the display and nothing else. */
+  formation_score: number;
   departure_atr: number;
   touches: number;
   penetration_pct: number;

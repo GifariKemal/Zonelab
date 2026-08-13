@@ -82,8 +82,12 @@ export function ZonePanel({ zones, selectedId, onSelect, lastPrice }: Props) {
                   {zone.bottom.toFixed(2)} to {zone.top.toFixed(2)}
                 </span>
               </span>
-              <span className="num shrink-0 text-[12px] text-accent">
-                {zone.strength.toFixed(2)}
+              <span
+                className="num shrink-0 text-[12px] text-accent"
+                title="How far the leg-out ran from this zone, in ATR. The one filter with evidence behind it."
+              >
+                {zone.departure_atr.toFixed(1)}
+                <span className="ml-0.5 text-[10px] text-text-faint">ATR</span>
               </span>
             </button>
           ))
@@ -126,9 +130,13 @@ function Inspector({ zone, lastPrice }: { zone: Zone; lastPrice: number | null }
       </dl>
 
       <div className="border-t border-line px-3 py-2">
-        <h4 className="mb-2 text-[10px] font-semibold uppercase tracking-[0.16em] text-text-faint">
-          Score breakdown
+        <h4 className="mb-1 text-[10px] font-semibold uppercase tracking-[0.16em] text-text-faint">
+          Formation
         </h4>
+        <p className="mb-2 text-[11px] leading-relaxed text-text-faint">
+          How cleanly the zone was built. Tested against outcomes and it does not
+          predict them, so read it as description, not as a rating.
+        </p>
         {Object.entries(zone.factors).map(([name, contribution]) => (
           <div key={name} className="mb-1.5">
             <div className="flex items-baseline justify-between">
@@ -137,20 +145,18 @@ function Inspector({ zone, lastPrice }: { zone: Zone; lastPrice: number | null }
                 {contribution.toFixed(3)}
               </span>
             </div>
-            {/* Bar width is the factor's share of the final score, so the
-                longest bar names the reason this zone ranks where it does. */}
+            {/* Share of the composite, so the longest bar names what this zone
+                scores on. Each factor caps at one third. */}
             <div
               className="mt-0.5 h-[2px] bg-accent"
-              style={{
-                width: `${Math.min(100, (contribution / Math.max(zone.strength, 0.001)) * 100)}%`,
-              }}
+              style={{ width: `${Math.min(100, contribution * 300)}%` }}
             />
           </div>
         ))}
         <div className="mt-2 flex items-baseline justify-between border-t border-line pt-2">
-          <span className="text-[11px] text-text">Strength</span>
+          <span className="text-[11px] text-text">Formation score</span>
           <span className="num text-[12px] text-accent">
-            {zone.strength.toFixed(3)}
+            {zone.formation_score.toFixed(3)}
           </span>
         </div>
       </div>

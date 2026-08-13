@@ -13,7 +13,14 @@ from fastapi.middleware.cors import CORSMiddleware
 from .config import settings
 from .detect import DETECTORS
 from .models import Candle, DrawRequest, DrawResponse, Drawing
-from .providers import INTERVALS, PROVIDERS, SYMBOLS, ProviderError, get_candles
+from .providers import (
+    INTERVALS,
+    PROVIDERS,
+    SYMBOLS,
+    ProviderError,
+    availability,
+    get_candles,
+)
 
 app = FastAPI(
     title="Zonelab API",
@@ -38,14 +45,15 @@ async def health() -> dict:
 async def config() -> dict:
     """Everything the UI needs to build its pickers, so the option lists cannot
     drift out of sync with what the backend actually supports."""
+    live = await availability()
     return {
         "providers": [
             {
                 "id": name,
-                "available": provider.available(),
+                "available": live[name],
                 "needs_key": name in {"twelvedata", "polygon"},
             }
-            for name, provider in PROVIDERS.items()
+            for name in PROVIDERS
         ],
         "default_provider": settings.default_provider,
         "symbols": [
@@ -81,7 +89,14 @@ async def draw(request: DrawRequest) -> DrawResponse:
         )
 
     drawing = Drawing()
-    meta: dict[str, object] = {"bars_returned": len(rows)}
+    # Both numbers, always. Vendors cap a page at their own limit (Binance at
+    # 1000, Yahoo by calendar range), and a short answer is otherwise
+    # indistinguishable from a quiet market.
+    meta: dict[str, object] = {
+        "bars_requested": request.bars,
+        "bars_returned": len(rows),
+        "truncated_by_provider": len(rows) < request.bars,
+    }
 
     if "supply_demand" in request.detectors:
         zones, stats = DETECTORS["supply_demand"](rows, request.supply_demand)

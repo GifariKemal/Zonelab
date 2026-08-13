@@ -77,7 +77,15 @@ async def _get_json(url: str, params: dict | None = None) -> dict | list:
         raise ProviderError(
             f"upstream returned HTTP {response.status_code}: {response.text[:200]}"
         )
-    return response.json()
+    try:
+        return response.json()
+    except ValueError as exc:
+        # A vendor answering 200 with an HTML error page or a captcha is
+        # common on free tiers. Without this the app returns a 500 and a stack
+        # trace instead of naming the provider that misbehaved.
+        raise ProviderError(
+            f"upstream returned HTTP 200 but not JSON: {response.text[:200]}"
+        ) from exc
 
 
 class BinanceProvider:
@@ -164,8 +172,16 @@ class YahooProvider:
         stamps = block.get("timestamp") or []
         quote = (block.get("indicators", {}).get("quote") or [{}])[0]
 
+        # Yahoo is an undocumented endpoint and its shape is not a contract.
+        # Naming the missing series beats a KeyError becoming a 500.
+        missing = [k for k in ("open", "high", "low", "close") if k not in quote]
+        if missing:
+            raise ProviderError(f"yahoo response is missing {', '.join(missing)}")
+
         candles = []
         for i, ts in enumerate(stamps):
+            if any(i >= len(quote[k]) for k in ("open", "high", "low", "close")):
+                break  # ragged arrays: trust the shortest, do not invent bars
             o, h, l, c = (
                 quote["open"][i],
                 quote["high"][i],
@@ -303,32 +319,46 @@ class AurixProvider:
     """
 
     name = "aurix"
+    _TIMEFRAMES = {
+        "1m": "M1", "5m": "M5", "15m": "M15", "30m": "M30",
+        "1h": "H1", "4h": "H4", "1d": "D1", "1w": "W1",
+    }  # fmt: skip
 
     def available(self) -> bool:
+        # Configured, which is not the same as running. `probe` settles that.
         return bool(settings.aurix_url)
 
+    async def probe(self) -> bool:
+        """`/terminal` rather than a generic ping: it answers only when Aurix is
+        up AND its MetaTrader terminal is connected, which is what actually
+        decides whether this provider can serve a bar. Aurix has no /health."""
+        try:
+            async with _client() as client:
+                response = await client.get(f"{settings.aurix_url}/terminal", timeout=2.0)
+            return response.status_code == 200
+        except httpx.HTTPError:
+            return False
+
     async def fetch(self, symbol: str, interval: str, bars: int) -> list[Candle]:
-        timeframe = {
-            "1m": "M1", "5m": "M5", "15m": "M15", "30m": "M30",
-            "1h": "H1", "4h": "H4", "1d": "D1", "1w": "W1",
-        }.get(interval)  # fmt: skip
+        timeframe = self._TIMEFRAMES.get(interval)
         if timeframe is None:
             raise ProviderError(f"aurix has no {interval} interval")
 
+        # Symbol goes in the PATH, not the query string, and the rows come back
+        # under "bars". Both verified against the live OpenAPI schema.
+        vendor = "GOLD" if symbol.upper() == "XAUUSD" else symbol
         payload = await _get_json(
-            f"{settings.aurix_url}/ohlcv",
-            {"symbol": "GOLD" if symbol.upper() == "XAUUSD" else symbol,
-             "timeframe": timeframe, "bars": bars},
+            f"{settings.aurix_url}/ohlcv/{vendor}",
+            {"timeframe": timeframe, "bars": bars},
         )
-        rows = payload.get("data", payload) if isinstance(payload, dict) else payload
+        rows = payload.get("bars") if isinstance(payload, dict) else payload
         if not isinstance(rows, list):
             raise ProviderError("aurix returned an unexpected payload")
 
         return normalize(
             [
                 Candle(
-                    time=int(r["time"]) if str(r["time"]).isdigit()
-                    else int(datetime.fromisoformat(str(r["time"])).replace(tzinfo=UTC).timestamp()),
+                    time=_aurix_epoch(r["time"]),
                     open=float(r["open"]),
                     high=float(r["high"]),
                     low=float(r["low"]),
@@ -339,3 +369,24 @@ class AurixProvider:
             ],
             bars,
         )
+
+
+def _aurix_epoch(value: object) -> int:
+    """Aurix stamps bars in the BROKER's timezone, offset included, like
+    `2026-08-13T17:45:00+07:00`.
+
+    Parsing that and then calling `.replace(tzinfo=UTC)` overwrites the offset
+    instead of converting it, which silently shifts every bar by the broker's
+    whole offset - seven hours here. `astimezone` converts; `replace` relabels.
+    Only a timestamp with no offset at all may be assumed to be UTC.
+    """
+    if isinstance(value, (int, float)):
+        return int(value)
+    text = str(value)
+    if text.isdigit():
+        return int(text)
+
+    stamp = datetime.fromisoformat(text)
+    if stamp.tzinfo is None:
+        stamp = stamp.replace(tzinfo=UTC)
+    return int(stamp.astimezone(UTC).timestamp())

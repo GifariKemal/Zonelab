@@ -94,7 +94,7 @@ export default function Page() {
   const readout = hovered ?? last;
 
   return (
-    <div className="flex h-dvh flex-col bg-bg">
+    <div className="flex min-h-dvh flex-col bg-bg lg:h-dvh lg:min-h-0 lg:overflow-hidden">
       <header className="flex shrink-0 flex-wrap items-center gap-x-4 gap-y-2 border-b border-line px-4 py-2">
         <div className="flex items-baseline gap-2">
           <span className="text-[13px] font-semibold tracking-tight text-text">
@@ -192,7 +192,7 @@ export default function Page() {
       ) : null}
 
       <div className="flex min-h-0 flex-1 flex-col lg:flex-row">
-        <aside className="order-2 h-64 shrink-0 border-t border-line bg-panel lg:order-1 lg:h-auto lg:w-[276px] lg:border-r lg:border-t-0">
+        <aside className="order-2 h-[70dvh] shrink-0 border-t border-line bg-panel lg:order-1 lg:h-auto lg:w-[276px] lg:border-r lg:border-t-0">
           <Toolbox
             params={params}
             onChange={patchParams}
@@ -202,25 +202,36 @@ export default function Page() {
           />
         </aside>
 
-        <main className="order-1 min-h-0 flex-1 lg:order-2">
-          {candles.length > 0 ? (
-            <Chart
-              candles={candles}
-              zones={zones}
-              selectedId={selectedId}
-              onSelect={setSelectedId}
-              onHover={setHovered}
-            />
-          ) : (
-            <div className="flex h-full items-center justify-center">
-              <p className="text-[12px] text-text-faint">
-                {error ? "No data to chart." : "Loading candles."}
-              </p>
-            </div>
-          )}
+        {/* The chart is the product. On a phone it gets most of the fold and
+            the panels stack under it; on a desk it fills the middle column.
+
+            `relative` here and `absolute inset-0` below is load-bearing, not
+            decoration. A percentage height resolves against a parent with a
+            definite height, and this parent's height comes from `flex-1`, so
+            `h-full` on the canvas host collapsed to nothing and the chart
+            rendered as a bare time axis. An absolutely positioned box has a
+            definite height by construction. */}
+        <main className="relative order-1 min-h-[58dvh] flex-1 lg:order-2 lg:min-h-0">
+          <div className="absolute inset-0">
+            {candles.length > 0 ? (
+              <Chart
+                candles={candles}
+                zones={zones}
+                selectedId={selectedId}
+                onSelect={setSelectedId}
+                onHover={setHovered}
+              />
+            ) : (
+              <div className="flex h-full items-center justify-center">
+                <p className="text-[12px] text-text-faint">
+                  {error ? "No data to chart." : "Loading candles."}
+                </p>
+              </div>
+            )}
+          </div>
         </main>
 
-        <aside className="order-3 h-72 shrink-0 border-t border-line bg-panel lg:h-auto lg:w-[300px] lg:border-l lg:border-t-0">
+        <aside className="order-3 h-[70dvh] shrink-0 border-t border-line bg-panel lg:h-auto lg:w-[300px] lg:border-l lg:border-t-0">
           <ZonePanel
             zones={zones}
             selectedId={selectedId}

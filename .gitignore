@@ -16,4 +16,5 @@ out/
 
 # Local scratch
 *.log
-.shot.mjs
+backend/.cache/
+frontend/.playwright-shots/

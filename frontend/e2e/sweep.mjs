@@ -1,0 +1,279 @@
+/**
+ * Full feature sweep. Drives every control the UI exposes, asserts the app
+ * responds, and screenshots the states worth looking at with human eyes.
+ *
+ *   node .sweep.mjs <screenshot-dir>
+ */
+import { chromium } from "playwright";
+
+const SHOTS = process.argv[2];
+const URL = "http://127.0.0.1:3100/";
+const results = [];
+const errors = [];
+const bad = [];
+
+const check = (name, pass, detail = "") =>
+  results.push(`${pass ? "PASS" : "FAIL"}  ${name}${detail ? ` :: ${detail}` : ""}`);
+
+// Some steps deliberately provoke an error, and a spoken 502 is the correct
+// answer there. Only failures outside those windows count against the app.
+let expectingFailure = false;
+
+const browser = await chromium.launch({ args: ["--no-proxy-server"] });
+
+async function newPage(opts = {}) {
+  const page = await browser.newPage({ viewport: { width: 1680, height: 950 }, ...opts });
+  page.on("console", (m) => {
+    if (m.type() === "error" && !expectingFailure) errors.push(m.text());
+  });
+  page.on("pageerror", (e) => errors.push(`pageerror: ${e.message}`));
+  page.on("response", (r) => {
+    if (r.status() >= 400 && !r.url().includes("favicon") && !expectingFailure) {
+      bad.push(`${r.status()} ${r.url()}`);
+    }
+  });
+  return page;
+}
+
+const zoneCount = async (page) => {
+  const t = await page.locator("text=/\\d+ drawn/").first().textContent();
+  return Number(t.match(/(\d+)/)[1]);
+};
+const settle = (page, ms = 2600) => page.waitForTimeout(ms);
+
+/** Height of the tallest chart canvas.
+ *
+ *  "A canvas exists" is not the same as "the chart is visible". A collapsed
+ *  chart renders a bare time axis and still satisfies every element count,
+ *  which is exactly how it shipped to the mobile screenshot unnoticed. */
+const chartHeight = (page) =>
+  page.evaluate(() =>
+    Math.max(0, ...[...document.querySelectorAll("canvas")].map((c) => c.getBoundingClientRect().height)),
+  );
+const appAlert = (page) =>
+  page.locator('[role="alert"]:not(#__next-route-announcer__)').allTextContents();
+
+// ===================================================================== load
+const page = await newPage();
+await page.goto(URL, { waitUntil: "networkidle" });
+await settle(page, 5000);
+
+check("app loads with zones", (await zoneCount(page)) > 0, `${await zoneCount(page)}`);
+check("chart canvas present", (await page.locator("canvas").count()) > 0);
+check("chart is actually tall enough to read", (await chartHeight(page)) > 400,
+      `${await chartHeight(page)}px`);
+check("no error banner on load", (await appAlert(page)).length === 0);
+await page.screenshot({ path: `${SHOTS}/sweep-01-load.png` });
+
+// ============================================================== timeframes
+const tfButtons = await page.locator('div[aria-label="Timeframe"] button').allTextContents();
+check("all backend intervals are offered", tfButtons.length === 8, tfButtons.join(","));
+for (const tf of tfButtons) {
+  await page.locator(`div[aria-label="Timeframe"] button:text-is("${tf}")`).click();
+  await settle(page, 3000);
+  const ok = (await page.locator("canvas").count()) > 0 && (await appAlert(page)).length === 0;
+  check(`timeframe ${tf} loads`, ok, (await appAlert(page)).join("|"));
+}
+await page.locator('div[aria-label="Timeframe"] button:text-is("15m")').click();
+await settle(page, 3000);
+
+// ================================================================ providers
+const providers = await page.locator("select").nth(1).locator("option").allTextContents();
+check("only available providers are offered", providers.length >= 3, providers.join(","));
+for (const p of providers) {
+  await page.locator("select").nth(1).selectOption(p);
+  await settle(page, 3500);
+  const alerts = await appAlert(page);
+  check(`provider ${p} renders`, alerts.length === 0 && (await page.locator("canvas").count()) > 0,
+        alerts.join("|"));
+}
+await page.locator("select").nth(1).selectOption("binance");
+await settle(page, 3000);
+
+// ================================================================== symbols
+const symbols = await page.locator("select").nth(0).locator("option").allTextContents();
+expectingFailure = true; // binance carries neither EURUSD nor every alt symbol
+for (const s of symbols) {
+  await page.locator("select").nth(0).selectOption(s);
+  await settle(page, 3500);
+  const alerts = await appAlert(page);
+  // BTCUSD and EURUSD are not on every provider; a spoken error is the correct
+  // outcome there, a silent blank chart is not.
+  check(`symbol ${s} either renders or explains itself`,
+        (await page.locator("canvas").count()) > 0 || alerts.length > 0,
+        alerts.join("|"));
+}
+await page.locator("select").nth(0).selectOption("XAUUSD");
+await settle(page, 3000);
+expectingFailure = false;
+check("recovering from a provider error clears the banner",
+      (await appAlert(page)).length === 0, (await appAlert(page)).join("|"));
+
+// ==================================================================== bars
+for (const n of ["200", "500", "1000"]) {
+  await page.locator("select").nth(2).selectOption(n);
+  await settle(page, 3500);
+  const shown = await page.locator("text=/\\d+ bars/").first().textContent();
+  check(`bars ${n} honoured`, shown.includes(n), shown);
+}
+await page.locator("select").nth(2).selectOption("500");
+await settle(page, 3000);
+
+// ================================================= every slider at both ends
+const sliders = page.locator('input[type="range"]');
+const sliderCount = await sliders.count();
+check("all nine parameters are exposed", sliderCount === 9, `${sliderCount}`);
+
+for (let i = 0; i < sliderCount; i++) {
+  const s = sliders.nth(i);
+  const label = await s.evaluate((el) => el.closest("label")?.innerText.split("\n")[0] ?? "?");
+  const min = await s.getAttribute("min");
+  const max = await s.getAttribute("max");
+  for (const v of [min, max]) {
+    await s.fill(v);
+    await settle(page, 2400);
+    const alerts = await appAlert(page);
+    check(`${label} at ${v} does not break`, alerts.length === 0, alerts.join("|"));
+  }
+}
+await page.locator("text=Reset parameters").click();
+await settle(page, 3000);
+check("reset restores a drawable chart", (await zoneCount(page)) > 0);
+
+// ================================================================== toggles
+const beforeBroken = await zoneCount(page);
+await page.getByRole("switch", { name: "Show broken" }).click();
+await settle(page);
+check("show broken adds zones", (await zoneCount(page)) >= beforeBroken,
+      `${beforeBroken} -> ${await zoneCount(page)}`);
+
+// Raise the per-side cap first. At the default 12 the cap binds, freed slots
+// refill from the hidden pool, and the count does not move - which would make
+// this assertion pass without testing anything.
+await sliders.nth(7).fill("40");
+await settle(page);
+const beforeMitigated = await zoneCount(page);
+await page.getByRole("switch", { name: "Show mitigated" }).click();
+await settle(page);
+check("hiding mitigated removes zones", (await zoneCount(page)) < beforeMitigated,
+      `${beforeMitigated} -> ${await zoneCount(page)}`);
+
+await page.locator("text=Reset parameters").click();
+await settle(page, 3000);
+
+// ============================================================== zone basis
+await page.locator('button:text-is("Body")').click();
+await settle(page);
+check("body basis renders", (await appAlert(page)).length === 0);
+await page.locator('button:text-is("Wick")').click();
+await settle(page);
+
+// ========================================================= zone inspection
+const rail = page.locator("aside").last();
+const rows = await rail.locator("button").count();
+check("zone list is populated", rows > 0, `${rows} rows`);
+
+let inspected = 0;
+for (let i = 0; i < Math.min(rows, 4); i++) {
+  await rail.locator("button").nth(i).click();
+  await page.waitForTimeout(400);
+  const hasBreakdown = (await page.locator("text=Formation").count()) > 0;
+  const hasBars = (await page.locator("text=Bars that formed it").count()) === 1;
+  if (hasBreakdown && hasBars) inspected++;
+}
+check("every inspected zone shows formation and provenance", inspected === Math.min(rows, 4),
+      `${inspected}/${Math.min(rows, 4)}`);
+
+check("the retired score is gone from the inspector",
+      (await page.locator("text=/^Strength$/").count()) === 0);
+check("the honest caveat is shown",
+      (await page.locator("text=/does not predict them/").count()) === 1);
+check("the validated gate finding is shown",
+      (await page.locator("text=/84.6%/").count()) === 1);
+
+await page.screenshot({ path: `${SHOTS}/sweep-02-inspector.png` });
+
+await page.keyboard.press("Escape");
+await page.waitForTimeout(400);
+check("escape clears the inspector", (await page.locator("text=Bars that formed it").count()) === 0);
+
+// ================================================================ no NaN
+const body = await page.locator("body").innerText();
+check("no NaN rendered anywhere", !body.includes("NaN"), body.match(/.{0,30}NaN.{0,30}/)?.[0] ?? "");
+check("no undefined rendered anywhere", !body.includes("undefined"));
+
+// ============================================================== keyboard
+await page.keyboard.press("Tab");
+const focused = await page.evaluate(() => document.activeElement?.tagName);
+check("tab reaches an interactive element", ["SELECT", "BUTTON", "INPUT", "A"].includes(focused),
+      String(focused));
+
+// ============================================================ filter trace
+check("filter trace explains rejections",
+      (await page.locator("text=Formations found").count()) === 1);
+const traceText = await page.locator("text=Formations found").locator("..").innerText();
+check("formations found is a real number", /\d/.test(traceText), traceText.replace(/\n/g, " "));
+
+await page.close();
+
+// ============================================================ mobile layout
+const mobile = await newPage({ viewport: { width: 390, height: 844 } });
+await mobile.goto(URL, { waitUntil: "networkidle" });
+await settle(mobile, 5000);
+const overflow = await mobile.evaluate(
+  () => document.documentElement.scrollWidth - document.documentElement.clientWidth,
+);
+check("mobile does not scroll horizontally", overflow <= 1, `${overflow}px overflow`);
+check("mobile still renders the chart", (await mobile.locator("canvas").count()) > 0);
+check("mobile chart is not collapsed", (await chartHeight(mobile)) > 300,
+      `${await chartHeight(mobile)}px`);
+await mobile.screenshot({ path: `${SHOTS}/sweep-03-mobile.png`, fullPage: true });
+await mobile.close();
+
+// ========================================================= reduced motion
+const rm = await newPage({ reducedMotion: "reduce" });
+await rm.goto(URL, { waitUntil: "networkidle" });
+await settle(rm, 4500);
+check("reduced motion still renders", (await rm.locator("canvas").count()) > 0);
+await rm.close();
+
+// ============================================================== contrast
+const contrast = await newPage();
+await contrast.goto(URL, { waitUntil: "networkidle" });
+await settle(contrast, 4500);
+const lowContrast = await contrast.evaluate(() => {
+  const lum = (c) => {
+    const [r, g, b] = c.match(/\d+(\.\d+)?/g).slice(0, 3).map(Number);
+    const f = (v) => {
+      v /= 255;
+      return v <= 0.03928 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4;
+    };
+    return 0.2126 * f(r) + 0.7152 * f(g) + 0.0722 * f(b);
+  };
+  const bg = lum(getComputedStyle(document.body).backgroundColor) || 0.008;
+  const out = [];
+  for (const el of document.querySelectorAll("button, label, h2, h3, h4, dt, dd, p, span")) {
+    const text = el.textContent?.trim();
+    if (!text || el.children.length || text.length < 2) continue;
+    const style = getComputedStyle(el);
+    if (style.visibility === "hidden" || style.display === "none") continue;
+    const size = parseFloat(style.fontSize);
+    const ratio = (Math.max(lum(style.color), bg) + 0.05) / (Math.min(lum(style.color), bg) + 0.05);
+    const required = size >= 18 || (size >= 14 && Number(style.fontWeight) >= 700) ? 3 : 4.5;
+    if (ratio < required) out.push(`${text.slice(0, 28)} ${ratio.toFixed(2)}:1 @${size}px`);
+  }
+  return out;
+});
+check("all body text meets WCAG AA contrast", lowContrast.length === 0,
+      lowContrast.slice(0, 6).join(" | "));
+await contrast.close();
+
+await browser.close();
+
+check("zero console errors across the whole sweep", errors.length === 0, errors.slice(0, 3).join(" | "));
+check("zero failed requests across the whole sweep", bad.length === 0, bad.slice(0, 3).join(" | "));
+
+console.log(results.join("\n"));
+const failed = results.filter((r) => r.startsWith("FAIL"));
+console.log(`\n${results.length - failed.length}/${results.length} passed`);
+process.exit(failed.length ? 1 : 0);

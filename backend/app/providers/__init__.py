@@ -35,6 +35,21 @@ _cache: dict[tuple[str, str, str, int], tuple[float, list[Candle]]] = {}
 _lock = asyncio.Lock()
 
 
+async def availability() -> dict[str, bool]:
+    """Which providers can actually serve a request right now.
+
+    `available()` is a static capability check - is a key configured, is the URL
+    set. That is enough for the hosted vendors, but the local Aurix bridge can
+    be configured and simply not running, and listing it as available then is a
+    lie the user only discovers by picking it and getting a 502.
+    """
+    result: dict[str, bool] = {}
+    for name, provider in PROVIDERS.items():
+        probe = getattr(provider, "probe", None)
+        result[name] = await probe() if probe else provider.available()
+    return result
+
+
 def resolve(name: str | None) -> Provider:
     provider = PROVIDERS.get(name or settings.default_provider)
     if provider is None:
@@ -80,6 +95,7 @@ __all__ = [
     "SYMBOLS",
     "Provider",
     "ProviderError",
+    "availability",
     "get_candles",
     "resolve",
 ]

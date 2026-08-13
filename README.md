@@ -3,7 +3,8 @@
 
 <p align="center">
   <img alt="status" src="https://img.shields.io/badge/status-tahap%20awal-orange">
-  <img alt="tests" src="https://img.shields.io/badge/tests-22%20passed-brightgreen">
+  <img alt="tests" src="https://img.shields.io/badge/tests-24%20passed-brightgreen">
+  <img alt="calibrated" src="https://img.shields.io/badge/detection-validated%20p%3C0.0001-brightgreen">
   <img alt="license" src="https://img.shields.io/badge/license-proprietary-lightgrey">
 </p>
 
@@ -18,6 +19,7 @@
 - [Menjalankan](#menjalankan)
 - [Sumber data](#sumber-data)
 - [Cara zona ditentukan](#cara-zona-ditentukan)
+- [Apa yang sudah terukur](#apa-yang-sudah-terukur)
 - [Yang membuatnya dapat diaudit](#yang-membuatnya-dapat-diaudit)
 - [Arsitektur](#arsitektur)
 - [Pengujian](#pengujian)
@@ -146,6 +148,38 @@ Dua keputusan yang menentukan apakah keluarannya layak dipercaya:
 Bar berurutan yang berdiam di dalam zona dihitung sebagai satu kunjungan, bukan
 lima. Menghitung tiap bar akan membuat skor kesegaran kehilangan makna.
 
+## Apa yang sudah terukur
+
+Diukur pada 20.000 bar untuk masing-masing dari lima deret, dengan skor dibaca
+sebagaimana diketahui **tepat sebelum** harga menyentuh zona, bukan sesudahnya.
+Metode lengkap dan seluruh angkanya ada di [`docs/CALIBRATION.md`](docs/CALIBRATION.md);
+jalankan ulang dengan `python -m tools.calibrate`.
+
+| Klaim | Putusan |
+|---|---|
+| Zona yang digambar bertahan lebih sering daripada level di harga acak | **Terbukti**, +29 sampai +38 poin persen di tiga geometri |
+| Gerbang `departure` menyaring sesuatu yang nyata | **Terbukti**, zona lolos 84.6% lawan 68.3% untuk formasi yang ditolak, p < 0.0001 |
+| `departure` di atas 2 ATR makin besar makin baik | **Terbantah**, held datar di 87.2 / 83.0 / 85.7 / 82.4 persen untuk bucket 2-3, 3-4, 4-5, dan 5+ ATR |
+| `formation_score` memeringkat zona yang akan bertahan | **Tidak terbukti**, AUC 0.53 sampai 0.59 dengan CI melintasi 0.5 |
+
+> [!IMPORTANT]
+> Deteksinya tervalidasi. Peringkat mutunya tidak. Karena itu angka skor sudah
+> **dihapus dari label chart**: di atas chart, angka terbaca sebagai peringkat
+> mutu, dan itu klaim yang tidak bisa didukung angka tersebut. Medannya juga
+> diganti nama dari `strength` menjadi `formation_score`, karena "strength"
+> menjanjikan sesuatu yang tidak dimilikinya.
+
+Dua faktor dikeluarkan dari skor karena pengukuran, bukan karena kerapian kode.
+`departure` ternyata ambang, bukan gradien, dan sudah ditegakkan sebagai ambang
+oleh gerbangnya sendiri. `freshness` konstan tepat pada saat skor dibaca, karena
+sebuah zona pasti masih segar pada sentuhan pertamanya. Keduanya dijaga oleh
+`test_formation_score_holds_only_formation_factors` agar tidak masuk kembali
+tanpa pengukuran baru.
+
+Bobot tiga faktor sisanya **sengaja tidak dipaskan ke data**: sepertiga rata.
+Dengan n=234, lebar CI AUC saja sudah sekitar plus-minus 0.10, jadi memaskan
+bobot berarti memaskan derau.
+
 ## Yang membuatnya dapat diaudit
 
 - **Setiap zona menyimpan anatominya.** Indeks bar kaki masuk, base, dan kaki
@@ -214,15 +248,35 @@ perlu diubah.
 
 ## Pengujian
 
+Empat lapis, dan masing-masing menangkap hal yang tidak tertangkap lapis lain.
+
 ```powershell
+# 1. Unit, fixture emas. Tidak butuh apa pun yang menyala.
 cd backend
 .\.venv\Scripts\python.exe -m pytest
+
+# 2. Kalibrasi. Butuh internet pada jalan pertama, lalu memakai cache.
+.\.venv\Scripts\python.exe -m tools.calibrate
+
+# 3. Kontrak API. Butuh API menyala.
+.\.venv\Scripts\python.exe -m tools.validate_api
+
+# 4. End to end lewat browser. Butuh API dan web app menyala.
+cd ..\frontend
+npm run e2e                # 66 asersi: setiap kontrol, kontras, mobile
+npm run e2e:resilience     # 12 asersi: API mati, pulih, API key salah
 ```
 
-22 pengujian, semuanya lulus. Setiap seri harga dibangun dengan tangan sehingga
-jawaban benarnya diketahui secara konstruksi, bukan dari mengamati chart. Asersi
-geometrinya eksak: bila satu batas bergeser satu tik, itu perubahan perilaku dan
-pengujiannya harus mengatakan demikian.
+25 pengujian unit, semuanya lulus. Setiap seri harga dibangun dengan tangan
+sehingga jawaban benarnya diketahui secara konstruksi, bukan dari mengamati
+chart. Asersi geometrinya eksak: bila satu batas bergeser satu tik, itu
+perubahan perilaku dan pengujiannya harus mengatakan demikian.
+
+> [!TIP]
+> Sapuan browser itu ada karena dua cacat lolos dari semua asersi DOM: label zona
+> yang tertutup candle, dan chart yang kolaps setinggi nol di layar ponsel.
+> Keduanya hanya terlihat pada tangkapan layar. Asersi `chart is actually tall
+> enough to read` lahir dari kejadian kedua.
 
 <details>
 <summary>Yang dijamin oleh pengujian</summary>
@@ -246,13 +300,19 @@ pengujiannya harus mengatakan demikian.
 ## Batasan yang diketahui
 
 > [!CAUTION]
-> Zonelab menggambar struktur, bukan sinyal dagang. Belum ada satu pun angka di
-> sini yang diukur terhadap hasil perdagangan nyata. Skor `strength` adalah
-> peringkat yang disusun dari lima faktor dengan bobot yang dipilih, bukan
-> probabilitas terkalibrasi. Perlakukan sebagai alat bantu baca chart.
+> Zonelab menggambar struktur, bukan sinyal dagang. Kalibrasi mengukur apakah
+> zona bertahan saat harga kembali, **tanpa spread, tanpa slippage, tanpa biaya**.
+> Itu bukan hasil perdagangan dan tidak boleh dibaca demikian.
 
-- Bobot skor belum dikalibrasi terhadap data apa pun. Kelima faktornya dipaparkan
-  terpisah supaya bisa dinilai sendiri-sendiri.
+- `formation_score` tidak terbukti memeringkat apa pun. Ia dipakai untuk urutan
+  tampilan dan penggabungan zona bertumpuk, bukan untuk menilai peluang.
+- Kalibrasi hanya menguji **sentuhan pertama**. Klaim bahwa zona segar lebih baik
+  daripada zona yang sudah diuji belum diuji di sini.
+- Kontrol placebo hanya menguji "level sembarangan". Klaim yang sah: zona
+  mengalahkan harga acak dan mengalahkan formasi yang ditolak gerbang. Bukan:
+  zona mengalahkan semua metode penandaan level.
+- Tiga dari lima deret kalibrasi adalah kripto, dan emasnya diwakili PAXG. Ini
+  bukan sampel XAU spot murni.
 - Volume dari sebagian provider adalah tick volume, bukan kontrak yang benar-benar
   diperdagangkan. Faktor volume di sini adalah proksi keaktifan, bukan volume
   institusional.
@@ -268,6 +328,7 @@ pengujiannya harus mengatakan demikian.
 - [x] Beberapa provider data, jalan tanpa API key
 - [x] Panel parameter langsung plus jejak filter
 - [x] Inspektur zona dengan rincian skor
+- [x] Kalibrasi terhadap 100.000 bar dengan dua kelompok kontrol
 - [ ] FVG dan IFVG
 - [ ] Order Block dan Breaker Block
 - [ ] Liquidity sweep, BOS, dan CHoCH

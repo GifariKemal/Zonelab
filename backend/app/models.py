@@ -74,9 +74,25 @@ class Zone(BaseModel):
         description="Right edge: break time if broken, else last bar time"
     )
 
-    strength: float = Field(ge=0.0, le=1.0)
+    formation_score: float = Field(
+        ge=0.0,
+        le=1.0,
+        description=(
+            "How cleanly the zone was BUILT: base tightness, base compactness "
+            "and leg-out volume, equally weighted. It is not a forecast. "
+            "Measured on 234 resolved zones across five series, it does not "
+            "separate zones that held from zones that failed (AUC 0.51 to 0.54, "
+            "confidence interval crosses 0.5). Use it to order the display, not "
+            "to rank opportunity. See docs/CALIBRATION.md."
+        ),
+    )
     departure_atr: float = Field(
-        description="Size of the leg-out move measured in ATR at the base"
+        description=(
+            "Size of the leg-out move in ATR at the base. This one IS validated, "
+            "as a threshold rather than a gradient: formations clearing 2 ATR "
+            "held 84.6% against 68.3% for those that did not (p < 0.0001), while "
+            "above 2 ATR more departure buys nothing."
+        )
     )
     touches: int = 0
     penetration_pct: float = Field(

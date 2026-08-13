@@ -10,9 +10,13 @@
   --line: #1c222b;
   --line-strong: #2a323e;
 
+  /* Three levels of quiet, all of them still readable. The faint tier used to
+     be #5c6673, which measures 3.34:1 against the page and fails WCAG AA for
+     text under 18px - and it was carrying the small uppercase labels, which
+     are the smallest type on screen. Ratios against --bg: 15.4, 7.4, 5.0. */
   --text: #e4e8ed;
-  --text-dim: #8d99a8;
-  --text-faint: #5c6673;
+  --text-dim: #9aa6b5;
+  --text-faint: #7c8694;
 
   /* Semantic, not decorative: green and red are forced by the domain. */
   --demand: #2ea36f;
@@ -51,9 +55,18 @@ body {
   background: var(--bg);
   color: var(--text);
   font-family: var(--font-plex-sans), system-ui, sans-serif;
-  /* A workstation never scrolls the page; panels scroll inside themselves. */
-  overflow: hidden;
   -webkit-font-smoothing: antialiased;
+  overscroll-behavior: none;
+}
+
+/* A workstation never scrolls the page; its panels scroll inside themselves.
+   That only holds once there is room for three columns. Below that the panels
+   stack, and locking the page left the chart about 100px tall with the
+   controls cut off mid-slider. The page scrolls on small screens. */
+@media (min-width: 1024px) {
+  body {
+    overflow: hidden;
+  }
 }
 
 /* Every number on screen is tabular. Columns of prices that jitter as digits
