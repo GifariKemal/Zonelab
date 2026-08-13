@@ -198,7 +198,14 @@ def test_base_taller_than_limit_is_rejected():
 
 def test_long_consolidation_clips_to_the_bars_the_move_left_from():
     """A 12-bar base is still a valid origin; the zone is the last few candles
-    before the departure, not the whole range."""
+    before the departure, not the whole range.
+
+    The clip must not make the formation unreadable. Three visual reviewers
+    independently reported the leg-in as "detached" on exactly these zones,
+    because the anatomy placed it up to nine bars from the base with nothing in
+    between. `base_run_from` keeps the whole consolidation addressable, so the
+    sequence stays contiguous even though the box does not cover all of it.
+    """
     candles = build(
         flat(100, 10) + leg(100, -4.0, 3) + flat(88, 12) + leg(88, +4.0, 3) + flat(100, 5)
     )
@@ -208,6 +215,46 @@ def test_long_consolidation_clips_to_the_bars_the_move_left_from():
     anatomy = zones[0].anatomy
     assert anatomy.base_to == 24, "base ends on the bar before the leg-out"
     assert anatomy.base_from == 21, "clipped to the trailing base_max_bars bars"
+    assert anatomy.base_run_from == 13, "the whole consolidation is still reported"
+    assert anatomy.base_run_from == anatomy.leg_in_to + 1, (
+        "leg-in must sit immediately before the consolidation it arrived into"
+    )
+
+
+def test_a_drifting_base_is_rejected_as_a_staircase():
+    """A run of small candles walking one way is not a pause.
+
+    This is the defect four independent visual audits named most often. The
+    detector's per-candle test asks "is this bar small", which a staircase
+    passes at every step while price travels the whole height of the supposed
+    base. The gate is justified on fidelity: calibration found no measurable
+    difference in outcomes, and the two are separate standards.
+    """
+    # Six base bars each 1.0 tall, stepping up 1.0 each time: every bar is
+    # individually quiet, and together they climb the full height of the box.
+    staircase = [(88.0 + i, 88.0 + i, 0.5, 0.5) for i in range(6)]
+    candles = build(
+        flat(100, 10) + leg(100, -4.0, 3) + staircase + leg(93, +10.0, 3) + flat(123, 5)
+    )
+
+    zones, stats = detect(candles, params(max_base_drift=0.6))
+    assert stats["candidates"] == 1, "the formation is still recognised"
+    assert stats["rejected_base_drifted"] == 1
+    assert zones == []
+
+    # The same bars pass once the check is switched off, so the gate is what
+    # removed them and not some other filter.
+    assert len(detect(candles, params(max_base_drift=1.0))[0]) == 1
+
+
+def test_a_genuine_pause_survives_the_drift_gate():
+    """The guard must not remove the formation it exists to protect."""
+    candles = build(
+        flat(100, 10) + leg(100, -4.0, 3) + flat(88, 4) + leg(88, +4.0, 3) + flat(100, 5)
+    )
+
+    zone = detect(candles, params(max_base_drift=0.6))[0][0]
+    assert zone.base_drift == 0.0, "a flat base has no drift at all"
 
 
 def test_body_basis_makes_a_tighter_zone_than_wick_basis():

@@ -143,6 +143,40 @@ def main() -> int:
             for z in zones
         ),
     )
+    # The formation must read as one contiguous sequence. Measured against the
+    # FULL consolidation: the gap to `base_from` is deliberate, since the box is
+    # clipped to the bars the move left from, but a gap to `base_run_from` would
+    # mean the leg-in is describing a different part of the chart.
+    check(
+        "the leg-in sits immediately before the consolidation",
+        all(
+            z["anatomy"]["base_run_from"] == z["anatomy"]["leg_in_to"] + 1
+            for z in zones
+        ),
+        str([
+            z["anatomy"]["base_run_from"] - z["anatomy"]["leg_in_to"] - 1 for z in zones
+        ][:5]),
+    )
+    check(
+        "the clipped base is a tail of the full consolidation",
+        all(
+            z["anatomy"]["base_run_from"] <= z["anatomy"]["base_from"] for z in zones
+        ),
+    )
+    check(
+        "no drawn zone exceeds the drift gate",
+        all(z["base_drift"] <= 0.6 + 1e-9 for z in zones),
+        f"max {max(z['base_drift'] for z in zones):.3f}",
+    )
+    check(
+        "relaxing the drift gate admits staircases the default rejects",
+        max(
+            z["base_drift"]
+            for z in draw(bars=800, supply_demand={"max_base_drift": 1.0, "show_broken": True,
+                                                   "max_zones_per_side": 50}).json()["drawing"]["zones"]
+        )
+        > 0.6,
+    )
     stats = payload["meta"]["supply_demand"]
     check("stats account for every candidate",
           stats["candidates"] >= stats["zones"], str(stats))

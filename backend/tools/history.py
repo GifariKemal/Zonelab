@@ -63,7 +63,14 @@ def _download(symbol: str, interval: str, bars: int) -> np.ndarray:
                     float(r[1]), float(r[2]), float(r[3]), float(r[4]), float(r[5])
                 ]  # fmt: skip
 
-            end = int(page[0][0])  # continue backwards from the oldest row seen
+            oldest = int(page[0][0])
+            if oldest >= end:
+                # The cursor did not move. It happens at the start of an
+                # instrument's history, where the same first bar comes back
+                # forever, and without this the loop never terminates and never
+                # says why.
+                break
+            end = oldest
             time.sleep(0.12)  # stay well inside the weight budget
 
     ordered = sorted(collected)

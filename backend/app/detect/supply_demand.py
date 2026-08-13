@@ -92,6 +92,7 @@ def detect(
         "bars": n,
         "candidates": 0,
         "rejected_base_too_tall": 0,
+        "rejected_base_drifted": 0,
         "rejected_weak_departure": 0,
         "rejected_thin_profit_margin": 0,
         "rejected_overlap": 0,
@@ -224,6 +225,9 @@ def detect(
         # market's volatility - so a wide zone has to earn a wider departure.
         profit_margin = max(0.0, excursion) / height
 
+        if drift > params.max_base_drift:
+            stats["rejected_base_drifted"] += 1
+            continue
         if departure_atr < params.departure_min_atr:
             stats["rejected_weak_departure"] += 1
             continue
@@ -352,6 +356,7 @@ def detect(
                 anatomy=Anatomy(
                     leg_in_from=leg_in[1],
                     leg_in_to=leg_in[2],
+                    base_run_from=base_run[1],
                     base_from=base_from,
                     base_to=base_to,
                     leg_out_from=leg_out[1],

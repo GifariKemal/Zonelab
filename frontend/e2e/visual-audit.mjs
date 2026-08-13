@@ -62,7 +62,9 @@ for (const tf of TIMEFRAMES) {
   const lines = [
     `# ${tf} — ${drawing.zones.length} zones`,
     "",
-    "Markers under the candles: `I` leg-in, `B` base, `O` leg-out.",
+    "Markers under the candles: `I` leg-in, `c` the rest of the consolidation,",
+    "`B` the base the box is drawn on, `O` leg-out. `c` appears only when a long",
+    "pause was clipped so the box sits on the bars the move actually left from.",
     "The shaded box is the zone. The brighter horizontal rule inside it is the",
     "proximal line, the edge price meets first on the way back.",
     "",
@@ -73,6 +75,13 @@ for (const tf of TIMEFRAMES) {
     const marks = [];
     for (let i = a.leg_in_from; i <= a.leg_in_to; i++)
       marks.push({ time: candles[i].time, text: "I", color: "#8d99a8" });
+    // A long consolidation is clipped so the box sits on the bars the move
+    // actually left from. Marking only the clipped tail left the leg-in arrow
+    // stranded up to nine bars away with nothing in between, and three
+    // reviewers read that as a detection bug rather than as a display one.
+    // `c` is the rest of the same pause.
+    for (let i = a.base_run_from; i < a.base_from; i++)
+      marks.push({ time: candles[i].time, text: "c", color: "#8a6a2c" });
     for (let i = a.base_from; i <= a.base_to; i++)
       marks.push({ time: candles[i].time, text: "B", color: "#d9a441" });
     for (let i = a.leg_out_from; i <= a.leg_out_to; i++)

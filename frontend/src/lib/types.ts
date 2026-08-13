@@ -17,6 +17,9 @@ export interface Candle {
 export interface Anatomy {
   leg_in_from: number;
   leg_in_to: number;
+  /** Start of the WHOLE consolidation. Differs from base_from when a long
+   *  pause was clipped to the bars the move actually left from. */
+  base_run_from: number;
   base_from: number;
   base_to: number;
   leg_out_from: number;
@@ -78,6 +81,7 @@ export interface SupplyDemandParams {
   impulse_atr: number;
   base_max_bars: number;
   base_max_atr: number;
+  max_base_drift: number;
   departure_min_atr: number;
   departure_lookahead: number;
   proximal_basis: "wick" | "body";
@@ -117,6 +121,7 @@ export const DEFAULT_PARAMS: SupplyDemandParams = {
   impulse_atr: 1.0,
   base_max_bars: 6,
   base_max_atr: 2.5,
+  max_base_drift: 0.6,
   departure_min_atr: 2.0,
   departure_lookahead: 20,
   proximal_basis: "wick",

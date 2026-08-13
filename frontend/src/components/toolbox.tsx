@@ -97,6 +97,20 @@ export function Toolbox({ params, onChange, onReset, stats }: Props) {
           onChange={(v) => onChange({ base_max_atr: v })}
         />
         <Slider
+          label="Max base drift"
+          hint="One-way travel across the base as a share of its own height. 1.0 disables the check."
+          min={0.2}
+          max={1}
+          step={0.05}
+          value={params.max_base_drift}
+          onChange={(v) => onChange({ max_base_drift: v })}
+        />
+        <Note>
+          A base is where price paused. Candles that are each small but walk
+          steadily one way are a staircase, and four independent visual audits
+          named that the most common drawing defect.
+        </Note>
+        <Slider
           label="ATR period"
           min={5}
           max={50}
@@ -156,6 +170,7 @@ export function Toolbox({ params, onChange, onReset, stats }: Props) {
           </Note>
           <Stat label="Formations found" value={stats.candidates} />
           <Stat label="Base too tall" value={stats.rejected_base_too_tall} muted />
+          <Stat label="Base drifted" value={stats.rejected_base_drifted} muted />
           <Stat label="Weak departure" value={stats.rejected_weak_departure} muted />
           <Stat label="Thin profit margin" value={stats.rejected_thin_profit_margin} muted />
           <Stat label="Merged as duplicate" value={stats.rejected_overlap} muted />

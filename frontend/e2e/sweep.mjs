@@ -122,7 +122,7 @@ await settle(page, 3000);
 // ================================================= every slider at both ends
 const sliders = page.locator('input[type="range"]');
 const sliderCount = await sliders.count();
-check("all ten parameters are exposed", sliderCount === 10, `${sliderCount}`);
+check("all eleven parameters are exposed", sliderCount === 11, `${sliderCount}`);
 
 for (let i = 0; i < sliderCount; i++) {
   const s = sliders.nth(i);
@@ -149,7 +149,12 @@ check("show broken adds zones", (await zoneCount(page)) >= beforeBroken,
 
 // Raise the per-side cap first. At the default 12 the cap binds and freed slots
 // refill from the hidden pool, so the total would not move.
-await sliders.nth(8).fill("40"); // zones per side
+// Located by label rather than by index. Inserting a control used to silently
+// shift every nth() in this file, and an assertion that quietly starts driving
+// the wrong slider still passes.
+const sliderByLabel = (name) =>
+  page.locator("label").filter({ hasText: name }).locator('input[type="range"]');
+await sliderByLabel("Zones per side").fill("40");
 await settle(page);
 
 // Assert the invariant, not the arithmetic. Counting zones before and after

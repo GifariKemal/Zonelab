@@ -65,8 +65,33 @@ kumpulan body, dan area seimbang menurut definisi bukan ketidakseimbangan.
 | `base_overlap`, rerata irisan antar bar base | 0.54 | 16.2% di bawah 0.35 |
 | Keduanya sepakat "ini tangga" | | **3.8%** |
 
-**Yang saya lakukan:** keduanya **dilaporkan**, tidak difilter. Alasannya di
-bagian berikutnya.
+**Diperiksa ulang lewat audit visual 96 zona di 8 timeframe**, empat peninjau
+independen, masing-masing dua timeframe, masing-masing menilai tiap zona dengan
+daftar periksa tujuh poin. Keempatnya menamai cacat yang sama sebagai yang
+**paling sering muncul**, dan keempatnya membaca ambang pemisah yang sama dari
+`base_drift` milik engine sendiri:
+
+| Peninjau | Zona tangga | Base yang mereka luluskan |
+|---|---|---|
+| 1m dan 5m | "drift >= 0.7 atau overlap <= 0.35" | - |
+| 1h dan 4h | 0.42 sampai 0.80 | 0.034 sampai 0.128 |
+| 1d dan 1w | 0.63 sampai 0.86 | 0.02 sampai 0.34 |
+
+Empat penilaian mata yang terpisah menyatu pada satu angka. Itu bukti yang
+tepat untuk pertanyaan kesetiaan, dan jauh lebih kuat daripada pengukuran hasil
+yang tidak konklusif.
+
+**Konsekuensi pada kode:** `max_base_drift` menyala secara bawaan di **0.6**.
+Ia membuang 16.2% kandidat (1956 dari 12057) dan rasio demand:supply tetap
+0.96-0.98 di **setiap** ambang yang diuji, jadi ia membuang cacat, bukan salah
+satu bentuk. Dijaga oleh `test_a_drifting_base_is_rejected_as_a_staircase` dan
+pasangannya yang memastikan base datar tetap lolos.
+
+> [!IMPORTANT]
+> Gerbang ini dibenarkan atas dasar **kesetiaan**, bukan kinerja. Kalibrasi
+> tidak menemukan perbedaan hasil yang terukur untuk `base_drift`, dan itu tetap
+> berlaku. Dua standar yang berbeda: sebuah gambar yang ditolak praktisi begitu
+> melihatnya adalah gambar yang salah, terlepas dari apakah ia memprediksi.
 
 ## Yang sengaja TIDAK saya ubah
 
@@ -215,6 +240,49 @@ Batasannya jujur: langkah naiknya hanya 4x (15m ke 1h, 1h ke 4h) sedangkan prakt
 sering memakai lompatan jauh lebih besar, detektor yang sama dipakai di kedua
 timeframe, dan n=234 tidak akan pernah bisa menyelesaikan efek 2 poin persen.
 Karena itu hasilnya **dilaporkan lewat medan `nested_in`, tidak dijadikan skor.**
+
+## Audit visual: satu klaim terkonfirmasi, satu terbantah
+
+Selain zona tangga, keempat peninjau melaporkan dua hal lagi. Keduanya
+bertabrakan dengan asersi kontrak yang lulus, jadi paling banyak satu pihak
+benar, dan menebak bukan pilihan. `tools/verify_claims.py` menyelesaikannya
+dengan aritmetika atas data candle, bukan atas piksel.
+
+### Terkonfirmasi: leg-in terlepas dari base
+
+Dua peninjau melaporkan marker leg-in berdiri 1 sampai 9 bar dari base dengan
+candle tak bertanda di antaranya, dan keduanya mencatat itu selalu terjadi pada
+zona `base 6`. Salah satu menyebutnya "berbentuk aritmetika, bukan berbentuk
+data", dan itu tepat.
+
+Penyebabnya pemotongan base: ketika konsolidasi lebih panjang dari
+`base_max_bars`, kotaknya digambar pada ekor bar yang benar-benar ditinggalkan
+gerakan, tetapi `leg_in_to` tetap menunjuk ke batas run aslinya. Terukur: 12.5%
+zona punya celah.
+
+**Perbaikan:** medan `base_run_from` melaporkan awal konsolidasi utuh. Formasinya
+kini selalu terbaca sebagai satu urutan yang bersambung (**100% dari 30 zona**,
+naik dari 87.5%), sementara kotaknya tetap dipotong ke bar yang relevan. Audit
+visual menandai selisihnya dengan `c`.
+
+### Terbantah: kotak dipadding melewati base
+
+Keempat peninjau melaporkan bahwa kotaknya 2-3 kali lebih tinggi dari base-nya,
+dengan tepi menempel ke badan candle leg-in atau leg-out. Satu menyebutnya "isu
+bervolume paling tinggi di sini".
+
+Diukur pada empat deret: padding **0.0% di setiap zona**. Kotaknya selalu persis
+ekstrem base-nya, sebagaimana dijamin asersi kontrak.
+
+Peninjau keempat sebenarnya sudah menandai kaveatnya sendiri: garis tepi kotak
+digambar tepat di posisi-x candle base, jadi wick panjang dan border bertumpang
+piksel dan tidak bisa dipisahkan dengan mata pada zoom itu.
+
+> [!NOTE]
+> Empat penilai independen menyatu pada satu kesimpulan yang keliru.
+> **Konvergensi bukan bukti.** Itu berlaku dua arah di dokumen ini: konvergensi
+> mereka pada ambang drift dipercaya karena aritmetika mendukungnya, dan
+> konvergensi mereka pada padding ditolak karena aritmetika membantahnya.
 
 ## Yang belum diuji
 

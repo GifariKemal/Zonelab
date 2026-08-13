@@ -3,7 +3,7 @@
 
 <p align="center">
   <img alt="status" src="https://img.shields.io/badge/status-tahap%20awal-orange">
-  <img alt="tests" src="https://img.shields.io/badge/tests-38%20passed-brightgreen">
+  <img alt="tests" src="https://img.shields.io/badge/tests-40%20passed-brightgreen">
   <img alt="calibrated" src="https://img.shields.io/badge/detection-validated%20p%3C0.0001-brightgreen">
   <img alt="license" src="https://img.shields.io/badge/license-proprietary-lightgrey">
 </p>
@@ -304,11 +304,11 @@ cd backend
 
 # 4. End to end lewat browser. Butuh API dan web app menyala.
 cd ..\frontend
-npm run e2e                # 74 asersi: setiap kontrol, kontras, mobile
+npm run e2e                # 76 asersi: setiap kontrol, kontras, mobile
 npm run e2e:resilience     # 12 asersi: API mati, pulih, API key salah
 ```
 
-38 pengujian unit, semuanya lulus. Setiap seri harga dibangun dengan tangan
+40 pengujian unit, semuanya lulus. Setiap seri harga dibangun dengan tangan
 sehingga jawaban benarnya diketahui secara konstruksi, bukan dari mengamati
 chart. Asersi geometrinya eksak: bila satu batas bergeser satu tik, itu
 perubahan perilaku dan pengujiannya harus mengatakan demikian.

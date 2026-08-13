@@ -50,6 +50,16 @@ class Anatomy(BaseModel):
 
     leg_in_from: int
     leg_in_to: int
+    base_run_from: int = Field(
+        default=-1,
+        description=(
+            "First bar of the WHOLE consolidation. When a long pause is clipped "
+            "so the zone is drawn on the bars the move actually left from, "
+            "`base_from` moves forward and this does not, so the formation still "
+            "reads as one contiguous sequence. Without it the anatomy claims a "
+            "leg-in adjacent to a base that is up to nine bars away."
+        ),
+    )
     base_from: int
     base_to: int
     leg_out_from: int
@@ -265,6 +275,23 @@ class SupplyDemandParams(BaseModel):
         description="Fraction of zone depth eaten before it counts as mitigated",
     )
 
+    max_base_drift: float = Field(
+        default=0.6,
+        ge=0.0,
+        le=1.0,
+        description=(
+            "Reject a base whose one-way travel exceeds this fraction of its "
+            "own height. A base is where price PAUSED; a run of candles that "
+            "each happen to be small but which walk steadily in one direction "
+            "is a staircase, and marking it as an origin is the defect four "
+            "independent visual audits flagged most often. They also converged "
+            "on where the line sits: staircases measured 0.42 to 0.86, bases "
+            "they passed measured 0.02 to 0.34. Set to 1.0 to disable. "
+            "Justified on fidelity, NOT on outcomes: calibration found no "
+            "measurable performance difference, and the two are separate "
+            "standards. See docs/FIDELITY.md."
+        ),
+    )
     curve_lookback: int = Field(
         default=200,
         ge=20,
