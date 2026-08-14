@@ -74,6 +74,22 @@ FOLDS = 9
 GATES = {
     "departure": ([0.0, 0.5, 1.0, 1.5, 2.0, 2.5, 3.0, 4.0], SHIPPED_GATE, "shipped"),
     "profit_zone_rr": ([0.0, 0.5, 1.0, 1.5, 2.0, 3.0], 1.0, "candidate, OFF by default"),
+    # How long the zone waited before price came back. Kept here as a WORKED
+    # NEGATIVE, because of what it shows about this harness's own limits.
+    #
+    # It passed the cross-bracket sign test, then passed walk-forward 8 of 8 at
+    # all three geometries with near-unanimous thresholds - a cleaner result
+    # than the road ahead has ever produced. A project that shipped on
+    # out-of-sample evidence alone would have shipped it.
+    #
+    # It is the departure gate wearing a different name. `departure` is measured
+    # from the leg-out up to the TOUCH, so a zone price returned to after two
+    # bars has its departure measured over two bars and is small by arithmetic.
+    # Age and departure are therefore tied by construction, and inside bands of
+    # equal departure the age effect vanishes and inverts (0.469, 0.508, 0.494,
+    # 0.457). Walk-forward proves an effect is STABLE. It cannot prove the
+    # effect is not something you already have.
+    "age_bars": ([0.0, 5.0, 10.0, 20.0, 40.0, 80.0, 160.0], 20.0, "worked negative"),
 }
 
 

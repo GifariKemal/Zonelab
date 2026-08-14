@@ -148,10 +148,11 @@ def bootstrap_auc(scores: np.ndarray, labels: np.ndarray, n: int = 2000) -> tupl
 def evaluate(
     candles: list[Candle],
     params: SupplyDemandParams,
-    reward_atr: float,
+    reward: float,
     horizon: int,
     label: str,
     interval: str = "",
+    mode: str = "atr",
 ) -> Dataset:
     zones, _ = detect(candles, params)
 
@@ -185,7 +186,7 @@ def evaluate(
         if scored is None:
             continue  # no measurable leg-out before the touch
 
-        outcome = resolve(zone, high, low, close, atr, touch, reward_atr, horizon)
+        outcome = resolve(zone, high, low, close, atr, touch, reward, horizon, mode)
         if outcome is None:
             continue  # neither side of the bracket reached inside the horizon
 
@@ -207,7 +208,7 @@ def evaluate(
         p_touch = first_touch(placebo, high, low, zone.anatomy.leg_out_to + 1)
         if p_touch is not None:
             p_outcome = resolve(
-                placebo, high, low, close, atr, p_touch, reward_atr, horizon
+                placebo, high, low, close, atr, p_touch, reward, horizon, mode
             )
             if p_outcome is not None:
                 data.placebo.append(
@@ -300,6 +301,43 @@ def score_as_of(
     # construction, and it reads inverted.
     factors["zone_height_atr"] = min(height / atr_base, 10.0)
 
+    # --- aspects nothing here had looked at yet -------------------------------
+    # All four are knowable strictly before the touch bar closes, which is the
+    # only bar on which any of this is actionable.
+    base_from = zone.anatomy.base_from
+
+    # How long the zone waited. The doctrine says a level decays with age and
+    # never says how fast, so it is measured rather than assumed. Capped because
+    # a handful of zones wait thousands of bars and would own the rank.
+    factors["age_bars"] = float(min(touch - zone.anatomy.leg_out_to, 500))
+
+    # Hour of the session the touch landed in. Reported in the per-hour table
+    # rather than ranked: an AUC on a CYCLIC variable is meaningless, because
+    # the rank statistic puts hour 23 and hour 0 at opposite ends when they are
+    # adjacent. Ranked, it read 0.540 to 0.545 and looked like a finding.
+    factors["_touch_hour"] = float((candles[touch].time // 3600) % 24)
+
+    # Volatility at formation against the 200 bars before it. A zone born in a
+    # quiet stretch and touched in a violent one is a different object from one
+    # born and touched in the same regime, and nothing so far separates them.
+    prior = atr[max(0, base_from - 200) : base_from]
+    factors["vol_regime"] = (
+        min(atr_base / float(prior.mean()), 5.0)
+        if len(prior) and prior.mean() > 0 else 1.0
+    )
+
+    # A trend proxy, and the framing matters. docs/FIDELITY.md refuses to
+    # implement the doctrine's "big picture" enhancer because the doctrine never
+    # defines how to measure trend, and inventing one and calling it doctrine
+    # would be borrowing authority. This is not that: it is ONE explicitly
+    # stated proxy - where price sat relative to 200 bars earlier, in ATR, at
+    # the moment the zone formed - measured so the result can be reported as a
+    # fact about this proxy and nothing more.
+    back = max(0, base_from - 200)
+    drift = candles[base_from].close - candles[back].close
+    signed = drift if zone.side is ZoneSide.DEMAND else -drift
+    factors["with_trend_atr"] = float(np.clip(signed / atr_base, -10.0, 10.0))
+
     return formation, factors, departure
 
 
@@ -310,22 +348,44 @@ def resolve(
     close: np.ndarray,
     atr: np.ndarray,
     touch: int,
-    reward_atr: float,
+    reward: float,
     horizon: int,
+    mode: str = "atr",
 ) -> bool | None:
     """Held or failed, from the touch bar forward.
+
+    Two ways to place the target, and they answer different questions.
+
+    `atr`  the target sits `reward` ATR from the proximal while the stop sits at
+           the distal. The reward leg is therefore the same for every zone and
+           the risk leg is not, so a tall zone is graded on an easier bracket.
+           Measured, that is worth nine points of hold rate between the shortest
+           and tallest quartile - which means any factor correlated with zone
+           height predicts for free.
+
+    `r`    the target sits `reward` ZONE HEIGHTS from the proximal. Now both
+           legs scale together and every zone is graded at the same
+           reward-to-risk, so a difference between two zones cannot be their
+           geometry. This is the mode to read factor rankings in.
+
+    Neither is more correct in the abstract. `atr` asks "does price travel a
+    fixed distance", which is what a trader with a fixed target wants; `r` asks
+    "does this zone beat that zone", which is what a ranking needs. Running both
+    is the only way to tell an effect apart from the bracket.
 
     When a single bar reaches both the target and the stop, it is scored as a
     failure. Bar data cannot say which came first, and guessing in the
     favourable direction is how backtests flatter themselves.
     """
-    atr_t = float(atr[touch])
-    if atr_t <= 0:
+    unit = (
+        float(atr[touch]) if mode == "atr" else abs(zone.proximal - zone.distal)
+    )
+    if unit <= 0:
         return None
 
     demand = zone.side is ZoneSide.DEMAND
     target = (
-        zone.proximal + reward_atr * atr_t if demand else zone.proximal - reward_atr * atr_t
+        zone.proximal + reward * unit if demand else zone.proximal - reward * unit
     )
 
     for i in range(touch, min(len(close), touch + horizon)):
@@ -356,7 +416,7 @@ def first_touch(zone: Zone, high: np.ndarray, low: np.ndarray, start: int) -> in
     return None
 
 
-def report(datasets: list[Dataset], reward_atr: float, horizon: int) -> dict:
+def report(datasets: list[Dataset], reward: float, horizon: int, mode: str) -> dict:
     real = [o for d in datasets for o in d.real]
     placebo = [o for d in datasets for o in d.placebo]
     rejected = [o for d in datasets for o in d.rejected]
@@ -380,7 +440,8 @@ def report(datasets: list[Dataset], reward_atr: float, horizon: int) -> dict:
     }
 
     print(f"\n{'=' * 78}")
-    print(f"REWARD {reward_atr} ATR, HORIZON {horizon} bars")
+    unit = "ATR" if mode == "atr" else "x the zone's own height (equal R for every zone)"
+    print(f"REWARD {reward} {unit}, HORIZON {horizon} bars")
     print(f"{'=' * 78}")
     print(f"  drawn zones         n={len(real)}   held={base:.1%}   <- the base rate")
     if len(p_labels):
@@ -425,8 +486,24 @@ def report(datasets: list[Dataset], reward_atr: float, horizon: int) -> dict:
     warning = "  <- TOO FEW TO RANK ON" if minority < 30 else ""
     print(f"\n  smaller class: {minority} of {len(real)}{warning}")
 
+    # Session, as a table rather than a rank. Six four-hour blocks so each has
+    # enough zones to mean anything.
+    hours = np.array([o.factors["_touch_hour"] for o in real])
+    print(f"\n  touch session (UTC)   n     held    vs base")
+    sessions = []
+    for start in range(0, 24, 4):
+        pick = (hours >= start) & (hours < start + 4)
+        if pick.sum() < 30:
+            continue
+        rate = float(labels[pick].mean())
+        print(f"  {start:02d}:00 to {start + 4:02d}:00      {pick.sum():>5}   {rate:>6.1%}   {rate - base:+.1%}")
+        sessions.append({"from": start, "n": int(pick.sum()), "held": rate})
+    out["sessions"] = sessions
+
     print(f"\n  {'factor':<14}{'AUC':>8}{'95% CI':>18}   reading")
-    factor_names = list(real[0].factors)
+    # Leading underscore marks a value carried for a table rather than for the
+    # rank test, so it never silently becomes a "finding".
+    factor_names = [n for n in real[0].factors if not n.startswith("_")]
     for name in [*factor_names, "strength"]:
         values = np.array(
             [o.strength if name == "strength" else o.factors[name] for o in real]
@@ -603,28 +680,46 @@ def report(datasets: list[Dataset], reward_atr: float, horizon: int) -> dict:
         # way this one can only cut. profit_zone_rr is gap divided by height, so
         # a short zone inflates it while ALSO holding less often - the confound
         # pushes this factor's apparent effect DOWN, not up.
-        print(f"\n  {'factor':<16}{'AUC overall':>13}   AUC within each height quartile")
-        confounded = {}
-        for name in ("profit_zone_rr", "tightness", "zone_height_atr"):
-            values = np.array([o.factors[name] for o in real])
-            if values.std() < 1e-12:
-                continue
-            inner = []
-            for i in range(4):
-                lo_e, hi_e = edges[i], edges[i + 1]
-                pick = (heights >= lo_e) & (heights <= hi_e if i == 3 else heights < hi_e)
-                marks = labels[pick]
-                if pick.sum() < 60 or marks.all() or not marks.any():
-                    inner.append(float("nan"))
+        # Two stratifiers, because two different mechanisms can manufacture a
+        # ranking here and they need separating.
+        #
+        # `departure` is the second, and the mechanism is subtle enough to be
+        # worth spelling out. It is measured from the leg-out up to the TOUCH,
+        # so a zone price returned to after two bars has its departure measured
+        # over two bars and is small by arithmetic rather than by weakness. That
+        # ties `age_bars` to `departure` by construction, and a factor that only
+        # ranks across departure bands is re-running the gate under a new name.
+        for stratifier, values_of in (
+            ("height", heights),
+            ("departure", np.array([o.departure for o in real])),
+        ):
+            bands = np.quantile(values_of, [0, 0.25, 0.5, 0.75, 1.0])
+            print(f"\n  {'factor':<16}{'AUC overall':>13}   AUC within each {stratifier} quartile")
+            confounded = {}
+            for name in (
+                "profit_zone_rr", "age_bars", "tightness", "zone_height_atr"
+            ):
+                values = np.array([o.factors[name] for o in real])
+                if values.std() < 1e-12:
                     continue
-                inner.append(auc(values[pick], marks))
-            shown = "  ".join("  -  " if np.isnan(v) else f"{v:.3f}" for v in inner)
-            print(f"  {name:<16}{auc(values, labels):>13.3f}   {shown}")
-            confounded[name] = inner
-        out["within_height_quartiles"] = confounded
+                inner = []
+                for i in range(4):
+                    lo_e, hi_e = bands[i], bands[i + 1]
+                    pick = (values_of >= lo_e) & (
+                        values_of <= hi_e if i == 3 else values_of < hi_e
+                    )
+                    marks = labels[pick]
+                    if pick.sum() < 60 or marks.all() or not marks.any():
+                        inner.append(float("nan"))
+                        continue
+                    inner.append(auc(values[pick], marks))
+                shown = "  ".join("  -  " if np.isnan(v) else f"{v:.3f}" for v in inner)
+                print(f"  {name:<16}{auc(values, labels):>13.3f}   {shown}")
+                confounded[name] = inner
+            out[f"within_{stratifier}_quartiles"] = confounded
         print(
             "  -> a factor that only ranks ACROSS bands and not inside them was"
-            "\n     ranking stop distance, not whatever it claims to measure."
+            "\n     ranking the stratifier, not whatever it claims to measure."
         )
 
     # What a road gate would actually cost and buy, on DRAWN zones only. The
@@ -692,23 +787,99 @@ def main() -> None:
     loaded = [(s, tf, history.load(s, tf, args.bars)) for s, tf in series]
 
     everything: dict = {}
-    for reward_atr, horizon in [(0.5, 40), (1.0, 40), (2.0, 80)]:
+    # Both bracket modes, every time. `atr` is the shipped question and `r`
+    # is the one that holds every zone to the same reward-to-risk, and the pair
+    # is the only way to tell a real effect from the bracket's own geometry.
+    plan = [("atr", 0.5, 40), ("atr", 1.0, 40), ("atr", 2.0, 80),
+            ("r", 1.0, 40), ("r", 2.0, 80), ("r", 3.0, 80)]
+    for mode, reward, horizon in plan:
         datasets = [
-            evaluate(candles, params, reward_atr, horizon, f"{s}-{tf}", tf)
-            for s, tf, candles in loaded
+            evaluate(candles, params, reward, horizon, f"{sym}-{tf}", tf, mode)
+            for sym, tf, candles in loaded
         ]
+        # Per series, so a pooled result that lives in one instrument cannot
+        # hide inside the total. Same split the gate is judged on.
         for d in datasets:
             held = [o.held for o in d.real]
+            cut = [o.held for o in d.rejected]
+            gap = (np.mean(held) - np.mean(cut)) if held and cut else float("nan")
             print(
                 f"  {d.label:<14} n={len(d.real):<5} held="
                 f"{np.mean(held) if held else float('nan'):.1%}"
+                f"   vs rejected {gap:+.1%}"
             )
-        everything[f"r{reward_atr}_h{horizon}"] = report(datasets, reward_atr, horizon)
+        everything[f"{mode}{reward}_h{horizon}"] = report(
+            datasets, reward, horizon, mode
+        )
+
+    cross_mode(everything)
 
     if args.json:
         with open(args.json, "w") as handle:
             json.dump(everything, handle, indent=1, default=float)
         print(f"\nwrote {args.json}")
+
+
+def cross_mode(everything: dict) -> None:
+    """The sharpest test on this page, and it needs both brackets to exist.
+
+    Zone height confounds BOTH modes, in OPPOSITE directions. Under an ATR
+    target a tall zone has a distant stop and holds more often; under an equal-R
+    target a tall zone needs price to travel a large absolute distance and holds
+    less often. Measured: `zone_height_atr` scores 0.537 one way and 0.391 the
+    other.
+
+    So the modes disagree about height by construction, and that turns into a
+    free diagnostic. **Any factor that is really height wearing another name
+    must flip sign between the two modes. A factor that keeps its sign in both
+    cannot be a height proxy**, because no single relationship with height can
+    point the same way under two brackets that grade height oppositely.
+
+    This is not a substitute for the within-height stratification; it is a
+    second, independent route to the same question, and a factor that passes
+    only one of them has not passed.
+    """
+    modes: dict[str, dict[str, list[float]]] = {"atr": {}, "r": {}}
+    for key, value in everything.items():
+        if not value or "factors" not in value:
+            continue
+        family = "atr" if key.startswith("atr") else "r"
+        for name, stat in value["factors"].items():
+            if stat.get("auc") is not None:
+                modes[family].setdefault(name, []).append(stat["auc"])
+
+    shared = sorted(set(modes["atr"]) & set(modes["r"]))
+    if not shared:
+        return
+
+    print(f"\n{'=' * 78}")
+    print("SAME FACTOR, TWO BRACKETS: which survive a change of geometry")
+    print(f"{'=' * 78}")
+    print("  Height is graded oppositely by the two modes, so a factor that is")
+    print("  really height in disguise MUST flip. One that does not, is not.\n")
+    print(f"  {'factor':<18}{'AUC, ATR target':>17}{'AUC, equal R':>15}   verdict")
+
+    for name in shared:
+        a = float(np.mean(modes["atr"][name]))
+        b = float(np.mean(modes["r"][name]))
+        flips = (a - 0.5) * (b - 0.5) < 0
+        # "Weak in both" has to be tested BEFORE the flip, or a factor sitting
+        # on 0.500 in one mode gets called a height proxy on the strength of
+        # rounding noise. `base_drift` read 0.506 and 0.500 and was labelled a
+        # height artefact by the first version of this table, which is a claim
+        # about a variable that did nothing at all.
+        if max(abs(a - 0.5), abs(b - 0.5)) <= 0.02:
+            verdict = "no effect under either bracket"
+        elif flips:
+            verdict = "FLIPS: this is zone height, not a property of the zone"
+        elif min(abs(a - 0.5), abs(b - 0.5)) > 0.02:
+            verdict = "SURVIVES both brackets"
+        else:
+            verdict = "same sign but weak in one, unproven"
+        print(f"  {name:<18}{a:>17.3f}{b:>15.3f}   {verdict}")
+        everything.setdefault("cross_mode", {})[name] = {
+            "atr": a, "r": b, "flips": bool(flips), "verdict": verdict
+        }
 
 
 if __name__ == "__main__":

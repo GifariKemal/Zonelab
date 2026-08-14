@@ -270,6 +270,132 @@ zona aslinya dan kelompok ditolak gerbang punya sebaran tinggi yang sama. Jadi
 +11 sampai +21 poin persen terhadap kelompok ditolak tetap berdiri; yang harus
 dibaca dengan hati-hati adalah tabel AUC.
 
+## Dua bracket, dan uji yang lahir dari perbedaannya
+
+Konfon di atas punya obat, dan obatnya sekaligus jadi alat uji terbaik di
+halaman ini.
+
+Bracket kedua ditambahkan: target sejauh `reward` **kali tinggi zona itu
+sendiri**, bukan `reward` ATR. Sekarang kedua kaki bracket berskala bersama dan
+setiap zona dinilai pada reward-to-risk yang **sama persis**.
+
+Yang terjadi berikutnya adalah kuncinya. Tinggi zona mengonfon kedua mode, tetapi
+ke **arah berlawanan**:
+
+| | Target ATR | Target setara-R |
+|---|---|---|
+| `zone_height_atr` | 0,534 (tinggi lebih baik) | 0,385 (tinggi lebih buruk) |
+
+Di bawah target ATR, zona tinggi punya stop jauh dan jarang jebol. Di bawah
+target setara-R, zona tinggi menuntut harga menempuh jarak absolut yang besar.
+Keduanya benar dan keduanya geometri.
+
+Karena kedua mode menilai tinggi secara berlawanan, muncul diagnostik gratis:
+**faktor yang sebenarnya adalah tinggi zona berbaju lain HARUS berbalik tanda
+antar mode. Yang tidak berbalik, bukan.** Tidak ada satu hubungan dengan tinggi
+yang bisa menunjuk arah sama di bawah dua bracket yang menilai tinggi secara
+berlawanan.
+
+| Faktor | AUC target ATR | AUC setara-R | Putusan |
+|---|---|---|---|
+| **`profit_zone_rr`** | **0,574** | **0,655** | **LOLOS dua bracket** |
+| **`age_bars`** | **0,569** | **0,538** | **LOLOS dua bracket** |
+| `curve_position` | 0,539 | 0,518 | lemah di satu, belum terbukti |
+| `profit_margin` | 0,507 | 0,642 | lemah di satu, belum terbukti |
+| `arrival_atr` | 0,515 | 0,501 | tidak ada efek di kedua bracket |
+| `base_drift` | 0,506 | 0,500 | tidak ada efek di kedua bracket |
+| `road_is_clear` | 0,504 | 0,503 | tidak ada efek di kedua bracket |
+| `tightness` | 0,466 | 0,615 | **berbalik: ini tinggi zona** |
+| `compactness` | 0,456 | 0,548 | **berbalik: ini tinggi zona** |
+| `base_overlap` | 0,477 | 0,555 | **berbalik: ini tinggi zona** |
+| `volume` | 0,507 | 0,480 | **berbalik: ini tinggi zona** |
+| `curve_favourable` | 0,520 | 0,483 | **berbalik: ini tinggi zona** |
+| `vol_regime` | 0,505 | 0,447 | **berbalik: ini tinggi zona** |
+| `with_trend_atr` | 0,487 | 0,525 | **berbalik: ini tinggi zona** |
+| `formation_score` | 0,458 | 0,554 | **berbalik: ini tinggi zona** |
+
+Hampir seluruh daftar odds enhancer doktrin yang bisa diukur di sini -
+kerapatan base, kepadatannya, irisan antar bar, volume kaki keluar, posisi
+kurva - ternyata **tinggi kotak dengan nama lain**. Termasuk skor komposit yang
+menampung tiga di antaranya.
+
+> [!NOTE]
+> `tightness` adalah kasus paling telanjang. Ia hampir merupakan negatif dari
+> tinggi zona menurut definisinya, terbaca 0,466 di satu bracket dan 0,615 di
+> bracket lain, dan runtuh ke sekitar 0,5 di dalam pita tinggi yang sama pada
+> bracket yang dikirim. Tiga bukti terpisah, satu kesimpulan.
+
+### `age_bars`, dan mengapa walk-forward saja tidak cukup
+
+Dua faktor lolos uji lintas-bracket. Yang kedua, `age_bars`, mengukur berapa lama
+zona menunggu sebelum harga kembali, dan hasilnya sempat lebih meyakinkan
+daripada apa pun yang pernah ada di sini:
+
+- lolos uji lintas-bracket, 0,569 dan 0,538;
+- lolos walk-forward **8 dari 8 potongan di ketiga geometri**, part A dan part B,
+  p=0,0078, dengan ambang terpilih nyaris bulat.
+
+Proyek yang menyalakan gerbang atas dasar bukti out-of-sample saja **akan
+mengirimkannya**.
+
+Ia gerbang departure yang menyamar. `departure` diukur dari kaki keluar sampai
+**bar sentuhan**, jadi zona yang disentuh setelah dua bar punya departure yang
+diukur pada dua bar dan kecil karena aritmetika, bukan karena lemah. Umur dan
+departure karena itu terikat secara konstruksi. Di dalam pita departure yang
+sama, efek umurnya lenyap dan berbalik:
+
+| Bracket | AUC keseluruhan | Di dalam tiap kuartil departure |
+|---|---|---|
+| target ATR 2,0 | 0,543 | 0,532, 0,552, 0,525, **0,491** |
+| setara-R 2,0 | 0,536 | **0,469, 0,508, 0,494, 0,457** |
+
+**Walk-forward membuktikan sebuah efek STABIL. Ia tidak bisa membuktikan efek itu
+bukan sesuatu yang sudah kita punya.** Dua uji itu menjawab pertanyaan berbeda
+dan sebuah faktor harus lewat keduanya. `age_bars` dipertahankan di dalam
+`tools/walkforward.py` sebagai negatif terdokumentasi, bukan dihapus.
+
+### `profit_zone_rr` lolos semuanya
+
+Satu-satunya faktor yang bertahan di setiap uji yang dilempar padanya:
+
+| Uji | Hasil |
+|---|---|
+| AUC mentah, dua bracket | 0,574 dan 0,655, CI bersih dari 0,5 |
+| Paruh pertama vs kedua | tanda sama di ketiga geometri |
+| Per sisi demand dan supply | keduanya di atas 0,5, CI bersih di geometri terkuat |
+| Di dalam pita tinggi zona | 0,596, 0,583, 0,563, 0,583 |
+| Di dalam pita departure | 0,530, 0,546, 0,582, 0,565 |
+| Uji lintas-bracket | tidak berbalik, dan justru menguat |
+| **Walk-forward sebagai gerbang** | **7 dari 8, p=0,07. TIDAK lolos** |
+
+Ia memeringkat, dan itu bertahan terhadap setiap konfon yang bisa saya pikirkan.
+Ia tetap **tidak menjadi gerbang bawaan**, karena memeringkat dan menyaring
+adalah dua klaim berbeda dan hanya yang kedua yang menentukan default.
+
+### Sesi, dilaporkan sebagai tabel bukan peringkat
+
+| Jam sentuhan (UTC) | n | Bertahan | vs base |
+|---|---|---|---|
+| 00:00-04:00 | 449 | 55,2% | -1,1% |
+| 04:00-08:00 | 305 | 46,9% | -9,5% |
+| 08:00-12:00 | 361 | 50,7% | -5,7% |
+| 12:00-16:00 | 750 | 58,8% | +2,4% |
+| 16:00-20:00 | 451 | 57,2% | +0,8% |
+| 20:00-24:00 | 365 | 65,2% | +8,8% |
+
+Rentang 18 poin persen, dan **tidak dijadikan apa pun**. Enam blok diuji tanpa
+koreksi, sampelnya kripto yang berdagang 24 jam sehingga "sesi" di sini bukan
+sesi bursa mana pun, dan tidak ada mekanisme yang diajukan lebih dulu. Dilaporkan
+supaya bisa diperiksa ulang di instrumen yang benar-benar punya jam bursa.
+
+> [!IMPORTANT]
+> Jam sentuhan sempat masuk tabel AUC dan terbaca 0,540 sampai 0,545, tampak
+> seperti temuan. Itu tidak berarti apa-apa: **AUC pada variabel siklik adalah
+> omong kosong**, karena statistik peringkat menaruh jam 23 dan jam 0 di ujung
+> yang berlawanan padahal keduanya bersebelahan. Sekarang ia hanya boleh muncul
+> sebagai tabel, dijaga oleh konvensi nama berawalan garis bawah yang membuatnya
+> tidak bisa masuk uji peringkat.
+
 ## Skor komposit masih tidak lolos, dan sekarang lebih buruk
 
 | Faktor | AUC @1,0 | AUC @2,0 | Putusan |
