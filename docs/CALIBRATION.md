@@ -206,11 +206,75 @@ tetap **mati secara bawaan** dan hanya dilaporkan. Bahwa ia memeringkat di dalam
 sampel dan tidak bertahan sebagai gerbang di luar sampel adalah dua fakta yang
 berbeda, dan keduanya dicetak.
 
+## Konfon jarak stop, dan apa yang tersisa setelahnya
+
+Ini pengukuran terpenting di halaman ini, karena setiap AUC lain bergantung
+padanya.
+
+Hasilnya adalah bracket dengan kaki reward sejauh `reward` ATR dari proksimal
+tetapi kaki risiko sebesar **tinggi zona itu sendiri**. Jadi zona tidak dinilai
+pada bracket yang sama satu sama lain: zona tinggi punya stop yang jauh dan lebih
+sulit jebol **karena geometri saja**.
+
+Terukur, di reward 2,0:
+
+| Tinggi zona | n | Bertahan |
+|---|---|---|
+| 0,05 sampai 0,94 ATR | 677 | 52,4% |
+| 0,94 sampai 1,23 ATR | 676 | 55,9% |
+| 1,23 sampai 1,59 ATR | 677 | 58,2% |
+| 1,59 sampai 2,50 ATR | 677 | **61,4%** |
+
+Sembilan poin persen dari tinggi kotak saja. `zone_height_atr` sebagai faktor
+memberi AUC 0,537 dan 0,540 dengan CI bersih dari 0,5. **Artinya apa pun yang
+berkorelasi dengan tinggi zona akan tampak meramalkan, gratis, tanpa mengatakan
+apa-apa tentang supply atau demand.**
+
+Ujinya: apakah sebuah faktor tetap memeringkat **di dalam** pita tinggi yang sama.
+
+| Faktor | AUC keseluruhan | Di dalam tiap kuartil tinggi (reward 2,0) |
+|---|---|---|
+| `profit_zone_rr` | 0,565 | 0,596, 0,583, 0,563, 0,583 |
+| `tightness` | 0,463 | 0,510, 0,495, 0,511, 0,494 |
+| `zone_height_atr` | 0,537 | 0,549, 0,522, 0,494, 0,516 |
+
+**`tightness` runtuh ke 0,5 di dalam setiap pita.** Ia terbaca terbalik
+(0,460 dan 0,463) sepanjang waktu bukan karena base yang rapat berkinerja buruk,
+melainkan karena `tightness` hampir merupakan negatif dari tinggi zona menurut
+definisinya. Ia memeringkat jarak stop, bukan mutu base. Satu temuan-tampak
+dibatalkan.
+
+**`profit_zone_rr` bertahan, dan justru menguat**: 0,596 / 0,583 / 0,563 / 0,583
+di dalam pita, melawan 0,565 keseluruhan. Arah konfonnya memang sudah bisa
+diduga dan ia bekerja **melawan** faktor ini: `profit_zone_rr` adalah jarak
+dibagi tinggi, jadi zona pendek menaikkan nilainya sekaligus menurunkan tingkat
+bertahannya. Efek sesungguhnya lebih besar daripada yang terbaca mentah.
+
+`zone_height_atr` sendiri melemah di dalam pita, sebagaimana seharusnya, karena
+di dalam satu pita tingginya hampir tidak berubah. Itu cek waras bahwa
+stratifikasinya bekerja dan bukan sekadar meratakan segalanya.
+
+> [!IMPORTANT]
+> Konfon yang sama menjelaskan hasil refinement di
+> [`FIDELITY.md`](FIDELITY.md) tanpa perlu penjelasan tambahan. Menyempurnakan
+> zona memotong tingginya menjadi 48,6%, yaitu memindahkannya ke kuartil tinggi
+> terbawah, dan kuartil itu bertahan 52,4% lawan 61,4%. Penurunan 9,9 poin
+> persen yang terukur di sana **hampir persis** rentang yang dijelaskan geometri
+> bracket. Refinement tidak membuat zonanya lebih buruk; ia memindahkan stop
+> lebih dekat, dan itu memang konsekuensi yang diminta.
+
+Kaveat metodologis yang mengikutinya, dan ia berlaku ke belakang: **peringkat di
+dalam kelompok zona yang digambar tidak pernah membandingkan bracket yang sama.**
+Perbandingan antar kelompok tidak terkena, karena placebo mempertahankan tinggi
+zona aslinya dan kelompok ditolak gerbang punya sebaran tinggi yang sama. Jadi
++11 sampai +21 poin persen terhadap kelompok ditolak tetap berdiri; yang harus
+dibaca dengan hati-hati adalah tabel AUC.
+
 ## Skor komposit masih tidak lolos, dan sekarang lebih buruk
 
 | Faktor | AUC @1,0 | AUC @2,0 | Putusan |
 |---|---|---|---|
-| tightness | 0,460 [0,428, 0,491] | 0,463 [0,441, 0,485] | **terbalik** di keduanya |
+| tightness | 0,460 [0,428, 0,491] | 0,463 [0,441, 0,485] | terbalik, dan **itu jarak stop**, lihat bagian di atas |
 | compactness | 0,454 [0,424, 0,484] | 0,487 | terbalik di satu |
 | volume | 0,526 | 0,504 | tidak terbedakan |
 | base_drift | 0,497 | 0,499 | tidak terbedakan |

@@ -333,26 +333,49 @@ def main() -> int:
           all(z["timeframe"] == "4h" for z in refined))
 
     # ---- the road ahead --------------------------------------------------
-    open_road = draw(bars=1500).json()["drawing"]["zones"]
+    # Asserted as invariants and an accounting identity, NOT as "the filter
+    # removed something". Whether any zone on the live chart happens to have a
+    # short road right now is a property of today's market: the first version of
+    # this block passed at 16 vs 15 and failed the next day at 17 vs 17, with no
+    # code between the two runs. A contract test that reads the market is a
+    # coin flip wearing a green tick.
+    base = draw(bars=1500).json()["drawing"]["zones"]
     check("nothing is stamped crowded while the check is off",
-          all(z["crowded_at"] is None for z in open_road))
-    shut = draw(bars=1500, supply_demand={"min_profit_zone_rr": 2.0}).json()
-    kept = shut["drawing"]["zones"]
-    check("the road filter removes zones", len(kept) < len(open_road),
-          f"{len(kept)} vs {len(open_road)}")
-    check(
-        "every surviving zone has the road it was asked for",
-        all(z["profit_zone_rr"] is None or z["profit_zone_rr"] >= 2.0 for z in kept),
-    )
-    check("the filter trace counts what it removed",
-          shut["meta"]["supply_demand"].get("rejected_crowded", 0) > 0)
-    check(
-        "a zone is never marked crowded before it existed",
-        all(
-            z["crowded_at"] is None or z["time_from"] <= z["crowded_at"] <= z["time_to"]
-            for z in kept
-        ),
-    )
+          all(z["crowded_at"] is None for z in base))
+
+    counts = []
+    for rr in (0.0, 1.0, 2.0, 5.0, 10.0):
+        body = draw(bars=1500, supply_demand={"min_profit_zone_rr": rr}).json()
+        kept = body["drawing"]["zones"]
+        counts.append(len(kept))
+        check(
+            f"road {rr}: every survivor has the road it was asked for",
+            all(z["profit_zone_rr"] is None or z["profit_zone_rr"] >= rr for z in kept),
+        )
+        # The identity holds whatever the market did, including when the answer
+        # is zero, which is exactly the case the old check could not express.
+        check(
+            f"road {rr}: the trace accounts for every removal",
+            body["meta"]["supply_demand"].get("rejected_crowded", 0)
+            == len(base) - len(kept),
+            f"{body['meta']['supply_demand'].get('rejected_crowded', 0)}"
+            f" vs {len(base) - len(kept)}",
+        )
+        check(
+            f"road {rr}: no zone is crowded before it existed or after it died",
+            all(
+                z["crowded_at"] is None
+                or z["time_from"] <= z["crowded_at"] <= z["time_to"]
+                for z in kept
+            ),
+        )
+
+    check("asking for more road never returns more zones",
+          counts == sorted(counts, reverse=True), str(counts))
+    # Only claimed when there is something to remove, which the data itself says.
+    walled = any(z["profit_zone_rr"] is not None for z in base)
+    check("a road nothing can satisfy does remove the walled zones",
+          not walled or counts[-1] < counts[0], f"{counts} walled={walled}")
 
     # ---- bad input must be rejected, not absorbed -------------------------
     check("unknown interval is a 502 with a reason",

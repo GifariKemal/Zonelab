@@ -289,6 +289,17 @@ def score_as_of(
     factors["profit_zone_rr"] = 30.0 if forward is None else min(forward, 30.0)
     factors["road_is_clear"] = float(forward is None)
 
+    # The zone's own height, and it is here as a SUSPECT rather than as a
+    # candidate. The outcome is a bracket whose target is `reward` ATR from the
+    # proximal but whose stop is the distal, i.e. the zone's own height. So the
+    # risk leg varies from zone to zone while the reward leg does not, and a
+    # short zone is graded on a tighter bracket than a tall one. If height
+    # predicts `held`, then every factor correlated with height inherits that
+    # prediction for free and none of them is telling us anything about supply
+    # or demand. `tightness` is almost the negative of this number by
+    # construction, and it reads inverted.
+    factors["zone_height_atr"] = min(height / atr_base, 10.0)
+
     return formation, factors, departure
 
 
@@ -564,6 +575,57 @@ def report(datasets: list[Dataset], reward_atr: float, horizon: int) -> dict:
             f"{'same sign' if same_side else 'SIGN FLIPS'}"
         )
         out["factors"][name]["halves"] = [a, b]
+
+    # THE STOP-DISTANCE CONFOUND, and the check every other AUC on this page
+    # depends on. The outcome is a bracket whose reward leg is `reward` ATR from
+    # the proximal but whose risk leg is the zone's own height, so zones are not
+    # graded on the same bracket as each other: a tall zone has a distant stop
+    # and is harder to break for reasons of geometry alone.
+    #
+    # `zone_height_atr` measures that directly. If it predicts, then anything
+    # correlated with height predicts too, for free, and says nothing about
+    # supply or demand. `tightness` is nearly the negative of height by
+    # construction and reads inverted, which is what a pure artefact looks like.
+    heights = np.array([o.factors["zone_height_atr"] for o in real])
+    if heights.std() > 1e-12:
+        print(f"\n  stop-distance confound")
+        edges = np.quantile(heights, [0, 0.25, 0.5, 0.75, 1.0])
+        print(f"  {'zone height':<20}{'n':>7}{'held':>9}   <- taller means a further stop")
+        for i in range(4):
+            lo_e, hi_e = edges[i], edges[i + 1]
+            pick = (heights >= lo_e) & (heights <= hi_e if i == 3 else heights < hi_e)
+            if pick.sum() < 30:
+                continue
+            print(f"  {f'{lo_e:.2f} to {hi_e:.2f} ATR':<20}{pick.sum():>7}{labels[pick].mean():>9.1%}")
+
+        # And the question that decides whether the road finding survives:
+        # does it still rank INSIDE a band of equal stop distance? Note which
+        # way this one can only cut. profit_zone_rr is gap divided by height, so
+        # a short zone inflates it while ALSO holding less often - the confound
+        # pushes this factor's apparent effect DOWN, not up.
+        print(f"\n  {'factor':<16}{'AUC overall':>13}   AUC within each height quartile")
+        confounded = {}
+        for name in ("profit_zone_rr", "tightness", "zone_height_atr"):
+            values = np.array([o.factors[name] for o in real])
+            if values.std() < 1e-12:
+                continue
+            inner = []
+            for i in range(4):
+                lo_e, hi_e = edges[i], edges[i + 1]
+                pick = (heights >= lo_e) & (heights <= hi_e if i == 3 else heights < hi_e)
+                marks = labels[pick]
+                if pick.sum() < 60 or marks.all() or not marks.any():
+                    inner.append(float("nan"))
+                    continue
+                inner.append(auc(values[pick], marks))
+            shown = "  ".join("  -  " if np.isnan(v) else f"{v:.3f}" for v in inner)
+            print(f"  {name:<16}{auc(values, labels):>13.3f}   {shown}")
+            confounded[name] = inner
+        out["within_height_quartiles"] = confounded
+        print(
+            "  -> a factor that only ranks ACROSS bands and not inside them was"
+            "\n     ranking stop distance, not whatever it claims to measure."
+        )
 
     # What a road gate would actually cost and buy, on DRAWN zones only. The
     # bucket table above mixes in the gate-rejected cohort and so answers a

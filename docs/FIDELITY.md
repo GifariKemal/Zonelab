@@ -456,6 +456,18 @@ adalah aritmetika dan bukan temuan; satu-satunya besaran yang diukur di sini
 adalah tingkat bertahan, dan ia turun. Apakah pertukarannya sepadan bergantung
 pada biaya transaksi trader, yang tidak dimodelkan proyek ini sama sekali.
 
+> [!IMPORTANT]
+> Penurunan itu **bukan tanda zonanya jadi lebih buruk**, dan pengukuran
+> terpisah menunjukkan mengapa. Kalibrasi menemukan tinggi kotak sendiri
+> meramalkan hasil: kuartil terpendek bertahan 52,4% dan tertinggi 61,4% di
+> reward 2,0, semata karena stop yang jauh lebih jarang tersentuh. Refinement
+> memotong tinggi ke 48,6%, yaitu memindahkan zona ke kuartil terpendek, dan
+> selisih 9,9 poin persen yang terukur di sini **hampir persis** rentang yang
+> dijelaskan geometri bracket itu. Jadi yang dibeli refinement adalah stop yang
+> lebih dekat, dan yang dibayarnya adalah konsekuensi aritmetis dari stop yang
+> lebih dekat. Tidak ada informasi yang hilang, hanya risiko yang dipindahkan.
+> Rinciannya di [`CALIBRATION.md`](CALIBRATION.md) bagian konfon jarak stop.
+
 Karena itu `refine` **mati secara bawaan** dan muncul sebagai pilihan di header
 begitu HTF menyala. Dijaga oleh enam pengujian unit dan enam asersi kontrak API,
 termasuk bahwa kotak hasilnya tidak pernah keluar dari kotak asalnya, karena
