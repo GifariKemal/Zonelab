@@ -710,6 +710,32 @@ berbeda dari kotak sembarangan di harga sembarangan.
 > Dan tidak satu pun dari ini menyentuh **arah**. Itu diukur terpisah, dan
 > jawabannya tetap tidak.
 
+### Sumber kedua detektor itu lemah, dan itu harus dinyatakan
+
+Ditelusuri 2026-08-15. **Sumber primer untuk keduanya adalah kanal YouTube.**
+Tidak ada buku, tidak ada makalah, tidak ada kanon. Setiap definisi tertulis yang
+beredar adalah kodifikasi pihak ketiga atas sebuah video. Karena itu penyimpangan
+implementasi didaftar, bukan diperdebatkan, dan dua di antaranya diselesaikan
+dengan pengukuran:
+
+| Pilihan | Status |
+|---|---|
+| Geometri FVG wick ke wick | **Tidak menyimpang.** Konsensus, dan persis yang diuji dua studi terukur. Versi badan-ke-badan adalah **pola bernama lain** (volume imbalance), bukan varian |
+| Tanpa uji arah candle tengah | Sebagian kodifikasi menuntutnya. **Diukur pada 16.693 gap: uji itu hanya menolak 12, yaitu 0,1%.** Penyimpangannya nyata dan dapat diabaikan, dan sekarang berupa angka bukan pendapat |
+| `min_gap_atr` 0,1 | **Milik kami.** Tidak ada sumber primer yang punya minimum; bawaan indikator berkisar 0 sampai 0,25 ATR. Parameter yang disapu, jadi hasil di sini tidak sebanding dengan statistik FVG terbitan yang tidak menyaring apa pun |
+| Level 50% (consequent encroachment) | **Sudah ada, dengan nama lain.** `penetration_pct >= 0.5` persis berarti harga menyentuh titik tengah, dan ambang mitigasi dikirim di 0,5. Kotak berstatus `mitigated` menurut definisi sudah mencapainya |
+| Kotak order block = seluruh rentang candle | Konvensi paling umum, dan **paling lebar** dari tiga yang ada. Itu menaikkan tingkat sentuhan secara mekanis dibanding detektor badan-saja, jadi perbandingan lintas studi tidak sah |
+| Tanpa syarat break of structure | **Penyimpangan terbesar**, dan aturannya diperdebatkan. Yang patut diketahui: angka yang biasa dipakai membenarkan syarat itu (52% lawan 65-68% pada 2400 setup) **tidak bisa dilacak** - halaman yang dirujuk sama sekali tidak memuat statistik. Kedua kubu sama-sama tanpa bukti |
+| Impuls 1,5 ATR dalam 5 bar | **Sepenuhnya milik kami.** Tidak ada kelipatan ATR terbitan untuk "impulsif" |
+| "Warna berlawanan" dibaca `close < open` | Sebagian kodifikasi membacanya `close < close[1]`, yang memilih candle berbeda pada inside dan outside bar. Tidak ada yang menyelesaikannya |
+
+Dua studi yang mengungkap metodenya patut dicatat karena bentuk temuannya **sama
+dengan yang terus kami temukan sendiri**: satu menguji reaksi FVG terhadap
+placebo acak pada empat futures selama tujuh tahun dan menemukan reaksinya nyata
+(unggul di 34 dari 36 sel, sekitar 5 poin) tetapi keunggulan dagangnya habis oleh
+biaya di 17 dari 18 konfigurasi. Satu lagi menjalankan 54 variasi aturan SMC pada
+2,55 juta bar EURUSD dan menemukan **tidak satu pun untung** setelah setengah pip.
+
 Satu kontrol ditulis lalu **dibuang**, dan alasannya layak dicatat. Kontrol
 "waktu acak" memulai bracket di harga bar acak itu; kalau harga sudah melewati
 target, bracket-nya selesai menang di bar pertama. Ia mencetak 50 sampai 52

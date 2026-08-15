@@ -34,6 +34,69 @@ WHAT IS DELIBERATELY NOT HERE
 No scoring, no ranking, no composite. The supply/demand detector shipped a score
 and had to retract it; starting these two without one is the lesson applied
 rather than repeated.
+
+WHERE THIS DEPARTS FROM THE SOURCES, checked 2026-08-15
+The primary source for both patterns is a YouTube channel. There is no book, no
+paper, no canon, and every written definition in circulation is a third-party
+codification of a video. So the departures are listed rather than argued, and
+two of them were settled by measurement instead of opinion.
+
+  FVG geometry            NO DEPARTURE. Wick-to-wick, `h1 < l3` or `l1 > h3`,
+                          is the consensus and is what the two measured studies
+                          test. Body-to-body is a DIFFERENT NAMED PATTERN (a
+                          volume imbalance), not a variant of this one.
+
+  no middle-candle test   Some codifications require the middle candle to close
+                          in the gap's direction. Measured on 16,693 gaps across
+                          four series: that test would reject **12 of them,
+                          0.1%**. The departure is real and negligible, and now
+                          it is a number rather than an argument.
+
+  min_gap_atr = 0.1       OURS. No primary source has a minimum. Indicator
+                          defaults range from 0 (off) to 0.25 x ATR. It is a
+                          swept parameter and results here are therefore not
+                          comparable to published FVG statistics, which gate
+                          nothing.
+
+  consequent encroachment ALREADY PRESENT, under another name. The 50% level is
+                          the most-cited operational level in this literature.
+                          `penetration_pct >= 0.5` is exactly "price traded to
+                          the midpoint", and `mitigation_pct` ships at 0.5, so a
+                          box in state `mitigated` has by definition reached it.
+                          Not added as a separate field, because a second name
+                          for one number is how two fields drift apart.
+
+  order block box         Whole high-to-low range. The most common convention,
+                          and the WIDEST of three - which mechanically raises
+                          the touch rate against a body-only detector, so
+                          cross-study comparison is invalid.
+
+  no structure break      THE BIGGEST DEPARTURE, and a contested rule. Required
+                          by some codifications, "recommended not mandatory" by
+                          others, absent from the candle-level definition
+                          itself. Worth knowing: the figures usually quoted to
+                          justify requiring it (52% against 65-68% on 2,400
+                          setups) are UNTRACEABLE - the page they are attributed
+                          to contains no statistics at all. Neither camp has
+                          evidence, so this is a stated choice on both sides.
+
+  1.5 ATR over 5 bars     OURS ENTIRELY. No published ATR multiple exists for
+                          "impulsive"; the nearest analogues are "2-3x average
+                          candle size" asserted without derivation. A swept
+                          parameter, never a rule.
+
+  opposite-coloured       Read as `close < open`. Others codify the same phrase
+                          as `close < close[1]`, which picks a different candle
+                          on inside and outside bars. Nobody resolves it.
+
+WHAT THE MEASURED LITERATURE SAYS, since it bears on how loudly to claim anything
+Two studies disclose their method. One tested FVG reaction against a random
+placebo on four futures over seven years and found the reaction real - beating
+random in 34 of 36 cells by about 5 points - while the tradeable edge was
+consumed by costs in 17 of 18 configurations. The other ran 54 mechanical SMC
+variations on 2.55 million EURUSD bars and found **none profitable** after half
+a pip. Both match the shape of what this project keeps finding on its own
+detector: the reaction is real, the edge is not established.
 """
 
 from __future__ import annotations
