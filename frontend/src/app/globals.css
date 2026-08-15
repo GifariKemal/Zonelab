@@ -62,9 +62,14 @@ body {
 /* A workstation never scrolls the page; its panels scroll inside themselves.
    That only holds once there is room for three columns. Below that the panels
    stack, and locking the page left the chart about 100px tall with the
-   controls cut off mid-slider. The page scrolls on small screens. */
+   controls cut off mid-slider. The page scrolls on small screens.
+
+   Scoped to the workstation itself rather than applied to every route. It used
+   to sit on `body` unconditionally, which is fine while the app is one screen
+   and silently breaks the first long document added to it - the handbook at
+   /docs simply could not be scrolled past its first viewport. */
 @media (min-width: 1024px) {
-  body {
+  body:has([data-workstation]) {
     overflow: hidden;
   }
 }

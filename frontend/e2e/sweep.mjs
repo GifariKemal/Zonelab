@@ -263,6 +263,35 @@ await page.keyboard.press("Escape");
 await page.waitForTimeout(400);
 check("escape clears the inspector", (await page.locator("text=Bars that formed it").count()) === 0);
 
+// ================================================================ handbook
+// The panel is the one part of this app that cannot be understood by looking at
+// it, so the way out of it is load-bearing, not decoration.
+await page.locator('a:text-is("Buku panduan")').click();
+await page.waitForURL("**/docs");
+await settle(page, 1200);
+
+const docsText = await page.locator("main").innerText();
+check("the handbook opens from the panel", page.url().endsWith("/docs"), page.url());
+check("it explains the three acts", docsText.includes("kaki masuk"));
+check("it names every slider the panel shows",
+      ["Departure gate", "Max base drift", "Road ahead", "Zones per side"]
+        .every((s) => docsText.includes(s)),
+      docsText.length + " chars");
+// The page is long, and the workstation used to lock `body { overflow: hidden }`
+// for every route on wide screens. That made the handbook unscrollable past its
+// first viewport while looking perfectly fine in a screenshot.
+const scrolled = await page.evaluate(async () => {
+  window.scrollTo(0, 4000);
+  await new Promise((r) => setTimeout(r, 250));
+  return window.scrollY;
+});
+check("a long document can actually be scrolled", scrolled > 1000, `${scrolled}px`);
+check("no console errors on the handbook", errors.length === 0, errors.slice(0, 2).join("|"));
+
+await page.screenshot({ path: `${SHOTS}/sweep-06-handbook.png`, fullPage: false });
+await page.goto(URL, { waitUntil: "networkidle" });
+await settle(page, 3000);
+
 // ================================================================ no NaN
 const body = await page.locator("body").innerText();
 check("no NaN rendered anywhere", !body.includes("NaN"), body.match(/.{0,30}NaN.{0,30}/)?.[0] ?? "");

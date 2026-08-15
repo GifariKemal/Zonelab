@@ -105,7 +105,10 @@ export default function Page() {
   const readout = hovered ?? last;
 
   return (
-    <div className="flex min-h-dvh flex-col bg-bg lg:h-dvh lg:min-h-0 lg:overflow-hidden">
+    <div
+      data-workstation
+      className="flex min-h-dvh flex-col bg-bg lg:h-dvh lg:min-h-0 lg:overflow-hidden"
+    >
       <header className="flex shrink-0 flex-wrap items-center gap-x-4 gap-y-2 border-b border-line px-4 py-2">
         <div className="flex items-baseline gap-2">
           <span className="text-[13px] font-semibold tracking-tight text-text">

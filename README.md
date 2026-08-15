@@ -49,6 +49,13 @@ Skrip itu membuat virtualenv, memasang dependensi, menyalakan API dan web app,
 lalu membuka browser. Jalan pertama memakan beberapa menit; setelah itu beberapa
 detik.
 
+> [!TIP]
+> Panel kirinya penuh istilah metode yang tidak bisa dipahami dengan
+> memandanginya. Buku panduannya ada di **`/docs`** (`http://localhost:3100/docs`,
+> tautannya di dasar panel): bentuk yang dicari, arti setiap slider, dan kolom
+> yang menandai mana dari dua belas kontrol itu yang benar-benar punya bukti.
+> Jawabannya dua.
+
 Manual, bila lebih suka dua terminal:
 
 ```powershell

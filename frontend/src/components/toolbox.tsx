@@ -1,5 +1,7 @@
 "use client";
 
+import Link from "next/link";
+
 import type { ServerConfig, SupplyDemandParams } from "@/lib/types";
 
 interface Props {
@@ -216,13 +218,22 @@ export function Toolbox({ params, onChange, onReset, stats, htfStats }: Props) {
         </Group>
       ) : null}
 
-      <div className="mt-auto border-t border-line p-3">
+      <div className="mt-auto flex flex-col gap-2 border-t border-line p-3">
         <button
           onClick={onReset}
           className="w-full border border-line-strong px-3 py-2 text-[11px] uppercase tracking-wider text-text-dim transition-colors hover:border-accent hover:text-accent"
         >
           Reset parameters
         </button>
+        {/* Twelve sliders and only two of them are backed by evidence. That is
+            not something a hint under each control can say, so the handbook
+            says it, and the link sits under the panel it explains. */}
+        <Link
+          href="/docs"
+          className="w-full border border-line px-3 py-2 text-center text-[11px] uppercase tracking-wider text-text-faint transition-colors hover:border-accent hover:text-accent"
+        >
+          Buku panduan
+        </Link>
       </div>
     </div>
   );
