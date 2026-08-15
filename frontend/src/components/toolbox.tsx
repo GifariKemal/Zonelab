@@ -61,8 +61,10 @@ export function Toolbox({ params, onChange, onReset, stats, htfStats }: Props) {
           onChange={(v) => onChange({ departure_min_atr: v })}
         />
         <Note tone="evidence">
-          The one measured setting. Clearing 2 ATR held 84.6% against 68.3%
-          (n=877, p&lt;0.0001). Flat above 2, so raising it only removes zones.
+          The one setting that survived every test. Zones clearing 2 ATR held
+          85.8% against 64.4% for the formations it rejects (n=10198,
+          p&lt;0.0001), and the gap held in 8 of 8 unseen time slices. Flat
+          above 2, so raising it only removes zones.
         </Note>
         <Slider
           label="Profit margin"

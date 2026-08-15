@@ -249,8 +249,13 @@ check("the retired score is gone from the inspector",
       (await page.locator("text=/^Strength$/").count()) === 0);
 check("the honest caveat is shown",
       (await page.locator("text=/does not predict them/").count()) === 1);
-check("the validated gate finding is shown",
-      (await page.locator("text=/84.6%/").count()) === 1);
+// Pinned to the CURRENT measured numbers on purpose. This assertion held a
+// stale 84.6% for two days after the calibration was recomputed, because it
+// checked that a number was on screen rather than that the RIGHT one was, and a
+// shipped claim that no longer matches the evidence is worse than no claim.
+check("the validated gate finding is shown, with the numbers that are true now",
+      (await page.locator("text=/85.8%/").count()) === 1
+      && (await page.locator("text=/64.4%/").count()) === 1);
 
 await page.screenshot({ path: `${SHOTS}/sweep-02-inspector.png` });
 
