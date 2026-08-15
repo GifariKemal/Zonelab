@@ -377,11 +377,51 @@ def main() -> int:
     check("a road nothing can satisfy does remove the walled zones",
           not walled or counts[-1] < counts[0], f"{counts} walled={walled}")
 
+    # ---- the other two detectors -----------------------------------------
+    check("all three detectors are advertised",
+          set(get("/api/config").json()["detectors"])
+          == {"supply_demand", "fvg", "order_block"})
+
+    for name, code in (("fvg", "FVG"), ("order_block", "OB")):
+        body = draw(bars=1500, detectors=[name]).json()
+        shapes = body["drawing"]["zones"]
+        check(f"{name} draws something", len(shapes) > 0, str(body["meta"].get(name)))
+        check(f"{name} stamps its own kind",
+              all(z["kind"] == code for z in shapes))
+        check(f"{name} boxes have positive height",
+              all(z["top"] > z["bottom"] for z in shapes))
+        check(
+            f"{name} puts the proximal on the side price meets first",
+            all((z["proximal"] > z["distal"]) == (z["side"] == "demand") for z in shapes),
+        )
+        check(f"{name} sits inside the returned bars",
+              all(body["candles"][0]["time"] <= z["time_from"] <= body["candles"][-1]["time"]
+                  for z in shapes))
+        check(f"{name} reports its own filter trace", "candidates" in body["meta"][name])
+        # These two carry no score, on purpose: the supply/demand composite had
+        # to be retracted, and starting without one is the lesson applied.
+        check(f"{name} claims no score", all(z["formation_score"] == 0 for z in shapes))
+
+    both = draw(bars=1500, detectors=["supply_demand", "fvg"]).json()["drawing"]["zones"]
+    kinds = {z["kind"] for z in both}
+    check("detectors compose rather than replace one another",
+          "FVG" in kinds and kinds - {"FVG"}, str(sorted(kinds)))
+
+    # A fair value gap has no opposing zone and therefore no road, so the
+    # supply/demand road filter must not reach across and eat it.
+    guarded = draw(bars=1500, detectors=["supply_demand", "fvg"],
+                   supply_demand={"min_profit_zone_rr": 3.0}).json()["drawing"]["zones"]
+    check("the road filter does not touch another detector's drawings",
+          sum(1 for z in guarded if z["kind"] == "FVG")
+          == sum(1 for z in both if z["kind"] == "FVG"))
+
     # ---- bad input must be rejected, not absorbed -------------------------
     check("unknown interval is a 502 with a reason",
           draw(interval="7m").status_code == 502)
+    # Was `fvg`, which stopped being unknown the day the detector shipped and
+    # turned this into a test of nothing. A name no detector will ever have.
     check("unknown detector is a 422",
-          draw(detectors=["fvg"]).status_code == 422)
+          draw(detectors=["not_a_detector"]).status_code == 422)
     check("unknown provider is a 502 with a reason",
           draw(provider="nope").status_code == 502)
     check("bars below the floor is a 422",

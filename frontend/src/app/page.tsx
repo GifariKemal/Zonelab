@@ -7,8 +7,10 @@ import { Toolbox } from "@/components/toolbox";
 import { ZonePanel } from "@/components/zone-panel";
 import { fetchConfig, fetchDrawing } from "@/lib/api";
 import {
+  DEFAULT_IMBALANCE,
   DEFAULT_PARAMS,
   type Candle,
+  type DetectorId,
   type DrawResponse,
   type ServerConfig,
   type SupplyDemandParams,
@@ -31,6 +33,10 @@ export default function Page() {
   // every H4 and D1 zone one candle away from the terminal's own.
   const [sessionOffset, setSessionOffset] = useState("0");
   const [refine, setRefine] = useState(false);
+  // Supply and demand only, by default. The other two are measured and real,
+  // but three detectors at once is a chart nobody can read, and picking what to
+  // look at is the user's call rather than ours.
+  const [detectors, setDetectors] = useState<DetectorId[]>(["supply_demand"]);
   const [params, setParams] = useState<SupplyDemandParams>(DEFAULT_PARAMS);
 
   const [data, setData] = useState<DrawResponse | null>(null);
@@ -80,6 +86,8 @@ export default function Page() {
         interval,
         bars,
         provider,
+        detectors,
+        imbalance: DEFAULT_IMBALANCE,
         htf: htf === "off" ? null : htf,
         refine,
         session_offset_hours: Number(sessionOffset),
@@ -100,7 +108,7 @@ export default function Page() {
     }, DEBOUNCE_MS);
 
     return () => clearTimeout(timer);
-  }, [symbol, interval, bars, provider, htf, refine, sessionOffset, params, tick]);
+  }, [symbol, interval, bars, provider, htf, refine, sessionOffset, params, detectors, tick]);
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -161,6 +169,39 @@ export default function Page() {
           onChange={(v) => setBars(Number(v))}
           options={["200", "500", "1000"]}
         />
+
+        <div className="flex border border-line-strong" role="group" aria-label="Detectors">
+          {(
+            [
+              ["supply_demand", "S&D"],
+              ["fvg", "FVG"],
+              ["order_block", "OB"],
+            ] as [DetectorId, string][]
+          ).map(([id, label]) => (
+            <button
+              key={id}
+              onClick={() =>
+                setDetectors((prev) =>
+                  prev.includes(id)
+                    ? // Never leave the chart with nothing selected: an empty
+                      // drawing is indistinguishable from a broken one.
+                      prev.length > 1
+                      ? prev.filter((d) => d !== id)
+                      : prev
+                    : [...prev, id],
+                )
+              }
+              aria-pressed={detectors.includes(id)}
+              className={`num px-2 py-1 text-[11px] transition-colors ${
+                detectors.includes(id)
+                  ? "bg-accent/15 text-accent"
+                  : "text-text-faint hover:text-text-dim"
+              }`}
+            >
+              {label}
+            </button>
+          ))}
+        </div>
 
         <button
           onClick={() => setLive((v) => !v)}

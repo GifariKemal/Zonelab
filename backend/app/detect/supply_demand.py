@@ -27,6 +27,7 @@ the output is trustworthy:
 from __future__ import annotations
 
 from dataclasses import dataclass
+from typing import Protocol
 
 import numpy as np
 
@@ -86,6 +87,19 @@ _STATE_PRIORITY = {
 _DEPARTURE_SATURATION = 5.0
 
 
+class LifecycleParams(Protocol):
+    """The only two settings the replay actually reads.
+
+    Narrower than `SupplyDemandParams` on purpose: the fair-value-gap and order
+    block detectors reuse this replay and have nothing to do with bases or
+    departures, so demanding the whole supply/demand parameter block would be
+    asking them to carry fields they must not have.
+    """
+
+    mitigation_pct: float
+    arrival_bars: int
+
+
 @dataclass
 class Lifecycle:
     """What price did to a zone after its leg-out."""
@@ -109,7 +123,7 @@ def replay_lifecycle(
     distal: float,
     is_demand: bool,
     start: int,
-    params: SupplyDemandParams,
+    params: LifecycleParams,
 ) -> Lifecycle:
     """Walk the bars from `start` and report what became of this box.
 

@@ -182,6 +182,7 @@ jalankan ulang dengan `python -m tools.calibrate`.
 | Jalan di depan zona meramalkan arah | **Terbantah**, +0.053 ATR dengan p = 0.88. Faktor itu meramalkan ketahanan, bukan arah |
 | Zona yang sudah beberapa kali disentuh jadi lebih lemah | **Terbantah setelah tampak sangat kuat.** Mentahnya -27 poin persen dan bertahan ketika tautologi distalnya dibuang; runtuh jadi 77.2 / 77.2 / 77.1 persen di dalam pita umur yang sama |
 | Umur zona memisahkan hasil | **Terbukti**, 93.6% di bawah 10 bar lawan 77.2% di atas 59 bar, pada sentuhan pertama yang sama |
+| FVG dan Order Block menandai sesuatu yang nyata | **Terbukti terhadap placebo**, +10 sampai +25 poin persen di tiga geometri. Standar lebih rendah: kontrol berat dan walk-forward hanya ada untuk Supply dan Demand |
 
 > [!CAUTION]
 > Angka-angka di atas berubah pada 2026-08-13 karena **populasinya dulu salah**.
@@ -422,8 +423,9 @@ perubahan perilaku dan pengujiannya harus mengatakan demikian.
 - [x] Invalidasi saat zona lawan baru menutup jalan di depan
 - [x] Uji reaksi sebelum dan sesudah sentuhan, dengan kontrol drift
 - [x] Walk-forward dengan purging, delapan potongan di luar sampel
-- [ ] FVG dan IFVG
-- [ ] Order Block dan Breaker Block
+- [x] Detektor FVG dan Order Block, diukur lewat harness yang sama
+- [x] Realtime, muat ulang saat bar tutup
+- [ ] IFVG dan Breaker Block
 - [ ] Liquidity sweep, BOS, dan CHoCH
 - [ ] Zona multi-timeframe dengan stempel konfirmasi
 - [ ] Streaming langsung lewat WebSocket

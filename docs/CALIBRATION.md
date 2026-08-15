@@ -675,10 +675,54 @@ dikatakan literatur peer-reviewed, sekaligus kebalikan dari doktrin ritel.
 **Putusan: tidak dikonfirmasi.** Efek mentahnya besar dan bertahan terhadap satu
 konfon, lalu runtuh pada konfon kedua. Dilaporkan, tidak dikirim.
 
+### H4, dua detektor baru lewat rig yang sama
+
+Fair value gap dan order block, dibangun lalu **langsung dimasukkan ke mesin yang
+sudah membunuh empat temuan sebelumnya**. Menambah detektor itu mudah dan tidak
+membuktikan apa pun; satu-satunya cara jujur adalah menguji keduanya dengan
+standar yang sama, bukan yang lebih longgar.
+
+`tools/detectors.py`, kontrol placebo, dua bracket:
+
+| Reward | Detektor | n | Bertahan | Placebo | Selisih |
+|---|---|---|---|---|---|
+| 1,0 ATR | supply_demand | 10198 | 70,1% | 50,8% | +19,3 pp |
+| | fvg | 12745 | 67,0% | 47,6% | +19,5 pp |
+| | order_block | 21565 | 72,0% | 50,9% | +21,1 pp |
+| 2,0 ATR | supply_demand | 10239 | 48,4% | 36,9% | +11,5 pp |
+| | fvg | 12741 | 42,6% | 32,2% | +10,3 pp |
+| | order_block | 21618 | 48,8% | 35,2% | +13,6 pp |
+| 2,0 setara-R | supply_demand | 10075 | 43,8% | 32,4% | +11,4 pp |
+| | fvg | 12710 | 71,0% | 46,1% | **+24,9 pp** |
+| | order_block | 21337 | 54,2% | 38,9% | +15,3 pp |
+
+Ketiganya mengalahkan placebo di **ketiga geometri**, semuanya p<0,0001, dengan n
+antara 10.000 dan 21.600. Jadi ketiganya menandai tempat yang berperilaku
+berbeda dari kotak sembarangan di harga sembarangan.
+
+> [!WARNING]
+> Ini **standar yang lebih rendah** daripada yang sudah dilewati supply and
+> demand, dan bedanya harus dinyatakan. Mengalahkan placebo berarti mengalahkan
+> level sembarangan. Kontrol yang berat - formasi asli yang ditolak gerbang -
+> hanya ada untuk supply and demand, karena hanya ia yang punya gerbang. FVG dan
+> order block belum punya pembanding sekelas itu, dan belum lewat walk-forward.
+>
+> Dan tidak satu pun dari ini menyentuh **arah**. Itu diukur terpisah, dan
+> jawabannya tetap tidak.
+
+Satu kontrol ditulis lalu **dibuang**, dan alasannya layak dicatat. Kontrol
+"waktu acak" memulai bracket di harga bar acak itu; kalau harga sudah melewati
+target, bracket-nya selesai menang di bar pertama. Ia mencetak 50 sampai 52
+persen untuk setiap detektor di setiap geometri, yang adalah tanda tangan
+lemparan koin, bukan kontrol. Ia bekerja di `tools/reaction.py` hanya karena di
+sana hasilnya adalah perpindahan dari harga sentuhan, yang tidak punya makna
+tanpa sentuhan.
+
 ### Aturan berhentinya berlaku
 
-Tiga hipotesis dijalankan, tiga gagal. H4 adalah detektor baru, yaitu pekerjaan
-membangun dan bukan pengukuran, jadi ia menunggu keputusan terpisah.
+Tiga hipotesis arah dijalankan, tiga gagal. H4 menambah dua detektor yang
+terbukti menandai sesuatu, dan tidak satu pun dari mereka mengubah jawaban soal
+arah.
 
 **Tidak ada panah yang bisa digambar dari apa pun yang diukur di sini.** Yang
 bisa dikatakan, dan ini bukan hasil kosong: umur zona memisahkan hasil sebesar

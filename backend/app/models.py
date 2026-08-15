@@ -31,6 +31,12 @@ class ZoneKind(StrEnum):
     DBD = "DBD"  # Drop-Base-Drop      -> supply (continuation)
     RBD = "RBD"  # Rally-Base-Drop     -> supply (reversal)
 
+    # From the ICT/SMC lineage rather than the Seiden one. Same shape - a box
+    # with a near and a far edge - so they share `Zone`, and `kind` says which
+    # detector drew it.
+    FVG = "FVG"  # Fair value gap: three bars whose outer wicks never met
+    OB = "OB"  # Order block: last opposite candle before an impulsive move
+
 
 class ZoneSide(StrEnum):
     DEMAND = "demand"
@@ -384,6 +390,59 @@ class SupplyDemandParams(BaseModel):
     merge_overlap_pct: float = Field(default=0.6, ge=0.0, le=1.0)
 
 
+class ImbalanceParams(BaseModel):
+    """Knobs for the fair-value-gap and order-block detectors.
+
+    Deliberately few. The supply/demand detector shipped with a composite score
+    over three factors and had to retract it when measurement said the composite
+    ranked backwards; these two start with no score at all, so there is nothing
+    to weight and nothing to retract.
+    """
+
+    atr_period: int = Field(default=14, ge=2, le=200)
+
+    min_gap_atr: float = Field(
+        default=0.1,
+        ge=0.0,
+        le=5.0,
+        description=(
+            "Smallest fair value gap worth drawing, as a multiple of the ATR "
+            "before it. Every three bars in a quiet market technically leave "
+            "micro-gaps; without a floor the chart is unreadable and the "
+            "population is dominated by noise."
+        ),
+    )
+    displacement_atr: float = Field(
+        default=1.5,
+        ge=0.0,
+        le=10.0,
+        description=(
+            "How far price must travel away from an order block candle for the "
+            "move to count as impulsive. The published sources say 'strong' and "
+            "never say how strong, so this number is ours and is stated as such."
+        ),
+    )
+    displacement_bars: int = Field(
+        default=5,
+        ge=1,
+        le=50,
+        description=(
+            "Bars after the block candle in which that travel is measured. "
+            "Fixed rather than run to the end of a swing, because where a swing "
+            "ends is a human judgement and this detector has none."
+        ),
+    )
+
+    # Read by the shared lifecycle replay, which is why they are named exactly
+    # as the supply/demand block names them.
+    mitigation_pct: float = Field(default=0.5, ge=0.0, le=1.0)
+    arrival_bars: int = Field(default=6, ge=1, le=50)
+
+    show_broken: bool = False
+    show_mitigated: bool = True
+    max_zones_per_side: int = Field(default=12, ge=0, le=100)
+
+
 class DrawRequest(BaseModel):
     symbol: str = "XAUUSD"
     interval: str = "15m"
@@ -420,6 +479,10 @@ class DrawRequest(BaseModel):
     )
     detectors: list[str] = Field(default_factory=lambda: ["supply_demand"])
     supply_demand: SupplyDemandParams = Field(default_factory=SupplyDemandParams)
+    imbalance: ImbalanceParams = Field(
+        default_factory=ImbalanceParams,
+        description="Shared by the fvg and order_block detectors.",
+    )
 
 
 class DrawResponse(BaseModel):

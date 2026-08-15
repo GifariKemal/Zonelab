@@ -1,4 +1,10 @@
-import type { DrawResponse, ServerConfig, SupplyDemandParams } from "./types";
+import type {
+  DetectorId,
+  DrawResponse,
+  ImbalanceParams,
+  ServerConfig,
+  SupplyDemandParams,
+} from "./types";
 
 const BASE = process.env.NEXT_PUBLIC_ZONELAB_API ?? "http://127.0.0.1:8100";
 
@@ -47,13 +53,15 @@ export function fetchDrawing(request: {
   htf: string | null;
   refine: boolean;
   session_offset_hours: number;
+  detectors: DetectorId[];
   supply_demand: SupplyDemandParams;
+  imbalance: ImbalanceParams;
   signal?: AbortSignal;
 }): Promise<DrawResponse> {
   const { signal, ...body } = request;
   return call<DrawResponse>("/api/draw", {
     method: "POST",
-    body: JSON.stringify({ ...body, detectors: ["supply_demand"] }),
+    body: JSON.stringify(body),
     signal,
   });
 }

@@ -123,6 +123,11 @@ async def draw(request: DrawRequest) -> DrawResponse:
         # NOW, not on whether the road was ever shut. `crowded_at` records the
         # history either way; a zone whose opposing wall has since been broken
         # is tradeable again and is not removed here.
+        #
+        # It runs BEFORE the other detectors append, because the road is a
+        # supply-and-demand idea: a fair value gap has no opposing zone and no
+        # profit zone, so sweeping it through this filter would be applying one
+        # method's rule to another method's drawing.
         min_rr = request.supply_demand.min_profit_zone_rr
         if min_rr > 0:
             before = len(drawing.zones)
@@ -132,6 +137,17 @@ async def draw(request: DrawRequest) -> DrawResponse:
                 if z.profit_zone_rr is None or z.profit_zone_rr >= min_rr
             ]
             stats["rejected_crowded"] = before - len(drawing.zones)
+
+    # The other detectors. They append rather than replace, because a chart
+    # showing a supply zone and a fair value gap at the same price is showing
+    # two different claims about that price and collapsing them would hide one.
+    for name in ("fvg", "order_block"):
+        if name in request.detectors:
+            shapes, extra = DETECTORS[name](rows, request.imbalance)
+            for shape in shapes:
+                shape.timeframe = request.interval
+            drawing.zones = drawing.zones + shapes
+            meta[name] = extra
 
     return DrawResponse(
         symbol=request.symbol,

@@ -1,0 +1,62 @@
+{
+ "atr1.0_h40": {
+  "supply_demand": {
+   "n": 10198,
+   "held": 0.701019807805452,
+   "placebo": 0.5077634961439589,
+   "vs_placebo": "z=+27.91 p=0.0000 SIGNIFICANT"
+  },
+  "fvg": {
+   "n": 12745,
+   "held": 0.670223617104747,
+   "placebo": 0.475567334768925,
+   "vs_placebo": "z=+31.01 p=0.0000 SIGNIFICANT"
+  },
+  "order_block": {
+   "n": 21565,
+   "held": 0.7200092742870392,
+   "placebo": 0.5090129591737309,
+   "vs_placebo": "z=+44.51 p=0.0000 SIGNIFICANT"
+  }
+ },
+ "atr2.0_h80": {
+  "supply_demand": {
+   "n": 10239,
+   "held": 0.48373864635218283,
+   "placebo": 0.36917562724014336,
+   "vs_placebo": "z=+16.37 p=0.0000 SIGNIFICANT"
+  },
+  "fvg": {
+   "n": 12741,
+   "held": 0.4255552939329723,
+   "placebo": 0.32206199237526933,
+   "vs_placebo": "z=+16.83 p=0.0000 SIGNIFICANT"
+  },
+  "order_block": {
+   "n": 21618,
+   "held": 0.4878342122305486,
+   "placebo": 0.35213117944725575,
+   "vs_placebo": "z=+28.21 p=0.0000 SIGNIFICANT"
+  }
+ },
+ "r2.0_h80": {
+  "supply_demand": {
+   "n": 10075,
+   "held": 0.43781637717121585,
+   "placebo": 0.323859465128474,
+   "vs_placebo": "z=+16.41 p=0.0000 SIGNIFICANT"
+  },
+  "fvg": {
+   "n": 12710,
+   "held": 0.7099921321793863,
+   "placebo": 0.46098818832141075,
+   "vs_placebo": "z=+39.78 p=0.0000 SIGNIFICANT"
+  },
+  "order_block": {
+   "n": 21337,
+   "held": 0.5417350142944182,
+   "placebo": 0.38883097542814593,
+   "vs_placebo": "z=+31.20 p=0.0000 SIGNIFICANT"
+  }
+ }
+}

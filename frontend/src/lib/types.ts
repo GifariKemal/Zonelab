@@ -1,7 +1,8 @@
 /** Mirrors backend/app/models.py. Kept hand-written and small on purpose: a
  *  generated client would be more machinery than four interfaces are worth. */
 
-export type ZoneKind = "RBR" | "DBR" | "DBD" | "RBD";
+export type ZoneKind = "RBR" | "DBR" | "DBD" | "RBD" | "FVG" | "OB";
+export type DetectorId = "supply_demand" | "fvg" | "order_block";
 export type ZoneSide = "demand" | "supply";
 export type ZoneState = "fresh" | "tested" | "mitigated" | "broken";
 
@@ -117,6 +118,32 @@ export interface SupplyDemandParams {
   merge_overlap_pct: number;
 }
 
+/** Shared by the fvg and order_block detectors. Deliberately small: neither
+ *  carries a score, so there is nothing to weight and nothing to retract. */
+export interface ImbalanceParams {
+  atr_period: number;
+  min_gap_atr: number;
+  displacement_atr: number;
+  displacement_bars: number;
+  mitigation_pct: number;
+  arrival_bars: number;
+  show_broken: boolean;
+  show_mitigated: boolean;
+  max_zones_per_side: number;
+}
+
+export const DEFAULT_IMBALANCE: ImbalanceParams = {
+  atr_period: 14,
+  min_gap_atr: 0.1,
+  displacement_atr: 1.5,
+  displacement_bars: 5,
+  mitigation_pct: 0.5,
+  arrival_bars: 6,
+  show_broken: false,
+  show_mitigated: true,
+  max_zones_per_side: 12,
+};
+
 export interface DrawResponse {
   symbol: string;
   interval: string;
@@ -127,6 +154,8 @@ export interface DrawResponse {
   meta: {
     bars_returned?: number;
     supply_demand?: Record<string, number>;
+    fvg?: Record<string, number>;
+    order_block?: Record<string, number>;
     htf?: Record<string, number>;
   };
 }

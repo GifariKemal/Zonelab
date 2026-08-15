@@ -80,13 +80,27 @@ await settle(page, 3000);
 // ================================================================ providers
 const providers = await page.locator("select").nth(1).locator("option").allTextContents();
 check("only available providers are offered", providers.length >= 3, providers.join(","));
+
+// A provider either draws a chart or says in the upstream's own words why it
+// cannot. Asserting that every provider RENDERS asserts that somebody else's
+// service is up: this suite failed four checks the day the Aurix bridge
+// answered "No OHLCV data for GOLD M15", which is that bridge's problem and is
+// exactly the behaviour this app is built to surface rather than swallow.
+expectingFailure = true;
 for (const p of providers) {
   await page.locator("select").nth(1).selectOption(p);
   await settle(page, 3500);
   const alerts = await appAlert(page);
-  check(`provider ${p} renders`, alerts.length === 0 && (await page.locator("canvas").count()) > 0,
+  const drew = (await page.locator("canvas").count()) > 0 && alerts.length === 0;
+  check(`provider ${p} either renders or explains itself`, drew || alerts.length > 0,
         alerts.join("|"));
+  if (!drew && alerts.length) {
+    check(`provider ${p} names the upstream cause`,
+          /upstream|API key|not set|HTTP \d{3}/i.test(alerts.join(" ")),
+          alerts.join("|"));
+  }
 }
+expectingFailure = false;
 await page.locator("select").nth(1).selectOption("binance");
 await settle(page, 3000);
 
@@ -262,6 +276,34 @@ await page.screenshot({ path: `${SHOTS}/sweep-02-inspector.png` });
 await page.keyboard.press("Escape");
 await page.waitForTimeout(400);
 check("escape clears the inspector", (await page.locator("text=Bars that formed it").count()) === 0);
+
+// ============================================================== detectors
+const detectorButtons = page.locator('div[aria-label="Detectors"] button');
+check("all three detectors are offered", (await detectorButtons.count()) === 3);
+
+const sdOnly = await zoneCount(page);
+await page.locator('div[aria-label="Detectors"] button:text-is("FVG")').click();
+await settle(page, 3000);
+check("adding a detector adds drawings", (await zoneCount(page)) > sdOnly,
+      `${sdOnly} -> ${await zoneCount(page)}`);
+check("detectors compose, they do not replace",
+      (await appAlert(page)).length === 0);
+
+await page.locator('div[aria-label="Detectors"] button:text-is("OB")').click();
+await settle(page, 3000);
+check("a third detector still renders", (await page.locator("canvas").count()) > 0);
+
+// Turning them all off would leave a chart that is empty for a reason no one
+// can see, which is the one failure mode this app exists to avoid.
+for (const label of ["S&D", "FVG", "OB"]) {
+  await page.locator(`div[aria-label="Detectors"] button:text-is("${label}")`).click();
+  await settle(page, 1600);
+}
+check("the last detector cannot be switched off", (await zoneCount(page)) > 0,
+      `${await zoneCount(page)} drawn`);
+
+await page.locator('div[aria-label="Detectors"] button:text-is("S&D")').click();
+await settle(page, 3000);
 
 // ================================================================ handbook
 // The panel is the one part of this app that cannot be understood by looking at

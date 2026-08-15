@@ -14,6 +14,8 @@ const KIND_MEANING: Record<Zone["kind"], string> = {
   RBR: "Rally, base, rally",
   RBD: "Rally, base, drop",
   DBD: "Drop, base, drop",
+  FVG: "Fair value gap",
+  OB: "Order block",
 };
 
 interface Props {

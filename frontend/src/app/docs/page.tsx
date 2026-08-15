@@ -433,6 +433,16 @@ function Formasi() {
         kaki masuk dan kaki keluar menentukan namanya, dan apakah zonanya demand
         atau supply.
       </P>
+      <P>
+        Dua kode lain muncul kalau kamu menyalakan detektor tambahannya di
+        header. <K>FVG</K> adalah fair value gap: tiga bar berurutan yang wick
+        luarnya tidak pernah bertemu, jadi ada pita harga yang dilompati. Itu
+        satu-satunya objek di seluruh kosakata SMC yang definisinya tidak
+        menyisakan ruang tafsir. <K>OB</K> adalah order block: candle
+        berlawanan warna terakhir sebelum gerakan impulsif. Yang itu
+        diperdebatkan, dan pilihan yang diambil di sini dinyatakan di kodenya
+        alih-alih disamarkan sebagai doktrin.
+      </P>
       <Table
         head={["Kode", "Kaki masuk", "Kaki keluar", "Sisi", "Watak"]}
         rows={[
@@ -892,6 +902,10 @@ function Bukti() {
           [
             "Zona yang sudah beberapa kali disentuh jadi lebih lemah",
             <span key="l"><No>Terbantah setelah tampak sangat kuat.</No> Mentahnya -27 poin persen. Di dalam pita umur yang sama: 77,2%, 77,2%, 77,1% untuk sentuhan 1, 2, 3. Peluruhannya ada di waktu, bukan di sentuhan.</span>,
+          ],
+          [
+            "FVG dan Order Block menandai sesuatu yang nyata",
+            <span key="n"><Yes>Terbukti terhadap placebo.</Yes> +10 sampai +25 poin persen di ketiga geometri, n antara 12.700 dan 21.600. Tetapi itu standar yang lebih rendah: kontrol berat dan walk-forward hanya ada untuk Supply dan Demand.</span>,
           ],
           [
             "Umur zona memisahkan hasil",

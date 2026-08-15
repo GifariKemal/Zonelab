@@ -156,6 +156,58 @@ def audit(candles: list[Candle], params: SupplyDemandParams, label: str) -> dict
     }
 
 
+def audit_imbalance(candles: list[Candle], label: str) -> dict:
+    """The same worst-case check for the two newer detectors.
+
+    Their geometry is far simpler than a supply zone's, which is exactly why it
+    is worth checking at scale rather than assuming: a fair value gap's box is
+    two numbers copied off two bars, and a copy is the kind of thing that is
+    either always right or wrong in a way no eye catches.
+    """
+    from app.detect.imbalance import detect_fvg, detect_order_block
+    from app.models import ImbalanceParams
+
+    params = ImbalanceParams(max_zones_per_side=0, show_broken=True, min_gap_atr=0.0)
+    high = np.array([c.high for c in candles])
+    low = np.array([c.low for c in candles])
+    time = np.array([c.time for c in candles], dtype=np.int64)
+    at = {int(t): i for i, t in enumerate(time)}
+
+    out = {"label": label, "violations": [], "fvg": 0, "ob": 0}
+
+    gaps, _ = detect_fvg(candles, params)
+    out["fvg"] = len(gaps)
+    for zone in gaps:
+        i = at[zone.time_from]  # the FIRST of the three bars
+        up = zone.side is ZoneSide.DEMAND
+        want_bottom = float(high[i]) if up else float(high[i + 2])
+        want_top = float(low[i + 2]) if up else float(low[i])
+        if abs(zone.bottom - want_bottom) > 1e-9 or abs(zone.top - want_top) > 1e-9:
+            out["violations"].append(
+                f"{label} {zone.id}: gap {zone.bottom:.6f}-{zone.top:.6f} "
+                f"!= {want_bottom:.6f}-{want_top:.6f}"
+            )
+        # The band must be the one the middle bar flew through, so neither
+        # outer bar may reach into it.
+        if high[i] > zone.top + 1e-9 and low[i] < zone.bottom - 1e-9:
+            out["violations"].append(f"{label} {zone.id}: the first bar spans the gap")
+
+    blocks, _ = detect_order_block(candles, params)
+    out["ob"] = len(blocks)
+    for zone in blocks:
+        i = at[zone.time_from]
+        if abs(zone.top - float(high[i])) > 1e-9 or abs(zone.bottom - float(low[i])) > 1e-9:
+            out["violations"].append(
+                f"{label} {zone.id}: block box is not the candle's whole range"
+            )
+
+    for zone in gaps + blocks:
+        is_demand = zone.side is ZoneSide.DEMAND
+        if (zone.proximal > zone.distal) is not is_demand:
+            out["violations"].append(f"{label} {zone.id}: proximal on the wrong side")
+    return out
+
+
 def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument("--bars", type=int, default=20000)
@@ -185,6 +237,24 @@ def main() -> None:
                 f"{row['bottom_worst']:>11.2e}{row['pad_worst']:>6}"
                 f"{len(row['violations']):>6}"
             )
+
+    print(f"\n{'=' * 78}")
+    print("DRAWING ACCURACY, fair value gaps and order blocks")
+    print(f"{'=' * 78}")
+    print(f"  {'series':<16}{'gaps':>8}{'blocks':>9}{'bad':>6}")
+    imb_bad, imb_total = [], 0
+    for symbol, interval in SERIES:
+        try:
+            candles = history.load(symbol, interval, args.bars)
+        except Exception:
+            continue
+        row = audit_imbalance(candles, f"{symbol}-{interval}")
+        imb_bad.extend(row["violations"])
+        imb_total += row["fvg"] + row["ob"]
+        print(f"  {row['label']:<16}{row['fvg']:>8}{row['ob']:>9}{len(row['violations']):>6}")
+    print(f"\n  {imb_total} boxes checked, {len(imb_bad)} rule violations")
+    for line in imb_bad[:10]:
+        print(f"    {line}")
 
     total = sum(r["zones"] for r in out)
     bad = [v for r in out for v in r["violations"]]

@@ -318,3 +318,136 @@ def test_the_check_is_off_at_zero():
     mark_crowding([demand, near], min_rr=0.0)
 
     assert demand.crowded_at is None
+
+
+# --------------------------------------------------------------------------
+# fair value gaps and order blocks
+# --------------------------------------------------------------------------
+
+from app.detect.imbalance import detect_fvg, detect_order_block  # noqa: E402
+from app.models import ImbalanceParams  # noqa: E402
+
+
+def imb(**overrides) -> ImbalanceParams:
+    base = {"atr_period": 5, "min_gap_atr": 0.0, "displacement_atr": 1.0,
+            "displacement_bars": 3, "max_zones_per_side": 0, "show_broken": True}
+    return ImbalanceParams(**(base | overrides))
+
+
+def calm(n: int, price: float = 100.0) -> list[Candle]:
+    return [bar(T0 + i * STEP, price, price, 0.5, 0.5) for i in range(n)]
+
+
+def test_a_gap_is_the_band_the_middle_bar_flew_through():
+    """Three bars whose outer wicks never met. The box is exactly that band,
+    and nothing about it is a judgement call."""
+    rows = calm(20)
+    t = T0 + 20 * STEP
+    rows.append(bar(t, 100.0, 100.0, 0.5, 0.5))          # first: high 100.5
+    rows.append(bar(t + STEP, 101.0, 106.0, 0.2, 0.2))   # the leap
+    rows.append(bar(t + 2 * STEP, 106.0, 106.0, 0.5, 1.0))  # third: low 105.0
+    rows += [bar(t + (3 + i) * STEP, 106.0, 106.0, 0.5, 0.5) for i in range(10)]
+
+    zones, stats = detect_fvg(rows, imb())
+
+    assert stats["candidates"] >= 1
+    # Selected by ORIGIN bar, not by position. The leap leaves a second gap
+    # between its own low and the bar after the third, which is correct and is
+    # exactly the kind of thing an index-based assertion would test by accident.
+    gap = [z for z in zones if z.time_from == t]
+    assert len(gap) == 1
+    assert gap[0].side is ZoneSide.DEMAND
+    assert gap[0].bottom == pytest.approx(100.5)  # high of the first bar
+    assert gap[0].top == pytest.approx(105.0)  # low of the third
+    # Demand: price meets the top first coming down, the stop sits below.
+    assert gap[0].proximal == pytest.approx(105.0)
+    assert gap[0].distal == pytest.approx(100.5)
+
+
+def test_the_bar_that_made_the_gap_does_not_count_as_testing_it():
+    """The middle bar's range spans the whole gap by construction. If the
+    lifecycle started before the third bar, every gap would be born already
+    tested by the candle that created it."""
+    rows = calm(20)
+    t = T0 + 20 * STEP
+    rows.append(bar(t, 100.0, 100.0, 0.5, 0.5))
+    rows.append(bar(t + STEP, 101.0, 106.0, 0.2, 0.2))
+    rows.append(bar(t + 2 * STEP, 106.0, 106.0, 0.5, 1.0))
+    rows += [bar(t + (3 + i) * STEP, 106.0, 106.0, 0.5, 0.5) for i in range(10)]
+
+    zones, _ = detect_fvg(rows, imb())
+    gap = [z for z in zones if z.time_from == t][0]
+
+    assert gap.touches == 0
+    assert gap.state is ZoneState.FRESH
+
+
+def test_a_gap_smaller_than_the_floor_is_counted_not_silently_dropped():
+    rows = calm(20)
+    t = T0 + 20 * STEP
+    rows.append(bar(t, 100.0, 100.0, 0.5, 0.5))
+    rows.append(bar(t + STEP, 100.6, 100.8, 0.05, 0.05))
+    rows.append(bar(t + 2 * STEP, 100.9, 100.9, 0.2, 0.3))
+    rows += [bar(t + (3 + i) * STEP, 100.9, 100.9, 0.2, 0.2) for i in range(10)]
+
+    _, stats = detect_fvg(rows, imb(min_gap_atr=5.0))
+
+    assert stats["candidates"] >= 1
+    assert stats["rejected_too_small"] == stats["candidates"]
+
+
+def test_an_order_block_is_the_last_opposite_candle_before_the_move():
+    rows = calm(20)
+    t = T0 + 20 * STEP
+    # One down candle, then three up candles that travel far enough.
+    rows.append(bar(t, 100.0, 99.0, 0.3, 0.4))  # the block: high 100.3, low 98.6
+    price = 99.0
+    for i in range(1, 6):
+        rows.append(bar(t + i * STEP, price, price + 3.0, 0.0, 0.0))
+        price += 3.0
+    rows += [bar(t + (6 + i) * STEP, price, price, 0.5, 0.5) for i in range(10)]
+
+    zones, _ = detect_order_block(rows, imb())
+    blocks = [z for z in zones if z.side is ZoneSide.DEMAND and z.time_from == t]
+
+    assert len(blocks) == 1
+    # The WHOLE range of that candle, which is the choice this module states
+    # rather than a convention it inherited.
+    assert blocks[0].top == pytest.approx(100.3)
+    assert blocks[0].bottom == pytest.approx(98.6)
+
+
+def test_a_block_with_no_impulse_after_it_is_rejected_and_counted():
+    rows = calm(20)
+    t = T0 + 20 * STEP
+    rows.append(bar(t, 100.0, 99.0, 0.3, 0.4))
+    rows += [bar(t + (1 + i) * STEP, 99.0, 99.1, 0.1, 0.1) for i in range(10)]
+
+    _, stats = detect_order_block(rows, imb(displacement_atr=5.0))
+
+    assert stats["candidates"] > 0
+    assert stats["rejected_weak_move"] == stats["candidates"]
+
+
+def test_both_detectors_honour_zero_as_no_cap():
+    """The same hazard as the supply/demand cap: it selects the NEWEST boxes,
+    so a measurement taken through it is a measurement of the recent tail."""
+    rows = calm(10)
+    price = 100.0
+    t = T0 + 10 * STEP
+    for block in range(6):
+        rows.append(bar(t, price, price - 1.0, 0.3, 0.4))
+        t += STEP
+        for _ in range(4):
+            rows.append(bar(t, price, price + 2.0, 0.0, 0.0))
+            price += 2.0
+            t += STEP
+        for _ in range(3):
+            rows.append(bar(t, price, price, 0.4, 0.4))
+            t += STEP
+
+    uncapped, _ = detect_order_block(rows, imb(max_zones_per_side=0))
+    capped, _ = detect_order_block(rows, imb(max_zones_per_side=1))
+
+    assert len(uncapped) > len(capped)
+    assert max(z.time_from for z in capped) == max(z.time_from for z in uncapped)
