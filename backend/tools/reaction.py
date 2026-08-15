@@ -65,6 +65,7 @@ import numpy as np
 from app.detect.supply_demand import detect
 from app.indicators import wilder_atr
 from app.models import Candle, SupplyDemandParams, ZoneSide
+from app.profit_zone import profit_zone_at
 from tools import history
 from tools.calibrate import POPULATION, SHIPPED_GATE, first_touch, shift
 
@@ -84,6 +85,7 @@ class Event:
     move: float  # raw post-touch displacement, UP-POSITIVE, in ATR
     turn: float  # slope after minus slope before, UP-POSITIVE, in ATR per bar
     approach: float  # how far price ran INTO the level, in ATR, always positive
+    road: float  # clear distance to the opposing wall AS OF the touch, in heights
     path: np.ndarray  # displacement from the touch price, tau = -PRE..+POST
 
 
@@ -119,7 +121,12 @@ def collect(candles: list[Candle], params: SupplyDemandParams, label: str) -> li
             continue
         cohort = "drawn" if departure >= SHIPPED_GATE else "rejected"
 
-        event = _measure(cohort, zone.side.value, touch, close, atr, drift)
+        # The road AS OF the touch, never after it: a wall built later was not
+        # in the way, and reading it would be scoring the zone with its own
+        # future, the same error `score_as_of` exists to prevent.
+        forward = profit_zone_at(zone, zones, candles[touch].time)
+        road = 30.0 if forward is None else min(forward, 30.0)
+        event = _measure(cohort, zone.side.value, touch, close, atr, drift, road)
         if event is not None:
             events.append(event)
 
@@ -174,6 +181,7 @@ def _measure(
     close: np.ndarray,
     atr: np.ndarray,
     drift: float,
+    road: float = 0.0,
 ) -> Event | None:
     """Displacement and turn around one arrival, in units of PRE-touch ATR.
 
@@ -205,7 +213,8 @@ def _measure(
     approach = float(path[0]) * (1.0 if side == "demand" else -1.0)
 
     return Event(
-        cohort, side, touch, float(path[-1]), float(after - before), approach, path
+        cohort, side, touch, float(path[-1]), float(after - before), approach,
+        road, path,
     )
 
 
@@ -413,6 +422,72 @@ def _stratified(events: list[Event], field: str, out: dict) -> None:
         )
 
 
+def _forecast_probe(events: list[Event], out: dict) -> None:
+    """Does the one surviving factor carry a DIRECTION, or only an outcome?
+
+    `profit_zone_rr` is the only quantity in this project that has survived
+    every test thrown at it, but every one of those tests asked whether the
+    zone HELD - a bracket question, decided largely by whether the stop was
+    reached. That is not the same as asking which way price went, and a chart
+    arrow needs the second answer, not the first.
+
+    So: inside the drawn cohort only, does a longer road buy a larger signed
+    displacement? If it does, an honest directional read is possible and can be
+    calibrated on this table. If it does not, then the factor tells you how
+    likely the level is to survive being tested and nothing whatever about
+    where price goes next, and an arrow drawn from it would be invented.
+    """
+    drawn = [e for e in events if e.cohort == "drawn"]
+    if len(drawn) < 200:
+        return
+    roads = np.array([e.road for e in drawn])
+    edges = np.quantile(roads, [0, 0.25, 0.5, 0.75, 1.0])
+
+    print(f"\n{'=' * 78}")
+    print("CAN THE ROAD AHEAD TELL US WHICH WAY PRICE GOES?")
+    print(f"{'=' * 78}")
+    print("  Drawn zones only, signed so positive = price went the zone's way.\n")
+    print(f"  {'road ahead':<20}{'n':>6}{'move (ATR)':>13}{'turn':>10}{'held-ish':>11}")
+
+    rows = []
+    for i in range(4):
+        lo, hi = edges[i], edges[i + 1]
+        picked = [
+            e for e in drawn
+            if lo <= e.road and (e.road <= hi if i == 3 else e.road < hi)
+        ]
+        if len(picked) < 40:
+            continue
+        move = signed(picked, "move")
+        turn = signed(picked, "turn")
+        # Crude but readable: the share whose signed displacement ended positive.
+        share = float((move > 0).mean())
+        print(
+            f"  {f'{lo:.2f} to {hi:.2f}x':<20}{len(picked):>6}{move.mean():>13.3f}"
+            f"{turn.mean():>10.4f}{share:>11.1%}"
+        )
+        rows.append({
+            "from": float(lo), "to": float(hi), "n": len(picked),
+            "move": float(move.mean()), "turn": float(turn.mean()),
+            "share_positive": share,
+        })
+    out["road_vs_direction"] = rows
+
+    if len(rows) >= 2:
+        bottom = [e for e in drawn if e.road < edges[1]]
+        top = [e for e in drawn if e.road >= edges[3]]
+        p = cohort_p(top, bottom, "move")
+        gap = signed(top, "move").mean() - signed(bottom, "move").mean()
+        print(
+            f"\n  longest road minus shortest: {gap:+.3f} ATR   p={p:.4f}"
+        )
+        out["road_direction_test"] = {"gap": float(gap), "p": p}
+        print(
+            "  A gap that does not clear chance means this factor predicts"
+            "\n  SURVIVAL, not DIRECTION, and no arrow can be drawn from it."
+        )
+
+
 def report(events: list[Event]) -> dict:
     out: dict = {}
     print(f"\n{'=' * 78}")
@@ -493,6 +568,7 @@ def report(events: list[Event]) -> dict:
         f"\n  {trials} tests were run here. A p below {0.05 / trials:.4f} survives"
         f"\n  Bonferroni at 0.05; anything between that and 0.05 is suggestive only."
     )
+    _forecast_probe(events, out)
     out["trials"] = trials
     out["bonferroni_alpha"] = 0.05 / trials
 

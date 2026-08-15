@@ -532,6 +532,36 @@ yang ada di titik itu.
 Perpindahan bersih 40 bar sesudahnya: **nol di semua kelompok**, p>0,3 di
 mana-mana. Tidak ada ramalan arah pada horizon itu.
 
+### Bisakah jalan di depan meramalkan arah?
+
+Pertanyaan yang berbeda dari semua di atas, dan pertanyaan yang dibutuhkan
+sebuah panah di chart. `profit_zone_rr` lolos setiap uji di halaman ini, tetapi
+setiap uji itu menanyakan apakah zonanya **bertahan**, yaitu pertanyaan bracket
+yang sebagian besar ditentukan oleh apakah stop tersentuh. Itu bukan pertanyaan
+ke mana harga bergerak.
+
+Diukur pada zona digambar saja, bertanda sehingga positif berarti harga pergi ke
+arah zonanya:
+
+| Jalan di depan | n | Perpindahan (ATR) | Pembalikan | Berakhir positif |
+|---|---|---|---|---|
+| 0,00 sampai 0,61x | 677 | -0,088 | -0,0153 | 51,8% |
+| 0,61 sampai 1,33x | 675 | -0,160 | -0,0068 | 47,6% |
+| 1,33 sampai 2,86x | 679 | -0,128 | +0,0188 | 48,5% |
+| 2,86 sampai 30,0x | 680 | -0,035 | +0,0420 | 47,9% |
+
+Jalan terpanjang dikurangi terpendek: **+0,053 ATR, p=0,88**. Kolom terakhirnya
+berkisar 47,6% sampai 51,8%, yaitu lemparan koin di setiap pita.
+
+**Faktor ini meramalkan KETAHANAN, bukan ARAH.** Tidak ada panah yang bisa
+digambar darinya.
+
+Satu hal yang menarik dan sengaja tidak dikejar: pembalikan awalnya naik monoton
+mengikuti panjang jalan (-0,015 sampai +0,042) sementara perpindahan bersihnya
+tidak. Zona berjalan panjang memantul lebih keras di awal lalu berakhir di tempat
+yang sama. Mengubah itu menjadi klaim membutuhkan uji tersendiri dengan horizon
+yang ditetapkan sebelumnya, bukan dibaca dari tabel yang sudah dilihat.
+
 14 uji dijalankan di berkas itu; ambang Bonferroni 0,0036. Angka p=0,029 untuk
 pembalikan zona digambar **tidak lolos** koreksi itu; p=0,0001 untuk kelompok
 ditolak lolos.
