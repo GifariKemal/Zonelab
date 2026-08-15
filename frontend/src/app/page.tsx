@@ -41,6 +41,24 @@ export default function Page() {
 
   const inflight = useRef<AbortController | null>(null);
 
+  // Live refresh. A counter rather than a timestamp, because a timestamp in the
+  // dependency array re-fires on every render.
+  const [live, setLive] = useState(false);
+  const [tick, setTick] = useState(0);
+
+  useEffect(() => {
+    if (!live) return;
+    // ponytail: a fixed 30s poll, not a WebSocket and not a cadence derived
+    // from the timeframe. Polling faster than the bar length only re-fetches a
+    // bar that is still forming, and the engine already marks a zone built on
+    // the newest run as unconfirmed. Move to a stream when someone needs
+    // sub-bar latency, which is a different product than this one.
+    // `window.` is load-bearing: the chart's timeframe state is called
+    // `interval`, so its setter is `setInterval` and it shadows the global.
+    const timer = window.setInterval(() => setTick((n) => n + 1), 30_000);
+    return () => window.clearInterval(timer);
+  }, [live]);
+
   useEffect(() => {
     fetchConfig()
       .then((c) => {
@@ -82,7 +100,7 @@ export default function Page() {
     }, DEBOUNCE_MS);
 
     return () => clearTimeout(timer);
-  }, [symbol, interval, bars, provider, htf, refine, sessionOffset, params]);
+  }, [symbol, interval, bars, provider, htf, refine, sessionOffset, params, tick]);
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -143,6 +161,24 @@ export default function Page() {
           onChange={(v) => setBars(Number(v))}
           options={["200", "500", "1000"]}
         />
+
+        <button
+          onClick={() => setLive((v) => !v)}
+          aria-pressed={live}
+          title="Muat ulang tiap 30 detik"
+          className={`num flex items-center gap-1.5 border px-2 py-1 text-[11px] uppercase tracking-wider transition-colors ${
+            live
+              ? "border-accent text-accent"
+              : "border-line-strong text-text-faint hover:text-text-dim"
+          }`}
+        >
+          <span
+            className={`inline-block h-1.5 w-1.5 rounded-full ${
+              live ? "bg-accent" : "bg-text-faint"
+            }`}
+          />
+          Live
+        </button>
 
         <Picker
           label="HTF"

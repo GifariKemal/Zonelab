@@ -885,6 +885,18 @@ function Bukti() {
             "Zona meramalkan arah 40 bar ke depan",
             <span key="j"><No>Terbantah.</No> Perpindahan bersihnya nol di semua kelompok.</span>,
           ],
+          [
+            "Jalan di depan zona meramalkan arah",
+            <span key="k"><No>Terbantah.</No> Jalan terpanjang dikurangi terpendek +0,053 ATR, p=0,88. Faktor itu meramalkan ketahanan, bukan arah.</span>,
+          ],
+          [
+            "Zona yang sudah beberapa kali disentuh jadi lebih lemah",
+            <span key="l"><No>Terbantah setelah tampak sangat kuat.</No> Mentahnya -27 poin persen. Di dalam pita umur yang sama: 77,2%, 77,2%, 77,1% untuk sentuhan 1, 2, 3. Peluruhannya ada di waktu, bukan di sentuhan.</span>,
+          ],
+          [
+            "Umur zona memisahkan hasil",
+            <span key="m"><Yes>Terbukti.</Yes> 93,6% pada zona berumur di bawah 10 bar lawan 77,2% di atas 59 bar, pada sentuhan pertama yang sama. Ini satu-satunya temuan arah-hasil yang selamat, dan ia sejalan dengan literatur akademik.</span>,
+          ],
         ]}
       />
       <h3 className="mb-3 mt-8 text-[17px] font-semibold tracking-[-0.01em]">
@@ -935,6 +947,22 @@ function Tidak() {
           harga.
         </li>
       </ul>
+      <Note who="Kenapa tidak ada panah arah di chart">
+        <P>
+          Empat hipotesis didaftarkan sebelum diukur, tiga dijalankan, tiga
+          gagal. Yang paling meyakinkan sempat menunjukkan peluruhan 27 poin
+          persen menurut jumlah sentuhan, lalu runtuh jadi <b>77,2%, 77,2%,
+          77,1%</b> begitu dibandingkan pada umur zona yang sama. Yang meluruh
+          adalah waktu, bukan sentuhan.
+        </P>
+        <P>
+          Dua studi peer-reviewed yang benar-benar menghitung sentuhan
+          sebelumnya justru menemukan tanda yang <b>berlawanan</b> dengan
+          doktrin. Dan paten Online Trading Academy, kodifikasi algoritmik penuh
+          metode ini, tidak memuat konsep kesegaran sama sekali.
+        </P>
+      </Note>
+
       <Note who="Pelajaran metodologis yang paling mahal">
         <P>
           Sebuah faktor bernama umur zona lolos uji lintas-bracket, lalu lolos

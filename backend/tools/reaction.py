@@ -62,10 +62,12 @@ from dataclasses import dataclass
 
 import numpy as np
 
+from app.confluence import mark_nesting
 from app.detect.supply_demand import detect
 from app.indicators import wilder_atr
 from app.models import Candle, SupplyDemandParams, ZoneSide
 from app.profit_zone import profit_zone_at
+from app.resample import resample
 from tools import history
 from tools.calibrate import POPULATION, SHIPPED_GATE, first_touch, shift
 
@@ -86,12 +88,27 @@ class Event:
     turn: float  # slope after minus slope before, UP-POSITIVE, in ATR per bar
     approach: float  # how far price ran INTO the level, in ATR, always positive
     road: float  # clear distance to the opposing wall AS OF the touch, in heights
+    nested: bool  # sat inside a live same-side higher-timeframe zone at birth
     path: np.ndarray  # displacement from the touch price, tau = -PRE..+POST
 
 
-def collect(candles: list[Candle], params: SupplyDemandParams, label: str) -> list[Event]:
+def collect(
+    candles: list[Candle], params: SupplyDemandParams, label: str, interval: str = ""
+) -> list[Event]:
     """Every event in one series, across all four cohorts."""
     zones, _ = detect(candles, params)
+
+    # Higher-timeframe nesting, stamped the same way `tools/calibrate.py`
+    # does it so the two files are measuring the same thing. The step up is
+    # 4x and must be identical across series or the cohorts differ.
+    step_up = {"15m": "1h", "1h": "4h", "4h": "1d"}.get(interval)
+    if step_up:
+        higher_bars = resample(candles, step_up, interval)
+        if len(higher_bars) >= params.atr_period + 3:
+            higher_zones, _ = detect(higher_bars, params)
+            for hz in higher_zones:
+                hz.timeframe = step_up
+            mark_nesting(zones, higher_zones)
 
     high = np.array([c.high for c in candles])
     low = np.array([c.low for c in candles])
@@ -126,7 +143,10 @@ def collect(candles: list[Candle], params: SupplyDemandParams, label: str) -> li
         # future, the same error `score_as_of` exists to prevent.
         forward = profit_zone_at(zone, zones, candles[touch].time)
         road = 30.0 if forward is None else min(forward, 30.0)
-        event = _measure(cohort, zone.side.value, touch, close, atr, drift, road)
+        event = _measure(
+            cohort, zone.side.value, touch, close, atr, drift, road,
+            bool(zone.nested_in),
+        )
         if event is not None:
             events.append(event)
 
@@ -182,6 +202,7 @@ def _measure(
     atr: np.ndarray,
     drift: float,
     road: float = 0.0,
+    nested: bool = False,
 ) -> Event | None:
     """Displacement and turn around one arrival, in units of PRE-touch ATR.
 
@@ -214,7 +235,7 @@ def _measure(
 
     return Event(
         cohort, side, touch, float(path[-1]), float(after - before), approach,
-        road, path,
+        road, nested, path,
     )
 
 
@@ -447,7 +468,18 @@ def _forecast_probe(events: list[Event], out: dict) -> None:
     print("CAN THE ROAD AHEAD TELL US WHICH WAY PRICE GOES?")
     print(f"{'=' * 78}")
     print("  Drawn zones only, signed so positive = price went the zone's way.\n")
-    print(f"  {'road ahead':<20}{'n':>6}{'move (ATR)':>13}{'turn':>10}{'held-ish':>11}")
+    # HORIZONS FIXED BEFORE LOOKING. 5 and 10 bars were named in the plan the
+    # moment the short-horizon lead appeared, and 40 is the horizon every other
+    # table on this page already uses. Choosing a horizon after seeing which one
+    # flatters the result is how a free parameter is smuggled in as a finding,
+    # so the grid is small, stated, and all of it is printed - including the
+    # ones that say nothing.
+    HORIZONS = (5, 10, 40)
+    print(
+        f"  {'road ahead':<18}{'n':>6}"
+        + "".join(f"{f'move@{h}':>11}" for h in HORIZONS)
+        + f"{'turn':>10}"
+    )
 
     rows = []
     for i in range(4):
@@ -458,18 +490,21 @@ def _forecast_probe(events: list[Event], out: dict) -> None:
         ]
         if len(picked) < 40:
             continue
-        move = signed(picked, "move")
+        flip = np.array([1.0 if e.side == "demand" else -1.0 for e in picked])
+        at = {
+            h: float((np.array([e.path[PRE + h] for e in picked]) * flip).mean())
+            for h in HORIZONS
+        }
         turn = signed(picked, "turn")
-        # Crude but readable: the share whose signed displacement ended positive.
-        share = float((move > 0).mean())
         print(
-            f"  {f'{lo:.2f} to {hi:.2f}x':<20}{len(picked):>6}{move.mean():>13.3f}"
-            f"{turn.mean():>10.4f}{share:>11.1%}"
+            f"  {f'{lo:.2f} to {hi:.2f}x':<18}{len(picked):>6}"
+            + "".join(f"{at[h]:>11.3f}" for h in HORIZONS)
+            + f"{turn.mean():>10.4f}"
         )
         rows.append({
             "from": float(lo), "to": float(hi), "n": len(picked),
-            "move": float(move.mean()), "turn": float(turn.mean()),
-            "share_positive": share,
+            **{f"move_at_{h}": at[h] for h in HORIZONS},
+            "turn": float(turn.mean()),
         })
     out["road_vs_direction"] = rows
 
@@ -486,6 +521,33 @@ def _forecast_probe(events: list[Event], out: dict) -> None:
             "  A gap that does not clear chance means this factor predicts"
             "\n  SURVIVAL, not DIRECTION, and no arrow can be drawn from it."
         )
+
+    # H2: does higher-timeframe nesting point anywhere?
+    #
+    # `tools/calibrate.py` measured nesting against HELD on 2707 zones and found
+    # +0.2 to +0.9 points, nothing. That is a reliability question. Whether a
+    # zone sitting inside a live same-side higher-timeframe zone MOVES further in
+    # its own direction is a different question and has never been asked here.
+    nested = [e for e in drawn if e.nested]
+    alone = [e for e in drawn if not e.nested]
+    if len(nested) >= 60 and len(alone) >= 60:
+        print(f"\n  higher-timeframe nesting, drawn zones only")
+        print(f"  {'':<18}{'n':>6}{'move@5':>11}{'move@10':>11}{'move@40':>11}")
+        for name, group in (("nested", nested), ("standing alone", alone)):
+            flip = np.array([1.0 if e.side == "demand" else -1.0 for e in group])
+            cells = [
+                float((np.array([e.path[PRE + h] for e in group]) * flip).mean())
+                for h in (5, 10, 40)
+            ]
+            print(
+                f"  {name:<18}{len(group):>6}"
+                + "".join(f"{c:>11.3f}" for c in cells)
+            )
+        p_nest = cohort_p(nested, alone, "move")
+        print(f"  nested minus alone at 40 bars: p={p_nest:.4f}")
+        out["nesting_vs_direction"] = {
+            "n_nested": len(nested), "n_alone": len(alone), "p": p_nest
+        }
 
 
 def report(events: list[Event]) -> dict:
@@ -602,7 +664,7 @@ def main() -> None:
     events: list[Event] = []
     for symbol, interval in series:
         candles = history.load(symbol, interval, args.bars)
-        events.extend(collect(candles, params, f"{symbol}-{interval}"))
+        events.extend(collect(candles, params, f"{symbol}-{interval}", interval))
 
     out = report(events)
     if args.json:

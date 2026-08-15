@@ -566,6 +566,125 @@ yang ditetapkan sebelumnya, bukan dibaca dari tabel yang sudah dilihat.
 pembalikan zona digambar **tidak lolos** koreksi itu; p=0,0001 untuk kelompok
 ditolak lolos.
 
+## Perburuan arah: empat hipotesis, didaftarkan lebih dulu
+
+Diminta membuat panah arah di chart. Empat hipotesis didaftarkan sebelum diukur,
+dengan aturan berhenti yang juga ditetapkan di depan: kalau semuanya gagal,
+kesimpulannya adalah gambar ini tidak meramalkan arah, bukan "coba hipotesis
+kelima sampai ada yang lolos".
+
+### H3, pembalikan awal pada horizon 5 dan 10 bar
+
+Horizonnya ditetapkan **sebelum melihat hasilnya**, karena memilih horizon
+setelah melihat mana yang menyanjung adalah cara menyelundupkan parameter bebas
+sebagai temuan. Zona digambar saja, bertanda:
+
+| Jalan di depan | n | move@5 | move@10 | move@40 |
+|---|---|---|---|---|
+| 0,00 sampai 0,61x | 677 | +0,061 | +0,093 | -0,088 |
+| 0,61 sampai 1,33x | 675 | +0,015 | +0,115 | -0,160 |
+| 1,33 sampai 2,86x | 679 | -0,029 | +0,014 | -0,128 |
+| 2,86 sampai 30,0x | 680 | +0,180 | +0,081 | -0,035 |
+
+Tidak monoton pada horizon mana pun. Angka +0,180 di pita teratas berdiri
+sendiri dan tidak didukung pada horizon 10. **Gagal.**
+
+### H2, kesejajaran HTF sebagai variabel arah
+
+Nesting sudah diukur terhadap bertahan-atau-jebol dan hasilnya nol. Terhadap
+arah:
+
+| | n | move@5 | move@10 | move@40 |
+|---|---|---|---|---|
+| Bersarang | 1511 | +0,036 | +0,043 | +0,001 |
+| Berdiri sendiri | 1200 | +0,083 | +0,117 | -0,233 |
+
+p=0,33, dan tandanya justru terbalik pada horizon pendek. **Gagal.**
+
+> [!NOTE]
+> Penelusuran sumber menemukan sesuatu yang layak dicatat: **tidak ada satu pun
+> sumber yang mengklaim zona bersarang meramalkan arah.** Yang diklaim adalah
+> keandalan, dan itu sudah dibantah pada 2707 zona. Doktrin ICT dan SMC menaruh
+> bias arah pada **struktur** timeframe tinggi (BOS, CHoCH), bukan pada
+> bersarangnya zona. Jadi H2 menguji hipotesis yang sebenarnya tidak pernah
+> diajukan siapa pun.
+
+### H1, peluruhan menurut jumlah sentuhan
+
+Celah terbesar yang terdokumentasi di sini, dan hasilnya paling berliku.
+
+**Terlihat besar sekali.** Dengan definisi bracket biasa, dipasangkan pada zona
+yang sama: sentuhan 1 ke sentuhan 2 turun 27,1 poin persen, ke sentuhan 5 turun
+42,2 poin persen, semuanya p<0,0001. Hazard naik 28,7% ke 44,9%.
+
+**Tautologi pertama, dibuang.** `resolve` menggagalkan sebuah sentuhan ketika ada
+bar menutup melewati **distal**, dan distal itu juga yang mengakhiri zonanya.
+Jadi sentuhan terakhir sebelum zona mati dijamin tercatat gagal, dan "sentuhan
+belakangan lebih sering gagal" sebagian hanya mengulang "sentuhan terdekat ke
+kematian adalah yang mati". Diukur ulang dengan hasil yang **tidak pernah
+menyebut distal** - hanya apakah harga menempuh `reward` ATR menjauh dari
+proksimal dalam `horizon` bar, tanpa stop:
+
+| Sentuhan | Berhasil | Hazard |
+|---|---|---|
+| 1 | 88,2% | 11,8% |
+| 2 | 79,0% | 21,0% |
+| 3 | 75,5% | 24,5% |
+| 4 | 74,2% | 25,8% |
+
+Bertahan. Dan arah seleksinya justru menguntungkan: zona lemah mati lebih dulu,
+jadi penyintas di sentuhan 3 seharusnya **lebih kuat**, yang akan menurunkan
+hazard. Hazard tetap naik, melawan seleksi.
+
+**Konfon kedua, dan ini yang mematikannya.** Literatur akademik mengukur
+peluruhan level dalam **waktu**, bukan dalam sentuhan. Sentuhan kelima terjadi
+lebih lama setelah zona lahir, jadi keduanya bergerak bersama. Dipisah ke dalam
+pita umur yang sama, reward 2,0 ATR:
+
+| Umur saat sentuhan | Sentuhan 1 | Sentuhan 2 | Sentuhan 3 |
+|---|---|---|---|
+| 1 sampai 10 bar | 93,6% | 86,6% | 82,7% |
+| 10 sampai 59 bar | 75,8% | 76,5% | 73,5% |
+| 59 bar ke atas | **77,2%** | **77,2%** | **77,1%** |
+
+Di pita tertua, nomor sentuhan **tidak mengubah apa pun sama sekali**. Yang
+tersisa hanyalah pita termuda, dan di sana sentuhan 3 cuma 104 peristiwa.
+
+Bandingkan ke bawah kolom pertama: 93,6% ke 77,2% **pada sentuhan yang sama**.
+Itu 16 poin persen dari umur saja.
+
+**Jadi peluruhannya ada di WAKTU, bukan di SENTUHAN.** Dan itu persis yang
+dikatakan literatur peer-reviewed, sekaligus kebalikan dari doktrin ritel.
+
+> [!IMPORTANT]
+> Dua studi yang benar-benar menghitung sentuhan sebelumnya menemukan tanda yang
+> **berlawanan** dengan doktrin: Garzarelli dkk. (Scientific Reports, 2014) dan
+> Chung dan Bellotti (arXiv 2101.07410, 2021) sama-sama menemukan peluang mantul
+> **naik** monoton mengikuti jumlah mantulan sebelumnya, dengan kontrol deret
+> teracak datar di 0,5. Keduanya mengukur peluruhan terhadap **waktu**, bukan
+> terhadap sentuhan.
+>
+> Sementara doktrinnya sendiri lemah di titik ini. Paten OTA, kodifikasi
+> algoritmik penuh metode ini, **tidak memuat konsep kesegaran sama sekali**.
+> Panduan pengguna OTA hanya punya satu kalimat tanpa angka: "Fresh levels are
+> preferred since they offer greater probability for profit." Angka "dua sampai
+> tiga sentuhan" yang beredar tidak punya sumber primer, dan sebagian
+> penyebarannya adalah **nilai bawaan parameter indikator** yang lama-lama
+> dikira aturan.
+
+**Putusan: tidak dikonfirmasi.** Efek mentahnya besar dan bertahan terhadap satu
+konfon, lalu runtuh pada konfon kedua. Dilaporkan, tidak dikirim.
+
+### Aturan berhentinya berlaku
+
+Tiga hipotesis dijalankan, tiga gagal. H4 adalah detektor baru, yaitu pekerjaan
+membangun dan bukan pengukuran, jadi ia menunggu keputusan terpisah.
+
+**Tidak ada panah yang bisa digambar dari apa pun yang diukur di sini.** Yang
+bisa dikatakan, dan ini bukan hasil kosong: umur zona memisahkan hasil sebesar
+16 poin persen pada sentuhan pertama, dan itu sejalan dengan satu-satunya
+literatur yang pernah mengukurnya.
+
 ## Kekuatan uji
 
 Dengan 2707 zona terselesaikan dan kelas minoritas 1164 di reward 2,0, efek AUC
