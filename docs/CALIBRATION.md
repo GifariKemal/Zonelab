@@ -1086,6 +1086,92 @@ momentum deret waktu, yang sudah lama mapan - tetapi ia satu-satunya hal di
 proyek ini yang pernah memisahkan arah sama sekali. Dan ia sama sekali tidak
 membutuhkan gambar apa pun.
 
+### H8, sentuhan pasca-inversi (breaker block dan inversion FVG)
+
+Tujuh hipotesis arah gagal, dan ketujuhnya menanyakan **pertanyaan berbeda pada
+sampel yang sama**: variabel pengkondisinya diganti, populasinya tetap. H8 yang
+pertama mengganti **populasinya**, dan itulah alasan ia layak dijalankan setelah
+tujuh nol.
+
+Dokumen ini sendiri sudah menyebut celahnya sebelum tool-nya ada: seluruh 11.469
+sentuhan pertama mendekat dari sisi dekat dan **nol** menembus kotak, jadi
+subsampel yang bisa memisahkan penerusan dari pembalikan memang belum pernah ada
+di sampel mana pun di sini. Ia harus dibangun.
+
+Kotak yang sama dibaca dari sisi seberang: zona demand yang ditutup ke bawah kini
+jadi resistance, tepi yang ditemui lebih dulu adalah bekas **bawah**-nya, dan
+tepi pelindungnya bekas **atas**-nya. Tidak ada geometri baru yang dikarang;
+`replay_lifecycle` dipanggil ulang dengan `is_demand` dibalik. `break_index` yang
+selama ini dihitung lalu dibuang akhirnya terpakai.
+
+| Kohort | Kini demand | Kini supply | DELTA | t | n |
+|---|---|---|---|---|---|
+| **Kontrol: gerak 20 bar saja, tanpa kotak** | +0,082 | -0,082 | **+0,164** | **3,83** | 19953 |
+| supply_demand | +0,021 | +0,036 | -0,015 | -0,25 | 9762 |
+| fvg | -0,022 | -0,020 | -0,002 | -0,03 | 11670 |
+| order_block | -0,081 | +0,029 | **-0,110** | **-2,25** | 16626 |
+
+Dan yang menentukan, apa yang **ditambahkan kotaknya** di atas kontrol:
+
+| Detektor | Zona menambah | t |
+|---|---|---|
+| supply_demand | **-0,179** | **-2,40** |
+| fvg | **-0,165** | **-2,23** |
+| order_block | **-0,274** | **-4,22** |
+
+**Ketiganya signifikan negatif.** Mengetahui kotaknya terbalik membuat tebakan
+arahnya lebih buruk daripada sekadar mengetahui ke mana harga baru saja bergerak.
+Order block bahkan negatif berdiri sendiri, yaitu **berlawanan dengan doktrin
+breaker block**, bukan sekadar nol.
+
+n-nya besar dan paruhnya tidak menyelamatkan apa pun. Ini nol yang bertenaga,
+bukan nol karena kurang sampel.
+
+### H9, konjungsi sweep lalu Market Structure Shift
+
+Ini menutup celah logika saya sendiri. H6 menguji BOS, CHoCH, dan SWEEP sebagai
+tiga kohort terpisah, tidak menemukan yang selamat, lalu menyimpulkan struktur
+pasar tidak membawa arah. Tetapi yang ICT klaim membawa arah **bukan** salah satu
+dari ketiganya sendirian, melainkan **konjungsinya**: likuiditas disapu dulu,
+baru harga menutup menembus struktur lawan. Menguji bagian lalu memvonis
+keseluruhan bukan inferensi yang sah.
+
+Kontrol utamanya bukan bar acak melainkan **break biasa tanpa sweep di
+depannya**, karena itulah yang mengisolasi persis apa yang ditambahkan sweep-nya.
+
+| Konfigurasi | Kohort | DELTA | t | n |
+|---|---|---|---|---|
+| N=2, jendela 5 | MSS | -0,161 | -0,79 | 1385 |
+| | break biasa | +0,119 | 1,22 | 5128 |
+| | **sweep menambah** | **-0,280** | **-1,24** | |
+| N=2, jendela 20 | MSS | -0,013 | -0,12 | 4576 |
+| | break biasa | +0,207 | 1,24 | 1753 |
+| | **sweep menambah** | **-0,220** | **-1,11** | |
+
+Paruhnya berbalik tanda di kedua jendela (-0,436 lalu +0,106; -0,034 lalu
++0,017). Tidak ada satu pun t yang mendekati 3,0.
+
+> [!IMPORTANT]
+> Pada N=25 konjungsinya **terlalu langka untuk diuji sama sekali**: 7 peristiwa
+> di jendela 5 dan 43 di jendela 20. Jadi konstruk yang paling ditekankan ICT
+> praktis tidak terjadi pada skala struktur besar di data ini. Itu temuan
+> tersendiri, dan harus dilaporkan sebagai ketidakmampuan mengukur, bukan
+> disamarkan jadi nol.
+
+Empat sel dilaporkan dan keempatnya harus dibaca. Memilih yang terbaik setelah
+melihat hasilnya adalah cara sebuah nol berubah jadi klaim.
+
+### Sembilan hipotesis arah, sembilan kali nol
+
+Yang tersisa berdiri setelah semuanya justru kontrolnya: **gerak 20 bar terakhir
+saja** memisahkan return +0,164 dengan t=3,83, lebih kuat daripada apa pun yang
+pernah dihasilkan gambar mana pun di sini. Itu momentum deret waktu. Ia sudah
+lama mapan, ia peer-reviewed, dan **ia tidak membutuhkan satu kotak pun.**
+
+Pertanyaan arah dari gambar ditutup di sini. Bukan karena kehabisan ide,
+melainkan karena dua konstruk ICT terakhir yang benar-benar membawa klaim arah
+sudah diuji dan keduanya gagal, satu di antaranya signifikan ke arah sebaliknya.
+
 ### Apakah kotaknya saling bertabrakan
 
 Semua uji kesetiaan sebelumnya menanyakan hal yang sama: apakah kotak **ini**

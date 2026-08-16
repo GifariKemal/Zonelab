@@ -920,6 +920,14 @@ function Bukti() {
             <span key="q"><No>Tidak dikonfirmasi, tetapi cara gagalnya yang penting.</No> FVG lolos ketiga kriteria: demand +0,405 (t = 4,63), supply +0,266 (t = 3,06), kedua paruh positif. Lalu kontrolnya jalan, dan bar acak tanpa kotak apa pun sudah memisah +0,271 dan +0,184. Yang ditambahkan zonanya cuma +0,134 (t = 1,25), dan negatif untuk dua detektor lain.</span>,
           ],
           [
+            "Kotak yang sudah ditembus bekerja terbalik (breaker block)",
+            <span key="r"><No>Terbantah.</No> Uji arah pertama yang mengganti populasinya, bukan cuma variabel pengkondisinya. Dibanding kontrol yang cuma tahu gerak 20 bar terakhir, kotaknya menambah -0,179, -0,165, dan -0,274; ketiganya signifikan negatif. Tahu kotaknya terbalik membuat tebakan arah lebih buruk daripada tidak tahu.</span>,
+          ],
+          [
+            "Sweep lalu MSS membawa arah",
+            <span key="s"><No>Terbantah.</No> t = -0,79 dan -0,12, tanda berbalik antar paruh, dan sweep-nya menambah negatif atas break biasa. Pada struktur besar konjungsinya cuma terjadi 7 dan 43 kali, terlalu langka untuk diuji sama sekali.</span>,
+          ],
+          [
             "Umur zona memisahkan hasil",
             <span key="m"><Yes>Terbukti.</Yes> 93,6% pada zona berumur di bawah 10 bar lawan 77,2% di atas 59 bar, pada sentuhan pertama yang sama. Ini satu-satunya temuan arah-hasil yang selamat, dan ia sejalan dengan literatur akademik.</span>,
           ],
@@ -1005,8 +1013,8 @@ function Tidak() {
       </ul>
       <Note who="Kenapa tidak ada panah arah di chart">
         <P>
-          Tujuh hipotesis arah didaftarkan sebelum diukur, tujuh kali sumbangan
-          gambarnya nol. Yang paling meyakinkan sempat menunjukkan peluruhan 27
+          Sembilan hipotesis arah didaftarkan sebelum diukur, sembilan kali
+          sumbangan gambarnya nol. Yang paling meyakinkan sempat menunjukkan peluruhan 27
           poin persen menurut jumlah sentuhan, lalu runtuh jadi <b>77,2%, 77,2%,
           77,1%</b> begitu dibandingkan pada umur zona yang sama. Yang meluruh
           adalah waktu, bukan sentuhan. Yang terakhir, H7, bahkan lolos semua

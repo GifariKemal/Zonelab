@@ -636,10 +636,19 @@ Power of 3) entah butuh primitif lintas simbol yang tidak ada, atau butuh
 instrumen ber-sesi yang bukan kripto, atau bersandar pada sumber tier terendah.
 
 > [!IMPORTANT]
-> Dua konstruk ICT tersisa yang benar-benar membawa klaim arah dan benar-benar
-> murah diuji: **sentuhan pasca-inversi** dan **konjungsi sweep lalu MSS.**
-> Selebihnya sudah terbantah, atau merupakan penyebutan ulang momentum, atau
-> cacat kesetiaan yang harus diperbaiki sebelum diukur.
+> Dua konstruk ICT tersisa yang benar-benar membawa klaim arah sudah **diuji dan
+> keduanya gagal** pada 2026-08-16. Sentuhan pasca-inversi (H8) menambah
+> **negatif signifikan** di ketiga detektor dibanding kontrol yang cuma tahu
+> gerak 20 bar terakhir. Konjungsi sweep lalu MSS (H9) tidak pernah mendekati
+> ambangnya, tandanya berbalik antar paruh, dan pada struktur besar konjungsinya
+> **terlalu langka untuk diuji sama sekali** (7 dan 43 peristiwa). Rinciannya di
+> [CALIBRATION.md](CALIBRATION.md).
+>
+> Artinya daftar konstruk ICT yang membawa klaim arah **dan** bisa diuji dengan
+> primitif yang ada sekarang sudah habis. Sisanya di tabel di atas butuh
+> primitif lintas simbol yang tidak ada, atau instrumen ber-sesi yang bukan
+> kripto, atau bersandar pada sumber tier terendah. Pertanyaan arah dari gambar
+> ditutup bukan karena kehabisan ide, melainkan karena idenya sudah habis diuji.
 
 ## Yang belum diuji
 
