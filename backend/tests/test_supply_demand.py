@@ -491,6 +491,23 @@ def test_the_minimum_height_grows_the_proximal_not_the_distal():
     assert zone.proximal > 88.0, "the proximal absorbed the whole widening"
 
 
+def test_a_zero_height_base_is_dropped_rather_than_dividing_by_it():
+    """zone_min_atr=0.0 is schema-valid, so the floor cannot be relied on.
+
+    Every base bar here has open == high == low == close, so the box is exactly
+    0 high and nothing grows it. The drift ratio divides by that height, which
+    made this input a ZeroDivisionError and an unhandled 500.
+    """
+    flat_base = [(88.0, 88.0, 0.0, 0.0)] * 2
+    candles = build(
+        flat(100, 10) + leg(100, -4.0, 3) + flat_base + leg(88, +4.0, 3) + flat(100, 5)
+    )
+
+    zones, _ = detect(candles, params(zone_min_atr=0.0))
+
+    assert all(z.top - z.bottom > 0 for z in zones), "a zero-height box escaped"
+
+
 # --------------------------------------------------------------------------
 # calibration invariants
 # --------------------------------------------------------------------------

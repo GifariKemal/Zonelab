@@ -125,19 +125,19 @@ class Zone(BaseModel):
         le=1.0,
         description=(
             "How cleanly the zone was BUILT: base tightness, base compactness "
-            "and leg-out volume, equally weighted. It is not a forecast. "
-            "Measured on 234 resolved zones across five series, it does not "
-            "separate zones that held from zones that failed (AUC 0.51 to 0.54, "
-            "confidence interval crosses 0.5). Use it to order the display, not "
-            "to rank opportunity. See docs/CALIBRATION.md."
+            "and leg-out volume, equally weighted. It is not a forecast, and it "
+            "is WORSE than useless as a ranking: measured on 2707 resolved zones "
+            "across five series it ranks BACKWARDS, AUC 0.464 and 0.477, so a "
+            "higher score goes with a slightly worse outcome. Use it to order "
+            "the display, never to rank opportunity. See docs/CALIBRATION.md."
         ),
     )
     departure_atr: float = Field(
         description=(
             "Size of the leg-out move in ATR at the base. This one IS validated, "
             "as a threshold rather than a gradient: formations clearing 2 ATR "
-            "held 84.6% against 68.3% for those that did not (p < 0.0001), while "
-            "above 2 ATR more departure buys nothing."
+            "held 85.8% against 64.4% for those that did not (p < 0.0001, "
+            "n=10198), while above 2 ATR more departure buys nothing."
         )
     )
     profit_margin: float = Field(
@@ -375,11 +375,17 @@ class SupplyDemandParams(BaseModel):
     show_broken: bool = False
     show_mitigated: bool = True
     max_zones_per_side: int = Field(
-        default=12,
+        default=6,
         ge=0,
         le=100,
         description=(
-            "Most zones to return per side, newest first. **0 means no cap**, "
+            "Most zones to return per side, newest first. The cap applies per "
+            "detector AND per side, so with all three detectors on it permits "
+            "3 x 2 x this. At the old default of 12 that painted 39.6% of the "
+            "chart on average and 52.4% on one series, which is not annotation "
+            "any more; 6 halves the ink for a third fewer boxes. Readability is "
+            "a display decision, so it was settled by measuring ink rather than "
+            "by taste. **0 means no cap**, "
             "and measurement code must use 0: this is a readability limit, and "
             "leaving it at any finite value keeps only the most RECENT zones, "
             "which silently confines a sample to the tail of the history. At its "
@@ -440,7 +446,7 @@ class ImbalanceParams(BaseModel):
 
     show_broken: bool = False
     show_mitigated: bool = True
-    max_zones_per_side: int = Field(default=12, ge=0, le=100)
+    max_zones_per_side: int = Field(default=6, ge=0, le=100)
 
 
 class DrawRequest(BaseModel):

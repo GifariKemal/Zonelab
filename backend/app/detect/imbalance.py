@@ -261,11 +261,26 @@ def detect_order_block(
     the end of some later swing instead would make the box depend on where a
     human decided the swing ended, which is the discretion this file exists to
     avoid.
+
+    LAST, and this word used to be a lie. Until 2026-08-16 the scan marked EVERY
+    opposite-coloured candle whose forward window cleared the threshold, so a run
+    of three bearish candles before a rally produced three order blocks stacked
+    on each other, all sharing one impulse. The docstring said "last" and the
+    code said "any". It showed in the population: 21565 order blocks against
+    12745 fair value gaps on identical bars, with the surplus being the same
+    observation counted several times - which inflates n, correlates outcomes,
+    and makes every order block statistic rest on a smaller effective sample
+    than it claims.
+
+    Last is now enforced the only way that needs no discretion: the very next
+    candle must close the other way, because that candle is the start of the
+    impulse. In a run of three bearish candles only the third has a bullish
+    successor.
     """
     n = len(candles)
     stats: dict[str, float] = {
         "bars": n, "candidates": 0, "rejected_weak_move": 0,
-        "rejected_state_filter": 0,
+        "rejected_not_last": 0, "rejected_state_filter": 0,
     }
     if n < params.atr_period + params.displacement_bars + 2:
         return [], stats
@@ -298,6 +313,21 @@ def detect_order_block(
             stats["rejected_weak_move"] += 1
             continue
 
+        # The "last" in the definition, tested AFTER the impulse because the
+        # impulse is the requirement and "last" only decides which candle gets
+        # the box. Ordered the other way, a chart with no impulse anywhere would
+        # report its rejections under the wrong reason.
+        #
+        # The next candle has to close the other way, because that candle is the
+        # move starting - which is exactly what makes this one the final candle
+        # of its colour before it. A doji successor counts as neither and is
+        # rejected, the same way a doji block candle is rejected above.
+        nxt = i + 1
+        turned = close[nxt] > open_[nxt] if bearish else close[nxt] < open_[nxt]
+        if not turned:
+            stats["rejected_not_last"] += 1
+            continue
+
         zone = _finish(
             ZoneKind.OB, side, float(high[i]), float(low[i]), i,
             i + params.displacement_bars,
@@ -318,6 +348,19 @@ def _present(
     that zero disables the cap. A measurement taken through a recency cap is a
     measurement of the tail of the history, and that mistake has already cost
     this project one full round of calibration.
+
+    NO overlap merge here, and that is a decision rather than an omission. It
+    was tried: reusing supply and demand's `_dedupe` cut same-side overlaps by
+    74%, and it was reverted the same hour because it was removing real objects
+    for a bad reason. `_dedupe` picks the survivor by `formation_score`, which is
+    0.0 for every imbalance zone, so the winner was whatever happened to sort
+    first - on one test that meant keeping a 0.3-wide sliver and discarding the
+    4.5-wide gap containing it. Two gaps at different bars are two events, not
+    one drawn twice, and ICT treats stacked gaps as meaningful.
+
+    The redundancy the merge was hiding was real, but its cause was the order
+    block detector marking EVERY opposite candle instead of the last one. That
+    is fixed at the source in `detect_order_block`.
     """
     allowed = {ZoneState.FRESH, ZoneState.TESTED}
     if params.show_mitigated:

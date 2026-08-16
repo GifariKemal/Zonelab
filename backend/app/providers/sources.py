@@ -121,20 +121,27 @@ class BinanceProvider:
         if not isinstance(rows, list):
             raise ProviderError("binance returned an unexpected payload")
 
-        return normalize(
-            [
-                Candle(
-                    time=int(r[0]) // 1000,  # vendor sends milliseconds
-                    open=float(r[1]),
-                    high=float(r[2]),
-                    low=float(r[3]),
-                    close=float(r[4]),
-                    volume=float(r[5]),
-                )
-                for r in rows
-            ],
-            bars,
-        )
+        # A kline that is short a field or carries a non-numeric one raises
+        # IndexError/ValueError here, and `_fetch` in main.py only converts
+        # ProviderError, so the user would get a bare 500 naming nothing. The
+        # vendor that misbehaved has to be said out loud, as YahooProvider does.
+        try:
+            return normalize(
+                [
+                    Candle(
+                        time=int(r[0]) // 1000,  # vendor sends milliseconds
+                        open=float(r[1]),
+                        high=float(r[2]),
+                        low=float(r[3]),
+                        close=float(r[4]),
+                        volume=float(r[5]),
+                    )
+                    for r in rows
+                ],
+                bars,
+            )
+        except (IndexError, KeyError, TypeError, ValueError) as exc:
+            raise ProviderError(f"binance sent an unreadable kline: {exc}") from exc
 
 
 class YahooProvider:
@@ -243,19 +250,24 @@ class TwelveDataProvider:
             raise ProviderError(f"twelvedata error: {message}")
 
         candles = []
-        for row in payload.get("values", []):  # newest-first; normalize re-sorts
-            stamp = datetime.fromisoformat(row["datetime"]).replace(tzinfo=UTC)
-            candles.append(
-                Candle(
-                    time=int(stamp.timestamp()),
-                    # Every OHLC field arrives as a string on this vendor.
-                    open=float(row["open"]),
-                    high=float(row["high"]),
-                    low=float(row["low"]),
-                    close=float(row["close"]),
-                    volume=float(row.get("volume") or 0),  # absent on forex/metals
+        # Same reason as binance above: a missing key or an unparseable datetime
+        # must name twelvedata, not surface as a bare 500.
+        try:
+            for row in payload.get("values", []):  # newest-first; normalize re-sorts
+                stamp = datetime.fromisoformat(row["datetime"]).replace(tzinfo=UTC)
+                candles.append(
+                    Candle(
+                        time=int(stamp.timestamp()),
+                        # Every OHLC field arrives as a string on this vendor.
+                        open=float(row["open"]),
+                        high=float(row["high"]),
+                        low=float(row["low"]),
+                        close=float(row["close"]),
+                        volume=float(row.get("volume") or 0),  # absent on forex/metals
+                    )
                 )
-            )
+        except (IndexError, KeyError, TypeError, ValueError) as exc:
+            raise ProviderError(f"twelvedata sent an unreadable row: {exc}") from exc
         return normalize(candles, bars)
 
 
@@ -294,17 +306,22 @@ class PolygonProvider:
         if not isinstance(payload, dict) or payload.get("status") not in {"OK", "DELAYED"}:
             raise ProviderError(f"polygon error: {payload}")
 
-        return normalize(
-            [
-                Candle(
-                    time=int(r["t"]) // 1000,  # vendor sends milliseconds
-                    open=float(r["o"]),
-                    high=float(r["h"]),
-                    low=float(r["l"]),
-                    close=float(r["c"]),
-                    volume=float(r.get("v") or 0),
-                )
-                for r in payload.get("results", [])
-            ],
-            bars,
-        )
+        # Same reason as binance above: an aggregate missing o/h/l/c/t must name
+        # polygon rather than reach the client as a bare 500.
+        try:
+            return normalize(
+                [
+                    Candle(
+                        time=int(r["t"]) // 1000,  # vendor sends milliseconds
+                        open=float(r["o"]),
+                        high=float(r["h"]),
+                        low=float(r["l"]),
+                        close=float(r["c"]),
+                        volume=float(r.get("v") or 0),
+                    )
+                    for r in payload.get("results", [])
+                ],
+                bars,
+            )
+        except (IndexError, KeyError, TypeError, ValueError) as exc:
+            raise ProviderError(f"polygon sent an unreadable aggregate: {exc}") from exc

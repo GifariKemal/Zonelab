@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useCallback, useEffect, useRef, useState } from "react";
 
 import { Chart } from "@/components/chart";
@@ -123,6 +124,10 @@ export default function Page() {
       setParams((prev) => ({ ...prev, ...patch })),
     [],
   );
+  // Hoisted out of the JSX for the same reason as `patchParams`: an inline
+  // arrow is a new prop on every render, which is all it takes to defeat the
+  // memo on Toolbox that the crosshair makes worth having.
+  const resetParams = useCallback(() => setParams(DEFAULT_PARAMS), []);
 
   const allIntervals = config?.intervals ?? [];
   const candles = data?.candles ?? [];
@@ -220,6 +225,16 @@ export default function Page() {
           />
           Live
         </button>
+
+        {/* The handbook also sits under the toolbox, which is the panel it
+            explains, but that is the far end of a scroll through the twelve
+            sliders that are the reason to open it. */}
+        <Link
+          href="/docs"
+          className="num border border-line-strong px-2 py-1 text-[11px] uppercase tracking-wider text-text-faint transition-colors hover:border-accent hover:text-accent"
+        >
+          Panduan
+        </Link>
 
         <Picker
           label="HTF"
@@ -321,9 +336,10 @@ export default function Page() {
           <Toolbox
             params={params}
             onChange={patchParams}
-            onReset={() => setParams(DEFAULT_PARAMS)}
+            onReset={resetParams}
             stats={data?.meta.supply_demand}
             htfStats={data?.meta.htf}
+            detectors={detectors}
             config={config}
           />
         </aside>

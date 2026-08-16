@@ -1,5 +1,7 @@
 "use client";
 
+import { memo } from "react";
+
 import type { Zone } from "@/lib/types";
 
 const STATE_LABEL: Record<Zone["state"], string> = {
@@ -27,7 +29,10 @@ interface Props {
   chartInterval: string;
 }
 
-export function ZonePanel({
+/** Memoised: the crosshair sets hovered state on every mouse move over the
+ *  chart, and re-sorting the whole zone list to answer a mouse move is work
+ *  nobody asked for. None of these props change while hovering. */
+export const ZonePanel = memo(function ZonePanel({
   zones,
   selectedId,
   onSelect,
@@ -58,8 +63,10 @@ export function ZonePanel({
       <div className="scroll-thin min-h-0 flex-1 overflow-y-auto">
         {ordered.length === 0 ? (
           <p className="px-3 py-6 text-[12px] leading-relaxed text-text-faint">
-            No zones survived the current filters. The trace in the left panel
-            shows which gate removed them.
+            {/* Hedged, because the trace is only drawn while supply and demand
+                is running, and this line used to point at an empty space. */}
+            No zones survived the current filters. With supply and demand on,
+            the filter trace in the left panel shows which gate removed them.
           </p>
         ) : (
           ordered.map((zone) => (
@@ -112,7 +119,7 @@ export function ZonePanel({
       {selected ? <Inspector zone={selected} lastPrice={lastPrice} /> : null}
     </div>
   );
-}
+});
 
 function Inspector({ zone, lastPrice }: { zone: Zone; lastPrice: number | null }) {
   const height = zone.top - zone.bottom;

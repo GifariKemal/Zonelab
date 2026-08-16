@@ -1,0 +1,94 @@
+{
+ "PAXGUSDT 15m": {
+  "zones": 28,
+  "pairs": 378,
+  "same_side_overlaps": 53,
+  "redundant_same_detector": 21,
+  "opposite_side_overlaps": 10,
+  "ink": 0.276425,
+  "max_depth": 6,
+  "median_depth_where_painted": 1.0,
+  "demand": 17,
+  "supply": 11
+ },
+ "PAXGUSDT 1h": {
+  "zones": 23,
+  "pairs": 253,
+  "same_side_overlaps": 13,
+  "redundant_same_detector": 6,
+  "opposite_side_overlaps": 0,
+  "ink": 0.185155,
+  "max_depth": 4,
+  "median_depth_where_painted": 1.0,
+  "demand": 18,
+  "supply": 5
+ },
+ "BTCUSDT 15m": {
+  "zones": 29,
+  "pairs": 406,
+  "same_side_overlaps": 37,
+  "redundant_same_detector": 12,
+  "opposite_side_overlaps": 0,
+  "ink": 0.27505,
+  "max_depth": 4,
+  "median_depth_where_painted": 1.0,
+  "demand": 11,
+  "supply": 18
+ },
+ "BTCUSDT 1h": {
+  "zones": 25,
+  "pairs": 300,
+  "same_side_overlaps": 43,
+  "redundant_same_detector": 19,
+  "opposite_side_overlaps": 5,
+  "ink": 0.380125,
+  "max_depth": 6,
+  "median_depth_where_painted": 1.0,
+  "demand": 7,
+  "supply": 18
+ },
+ "ETHUSDT 1h": {
+  "zones": 26,
+  "pairs": 325,
+  "same_side_overlaps": 49,
+  "redundant_same_detector": 22,
+  "opposite_side_overlaps": 5,
+  "ink": 0.22044,
+  "max_depth": 7,
+  "median_depth_where_painted": 2.0,
+  "demand": 11,
+  "supply": 15
+ },
+ "cap_sweep": {
+  "3": {
+   "boxes": 77,
+   "ink": 0.129186,
+   "max_depth": 5,
+   "opposite": 13
+  },
+  "4": {
+   "boxes": 97,
+   "ink": 0.1641,
+   "max_depth": 5,
+   "opposite": 14
+  },
+  "6": {
+   "boxes": 131,
+   "ink": 0.267439,
+   "max_depth": 7,
+   "opposite": 20
+  },
+  "8": {
+   "boxes": 158,
+   "ink": 0.357748,
+   "max_depth": 9,
+   "opposite": 22
+  },
+  "12": {
+   "boxes": 193,
+   "ink": 0.43073700000000004,
+   "max_depth": 9,
+   "opposite": 22
+  }
+ }
+}

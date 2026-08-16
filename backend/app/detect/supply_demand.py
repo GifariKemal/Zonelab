@@ -52,9 +52,10 @@ _FORMATION: dict[tuple[int, int], tuple[ZoneKind, ZoneSide]] = {
 }
 
 # Formation weights. Equal thirds, and deliberately not fitted: see
-# docs/CALIBRATION.md. On 234 resolved zones across five series no factor
+# docs/CALIBRATION.md. On 2707 resolved zones across five series no factor
 # separated held from failed with a confidence interval clear of 0.5, so fitting
-# weights here would be fitting noise.
+# weights here would be fitting noise. The sum itself ranks BACKWARDS (AUC 0.464
+# and 0.477), which is a stronger reason not to fit it than being merely flat.
 #
 # Two factors that used to be in this sum are gone, both because measurement
 # said so rather than because the code got tidier:
@@ -283,6 +284,13 @@ def detect(
             else:
                 bottom = top - floor
             height = top - bottom
+
+        # zone_min_atr is schema-valid at 0.0, and a base whose bars all have
+        # open == high == low == close then has no floor to grow into: height is
+        # exactly 0 and the drift ratio below divides by it. Same guard as
+        # refine.py and imbalance.py, which both drop a zero-height box.
+        if height <= EPS:
+            continue
 
         if height > params.base_max_atr * atr_base:
             stats["rejected_base_too_tall"] += 1

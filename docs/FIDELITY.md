@@ -571,6 +571,76 @@ Ini cacat kecil pada keterbacaan, bukan pada penempatan: penempatan vertikalnya
 tetap 0,5 dan 1,8 piksel, sama dengan detektor lama. Dilaporkan sebagai gagal
 karena memang gagal.
 
+## Apakah kita sudah mengadopsi ICT dengan benar
+
+Jawaban singkatnya: **sebagian, dan bagian yang belum jauh lebih penting
+daripada bagian yang sudah.**
+
+Satu hal harus dikatakan lebih dulu supaya tabelnya tidak disalahbaca:
+`supply_demand.py` **bukan ICT sama sekali.** Ia garis keturunan Sam Seiden dan
+Online Trading Academy. Menilainya dengan penggaris ICT adalah salah kategori,
+kecuali di satu tempat kosakatanya bertabrakan (`curve` lawan premium/discount).
+
+Dan satu catatan provenans yang menentukan bobot seluruh bagian ini: **materi
+primer ICT tidak ada dalam bentuk yang bisa diambil.** Tidak ada buku, tidak ada
+makalah, tidak ada glosarium kanonik; primernya sebuah kanal YouTube. Yang
+tersedia hanyalah kodifikasi vendor (LuxAlgo, yang menjadi standar de facto
+karena skrip TradingView-nya paling banyak dipasang) dan blog afiliasi yang
+sebagian terbaca seperti hasil generator. Tidak satu pun angka di bawah ini
+berasal dari sumber peer-reviewed, karena tidak ada.
+
+### Yang sudah setia
+
+| Konsep | Status |
+|---|---|
+| Geometri FVG (3 bar, wick ke wick, `<` ketat) | Setia, satu-satunya detektor tanpa diskresi |
+| Kapan FVG bisa diketahui (lilin tengah tidak menguji gap buatannya sendiri) | Setia, dan ini properti anti-lookahead terpenting di file itu |
+| Kotak order block = seluruh rentang lilin | Setia pada konvensi mayoritas |
+| Invalidasi lewat penutupan menembus tepi jauh | Setia, dan versi yang lebih ketat dari yang beredar |
+| Swing fractal, tunda konfirmasi `confirmed_at = i + right` | Setia, dan rekayasa terbaik di repo ini |
+| BOS lawan CHoCH lewat penutupan, break pertama selalu BOS | Setia, dan kehalusan yang kebanyakan implementasi salah |
+| ATR ditunda satu bar di setiap ambang | **Lebih ketat daripada sumbernya.** Kebanyakan skrip SMC tidak melakukannya |
+
+### Yang menyimpang
+
+| Konsep | Penyimpangan |
+|---|---|
+| Order block "terakhir" | **Dulu salah, diperbaiki 2026-08-16.** Lihat CALIBRATION.md |
+| Displacement pada FVG | Lebarnya gap dipakai sebagai proksi lilin displacement. Objek yang berbeda: gap lebar dari lilin lembut lolos, lilin agresif bergap 0,09 ATR dibuang |
+| Displacement pada order block | 1,5 ATR dalam 5 bar adalah angka karangan sendiri, dan sudah dinyatakan begitu. ICT menuntut uji **struktural**, bukan uji besaran |
+| Order block tidak menuntut break of structure | Penyimpangan ICT terbesar yang tersisa. Dulu beralasan `structure.py` belum ada; **alasan itu sudah kedaluwarsa** |
+| Liquidity sweep | Yang dikode adalah "wick melewati swing dan penutupannya tidak". Tanpa syarat pembalikan, tanpa displacement, tanpa equal highs. Karena levelnya tetap terpasang, satu level bisa memancarkan sweep tanpa batas: 8.725 sweep lawan 9.210 break |
+| `curve` bukan premium/discount ICT | Rentangnya 200 bar bergulir, bukan dealing range swing ke swing; dibagi tiga, bukan kuartil di sekitar ekuilibrium 50%; dibekukan saat zona lahir, padahal ICT membacanya saat sentuhan |
+
+### Yang belum ada sama sekali, diurutkan menurut sentralitasnya bagi arah
+
+1. **Market Structure Shift** (sweep lalu penutupan menembus struktur lawan).
+   Inilah yang ICT klaim membawa arah, bukan CHoCH. H6 menguji BOS, CHoCH, dan
+   SWEEP sebagai tiga kelompok terpisah dan **tidak pernah menguji
+   konjungsinya.** Menguji bagian-bagiannya lalu menyatakan keseluruhannya mati
+   adalah celah logika yang nyata. Primitifnya sudah lengkap.
+2. **Inversion FVG dan breaker block.** Gap yang ditembus lalu berbalik peran.
+   `replay_lifecycle` sudah menghitung `break_index` lalu **membuangnya**. Ini
+   detektor termurah yang belum ada, dan CALIBRATION.md sudah menyebut celahnya
+   sendiri: seluruh 11.469 sentuhan pertama datang dari sisi dekat, nol menembus
+   kotak, jadi subsampel yang memisahkan penerusan dari pembalikan memang belum
+   pernah ada.
+3. **Premium/discount pada dealing range ICT**, dibaca saat sentuhan.
+4. **Displacement sebagai objek**, bukan sekadar ambang skalar.
+5. **Struktur internal lawan swing sebagai konjungsi.** Dua nilai N dijalankan
+   berdampingan bukan berarti keduanya disilangkan; tidak ada yang pernah
+   mengondisikan yang kecil pada yang besar.
+
+Sisanya (equal highs/lows, mitigation block, OTE, killzone, SMT divergence,
+Power of 3) entah butuh primitif lintas simbol yang tidak ada, atau butuh
+instrumen ber-sesi yang bukan kripto, atau bersandar pada sumber tier terendah.
+
+> [!IMPORTANT]
+> Dua konstruk ICT tersisa yang benar-benar membawa klaim arah dan benar-benar
+> murah diuji: **sentuhan pasca-inversi** dan **konjungsi sweep lalu MSS.**
+> Selebihnya sudah terbantah, atau merupakan penyebutan ulang momentum, atau
+> cacat kesetiaan yang harus diperbaiki sebelum diukur.
+
 ## Yang belum diuji
 
 - **Premis mekaniknya sendiri.** Cerita "order institusional yang belum terisi"

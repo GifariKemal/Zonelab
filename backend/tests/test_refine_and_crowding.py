@@ -417,6 +417,34 @@ def test_an_order_block_is_the_last_opposite_candle_before_the_move():
     assert blocks[0].bottom == pytest.approx(98.6)
 
 
+def test_a_run_of_down_candles_before_one_rally_is_one_block_not_three():
+    """The word "last" in the definition, which the scan did not implement until
+    2026-08-16. Three down candles sharing one impulse used to produce three
+    stacked blocks, each qualifying on its own overlapping forward window. That
+    is the same observation counted three times, and it inflated the order block
+    population to 21565 against 12745 fair value gaps on identical bars."""
+    rows = calm(20)
+    t = T0 + 20 * STEP
+    price = 102.0
+    for i in range(3):  # three consecutive down candles, then the rally
+        rows.append(bar(t + i * STEP, price, price - 1.0, 0.3, 0.4))
+        price -= 1.0
+    for i in range(3, 9):
+        rows.append(bar(t + i * STEP, price, price + 3.0, 0.0, 0.0))
+        price += 3.0
+    rows += [bar(t + (9 + i) * STEP, price, price, 0.5, 0.5) for i in range(10)]
+
+    zones, stats = detect_order_block(rows, imb())
+    blocks = [z for z in zones if z.side is ZoneSide.DEMAND]
+
+    assert len(blocks) == 1, "only the final down candle is the order block"
+    # And it is the LAST of the three, the one the rally starts from.
+    assert blocks[0].time_from == t + 2 * STEP
+    # The two earlier ones were seen and refused for the stated reason, rather
+    # than never being looked at.
+    assert stats["rejected_not_last"] >= 2
+
+
 def test_a_block_with_no_impulse_after_it_is_rejected_and_counted():
     rows = calm(20)
     t = T0 + 20 * STEP

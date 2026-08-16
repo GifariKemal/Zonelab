@@ -187,6 +187,8 @@ jalankan ulang dengan `python -m tools.calibrate`.
 | Struktur pasar (BOS, CHoCH) membawa bias arah | **Tidak dikonfirmasi.** Pada swing besar DELTA +0.549 ATR, t = 2.27, hasil arah terkuat yang pernah ada di sini. Paruhnya membunuhnya: +1.02 lalu +0.08. Tanda tangan window fit |
 | CHoCH lebih informatif daripada BOS | **Terbantah**, dan berlawanan dengan doktrinnya: CHoCH t = 0.26, BOS t = 1.09 pada swing kecil |
 | Menembus level membawa arah | **Terbantah, dan literatur sudah tahu.** Huddart dkk. (Management Science 2009) menemukan menembus batas bawah memberi return berikutnya sama positifnya dengan menembus batas atas: peristiwanya punya besaran, tidak punya tanda |
+| Kotaknya tidak saling bertabrakan | **Terbantah, lalu diperbaiki.** Belum pernah diukur: semua audit sebelumnya per-zona. Pada default lama, 201 kotak mengecat 39,6% chart rata-rata dan 52,4% di satu deret, dengan 258 redundansi di dalam satu detektor dan 31 kontradiksi berlawanan sisi. Setelah aturan "terakhir" order block ditegakkan dan cap diturunkan 12 ke 6: 131 kotak, 26,7% tinta, 80 redundansi, 20 kontradiksi |
+| Order block adalah lilin berlawanan **terakhir** sebelum impuls | **Terbantah sampai 2026-08-16.** Kodenya menandai *setiap* lilin berlawanan, jadi tiga lilin turun beruntun sebelum satu reli menghasilkan tiga order block bertumpuk. n menggelembung ke 21.565 lawan 12.745 FVG di bar yang sama. Setelah diperbaiki, 6.915 kandidat ditolak dan n turun ke 16.194; **kesimpulan placebo-nya tidak berubah** |
 | Zona searah bias struktur lebih baik daripada yang melawan | **Tidak dikonfirmasi, dan cara gagalnya yang penting.** FVG pada swing besar lolos ketiga kriteria yang ditetapkan di depan: demand +0.405 (t = 4.63), supply +0.266 (t = 3.06), kedua paruh positif, ketahanan +4.0 poin persen. Lalu kontrolnya jalan. Bar **acak** yang hanya membawa bias, tanpa kotak di mana pun, memisah +0.271 dan +0.184. Selisih-dari-selisih, yaitu apa yang benar-benar ditambahkan zonanya, cuma +0.134 (t = 1.25) dan +0.082 (t = 0.78), dan **negatif** untuk supply/demand maupun order block. Yang terukur adalah biasnya, dan biasnya adalah momentum |
 
 > [!CAUTION]
@@ -196,6 +198,19 @@ jalankan ulang dengan `python -m tools.calibrate`.
 > hidup di 9.6% terakhir tiap deret sambil mengklaim 20.000 bar, dan n-nya 234
 > bukan 2707. Nol kini berarti tanpa batas, dan sebuah pengujian menjaganya.
 > Kesimpulan pokoknya bertahan dan menguat; setiap angkanya bergeser.
+
+> [!NOTE]
+> **Sudah seberapa ICT?** Sebagian, dan yang belum lebih penting daripada yang
+> sudah. Geometri FVG, waktu-bisa-diketahuinya, invalidasi lewat penutupan,
+> swing fractal berikut tunda konfirmasinya, dan BOS lawan CHoCH semuanya setia,
+> dan penundaan ATR satu bar justru **lebih ketat** daripada kebanyakan skrip
+> SMC yang beredar. Yang menyimpang: displacement dipakai sebagai lebar gap
+> alih-alih lilinnya, order block tidak menuntut break of structure, sweep
+> dikode tanpa syarat pembalikan, dan `curve` bukan premium/discount ICT.
+> Yang belum ada dan paling penting: **Market Structure Shift** (H6 menguji BOS,
+> CHoCH, dan SWEEP terpisah tapi tidak pernah konjungsinya) dan **inversion FVG
+> / breaker block** (`break_index` sudah dihitung lalu dibuang). Rinciannya di
+> [docs/FIDELITY.md](docs/FIDELITY.md).
 
 > [!IMPORTANT]
 > Deteksinya tervalidasi. Peringkat mutunya tidak. Karena itu angka skor sudah

@@ -141,7 +141,7 @@ export const DEFAULT_IMBALANCE: ImbalanceParams = {
   arrival_bars: 6,
   show_broken: false,
   show_mitigated: true,
-  max_zones_per_side: 12,
+  max_zones_per_side: 6,
 };
 
 export interface DrawResponse {
@@ -184,6 +184,6 @@ export const DEFAULT_PARAMS: SupplyDemandParams = {
   mitigation_pct: 0.5,
   show_broken: false,
   show_mitigated: true,
-  max_zones_per_side: 12,
+  max_zones_per_side: 6,
   merge_overlap_pct: 0.6,
 };

@@ -1,8 +1,9 @@
 "use client";
 
 import Link from "next/link";
+import { memo } from "react";
 
-import type { ServerConfig, SupplyDemandParams } from "@/lib/types";
+import type { DetectorId, ServerConfig, SupplyDemandParams } from "@/lib/types";
 
 interface Props {
   params: SupplyDemandParams;
@@ -13,13 +14,31 @@ interface Props {
    *  there and folding its counters into the local trace would claim the local
    *  detector had done something it did not. */
   htfStats?: Record<string, number>;
+  /** Which detectors the chart is actually running. Every control above
+   *  Display feeds supply and demand only; with FVG or OB alone the panel used
+   *  to stay fully live and move nothing. */
+  detectors: DetectorId[];
   config: ServerConfig | null;
 }
 
-export function Toolbox({ params, onChange, onReset, stats, htfStats }: Props) {
+const SD_OFF =
+  "Supply and demand is off in the header, so these move nothing. FVG and order blocks run on their own fixed geometry.";
+
+/** Memoised: the crosshair sets hovered state on every mouse move over the
+ *  chart, and none of these props change while that happens. */
+export const Toolbox = memo(function Toolbox({
+  params,
+  onChange,
+  onReset,
+  stats,
+  htfStats,
+  detectors,
+}: Props) {
+  const inert = detectors.includes("supply_demand") ? undefined : SD_OFF;
+
   return (
     <div className="scroll-thin flex h-full flex-col overflow-y-auto">
-      <Group title="Detector">
+      <Group title="Detector" inert={inert}>
         <Segmented
           label="Proximal line"
           hint="Only the entry edge moves. The distal always covers the base's extreme, because the stop sits beyond it."
@@ -102,7 +121,7 @@ export function Toolbox({ params, onChange, onReset, stats, htfStats }: Props) {
         </Note>
       </Group>
 
-      <Group title="Base">
+      <Group title="Base" inert={inert}>
         <Slider
           label="Max base bars"
           hint="Longer consolidations are clipped to the bars the move actually left from."
@@ -138,6 +157,7 @@ export function Toolbox({ params, onChange, onReset, stats, htfStats }: Props) {
         </Note>
         <Slider
           label="ATR period"
+          hint="Candles behind the ATR every threshold on this panel is measured in; 14 matches MetaTrader and TradingView."
           min={5}
           max={50}
           step={1}
@@ -146,7 +166,7 @@ export function Toolbox({ params, onChange, onReset, stats, htfStats }: Props) {
         />
       </Group>
 
-      <Group title="Lifecycle">
+      <Group title="Lifecycle" inert={inert}>
         <Slider
           label="Mitigation depth"
           hint="Share of the zone price must eat before it counts as used up."
@@ -168,7 +188,9 @@ export function Toolbox({ params, onChange, onReset, stats, htfStats }: Props) {
         />
       </Group>
 
-      <Group title="Display">
+      {/* Display is on this list too: both sliders live on SupplyDemandParams,
+          while FVG and OB are drawn from the frozen DEFAULT_IMBALANCE. */}
+      <Group title="Display" inert={inert}>
         <Slider
           label="Zones per side"
           min={1}
@@ -188,33 +210,49 @@ export function Toolbox({ params, onChange, onReset, stats, htfStats }: Props) {
         />
       </Group>
 
-      {stats ? (
-        <Group title="Filter trace">
-          <Note>
-            Why the chart looks the way it does. An empty chart and an
-            over-filtered one are not the same problem.
-          </Note>
-          <Stat label="Formations found" value={stats.candidates} />
-          <Stat label="Base too tall" value={stats.rejected_base_too_tall} muted />
-          <Stat label="Base drifted" value={stats.rejected_base_drifted} muted />
-          <Stat label="Weak departure" value={stats.rejected_weak_departure} muted />
-          <Stat label="Thin profit margin" value={stats.rejected_thin_profit_margin} muted />
-          <Stat label="Merged as duplicate" value={stats.rejected_overlap} muted />
-          <Stat label="Hidden by state" value={stats.rejected_state_filter} muted />
-          {stats.rejected_crowded ? (
-            <Stat label="Road shut" value={stats.rejected_crowded} muted />
-          ) : null}
-          {htfStats?.refine_candidates ? (
+      {/* The server only sends counters for detectors it ran, so with supply
+          and demand off this used to vanish without saying why, while the zone
+          panel still pointed at it. */}
+      {stats || inert ? (
+        <Group
+          title="Filter trace"
+          inert={
+            inert &&
+            "Nothing to trace: these counters come from the supply and demand pass, and it did not run."
+          }
+        >
+          {/* The numbers on screen can outlive the run that produced them by
+              one debounce, so they are dropped the moment the detector is off
+              rather than left standing as the last true count. */}
+          {stats && !inert ? (
             <>
-              <div className="mt-2 border-t border-line pt-2" />
-              <Stat label="HTF zones refined" value={htfStats.refined} muted />
-              <Stat label="No inner base" value={htfStats.refine_no_inner_base} muted />
-              <Stat label="Already tight" value={htfStats.refine_no_gain} muted />
+              <Note>
+                Why the chart looks the way it does. An empty chart and an
+                over-filtered one are not the same problem.
+              </Note>
+              <Stat label="Formations found" value={stats.candidates} />
+              <Stat label="Base too tall" value={stats.rejected_base_too_tall} muted />
+              <Stat label="Base drifted" value={stats.rejected_base_drifted} muted />
+              <Stat label="Weak departure" value={stats.rejected_weak_departure} muted />
+              <Stat label="Thin profit margin" value={stats.rejected_thin_profit_margin} muted />
+              <Stat label="Merged as duplicate" value={stats.rejected_overlap} muted />
+              <Stat label="Hidden by state" value={stats.rejected_state_filter} muted />
+              {stats.rejected_crowded ? (
+                <Stat label="Road shut" value={stats.rejected_crowded} muted />
+              ) : null}
+              {htfStats?.refine_candidates ? (
+                <>
+                  <div className="mt-2 border-t border-line pt-2" />
+                  <Stat label="HTF zones refined" value={htfStats.refined} muted />
+                  <Stat label="No inner base" value={htfStats.refine_no_inner_base} muted />
+                  <Stat label="Already tight" value={htfStats.refine_no_gain} muted />
+                </>
+              ) : null}
+              <div className="mt-2 border-t border-line pt-2">
+                <Stat label="Drawn" value={stats.zones} strong />
+              </div>
             </>
           ) : null}
-          <div className="mt-2 border-t border-line pt-2">
-            <Stat label="Drawn" value={stats.zones} strong />
-          </div>
         </Group>
       ) : null}
 
@@ -237,7 +275,7 @@ export function Toolbox({ params, onChange, onReset, stats, htfStats }: Props) {
       </div>
     </div>
   );
-}
+});
 
 /** A short line of context under a control.
  *
@@ -265,13 +303,34 @@ function Note({
   );
 }
 
-function Group({ title, children }: { title: string; children: React.ReactNode }) {
+function Group({
+  title,
+  inert,
+  children,
+}: {
+  title: string;
+  /** Why this group cannot do anything right now. A `fieldset` rather than a
+   *  class, because greying controls out while they still take the keyboard is
+   *  the same lie in a quieter colour. */
+  inert?: string | false;
+  children: React.ReactNode;
+}) {
   return (
     <section className="border-b border-line px-3 py-3">
       <h3 className="mb-3 text-[10px] font-semibold uppercase tracking-[0.16em] text-text-faint">
         {title}
       </h3>
-      <div className="space-y-3">{children}</div>
+      {inert ? (
+        <p className="mb-3 border-l border-line-strong pl-2 text-[11px] leading-relaxed text-text-faint">
+          {inert}
+        </p>
+      ) : null}
+      <fieldset
+        disabled={Boolean(inert)}
+        className={`space-y-3 ${inert ? "opacity-40" : ""}`}
+      >
+        {children}
+      </fieldset>
     </section>
   );
 }
@@ -370,6 +429,7 @@ function Segmented({
           <button
             key={id}
             onClick={() => onChange(id)}
+            aria-pressed={value === id}
             className={`flex-1 px-2 py-1 text-[11px] transition-colors ${
               value === id
                 ? "bg-accent/15 text-accent"

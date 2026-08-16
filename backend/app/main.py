@@ -12,7 +12,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from .config import settings
 from .confluence import mark_nesting
-from .detect import DETECTORS
+from .detect import DETECTORS, PARAMS_FOR
 from .models import Candle, DrawRequest, DrawResponse, Drawing, Zone, ZoneState
 from .profit_zone import mark_crowding, mark_profit_zones
 from .refine import refine_zones
@@ -141,13 +141,21 @@ async def draw(request: DrawRequest) -> DrawResponse:
     # The other detectors. They append rather than replace, because a chart
     # showing a supply zone and a fair value gap at the same price is showing
     # two different claims about that price and collapsing them would hide one.
-    for name in ("fvg", "order_block"):
-        if name in request.detectors:
-            shapes, extra = DETECTORS[name](rows, request.imbalance)
-            for shape in shapes:
-                shape.timeframe = request.interval
-            drawing.zones = drawing.zones + shapes
-            meta[name] = extra
+    #
+    # Driven off the request and PARAMS_FOR, never off a literal list of names.
+    # The validation above accepts anything in DETECTORS, so a hardcoded tuple
+    # here let a newly registered detector pass validation and then never run -
+    # a 200 with no zones and no error, the exact silent wrong answer this
+    # project refuses to ship. Deduplicated because a name listed twice would
+    # otherwise append its shapes twice.
+    for name in dict.fromkeys(request.detectors):
+        if name == "supply_demand":
+            continue  # already run above, with its own HTF and road passes
+        shapes, extra = DETECTORS[name](rows, getattr(request, PARAMS_FOR[name]))
+        for shape in shapes:
+            shape.timeframe = request.interval
+        drawing.zones = drawing.zones + shapes
+        meta[name] = extra
 
     return DrawResponse(
         symbol=request.symbol,

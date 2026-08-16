@@ -688,16 +688,35 @@ standar yang sama, bukan yang lebih longgar.
 |---|---|---|---|---|---|
 | 1,0 ATR | supply_demand | 10198 | 70,1% | 50,8% | +19,3 pp |
 | | fvg | 12745 | 67,0% | 47,6% | +19,5 pp |
-| | order_block | 21565 | 72,0% | 50,9% | +21,1 pp |
-| 2,0 ATR | supply_demand | 10239 | 48,4% | 36,9% | +11,5 pp |
-| | fvg | 12741 | 42,6% | 32,2% | +10,3 pp |
-| | order_block | 21618 | 48,8% | 35,2% | +13,6 pp |
-| 2,0 setara-R | supply_demand | 10075 | 43,8% | 32,4% | +11,4 pp |
+| | order_block | 16194 | 72,1% | 51,3% | +20,8 pp |
+| 2,0 ATR | supply_demand | 10239 | 48,4% | 35,5% | +12,9 pp |
+| | fvg | 12741 | 42,6% | 33,7% | +8,9 pp |
+| | order_block | 16229 | 49,1% | 35,8% | +13,3 pp |
+| 2,0 setara-R | supply_demand | 10075 | 43,8% | 33,0% | +10,8 pp |
 | | fvg | 12710 | 71,0% | 46,1% | **+24,9 pp** |
-| | order_block | 21337 | 54,2% | 38,9% | +15,3 pp |
+| | order_block | 16002 | 53,8% | 39,1% | +14,7 pp |
+
+> [!IMPORTANT]
+> Angka `order_block` dihitung ulang pada 2026-08-16 karena **detektornya salah
+> selama ini**. Definisinya berbunyi "lilin berlawanan **terakhir** sebelum
+> gerakan impulsif", tetapi kodenya menandai *setiap* lilin berlawanan yang
+> jendela majunya lolos ambang. Tiga lilin turun beruntun sebelum satu reli
+> menghasilkan tiga order block bertumpuk, semuanya berbagi impuls yang sama.
+> Docstring-nya menulis "terakhir", kodenya melakukan "mana pun".
+>
+> Akibatnya bukan kosmetik: n-nya menggelembung ke 21.565 lawan 12.745 FVG di
+> bar yang sama, dan kelebihannya adalah observasi yang sama dihitung berkali
+> kali, yang mengembungkan n sekaligus mengorelasikan hasil. Setelah kata
+> "terakhir" ditegakkan (lilin berikutnya wajib menutup ke arah sebaliknya,
+> karena lilin itulah awal impulsnya), 6.915 kandidat ditolak dan n turun ke
+> 16.194.
+>
+> **Kesimpulannya tidak berubah.** Ketiganya tetap mengalahkan placebo di
+> ketiga geometri dengan p<0,0001. Memperbaiki penghitungan gandanya tidak
+> menjatuhkan temuan lokasinya, dan itu justru menguatkannya.
 
 Ketiganya mengalahkan placebo di **ketiga geometri**, semuanya p<0,0001, dengan n
-antara 10.000 dan 21.600. Jadi ketiganya menandai tempat yang berperilaku
+antara 10.000 dan 16.200. Jadi ketiganya menandai tempat yang berperilaku
 berbeda dari kotak sembarangan di harga sembarangan.
 
 > [!WARNING]
@@ -1066,6 +1085,65 @@ return** (+0,271 dan +0,184, keduanya t di atas 3). Itu bukan temuan baru - itu
 momentum deret waktu, yang sudah lama mapan - tetapi ia satu-satunya hal di
 proyek ini yang pernah memisahkan arah sama sekali. Dan ia sama sekali tidak
 membutuhkan gambar apa pun.
+
+### Apakah kotaknya saling bertabrakan
+
+Semua uji kesetiaan sebelumnya menanyakan hal yang sama: apakah kotak **ini**
+ada di tempat yang benar. `drawing_accuracy` membandingkan tiap zona dengan
+lilin base-nya sendiri, audit piksel membandingkan persegi yang tercat dengan
+skala harga. Keduanya per-zona. **Tidak ada yang pernah melihat dua zona
+sekaligus**, jadi satu kelas cacat tidak pernah terukur, dan justru kelas itulah
+yang dilihat pengguna.
+
+`tools/collisions.py` mengukurnya pada default yang dikirim, bukan pada populasi
+pengukuran. Ini disengaja dan kebalikan dari tool lain: pertanyaannya bukan "apa
+yang ditemukan detektor" melainkan "apa yang dilihat pengguna", jadi display cap
+adalah bagian dari jawaban, bukan bias yang harus dihindari.
+
+Tiga besaran, dan hanya satu di antaranya cacat:
+
+- **Tumpang tindih sesisi antar detektor** bukan cacat. FVG di dalam zona demand
+  adalah dua metode yang sepakat, dan itu justru alasan menjalankan keduanya.
+- **Redundansi di dalam satu detektor** adalah cacat: observasi yang sama
+  digambar dua kali.
+- **Tumpang tindih berlawanan sisi** adalah kontradiksi. Satu harga tidak bisa
+  sekaligus tempat pembeli mengalahkan penjual dan tempat penjual mengalahkan
+  pembeli pada saat yang sama.
+- **Tinta**, yaitu persen chart yang tercat, adalah angka keterbacaan.
+
+| | Awal | Sesudah perbaikan |
+|---|---|---|
+| Zona tergambar | 201 | **131** |
+| Tumpang tindih sesisi | 483 | **195** |
+| Redundansi satu detektor | 258 | **80** |
+| Tumpang tindih berlawanan | 31 | **20** |
+| Tinta rata-rata | 39,6% | **26,7%** |
+| Tinta terburuk (ETH 1j) | 52,4% | 32,6% |
+| Tumpukan terdalam | 9 | **7** |
+
+Dua perubahan menghasilkannya, dan hanya satu yang soal gambar:
+
+1. **Aturan "terakhir" pada order block ditegakkan.** Ini perbaikan kesetiaan,
+   bukan kosmetik, dan kebetulan membuang sebagian besar redundansinya.
+2. **Display cap diturunkan 12 ke 6.** Cap berlaku per detektor **dan** per
+   sisi, jadi 12 mengizinkan 3 x 2 x 12 = 72 kotak dalam satu chart. Pada 12,
+   rata-rata 39,6% chart tercat dan satu deret mencapai 52,4%; itu bukan anotasi
+   lagi, itu latar belakang. Keterbacaan adalah keputusan tampilan, jadi
+   diputuskan dengan mengukur tinta, bukan dengan selera. Dan tidak seperti
+   gerbang, menurunkannya tidak bisa membiaskan ramalan apa pun, karena tidak
+   ada ramalan yang bisa dibiaskan.
+
+> [!WARNING]
+> Satu jalan buntu dicatat karena angkanya justru lebih bagus. Meminjam
+> `_dedupe` milik supply/demand untuk FVG dan order block memotong tumpang
+> tindih sesisi 74% dan menyisakan hanya 3 kontradiksi, jauh lebih rapi daripada
+> hasil akhir di atas. Itu dibuang di jam yang sama. `_dedupe` memilih penyintas
+> lewat `formation_score`, yang bernilai 0,0 untuk **setiap** zona imbalance,
+> jadi pemenangnya adalah apa pun yang kebetulan tersortir duluan: pada satu tes
+> ia menyimpan serpihan selebar 0,3 dan membuang gap selebar 4,5 yang memuatnya.
+> Dua gap di bar berbeda adalah dua peristiwa, bukan satu yang digambar dua
+> kali. **Angka bagus yang diperoleh dengan aturan yang tidak bisa dibenarkan
+> lebih berbahaya daripada angka sedang yang benar.**
 
 ### Aturan berhentinya berlaku
 

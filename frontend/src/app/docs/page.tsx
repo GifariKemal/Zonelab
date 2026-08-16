@@ -684,7 +684,7 @@ function Panel() {
           [<N key="a">Mitigation depth</N>, "Seberapa dalam harga boleh memakan zona sebelum dianggap habis terpakai."],
           [<N key="b">Show mitigated</N>, "Tampilkan zona yang sudah termakan sebagian. Nyala secara bawaan."],
           [<N key="c">Show broken</N>, "Tampilkan zona yang sudah ditembus. Mati secara bawaan."],
-          [<N key="d">Zones per side</N>, "Berapa banyak digambar per sisi, terbaru lebih dulu. Hanya tampilan."],
+          [<N key="d">Zones per side</N>, "Berapa banyak digambar per sisi, terbaru lebih dulu. Berlaku per detektor DAN per sisi, jadi dengan tiga detektor menyala angka 6 mengizinkan 36 kotak. Default diturunkan dari 12 ke 6 pada 2026-08-16 karena 12 mengecat 39,6% chart rata-rata, dan kotak yang mengecat separuh chart bukan anotasi lagi."],
           [<N key="e">Merge overlap</N>, "Dua zona yang bertumpuk lebih dari ini digabung jadi satu. Hanya tampilan."],
         ]}
       />
