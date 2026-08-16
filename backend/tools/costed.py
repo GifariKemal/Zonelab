@@ -75,15 +75,61 @@ COSTS = {
     # 7 USD round turn per 100oz lot is 0.07 per ounce, which at gold near 4400
     # is 0.16bp - not 1.6bp, an arithmetic slip that made the first conversion
     # ten times too harsh and knocked 0.07R off the answer before it was caught.
-    "XAUUSD": {"commission_bp": 0.16, "slippage_bp": 0.05, "spread_bp": None},
-    # Binance spot taker is 0.1% per side, so 20bp for the round turn. A stop is
-    # a market order and takes liquidity, so the taker rate is the right one to
-    # charge on the exit even when the entry is a resting limit.
-    "_default": {"commission_bp": 20.0, "slippage_bp": 2.0, "spread_bp": 1.0},
+    #
+    # That 0.16bp is honest arithmetic on an UNVERIFIED premise. The only gold
+    # commission schedule that could actually be retrieved is IBKR's, at 1.5bp
+    # per side, so 3.0bp round turn - nineteen times higher. The retail "3.50
+    # USD per side per lot" figure is repeated everywhere and published nowhere.
+    # Part of why it looks so cheap in bp is real: retail per-lot commissions
+    # are flat USD amounts set when gold traded at 1200 to 1800, and gold has
+    # since tripled, so the same fee has quietly fallen from about 0.4bp to
+    # 0.16bp. Run --conservative to see the answer at IBKR's published rate.
+    #
+    # Slippage was 0.05bp and that was simply wrong, not merely optimistic.
+    # Measured on Dukascopy ticks: the mid moves 0.17bp in a 250ms retail round
+    # trip at the median and 0.79bp at p90. A stop is a market order once
+    # triggered AND is fired by a directional move, so the true figure is
+    # adverse-biased above that unsigned floor. 0.5bp is the central estimate.
+    "XAUUSD": {
+        "commission_bp": 0.16, "slippage_bp": 0.5, "spread_bp": None,
+        # Overnight financing, which was missing entirely and is not a footnote:
+        # 80 bars of 15m is 20 hours against a 21:00 UTC rollover, so nearly
+        # every trade crosses exactly one. IBKR publishes 1.29bp/day to borrow
+        # gold short and 0.028bp/day storage long; a CFD adds an unpublished
+        # markup on both sides. 1.0bp per rollover is the central estimate, and
+        # Wednesday is charged triple at most venues, which can cost more than
+        # the entire round turn.
+        "swap_bp": 1.0,
+    },
+    # Binance spot: 0.1% per side and - the detail that matters here - maker
+    # and taker are IDENTICAL at VIP 0, so a resting limit entry saves nothing.
+    # 20bp round turn without the BNB discount, which a conservative backtest
+    # should not assume. Spot ownership has no financing, unlike a gold CFD.
+    #
+    # 2.0bp slippage and 1.0bp spread are roughly 20x harsher than the measured
+    # book for BTC (0.0016bp quoted, 0.00bp slip on a 10k order) and about right
+    # for PAXG at size (2.53bp on 100k). Kept as a stated conservative
+    # assumption rather than tuned per pair, and labelled as an assumption
+    # because on crypto the fee is three orders of magnitude larger than the
+    # spread - the fee IS the cost model and everything else is rounding.
+    "_default": {
+        "commission_bp": 20.0, "slippage_bp": 2.0, "spread_bp": 1.0,
+        "swap_bp": 0.0,
+    },
 }
-# Every figure above is ROUND TURN, charged once per trade, because that is how
-# the numbers they came from are quoted. Halving them and charging twice would
-# be the same arithmetic with more places to get it wrong.
+# Conservative alternates, run with --conservative. Not a sweep to pick from:
+# both columns get reported and a decision is made on the pessimistic one.
+CONSERVATIVE = {
+    "XAUUSD": {"commission_bp": 3.0, "slippage_bp": 1.5, "swap_bp": 2.0},
+}
+# Every figure above is ROUND TURN except swap, which is per rollover crossed.
+# Charged once per trade, because that is how the sources quote them.
+#
+# The spread is NOT double charged, despite the shape of the code: plan.build
+# lifts the entry fill by one full spread and leaves the stop where it is, which
+# is arithmetically identical to paying half a spread on each leg. Checked
+# rather than assumed, because a review flagged it as a 2x overcharge and it is
+# not one.
 PLACEBO_DRAWS = 3  # each zone displaced this many times, for a steadier control
 FOLDS = 8  # same count every other walk-forward here used, so p is comparable
 
@@ -98,6 +144,7 @@ def _params(name: str):
 def trades(
     name: str, candles, interval: str, costs: bool, rng=None,
     anchored: bool = False, symbol: str = "XAUUSD",
+    conservative: bool = False,
 ) -> list[dict]:
     """Every zone's first touch, resolved to an R multiple.
 
@@ -108,7 +155,9 @@ def trades(
     control has already killed one finding here - reversals at zones were real
     and random boxes reversed just as often.
     """
-    fees = COSTS.get(symbol, COSTS["_default"])
+    fees = {**COSTS.get(symbol, COSTS["_default"])}
+    if conservative:
+        fees.update(CONSERVATIVE.get(symbol, {}))
     params = _params(name)
     zones, _ = DETECTORS[name](candles, params)
 
@@ -233,9 +282,17 @@ def trades(
             continue
 
         long_side = zone.side is ZoneSide.DEMAND
+        # Swap is charged per rollover the trade could cross. The horizon is
+        # 80 bars, so this is what the trade risks paying rather than what it
+        # certainly pays - a winner closing in ten bars pays none of it. Charged
+        # in full because the alternative is to model the exit bar's clock, and
+        # a cost model that flatters itself on timing is the thing this tool
+        # exists to avoid.
+        nights = (HORIZON * step) / 86_400 if costs else 0.0
         friction = (
             float(close[touch])
-            * (fees["commission_bp"] + fees["slippage_bp"])
+            * (fees["commission_bp"] + fees["slippage_bp"]
+               + fees.get("swap_bp", 0.0) * nights)
             / 10_000
         ) if costs else 0.0
         risk = plan.risk_per_unit + friction
@@ -267,6 +324,13 @@ def trades(
             "skipped": False,
             "at": touch,
             "r": result,
+            # Cost as a fraction of the trade's own risk. This is the number
+            # that makes two instruments comparable at all: a bp constant is NOT
+            # volatility-neutral, because cost tracks PRICE while R tracks the
+            # STOP DISTANCE. The same 20bp buys 0.9 ATR of cost on BTC and 1.55
+            # on PAXG, which is why the crypto arms lose on cost alone with no
+            # change in the signal.
+            "cost_r": (friction + (spread or 0.0)) / risk if risk > 0 else 0.0,
             "won": result > 0,
             "cleared": zone.departure_atr >= 2.0,
         })
@@ -285,10 +349,11 @@ def report(rows: list[dict], title: str, out: dict) -> None:
     exp = float(r.mean())
     se = float(r.std(ddof=1) / np.sqrt(len(r)))
     t = exp / se if se > 0 else float("nan")
+    cost_r = float(np.mean([x.get("cost_r", 0.0) for x in taken]))
     print(f"  {title:<26}{len(taken):>7}{skipped:>9}{wins:>9.1%}"
-          f"{exp:>10.3f}{t:>8.2f}")
+          f"{exp:>10.3f}{t:>8.2f}{cost_r:>9.3f}")
     out[title] = {"n": len(taken), "skipped": skipped, "win_rate": wins,
-                  "expectancy_r": exp, "t": t}
+                  "expectancy_r": exp, "t": t, "cost_r": cost_r}
 
 
 def main() -> None:
@@ -296,6 +361,8 @@ def main() -> None:
     parser.add_argument("--symbol", default="XAUUSD")
     parser.add_argument("--interval", default="15m")
     parser.add_argument("--bars", type=int, default=20000)
+    parser.add_argument("--conservative", action="store_true",
+                        help="the pessimistic sourced end of every cost")
     parser.add_argument("--json", type=str, default="")
     args = parser.parse_args()
 
@@ -316,18 +383,20 @@ def main() -> None:
         print(f"\n{'=' * 74}")
         print(f"{label}   {args.symbol} {args.interval}   horizon {HORIZON} bars")
         if costs:
-            fees = COSTS.get(args.symbol, COSTS["_default"])
+            fees = {**COSTS.get(args.symbol, COSTS["_default"])}
+            if args.conservative:
+                fees.update(CONSERVATIVE.get(args.symbol, {}))
             measured = any(c.spread is not None for c in candles)
             print(f"  commission {fees['commission_bp']}bp + slippage "
                   f"{fees['slippage_bp']}bp of notional, and spread "
                   + ("MEASURED per bar from the feed"
                      if measured else f"assumed at {fees['spread_bp']}bp"))
         print(f"{'=' * 74}")
-        print(f"  {'':<26}{'n':>7}{'no target':>9}{'win':>9}{'exp R':>10}{'t':>8}")
+        print(f"  {'':<26}{"n":>7}{"no target":>9}{"win":>9}{"exp R":>10}{"t":>8}{"cost R":>9}")
 
         for name in ("supply_demand", "fvg", "order_block"):
             tag = label[:4].lower()
-            rows = trades(name, candles, args.interval, costs, symbol=args.symbol)
+            rows = trades(name, candles, args.interval, costs, symbol=args.symbol, conservative=args.conservative)
             report(rows, f"{tag} {name}", out)
             # The departure gate is the one factor that passed walk-forward in
             # all three bracket geometries. Whether it survives costs is the
@@ -341,7 +410,7 @@ def main() -> None:
             for _ in range(PLACEBO_DRAWS):
                 placebo.extend(
                     trades(name, candles, args.interval, costs, rng,
-                           symbol=args.symbol))
+                           symbol=args.symbol, conservative=args.conservative))
             report(placebo, f"{tag} {name} PLACEBO", out)
 
             anchored: list[dict] = []
@@ -349,7 +418,7 @@ def main() -> None:
             for _ in range(PLACEBO_DRAWS):
                 anchored.extend(
                     trades(name, candles, args.interval, costs, rng2,
-                           anchored=True, symbol=args.symbol))
+                           anchored=True, symbol=args.symbol, conservative=args.conservative))
             report(anchored, f"{tag} {name} ANCHORED PLACEBO", out)
 
             # Split-half on time. An edge that lives in one half is a window
@@ -371,7 +440,7 @@ def main() -> None:
     print("  WALK-FORWARD, costed, supply_demand above the departure gate")
     print(f"{'=' * 74}")
     rows = [r for r in trades("supply_demand", candles, args.interval, True,
-                              symbol=args.symbol)
+                              symbol=args.symbol, conservative=args.conservative)
             if not r["skipped"] and r["cleared"]]
     edges = np.linspace(0, len(candles), FOLDS + 1).astype(int)
     signs = []

@@ -1366,6 +1366,46 @@ itu memakan porsi R yang jauh lebih besar di 15 menit.
 > oleh struktur biaya instrumen dan timeframe-nya.** Pada biaya kripto di 15
 > menit, informasi senilai +0,31 R tetap tenggelam.
 
+#### Biayanya sendiri diriset, dan dua angkanya ternyata salah
+
+Konstanta biaya sebelumnya "dinyatakan, bukan difit" - jujur, tetapi tidak
+bersumber. Riset terhadap sumber primer (jadwal biaya Binance, jadwal komisi
+IBKR, tick Dukascopy yang diunduh dan diukur sendiri, order book Binance yang
+diambil langsung) mengoreksi dua di antaranya dan menemukan satu yang hilang.
+
+| Konstanta | Sebelum | Sesudah | Sebab |
+|---|---|---|---|
+| Slippage XAUUSD | 0,05 bp | **0,5 bp** | Diukur pada tick: mid bergerak 0,17 bp dalam 250 ms dan 0,79 bp di p90. 0,05 bukan optimistis, melainkan **salah** |
+| Swap XAUUSD | tidak ada | **1,0 bp per rollover** | 80 bar 15 menit adalah 20 jam melawan rollover 21:00 UTC, jadi hampir setiap trade menyeberanginya. Rabu dikenakan tiga kali lipat |
+| Komisi XAUUSD | 0,16 bp | 0,16 bp sentral, **3,0 bp konservatif** | Premisnya tidak terverifikasi. Satu-satunya jadwal komisi emas yang bisa diambil adalah IBKR, 1,5 bp per sisi, **19 kali lebih tinggi** |
+
+Satu klaim laporan itu saya **tolak setelah diperiksa**: ia menyebut spread
+dibebankan dua kali. Aritmetiknya tidak begitu - `plan.build` menaikkan fill
+entry satu spread penuh dan membiarkan stopnya, yang identik dengan membayar
+setengah spread di tiap kaki. Nama tesnya yang menyesatkan, bukan perilakunya.
+
+**Dan inilah angka yang menentukan keputusan.**
+
+| Emas 15m, kohort gerbang | Biaya sentral | Biaya konservatif (jadwal IBKR) |
+|---|---|---|
+| Ekspektasi | **+0,234** (t=4,18) | **+0,082** (t=1,67) |
+| Placebo berjangkar | -0,127 | -0,231 |
+| Margin | +0,361 | +0,313 |
+| Biaya sebagai porsi R | 9,4% | **20,5%** |
+| Walk-forward | 8 dari 8 | **4 dari 8** |
+
+> [!CAUTION]
+> Pada tingkat biaya yang **benar-benar bisa diverifikasi**, keunggulan emasnya
+> **tidak bertahan**: t turun ke 1,67 dan walk-forward-nya jadi 4 dari 8.
+> Marginnya atas placebo tetap +0,313, jadi informasinya masih ada - yang hilang
+> adalah kemampuannya melewati biaya.
+>
+> Selisih antara kedua kolom itu **seluruhnya jadwal biaya broker**, bukan
+> sinyalnya. Artinya kelayakan sistem ini bergantung pada mendapat komisi di
+> bawah kira-kira 1 bp per putaran - dan angka retail yang beredar (3,50 USD per
+> sisi per lot) diulang di mana-mana tanpa pernah diterbitkan dalam jadwal resmi
+> mana pun yang bisa diambil.
+
 Satu hal yang tidak bisa diukur dan sebabnya struktural: FVG dan order block
 tidak punya konsep zona lawan, jadi targetnya dihitung terhadap zona lawan
 sejenisnya sendiri. Menerapkan aturan jalan milik supply/demand ke gambar metode
