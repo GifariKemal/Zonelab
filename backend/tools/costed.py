@@ -122,6 +122,47 @@ COSTS = {
 CONSERVATIVE = {
     "XAUUSD": {"commission_bp": 3.0, "slippage_bp": 1.5, "swap_bp": 2.0},
 }
+
+# Broker profiles, run with --broker. The gap between the central and the
+# conservative column above is ENTIRELY a commission schedule, so the only way
+# to know which one applies to a given trader is to price their actual broker.
+# A profile here must cite where its numbers came from; an uncited profile is
+# the same unverified retail figure this file already warns about.
+BROKERS: dict[str, dict[str, dict[str, float]]] = {
+    # Verified from Exness's own Help Center, 2026-08-16. Commission is quoted
+    # PER LOT PER SIDE and a XAUUSD lot is 100 troy ounces, so at gold 4400 the
+    # notional is 440,000 and 1bp is 44 USD.
+    #
+    #   Zero        5.50/side -> 11.00 round turn -> 0.250bp
+    #   Raw Spread  3.50/side ->  7.00 round turn -> 0.159bp
+    #
+    # Zero is the profile modelled even though Raw Spread's commission is lower,
+    # because Zero is the only account whose ALL-IN cost is knowable: Exness
+    # publishes no XAUUSD spread for any account type, and Zero is the one that
+    # contractually commits to zero spread on its top-30 instruments for 95% of
+    # the day. Raw Spread's total is commission plus an unpublished number.
+    #
+    # Swap is 0.0 and that is verified rather than assumed: Indonesia is on
+    # Exness's Islamic swap-free country list, where the status is automatic,
+    # account-wide and covers all instruments.
+    #
+    # `admin_bp` is the line that actually decides this strategy. Exness charges
+    # 200 USD per lot per night on XAUUSD held past 21:00 UTC, which is 4.545bp
+    # - more than THIRTEEN round-turn commissions, per rollover crossed. It is
+    # discretionary, can be applied to already-open positions, and its stated
+    # trigger is trading that is not "primarily within the trading day", which
+    # describes this strategy exactly.
+    "exness_zero": {
+        "XAUUSD": {
+            "commission_bp": 0.25, "slippage_bp": 0.5, "spread_bp": None,
+            "swap_bp": 0.0, "admin_bp": 4.545,
+        },
+    },
+}
+# 21:00 UTC in northern summer, 22:00 in winter. The earlier hour is modelled
+# because charging at the earlier cutoff catches more trades, and this whole
+# line item is one a backtest must not flatter itself on.
+ROLLOVER_HOUR_UTC = 21
 # Every figure above is ROUND TURN except swap, which is per rollover crossed.
 # Charged once per trade, because that is how the sources quote them.
 #
@@ -144,7 +185,8 @@ def _params(name: str):
 def trades(
     name: str, candles, interval: str, costs: bool, rng=None,
     anchored: bool = False, symbol: str = "XAUUSD",
-    conservative: bool = False,
+    conservative: bool = False, broker: str = "",
+    flat_by_rollover: bool = False,
 ) -> list[dict]:
     """Every zone's first touch, resolved to an R multiple.
 
@@ -158,6 +200,11 @@ def trades(
     fees = {**COSTS.get(symbol, COSTS["_default"])}
     if conservative:
         fees.update(CONSERVATIVE.get(symbol, {}))
+    if broker:
+        # A broker profile REPLACES the generic assumption rather than layering
+        # on it, because the whole point is to stop guessing what this trader
+        # actually pays.
+        fees.update(BROKERS.get(broker, {}).get(symbol, {}))
     params = _params(name)
     zones, _ = DETECTORS[name](candles, params)
 
@@ -299,8 +346,24 @@ def trades(
         if risk <= 0:
             continue
 
+        # Where a flat-by-rollover rule would force the exit. Modelled as a
+        # LIMIT on the walk rather than a separate arm, so the two runs differ
+        # in one rule and nothing else.
+        last = touch + HORIZON
+        if flat_by_rollover:
+            # Off the clock, not off a 21:00 bar - gold has none, that hour is
+            # the session break. The first bar at or after the next rollover
+            # instant is where a flat-by-rollover rule would have exited.
+            shift = ROLLOVER_HOUR_UTC * 3600
+            cut = ((int(time[touch]) - shift) // 86_400 + 1) * 86_400 + shift
+            for j in range(touch + 1, min(last + 1, len(close))):
+                if int(time[j]) >= cut:
+                    last = j
+                    break
+
         result = None
-        for i in range(touch, touch + HORIZON + 1):
+        exit_index = last
+        for i in range(touch, last + 1):
             hit_stop = low[i] <= plan.stop if long_side else high[i] >= plan.stop
             hit_target = (
                 high[i] >= plan.target if long_side else low[i] <= plan.target
@@ -309,16 +372,36 @@ def trades(
             # them, and assuming the favourable one is how a backtest quietly
             # manufactures an edge.
             if hit_stop:
-                result = -1.0
+                result, exit_index = -1.0, i
                 break
             if hit_target:
                 result = (abs(plan.target - plan.entry) - friction) / risk
+                exit_index = i
                 break
         if result is None:
-            # Still open at the horizon, marked to market and charged the exit.
-            exit_at = float(close[touch + HORIZON])
+            # Still open at the cutoff, marked to market and charged the exit.
+            exit_at = float(close[last])
             move = (exit_at - plan.entry) if long_side else (plan.entry - exit_at)
             result = (move - friction) / risk
+
+        # Rollovers crossed, counted from the CLOCK rather than from the bars.
+        # Looking for a bar stamped 21:00 UTC finds nothing: gold has no 21:00
+        # bar at all, because that hour IS the daily session break - measured on
+        # this series, every other hour has ~216 bars and 21:00 has zero. A
+        # bar-presence test therefore reports "never charged", which is the
+        # flattering answer and the wrong one, since the rollover happens inside
+        # exactly that gap.
+        #
+        # Counted from the actual exit rather than the horizon, because a trade
+        # stopped out in ten bars never paid for the other seventy.
+        def _rollovers(t0: int, t1: int) -> int:
+            shift = ROLLOVER_HOUR_UTC * 3600
+            return (t1 - shift) // 86_400 - (t0 - shift) // 86_400
+
+        nights_held = int(_rollovers(int(time[touch]), int(time[exit_index])))
+        admin = float(close[touch]) * fees.get("admin_bp", 0.0) / 10_000
+        if costs and admin and nights_held:
+            result -= admin * nights_held / risk
 
         out.append({
             "skipped": False,
@@ -330,6 +413,7 @@ def trades(
             # STOP DISTANCE. The same 20bp buys 0.9 ATR of cost on BTC and 1.55
             # on PAXG, which is why the crypto arms lose on cost alone with no
             # change in the signal.
+            "nights": nights_held,
             "cost_r": (friction + (spread or 0.0)) / risk if risk > 0 else 0.0,
             "won": result > 0,
             "cleared": zone.departure_atr >= 2.0,
@@ -350,10 +434,12 @@ def report(rows: list[dict], title: str, out: dict) -> None:
     se = float(r.std(ddof=1) / np.sqrt(len(r)))
     t = exp / se if se > 0 else float("nan")
     cost_r = float(np.mean([x.get("cost_r", 0.0) for x in taken]))
+    crossed = float(np.mean([x.get("nights", 0) > 0 for x in taken]))
     print(f"  {title:<26}{len(taken):>7}{skipped:>9}{wins:>9.1%}"
-          f"{exp:>10.3f}{t:>8.2f}{cost_r:>9.3f}")
+          f"{exp:>10.3f}{t:>8.2f}{cost_r:>9.3f}{crossed:>9.1%}")
     out[title] = {"n": len(taken), "skipped": skipped, "win_rate": wins,
-                  "expectancy_r": exp, "t": t, "cost_r": cost_r}
+                  "expectancy_r": exp, "t": t, "cost_r": cost_r,
+                  "crossed_rollover": crossed}
 
 
 def main() -> None:
@@ -361,6 +447,10 @@ def main() -> None:
     parser.add_argument("--symbol", default="XAUUSD")
     parser.add_argument("--interval", default="15m")
     parser.add_argument("--bars", type=int, default=20000)
+    parser.add_argument("--flat", action="store_true",
+                        help="close at the 21:00 UTC rollover, never hold across it")
+    parser.add_argument("--broker", default="",
+                        help=f"price a named broker: {sorted(BROKERS)}")
     parser.add_argument("--conservative", action="store_true",
                         help="the pessimistic sourced end of every cost")
     parser.add_argument("--json", type=str, default="")
@@ -386,17 +476,21 @@ def main() -> None:
             fees = {**COSTS.get(args.symbol, COSTS["_default"])}
             if args.conservative:
                 fees.update(CONSERVATIVE.get(args.symbol, {}))
+            if args.broker:
+                fees.update(BROKERS.get(args.broker, {}).get(args.symbol, {}))
             measured = any(c.spread is not None for c in candles)
             print(f"  commission {fees['commission_bp']}bp + slippage "
                   f"{fees['slippage_bp']}bp of notional, and spread "
                   + ("MEASURED per bar from the feed"
                      if measured else f"assumed at {fees['spread_bp']}bp"))
         print(f"{'=' * 74}")
-        print(f"  {'':<26}{"n":>7}{"no target":>9}{"win":>9}{"exp R":>10}{"t":>8}{"cost R":>9}")
+        print(f"  {'':<26}{"n":>7}{"no target":>9}{"win":>9}{"exp R":>10}{"t":>8}{"cost R":>9}{"overnite":>9}")
 
         for name in ("supply_demand", "fvg", "order_block"):
             tag = label[:4].lower()
-            rows = trades(name, candles, args.interval, costs, symbol=args.symbol, conservative=args.conservative)
+            rows = trades(name, candles, args.interval, costs, symbol=args.symbol, conservative=args.conservative,
+                          broker=args.broker,
+                          flat_by_rollover=args.flat)
             report(rows, f"{tag} {name}", out)
             # The departure gate is the one factor that passed walk-forward in
             # all three bracket geometries. Whether it survives costs is the
@@ -410,7 +504,9 @@ def main() -> None:
             for _ in range(PLACEBO_DRAWS):
                 placebo.extend(
                     trades(name, candles, args.interval, costs, rng,
-                           symbol=args.symbol, conservative=args.conservative))
+                           symbol=args.symbol, conservative=args.conservative,
+                          broker=args.broker,
+                          flat_by_rollover=args.flat))
             report(placebo, f"{tag} {name} PLACEBO", out)
 
             anchored: list[dict] = []
@@ -418,7 +514,9 @@ def main() -> None:
             for _ in range(PLACEBO_DRAWS):
                 anchored.extend(
                     trades(name, candles, args.interval, costs, rng2,
-                           anchored=True, symbol=args.symbol, conservative=args.conservative))
+                           anchored=True, symbol=args.symbol, conservative=args.conservative,
+                          broker=args.broker,
+                          flat_by_rollover=args.flat))
             report(anchored, f"{tag} {name} ANCHORED PLACEBO", out)
 
             # Split-half on time. An edge that lives in one half is a window
@@ -440,7 +538,9 @@ def main() -> None:
     print("  WALK-FORWARD, costed, supply_demand above the departure gate")
     print(f"{'=' * 74}")
     rows = [r for r in trades("supply_demand", candles, args.interval, True,
-                              symbol=args.symbol, conservative=args.conservative)
+                              symbol=args.symbol, conservative=args.conservative,
+                          broker=args.broker,
+                          flat_by_rollover=args.flat)
             if not r["skipped"] and r["cleared"]]
     edges = np.linspace(0, len(candles), FOLDS + 1).astype(int)
     signs = []

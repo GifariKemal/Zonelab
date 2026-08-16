@@ -1319,6 +1319,72 @@ walk-forward lain di halaman ini.
 > ujiannya sendiri setelah biaya dibebankan**. Yang belum: bukti bahwa ia
 > berlaku di luar emas dan di luar musim panas 2026.
 
+#### Diharga di broker sungguhan: Exness
+
+Selisih antara kolom sentral dan konservatif seluruhnya jadwal komisi broker,
+jadi satu-satunya cara tahu kolom mana yang berlaku adalah mengharga broker yang
+benar-benar dipakai. Terverifikasi dari Help Center Exness sendiri, 2026-08-16.
+
+Satu lot XAUUSD adalah 100 ons troy, jadi pada emas 4400 nosionalnya 440.000 dan
+1 bp sama dengan 44 USD.
+
+| Akun | Komisi | Per putaran | bp |
+|---|---|---|---|
+| Zero | 5,50 USD/lot per sisi | 11,00 | **0,250** |
+| Raw Spread | 3,50 USD/lot per sisi | 7,00 | **0,159** |
+| Standard, Cent, Pro | tanpa komisi | - | 0 |
+
+Angka 0,159 itu praktis persis asumsi "murah" 0,16 bp yang sudah dipakai di
+halaman ini. Jadi +0,234 R ternyata sudah dihitung pada jadwal biaya Exness
+tanpa disengaja.
+
+Yang dimodelkan adalah **Zero**, meski komisinya lebih tinggi, karena ia
+satu-satunya akun yang biaya totalnya bisa diketahui dari sumber publik: Exness
+tidak menerbitkan spread XAUUSD untuk tipe akun mana pun, dan hanya Zero yang
+berkomitmen spread nol pada instrumen top-30 selama 95% hari.
+
+**Swap benar-benar nol**, dan itu terverifikasi bukan diasumsikan: Indonesia ada
+di daftar negara swap-free Islami Exness, di mana statusnya otomatis, seluruh
+akun, dan mencakup semua instrumen.
+
+##### Biaya yang hampir mematikannya, dan dua bug yang menyanjung
+
+Exness mengenakan **200 USD per lot per malam** pada XAUUSD yang masih terbuka
+lewat 21:00 UTC. Itu **4,545 bp**, lebih mahal daripada tiga belas komisi
+putaran, dan pemicunya ditulis sebagai trading yang tidak "sebagian besar di
+dalam hari perdagangan" - deskripsi persis strategi ini.
+
+Pertanyaannya jadi empiris: **berapa persen trade yang benar-benar
+menyeberanginya?** Menghitungnya memunculkan dua bug, keduanya menyanjung.
+
+1. Deteksi rollover mencari bar berstempel 21:00 UTC. **Emas tidak punya bar
+   21:00 sama sekali** - jam itu adalah jeda sesi hariannya, dan diukur pada
+   deret ini setiap jam lain punya sekitar 216 bar sementara 21:00 punya nol.
+   Uji berbasis kehadiran bar karena itu melaporkan "tidak pernah kena", yang
+   kebetulan adalah jawaban yang menguntungkan. Diperbaiki dengan menghitung
+   dari **jam dinding**, bukan dari bar.
+2. Aturan tutup-sebelum-rollover punya bug yang sama di tempat kedua, jadi ia
+   tampak tidak berpengaruh apa-apa padahal sebenarnya tidak pernah jalan.
+
+Jawabannya: **7,2%**, bukan sekitar 83% yang saya asumsikan dari batas 80 bar.
+Sebagian besar trade selesai jauh sebelum batas itu. Biaya adminnya karena itu
+rata-rata cuma 0,33 bp.
+
+| Emas 15m, kohort gerbang, Exness Zero | Ekspektasi | t | Walk-forward |
+|---|---|---|---|
+| Tahan seperti biasa | **+0,248** | **4,32** | **8 dari 8** |
+| Tutup sebelum rollover | +0,222 | 4,30 | - |
+
+> [!IMPORTANT]
+> Aturan tutup-sebelum-rollover **merugikan**, dan itu berlawanan dengan intuisi
+> yang wajar. Hanya 7,2% trade yang membayar biaya adminnya, tetapi aturan itu
+> memotong **semuanya**. Menambahkannya untuk menghindari biaya yang jarang
+> muncul membuang lebih banyak daripada yang dihemat.
+
+Di Exness, biaya broker bukan yang menentukan strategi ini. Yang menentukan
+tetap sama seperti sebelumnya: apakah gerbang departure-nya nyata di luar sampel
+ini.
+
 #### Di luar emas, dan koreksi biaya yang harus didahulukan
 
 Sebelum uji itu bisa dijalankan, model biayanya harus diperbaiki. Versi pertama
