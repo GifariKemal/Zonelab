@@ -435,6 +435,10 @@ def trades(
             "cost_r": (friction + (spread or 0.0)) / risk if risk > 0 else 0.0,
             "won": result > 0,
             "cleared": zone.departure_atr >= 2.0,
+            # The RAW value, not just which side of the shipped gate it
+            # fell. tools/blind_gate.py needs it to choose a threshold on
+            # one half of the series without ever seeing the other.
+            "departure": zone.departure_atr,
         })
     return out
 

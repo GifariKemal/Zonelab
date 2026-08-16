@@ -25,7 +25,7 @@ import numpy as np
 
 from app.models import Candle
 from app.providers.base import INTERVALS, ProviderError
-from app.providers.dukascopy import fetch_ticks, to_candles
+from app.providers.dukascopy import fetch_ticks
 
 CACHE = Path(__file__).resolve().parent.parent / ".cache"
 BATCH = 48  # hours per round trip; wide enough to amortise, small enough to stop early
@@ -67,7 +67,18 @@ def _download(symbol: str, interval: str, bars: int) -> tuple[np.ndarray, int]:
     # returning the same first bar forever.
     ceiling = math.ceil(bars * step / 3600 * 3) + 720
 
-    ticks: list[tuple[int, float, float, float]] = []
+    # Folded into per-bar accumulators as each batch lands, NOT accumulated as
+    # ticks. Holding every tick for the whole range is what a 20000-bar pull did
+    # before this, and it reached 6 GB of resident memory before being killed:
+    # 5000 trading hours is tens of millions of 4-tuples, and Python charges
+    # over a hundred bytes for each. Folding bounds the cost by the number of
+    # BARS, which is the number actually asked for.
+    #
+    # The accumulator is order-independent on purpose - first and last are kept
+    # by tick timestamp rather than by arrival - so a bar straddling a batch
+    # boundary merges correctly instead of taking its open from whichever batch
+    # happened to be processed first.
+    acc: dict[int, list] = {}
     starts: set[int] = set()  # bucket count, so the aggregate is not rebuilt per batch
     hours = 0
     missed = 0
@@ -79,15 +90,38 @@ def _download(symbol: str, interval: str, bars: int) -> tuple[np.ndarray, int]:
         # at hour 144. Every completed hour is cached, so a tolerant pull that
         # reports its holes and is re-run converges on a complete series.
         page, failed = asyncio.run(fetch_ticks(symbol, batch, tolerate_gaps=True))
-        ticks.extend(page)
+        for ms, bid, ask, volume in page:
+            start = ms // 1000 // step * step
+            slot = acc.get(start)
+            if slot is None:
+                acc[start] = [ms, bid, ms, bid, bid, bid, volume, ask - bid, 1]
+                continue
+            if ms < slot[0]:
+                slot[0], slot[1] = ms, bid
+            if ms > slot[2]:
+                slot[2], slot[3] = ms, bid
+            slot[4] = max(slot[4], bid)
+            slot[5] = min(slot[5], bid)
+            slot[6] += volume
+            slot[7] += ask - bid
+            slot[8] += 1
         missed += failed
-        starts.update(t[0] // 1000 // step * step for t in page)
+        starts.update(acc)
         hours += BATCH
         print(f"  {symbol} {interval}: {len(starts)} bars from {hours}h"
               f"{f', {missed} hours unreachable' if missed else ''}    ", end="\r")
 
     covered_from = int((end - timedelta(hours=hours)).timestamp())
-    candles = to_candles(ticks, interval, covered_from, int(end.timestamp()))[-bars:]
+    covered_to = int(end.timestamp())
+    # Same edge rule as to_candles: a bar straddling either end of what was
+    # downloaded is dropped rather than emitted short, because its open would
+    # come from whichever tick happened to sit nearest the edge.
+    candles = [
+        Candle(time=start, open=slot[1], high=slot[4], low=slot[5],
+               close=slot[3], volume=slot[6], spread=slot[7] / slot[8])
+        for start, slot in sorted(acc.items())
+        if start >= covered_from and start + step <= covered_to
+    ][-bars:]
     if not candles:
         raise ProviderError(
             f"dukascopy served no {interval} bars for {symbol} across {hours} hours"

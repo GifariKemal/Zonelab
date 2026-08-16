@@ -1319,6 +1319,52 @@ walk-forward lain di halaman ini.
 > ujiannya sendiri setelah biaya dibebankan**. Yang belum: bukti bahwa ia
 > berlaku di luar emas dan di luar musim panas 2026.
 
+#### Ambangnya dipilih buta, dan gerbangnya bertahan
+
+Setiap uji gerbang di halaman ini membawa cacat yang sama diam-diam: **ambang 2
+ATR-nya dipilih pada data yang lebih awal.** Jadi semuanya menguji apakah ambang
+itu bertahan, bukan apakah gerbangnya nyata. Angka yang dipilih dengan
+pengetahuan belakangan bisa lolos banyak uji luar-sampel dan tetap merupakan
+pengetahuan belakangan.
+
+`tools/blind_gate.py` menutupnya satu-satunya cara yang mungkin. Deretnya dibelah
+menurut waktu, ambangnya dipilih pada paruh **pertama saja** dengan aturan yang
+ditetapkan lebih dulu, dan paruh kedua bukan sekadar tidak dipakai melainkan
+tidak dibaca. Lalu dievaluasi sekali di paruh kedua. Hasilnya adalah apa yang
+benar-benar didapat orang yang berdiri di titik tengah tanpa tahu masa depan.
+
+Aturan pemilihannya: ambang dengan **pemisahan** terlebar antara kohort yang
+lolos dan yang tidak, dengan syarat kedua kohort menyisakan minimal 50 trade.
+Pemisahan, bukan ekspektasi mentah, karena tugas gerbang adalah memilah - dan
+memaksimalkan ekspektasi saja akan melayang ke ambang yang menyisakan kelompok
+terkecil dan paling beruntung di atasnya.
+
+| Dipilih buta di paruh pertama | Diuji di paruh kedua |
+|---|---|
+| **1,0 ATR**, pemisahan +0,854 | pemisahan **+0,878**, t=12,57 |
+| (ambang yang dikirim: 2,0) | pemisahan +0,670, t=9,38 |
+
+**Pemisahan di luar sampel MELEBIHI yang di dalam sampel.** Itu kebalikan dari
+tanda tangan overfitting, yang selalu meluruh keluar sampel. Gerbangnya nyata.
+
+Dan ada bacaan kedua yang lebih berguna daripada angka utamanya. Setiap ambang
+dari 1,0 sampai 6,0 memberi pemisahan positif di paruh pertama, antara +0,41 dan
++0,85, jadi efeknya **bukan pisau di satu nilai**. Pemisahan justru paling lebar
+di ambang paling rendah, karena kohort di bawah 1,0 ATR sangat buruk (-0,773)
+sementara menaikkan ambang di atas 2,0 hampir tidak menambah apa pun ke kohort
+atasnya.
+
+> [!IMPORTANT]
+> Artinya gerbang ini bekerja dengan **membuang yang terburuk, bukan memilih yang
+> terbaik**. Itu konsisten dengan temuan lama di halaman ini bahwa di atas 2 ATR
+> tambahan departure tidak membeli apa-apa, dan itu mengubah cara memakainya:
+> 2,0 yang dikirim bersifat konservatif, ia membuang lebih banyak daripada perlu.
+> Pada 1,0 ATR jumlah trade naik dari 373 ke 521 di paruh kedua dengan pemisahan
+> yang lebih lebar.
+>
+> Batasnya: kohort bawah pada 1,0 ATR kecil, 100 trade di dalam sampel dan 119 di
+> luar. Cukup untuk dibaca, tidak cukup untuk dijadikan presisi.
+
 #### Lintas tahun, dan pada instrumen yang berbeda
 
 Delapan fold walk-forward emas kemarin semuanya di dalam 2,5 bulan yang sama.

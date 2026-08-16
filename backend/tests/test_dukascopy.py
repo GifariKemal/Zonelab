@@ -231,3 +231,59 @@ def test_only_dukascopy_fills_in_a_spread(monkeypatch):
     monkeypatch.setattr("app.providers.sources._get_json", one_kline)
     candles = asyncio.run(BinanceProvider().fetch("XAUUSD", "15m", 10))
     assert [c.spread for c in candles] == [None]
+
+
+def test_the_bulk_loader_folds_ticks_instead_of_hoarding_them(monkeypatch):
+    """Same bars as to_candles, but bounded memory.
+
+    A 20000-bar pull used to hold every tick for the whole range in one list and
+    reached 6 GB before it was killed - 5000 trading hours is tens of millions of
+    4-tuples and Python charges over a hundred bytes for each. The loader now
+    folds each batch into per-bar accumulators as it lands. That is only worth
+    doing if it produces IDENTICAL bars, which is what this asserts, and it is
+    checked across a batch boundary because that is the one place a fold can go
+    wrong: a bar split over two batches must not take its open from whichever
+    batch was processed first.
+    """
+    import numpy as np
+
+    from app.providers.dukascopy import to_candles
+    from tools import dukascopy as loader
+
+    step = 900  # 15m
+    end = datetime.now(UTC).replace(minute=0, second=0, microsecond=0)
+    base = int(end.timestamp())
+
+    # Ticks spanning several hours, several per bar, with a drifting price so
+    # open/high/low/close are all distinguishable.
+    ticks = []
+    for k in range(3000):
+        ms = (base - 200 * 3600 + k * 60) * 1000
+        bid = 4000.0 + (k % 37) * 0.1
+        ticks.append((ms, bid, bid + 0.5, 1.0))
+
+    served = {"n": 0}
+
+    async def fake_fetch(symbol, hours, tolerate_gaps=False):
+        # Hand back only the ticks inside the requested hours, so the split
+        # across batches is the real one the loader would see.
+        lo = int(min(hours).timestamp()) * 1000
+        hi = (int(max(hours).timestamp()) + 3600) * 1000
+        served["n"] += 1
+        return [t for t in ticks if lo <= t[0] < hi], 0
+
+    monkeypatch.setattr(loader, "fetch_ticks", fake_fetch)
+    rows, missed = loader._download("XAUUSD", "15m", 40)
+    assert missed == 0
+    assert served["n"] > 1, "the point is a MULTI-batch fold"
+
+    covered_from = base - 200 * 3600 - 3600
+    expected = to_candles(ticks, "15m", covered_from, base)[-40:]
+    assert len(rows) == len(expected) > 0
+    for row, want in zip(rows, expected):
+        assert int(row[0]) == want.time
+        assert row[1] == pytest.approx(want.open)
+        assert row[2] == pytest.approx(want.high)
+        assert row[3] == pytest.approx(want.low)
+        assert row[4] == pytest.approx(want.close)
+        assert row[6] == pytest.approx(want.spread)
