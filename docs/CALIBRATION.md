@@ -1319,6 +1319,50 @@ walk-forward lain di halaman ini.
 > ujiannya sendiri setelah biaya dibebankan**. Yang belum: bukti bahwa ia
 > berlaku di luar emas dan di luar musim panas 2026.
 
+#### Lintas tahun, dan pada instrumen yang berbeda
+
+Delapan fold walk-forward emas kemarin semuanya di dalam 2,5 bulan yang sama.
+Batasan itu dinyatakan terbuka, dan inilah pengujiannya. Dukascopy terlalu lambat
+untuk mengunduh bertahun-tahun (satu request per jam tick), jadi ujiannya jalan
+di **Yahoo GC=F**, yang memberi 730 hari dalam satu request.
+
+Perlu ditegaskan apa yang berubah dan apa yang tidak. Yang berubah: instrumennya
+(**futures COMEX**, bukan spot), timeframe-nya (1 jam, bukan 15 menit), dan
+periodenya (dua tahun, bukan 2,5 bulan). Yang **tidak** berubah: detektornya,
+parameternya, dan ambang gerbang 2 ATR-nya. Tidak ada yang difit ulang.
+
+| Kohort, 13.725 bar, biaya Exness Zero | n | Menang | Ekspektasi | t |
+|---|---|---|---|---|
+| **Lolos gerbang** | 748 | 72,9% | **+0,299** | **7,59** |
+| Di bawah gerbang | 532 | 47,4% | **-0,369** | -11,97 |
+| Placebo acak | 2064 | 46,2% | -0,135 | -5,45 |
+| Placebo berjangkar | 394 | 48,0% | -0,055 | -0,92 |
+
+**Walk-forward: 8 dari 8 fold positif, p=0,0078**, dari +0,184 sampai +0,416,
+dan trennya justru menanjak bukan meluruh.
+
+##### Keberatan roll kontrak, diukur lalu gugur
+
+`GC=F` adalah deret front-month kontinu yang **melompat saat roll kontrak**, dan
+lompatan itu akan dibaca setiap detektor di sini sebagai lilin impuls raksasa
+lalu digambari zona. Dua tahun memuat sekitar delapan roll, jadi keberatan ini
+harus diukur, bukan diasumsikan kecil.
+
+Diukur: **2 bar dari 13.725** punya lompatan semalam di atas 5 ATR, dan **nol
+dari 831 zona gerbang** terbentuk melintasi salah satunya. Roll-nya tidak
+mengontaminasi hasil.
+
+> [!IMPORTANT]
+> Ini koroborasi terkuat yang pernah ada di proyek ini. Gerbangnya bereproduksi
+> di **instrumen berbeda, timeframe berbeda, dan periode delapan kali lebih
+> panjang**, tanpa satu pun parameter disentuh, dan pemisahan lolos-lawan-tidak
+> justru melebar jadi 0,67 R.
+>
+> Yang masih belum: ambang 2 ATR itu **dipilih dari data yang lebih awal**, jadi
+> ini bukan uji independen atas ambangnya sendiri, melainkan uji apakah ambang
+> itu bertahan. Dan placebo berjangkar di sini t=-0,92, tidak signifikan pada
+> n=394, jadi batas bawah marginnya lebih longgar daripada di emas 15 menit.
+
 #### Diharga di broker sungguhan: Exness
 
 Selisih antara kolom sentral dan konservatif seluruhnya jadwal komisi broker,

@@ -91,7 +91,12 @@ COSTS = {
     # triggered AND is fired by a directional move, so the true figure is
     # adverse-biased above that unsigned floor. 0.5bp is the central estimate.
     "XAUUSD": {
-        "commission_bp": 0.16, "slippage_bp": 0.5, "spread_bp": None,
+        "commission_bp": 0.16, "slippage_bp": 0.5,
+        # Used only where the feed publishes no spread, which is every gold
+        # source here except Dukascopy. 1.6bp is the MEASURED median on
+        # Dukascopy ticks at the London/NY overlap, so it is a real number
+        # borrowed rather than an assumption invented.
+        "spread_bp": 1.6,
         # Overnight financing, which was missing entirely and is not a footnote:
         # 80 bars of 15m is 20 hours against a 21:00 UTC rollover, so nearly
         # every trade crosses exactly one. IBKR publishes 1.29bp/day to borrow
@@ -154,7 +159,15 @@ BROKERS: dict[str, dict[str, dict[str, float]]] = {
     # describes this strategy exactly.
     "exness_zero": {
         "XAUUSD": {
-            "commission_bp": 0.25, "slippage_bp": 0.5, "spread_bp": None,
+            "commission_bp": 0.25, "slippage_bp": 0.5,
+            # NOT None. A measured spread from the feed still wins, but a
+            # broker profile must never blank the fallback: on a feed that
+            # ships one price per bar (Yahoo, and every gold source here except
+            # Dukascopy) None means no spread is charged at all, and the run
+            # silently becomes spread-free. 0.15bp is the top of the range
+            # Exness's own zero-spread commitment implies for its top-30
+            # instruments outside the 95% window.
+            "spread_bp": 0.15,
             "swap_bp": 0.0, "admin_bp": 4.545,
         },
     },
@@ -197,14 +210,19 @@ def trades(
     control has already killed one finding here - reversals at zones were real
     and random boxes reversed just as often.
     """
-    fees = {**COSTS.get(symbol, COSTS["_default"])}
+    # The routing prefix is about WHERE the bars came from, not about what the
+    # instrument costs to trade. Without stripping it, `yahoo:XAUUSD` falls
+    # through to the crypto default and gets charged 20bp - a Binance fee
+    # schedule applied to a gold CFD, which would have made the cross-year run
+    # look catastrophic for a reason that has nothing to do with gold.
+    fees = {**COSTS.get(symbol.split(":")[-1], COSTS["_default"])}
     if conservative:
-        fees.update(CONSERVATIVE.get(symbol, {}))
+        fees.update(CONSERVATIVE.get(symbol.split(":")[-1], {}))
     if broker:
         # A broker profile REPLACES the generic assumption rather than layering
         # on it, because the whole point is to stop guessing what this trader
         # actually pays.
-        fees.update(BROKERS.get(broker, {}).get(symbol, {}))
+        fees.update(BROKERS.get(broker, {}).get(symbol.split(":")[-1], {}))
     params = _params(name)
     zones, _ = DETECTORS[name](candles, params)
 
@@ -473,11 +491,11 @@ def main() -> None:
         print(f"\n{'=' * 74}")
         print(f"{label}   {args.symbol} {args.interval}   horizon {HORIZON} bars")
         if costs:
-            fees = {**COSTS.get(args.symbol, COSTS["_default"])}
+            fees = {**COSTS.get(args.symbol.split(":")[-1], COSTS["_default"])}
             if args.conservative:
-                fees.update(CONSERVATIVE.get(args.symbol, {}))
+                fees.update(CONSERVATIVE.get(args.symbol.split(":")[-1], {}))
             if args.broker:
-                fees.update(BROKERS.get(args.broker, {}).get(args.symbol, {}))
+                fees.update(BROKERS.get(args.broker, {}).get(args.symbol.split(":")[-1], {}))
             measured = any(c.spread is not None for c in candles)
             print(f"  commission {fees['commission_bp']}bp + slippage "
                   f"{fees['slippage_bp']}bp of notional, and spread "
