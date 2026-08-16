@@ -184,6 +184,8 @@ jalankan ulang dengan `python -m tools.calibrate`.
 | Umur zona memisahkan hasil | **Terbukti**, 93.6% di bawah 10 bar lawan 77.2% di atas 59 bar, pada sentuhan pertama yang sama |
 | FVG dan Order Block menandai sesuatu yang nyata | **Terbukti**, +10 sampai +25 poin persen terhadap placebo di tiga geometri, dan keduanya kini lolos walk-forward 8 dari 8 di dua geometri |
 | Harga meneruskan arah yang membuat kotaknya | **Terbantah**, t = 0.13 sampai 1.01 di horizon utama yang ditetapkan di depan; kriterianya menuntut t di atas 3.0. Hipotesis arah keempat yang gagal |
+| Struktur pasar (BOS, CHoCH) membawa bias arah | **Tidak dikonfirmasi**, DELTA +0.072 ATR dengan t = 0.99 pada 9210 break. Tandanya positif di hampir setiap sel dan tumbuh dengan horizon, tetapi tidak melewati bar yang ditetapkan di depan |
+| CHoCH lebih informatif daripada BOS | **Terbantah**, dan berlawanan dengan doktrinnya: CHoCH t = 0.26, BOS t = 1.09 |
 
 > [!CAUTION]
 > Angka-angka di atas berubah pada 2026-08-13 karena **populasinya dulu salah**.

@@ -893,6 +893,54 @@ langkah tambahan, bukan kotaknya.
 
 **Putusan: nol.** Empat hipotesis arah didaftarkan, empat nol.
 
+### H6, struktur pasar: satu-satunya objek yang doktrinnya klaim membawa arah
+
+Semua yang diuji sebelum ini adalah objek **lokasi**. Zona, gap, dan order block
+menjawab *di mana*, dan keduanya mengalahkan placebo 10 sampai 25 poin persen.
+Tidak satu pun membawa arah. Doktrinnya sendiri mengatakan sebabnya: **ICT dan
+SMC menaruh bias arah pada STRUKTUR pasar - BOS dan CHoCH - dan memakai zona
+hanya untuk memperhalus titik masuk.** Struktur memutuskan ke mana; zona
+memutuskan di mana.
+
+Jadi selama ini keluarga objek yang diuji untuk pertanyaan arah memang keliru.
+
+`app/detect/structure.py`, dan satu aturan yang menentukan seluruhnya: **swing
+di bar ke-i baru bisa diketahui di bar ke-i+right.** Detektor yang bereaksi pada
+swing begitu ia terbentuk sedang membaca bar yang belum terjadi, dan ia akan
+menghasilkan keunggulan arah yang indah dan seluruhnya terbuat dari masa depan.
+Setiap swing membawa `confirmed_at`, setiap break hanya diuji terhadap swing yang
+sudah terkonfirmasi, dan itu **diasersikan di pengujian**, bukan dipercaya.
+
+Diukur pada 9210 break di lima deret. Estimandnya selisih **setelah break naik
+dikurangi setelah break turun**, yang membatalkan drift sampel secara persis.
+
+| Kelompok | n | DELTA @12 bar | t |
+|---|---|---|---|
+| Semua break | 9210 | +0,0724 | 0,99 |
+| BOS saja | 4581 | +0,1116 | 1,09 |
+| CHoCH saja | 4629 | +0,0273 | 0,26 |
+| Paruh pertama | 4605 | +0,1089 | 1,09 |
+| Paruh kedua | 4605 | +0,0421 | 0,40 |
+
+**Bar yang ditetapkan di depan: t >= 3,0 di horizon utama, tanda sama di kedua
+paruh, BOS dan CHoCH sepakat.** Dua kriteria terakhir lolos. Yang pertama tidak,
+dan tidak mendekat.
+
+Ini berbeda dari empat nol sebelumnya dan bedanya layak dinyatakan tepat.
+**Tandanya positif hampir di setiap sel** - kedua jenis break, kedua paruh,
+seluruh horizon - dan tumbuh dengan horizon sampai +0,295 ATR di 48 bar (t=1,86).
+Itu bukan nol datar; itu efek kecil bertanda konsisten yang **tidak melewati bar
+yang ditetapkan untuk data yang sudah menanggung sebanyak ini pengujian**. Dan
+t-nya optimistis, karena break menggerombol dan lima deretnya berkorelasi.
+
+> [!IMPORTANT]
+> Satu hal yang berlawanan langsung dengan doktrinnya: **CHoCH adalah yang
+> paling lemah** (t=0,26), lebih lemah daripada BOS (t=1,09). Doktrin
+> memperlakukan CHoCH sebagai peristiwa berinformasi tinggi, sinyal bahwa tren
+> berbalik. Di sini ia justru yang paling tidak memberi tahu apa pun.
+
+**Putusan: tidak dikonfirmasi.** Lima hipotesis arah, lima kali tidak lolos.
+
 ### Aturan berhentinya berlaku
 
 Tiga hipotesis arah dijalankan, tiga gagal. H4 menambah dua detektor yang

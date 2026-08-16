@@ -451,3 +451,113 @@ def test_both_detectors_honour_zero_as_no_cap():
 
     assert len(uncapped) > len(capped)
     assert max(z.time_from for z in capped) == max(z.time_from for z in uncapped)
+
+
+# --------------------------------------------------------------------------
+# market structure
+# --------------------------------------------------------------------------
+
+import numpy as np  # noqa: E402
+
+from app.detect.structure import bias_series, breaks, swings  # noqa: E402
+
+
+def wave(points: list[float], per: int = 3) -> list[Candle]:
+    """A zigzag through `points`, `per` bars per leg. Pivot bars are exact."""
+    rows: list[Candle] = []
+    t = T0
+    for a, b in zip(points, points[1:]):
+        for k in range(per):
+            o = a + (b - a) * k / per
+            c = a + (b - a) * (k + 1) / per
+            rows.append(bar(t, o, c, 0.01, 0.01))
+            t += STEP
+    return rows
+
+
+def test_a_swing_is_not_knowable_until_the_bars_to_its_right_have_printed():
+    """The single rule that separates this from hindsight.
+
+    A pivot at bar i is only confirmed at bar i+right. A detector that reacted
+    to it at bar i would be reading bars that had not happened, and it would
+    produce a beautiful directional edge made entirely of the future.
+    """
+    rows = wave([100, 110, 95, 115, 90], per=4)
+    high = np.array([c.high for c in rows])
+    low = np.array([c.low for c in rows])
+
+    found = swings(high, low, left=2, right=2)
+
+    assert found, "the fixture must produce pivots"
+    for s in found:
+        assert s.confirmed_at == s.index + 2
+        assert s.confirmed_at > s.index
+
+
+def test_no_break_ever_uses_a_swing_confirmed_after_it():
+    rows = wave([100, 112, 96, 118, 92, 120], per=4)
+
+    events, _ = breaks(rows, left=2, right=2)
+
+    assert events, "the fixture must produce breaks"
+    for e in events:
+        assert e.swing_index < e.index
+
+
+def test_a_wick_through_is_not_a_break():
+    """A wick beyond a swing that closes back inside is a sweep, which most
+    codifications treat as the OPPOSITE signal. Counting it as a break would
+    merge two opposite events under one name."""
+    rows = wave([100, 108, 100], per=4)
+    t = rows[-1].time + STEP
+    # A bar whose high pierces well above every prior high but closes below it.
+    peak = max(c.high for c in rows)
+    rows.append(bar(t, 100.0, 100.5, peak + 5 - 100.5, 0.5))
+    rows += [bar(t + (1 + i) * STEP, 100.0, 100.0, 0.2, 0.2) for i in range(6)]
+
+    events, _ = breaks(rows, left=2, right=2)
+
+    assert all(e.direction != 1 or rows[e.index].close > e.level for e in events)
+    pierced = [e for e in events if e.index == len(rows) - 7]
+    assert not pierced, "a wick through must not register as a break"
+
+
+def test_the_first_break_is_a_bos_not_a_choch():
+    """CHoCH means the character CHANGED. Before any break there is no
+    character, so calling the first one a change claims a turn from nothing."""
+    rows = wave([100, 112, 96, 118], per=4)
+
+    events, _ = breaks(rows, left=2, right=2)
+
+    assert events
+    assert events[0].kind == "BOS"
+    assert events[0].bias_before == 0
+
+
+def test_bias_only_ever_uses_breaks_that_already_happened():
+    rows = wave([100, 112, 96, 118, 92, 122], per=4)
+    events, _ = breaks(rows, left=2, right=2)
+    series = bias_series(rows, left=2, right=2)
+
+    assert len(series) == len(rows)
+    for e in events:
+        assert series[e.index] == e.direction
+        if e.index > 0:
+            earlier = [x for x in events if x.index < e.index]
+            expected = earlier[-1].direction if earlier else 0
+            assert series[e.index - 1] == expected
+
+
+def test_a_level_is_only_broken_once():
+    """Without clearing the level after a break, every subsequent bar above it
+    would emit another break and the event count would be meaningless."""
+    rows = wave([100, 110, 100], per=4)
+    t = rows[-1].time + STEP
+    peak = max(c.high for c in rows)
+    for i in range(8):  # eight bars all closing well above the swing high
+        rows.append(bar(t + i * STEP, peak + 5, peak + 5, 0.2, 0.2))
+
+    events, _ = breaks(rows, left=2, right=2)
+    upward = [e for e in events if e.direction == 1]
+
+    assert len(upward) == 1, f"one level, one break, got {len(upward)}"
