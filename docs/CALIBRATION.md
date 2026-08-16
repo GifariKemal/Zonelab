@@ -790,6 +790,109 @@ lemparan koin, bukan kontrol. Ia bekerja di `tools/reaction.py` hanya karena di
 sana hasilnya adalah perpindahan dari harga sentuhan, yang tidak punya makna
 tanpa sentuhan.
 
+### Kedua detektor baru lewat walk-forward
+
+Sebelumnya keduanya hanya punya kontrol placebo, dan itu dinyatakan sebagai bar
+rendah. Sekarang keduanya lewat mesin yang sama dengan gerbang departure, dengan
+populasi dikumpulkan pada gerbang **nol** supaya kohort yang ditolak benar-benar
+ada.
+
+| Detektor | Reward | Part A, ambang dikirim | Part B, ambang dipilih masa lalu |
+|---|---|---|---|
+| fvg | 1,0 ATR | 8 dari 8, p=0,0078 | 8 dari 8, p=0,0078 |
+| fvg | 2,0 ATR | 8 dari 8, p=0,0078 | 8 dari 8, p=0,0078 |
+| order_block | 1,0 ATR | 8 dari 8, p=0,0078 | 8 dari 8, p=0,0078 |
+| order_block | 2,0 ATR | 8 dari 8, p=0,0078 | 8 dari 8, p=0,0078 |
+
+> [!WARNING]
+> **Koreksi terhadap harness ini sendiri, dan ia berlaku surut ke seluruh
+> bagian B di halaman ini.** Ambang yang dipilih masa lalu untuk `order_block`
+> adalah **4,0 di kedelapan potongan, yaitu nilai tertinggi di gridnya**. Untuk
+> `fvg` ia memilih 2,0, juga mendekati ujung. Itu bukan berarti ambangnya
+> seharusnya 4,0.
+>
+> Kriteria pemilihannya adalah "maksimalkan selisih", dan kriteria itu **tidak
+> punya biaya untuk membuang kotak**. Pada besaran mana pun yang monoton -
+> dan sapuan parameter menunjukkan `displacement_atr` memang monoton, +8,3
+> sampai +18,9 - pengoptimal akan selalu hanyut ke ujung grid. Gerbang
+> departure melakukan hal yang sama pada reward 2,0 dan memilih 4,0.
+>
+> Jadi bagian B menjawab "apakah ambang bisa ditemukan dari masa lalu", bukan
+> "berapa ambangnya". Yang bermakna adalah **bagian A**: selisihnya bertahan di
+> potongan yang belum pernah dilihat, pada ambang yang benar-benar dikirim.
+
+### H5, penerusan searah, dan koreksi atas premis saya sendiri
+
+Semua uji arah sebelumnya memperlakukan kotak sebagai objek **pembalikan**:
+harga tiba, apakah ia berbalik. FVG adalah objek **penerusan** - ia lahir dari
+perpindahan berarah - dan pertanyaan itu belum pernah diajukan.
+
+**Hipotesis ini diajukan atas premis yang ternyata salah, dan koreksinya dicatat
+di sini alih-alih dibuang diam-diam.** Saya menyatakan literatur gap
+peer-reviewed mendukung penerusan. Diperiksa dengan benar, tidak, bukan dalam
+bentuk yang dibutuhkan:
+
+- Plastun dkk. (NAJEF 2020) dan Caporale & Plastun (IAJ 2017) meneliti gap
+  **semalam** dari penutupan ke pembukaan, pada bar **harian**. **96% gap FX
+  mereka jatuh di hari Senin** - objeknya sebagian besar artefak akhir pekan.
+  Milik kita ketidakseimbangan tiga bar intraday tempat perdagangan **terjadi di
+  setiap harga**. Tidak ada informasi tertahan yang perlu diserap, jadi
+  mekanismenya tidak berpindah.
+- Efek penerusan mereka **satu sesi saja**, secara eksplisit mengecualikan
+  lompatan gap-nya sendiri, nol pada 1 sampai 3 hari, dan meluruh setelah 1990-an.
+- Hasil FX Caporale & Plastun justru **peluruhan hari yang sama**, bukan
+  penerusan.
+- Yang bertahan hanya satu: keduanya membantah bahwa gap cenderung tertutup.
+
+Dan yang melawannya:
+
+- Struktur suku bunga autokorelasi return intraday **negatif** di seluruh rentang
+  5 sampai 60 menit, dengan minimum globalnya dekat 15 menit. Penerusan hanya
+  muncul di horizon di bawah satu menit.
+- Analog terukur terdekat - "bar ekspansi" pada 72.604 bar lima menit - kembali
+  dengan tanda **berlawanan secara signifikan**, t = -10,96, dengan diagnosis
+  yang persis konfon di sini: ledakannya habis di dalam bar yang membuatnya.
+- Penerusan angka bulat milik Osler adalah satu-satunya mekanisme bersih di
+  literatur. Nilainya **0,7 basis poin**, mati dalam dua jam, dan bekerja karena
+  angka bulat adalah titik fokus tanpa koordinasi. Tepi kotak hasil detektor
+  bukan: ia bergantung pada interval bar, ambang, dan wick-lawan-badan, jadi dua
+  trader menggambar kotak berbeda dan gugusan order-nya tidak pernah terbentuk.
+
+Jadi prior-nya **rendah**, dan itu menaikkan bar bukan menurunkannya. Ditulis
+sebelum angkanya ada.
+
+**Konfon yang punya nama.** Menyeleksi peristiwa berdasarkan return sebelum
+peristiwa memproduksi return abnormal dari ketiadaan (Ahern, *Sample Selection
+and Event Study Estimation*), dan biasnya **paling besar justru ketika efek
+sebenarnya kecil** - yaitu rezim di sini. Dua pemisahan dipakai: **dormansi**,
+hanya sentuhan yang terjadi minimal 10 bar setelah kotak lahir, sehingga
+perpindahannya seluruhnya di luar jendela ukur; dan **bucket momentum sebelumnya**.
+
+Horizon utama **12 bar, ditetapkan sebelum melihat apa pun**.
+
+| Detektor | n sentuhan dorman | Rerata di 12 bar | t | Berakhir positif |
+|---|---|---|---|---|
+| fvg | 2727 | +0,0755 ATR | 1,01 | 52,7% |
+| order_block | 6761 | +0,0058 ATR | 0,13 | 52,6% |
+| supply_demand | 1981 | +0,0218 ATR | 0,27 | 51,5% |
+
+Kriteria konfirmasi menuntut **t >= 3,0** setelah koreksi atas seluruh keluarga
+uji yang sudah dijalankan pada data ini. Tidak satu pun mendekati.
+
+Pada FVG, t naik ke 2,30 di horizon 48 bar - di luar horizon utama, dan bucket
+momentum sebelumnya menunjukkan efeknya terbesar justru di bucket teratas
+(+0,1723 lawan +0,0161 di terbawah). Itu momentum yang ditemukan ulang dengan
+langkah tambahan, bukan kotaknya.
+
+> [!NOTE]
+> Subsampel pembeda yang paling tajam **tidak ada di konstruksi ini**. Sentuhan
+> pertama menurut definisi terjadi ketika harga tiba dari luar kotak, jadi
+> seluruh 11.469 peristiwa mendekat dari sisi dekat dan **nol** menembus kotak.
+> Uji yang akan memisahkan penerusan dari pembalikan membutuhkan sentuhan
+> pasca-inversi, dan itu detektor yang berbeda lagi.
+
+**Putusan: nol.** Empat hipotesis arah didaftarkan, empat nol.
+
 ### Aturan berhentinya berlaku
 
 Tiga hipotesis arah dijalankan, tiga gagal. H4 menambah dua detektor yang

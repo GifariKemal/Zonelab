@@ -28,6 +28,13 @@ import { chromium } from "playwright";
 const OUT = process.argv[2];
 const INTERVAL = process.argv[3] ?? "15m";
 const BARS = Number(process.argv[4] ?? 500);
+// Which detector's boxes to read back off the canvas. Until this argument
+// existed, the claim that fair value gaps and order blocks are painted where
+// their numbers say rested on "they go through the same primitive" - which is
+// reasoning, not measurement, and this project has been wrong four times about
+// things it reasoned instead of measuring.
+const DETECTOR = process.argv[5] ?? "supply_demand";
+const BUTTON = { supply_demand: "S&D", fvg: "FVG", order_block: "OB" }[DETECTOR];
 const API = "http://127.0.0.1:8100";
 
 // The border is a 1px stroke at a half-pixel offset and the box is rounded to
@@ -52,16 +59,27 @@ await page.locator(`div[aria-label="Timeframe"] button:text-is("${INTERVAL}")`).
 await page.locator("select").nth(2).selectOption(String(BARS));
 await page.waitForTimeout(6000);
 
+// Leave exactly ONE detector on, so the boxes painted on the canvas are the
+// same set the fetch below returns. With two on, every box from the other
+// detector is paint the record cannot account for, and each one reads as a
+// drawing that went missing.
+if (DETECTOR !== "supply_demand") {
+  await page.locator(`div[aria-label="Detectors"] button:text-is("${BUTTON}")`).click();
+  await page.waitForTimeout(2500);
+  await page.locator('div[aria-label="Detectors"] button:text-is("S&D")').click();
+  await page.waitForTimeout(6000);
+}
+
 const drawn = await page.evaluate(
-  async ([api, interval, bars]) => {
+  async ([api, interval, bars, detector]) => {
     const r = await fetch(`${api}/api/draw`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ symbol: "XAUUSD", interval, bars, detectors: ["supply_demand"] }),
+      body: JSON.stringify({ symbol: "XAUUSD", interval, bars, detectors: [detector] }),
     });
     return r.json();
   },
-  [API, INTERVAL, BARS],
+  [API, INTERVAL, BARS, DETECTOR],
 );
 
 const { candles, drawing } = drawn;

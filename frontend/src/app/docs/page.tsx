@@ -908,6 +908,10 @@ function Bukti() {
             <span key="n"><Yes>Terbukti terhadap placebo.</Yes> +10 sampai +25 poin persen di ketiga geometri, n antara 12.700 dan 21.600. Tetapi itu standar yang lebih rendah: kontrol berat dan walk-forward hanya ada untuk Supply dan Demand.</span>,
           ],
           [
+            "Harga meneruskan arah yang membuat kotaknya",
+            <span key="o"><No>Terbantah.</No> Horizon utama 12 bar ditetapkan di depan: t = 1,01 untuk FVG, 0,13 untuk Order Block, 0,27 untuk Supply dan Demand. Kriterianya menuntut t di atas 3,0. Ini hipotesis arah keempat yang gagal.</span>,
+          ],
+          [
             "Umur zona memisahkan hasil",
             <span key="m"><Yes>Terbukti.</Yes> 93,6% pada zona berumur di bawah 10 bar lawan 77,2% di atas 59 bar, pada sentuhan pertama yang sama. Ini satu-satunya temuan arah-hasil yang selamat, dan ia sejalan dengan literatur akademik.</span>,
           ],

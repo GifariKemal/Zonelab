@@ -546,6 +546,31 @@ Jadi `min_profit_zone_rr` **mati secara bawaan**. Memeringkat di dalam sampel da
 bertahan sebagai gerbang di luar sampel adalah dua hal berbeda, dan hanya yang
 kedua yang cukup untuk menyalakan sesuatu.
 
+## Kanvas dibaca balik untuk kedua detektor baru
+
+Selama beberapa hari klaim bahwa FVG dan order block tergambar di tempat yang
+benar bersandar pada "keduanya lewat primitif gambar yang sama yang sudah
+diverifikasi 0,5 piksel". Itu **penalaran, bukan pengukuran**, dan proyek ini
+sudah empat kali keliru soal hal yang dinalar alih-alih diukur.
+`e2e/pixel-truth.mjs` sekarang menerima nama detektor.
+
+| Detektor | Kotak terukur | Tepi atas terburuk | Tepi bawah terburuk | Hasil |
+|---|---|---|---|---|
+| supply_demand | 9 | 0,5 px | 1,8 px | 6 dari 6 |
+| fvg | 13 | 0,5 px | 1,7 px | **6 dari 6** |
+| order_block | 24 | 0,5 px | 1,8 px | **5 dari 6** |
+
+**Order block gagal satu asersi, dan itu dicatat apa adanya:** tepi kiri terbaca
+pada 23 dari 24 kotak, sementara asersinya menuntut seluruhnya. Kotak order block
+adalah **rentang satu candle**, jadi tepi kirinya duduk setengah bar dari
+candle-nya sendiri - kasus yang secara geometris lebih sempit daripada base
+berbilang bar milik supply and demand. Satu kotak dari 24 kalah oleh candle
+tetangganya.
+
+Ini cacat kecil pada keterbacaan, bukan pada penempatan: penempatan vertikalnya
+tetap 0,5 dan 1,8 piksel, sama dengan detektor lama. Dilaporkan sebagai gagal
+karena memang gagal.
+
 ## Yang belum diuji
 
 - **Premis mekaniknya sendiri.** Cerita "order institusional yang belum terisi"

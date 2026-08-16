@@ -60,6 +60,11 @@ from tools.calibrate import POPULATION, SHIPPED_GATE, Observation, evaluate
 # test over k slices bottoms out at 2 / 2^k, so five graded slices cannot report
 # below 0.0625 even when every one of them agrees. A test whose best possible
 # answer is "not significant" is not a test, and at eight the floor is 0.008.
+SERIES = [
+    ("PAXGUSDT", "15m"), ("PAXGUSDT", "1h"),
+    ("BTCUSDT", "15m"), ("BTCUSDT", "1h"), ("ETHUSDT", "1h"),
+]
+
 FOLDS = 9
 
 # Two quantities are gated on, and both go through the same mill. `departure`
@@ -92,6 +97,15 @@ GATES = {
     "age_bars": ([0.0, 5.0, 10.0, 20.0, 40.0, 80.0, 160.0], 20.0, "worked negative"),
 }
 
+# The two newer detectors gate on their own displacement: gap height in ATR for
+# a fair value gap, impulse size for an order block. Both entered the project on
+# the placebo control alone, which was stated as the low bar it is. This is the
+# part that decides whether their shipped thresholds are worth keeping.
+DETECTOR_GATES = {
+    "fvg": ([0.0, 0.1, 0.25, 0.5, 1.0, 2.0], 0.1, "shipped min_gap_atr"),
+    "order_block": ([0.5, 1.0, 1.5, 2.0, 2.5, 4.0], 1.5, "shipped displacement_atr"),
+}
+
 
 @dataclass
 class Marked:
@@ -100,6 +114,70 @@ class Marked:
     observation: Observation
     position: float  # 0.0 at the start of the series, 1.0 at the end
     horizon_end: float  # same scale, but where its label finished resolving
+
+
+def gather_detector(
+    name: str, bars: int, reward: float, horizon: int, mode: str = "atr"
+) -> list[Marked]:
+    """The same slicing for a detector that has no gate of its own yet.
+
+    `fvg` and `order_block` entered on the placebo control alone, which is the
+    low bar and was stated as such. This puts them through the part that
+    actually decides whether a threshold is worth shipping: does the gap survive
+    on slices of history nobody looked at when the threshold was picked.
+
+    Their observations carry the detector's own displacement in `departure` -
+    gap height in ATR for a fair value gap, impulse size for an order block - so
+    the grid machinery works unchanged and only the population differs.
+    """
+    from app.detect import DETECTORS
+    from app.indicators import wilder_atr
+    from app.models import ImbalanceParams
+    from tools.calibrate import resolve as _resolve
+
+    # The gate under test is set to ZERO so the rejected cohort exists at all.
+    # Collecting through the shipped threshold instead leaves a population where
+    # every event already passed, part A has nothing to compare against, and the
+    # table prints "too few" on every slice while looking like it ran. That is
+    # the same trap `POPULATION` in tools/calibrate.py exists to avoid, met
+    # again on a different detector.
+    params = ImbalanceParams(
+        max_zones_per_side=0, show_broken=True,
+        min_gap_atr=0.0, displacement_atr=0.0,
+    )
+    out: list[Marked] = []
+    for symbol, interval in SERIES:
+        candles = history.load(symbol, interval, bars)
+        zones, _ = DETECTORS[name](candles, params)
+        high = np.array([c.high for c in candles])
+        low = np.array([c.low for c in candles])
+        close = np.array([c.close for c in candles])
+        atr = wilder_atr(high, low, close, params.atr_period)
+        index_of = {c.time: i for i, c in enumerate(candles)}
+        n = len(candles)
+
+        for zone in zones:
+            if zone.first_test_time is None:
+                continue
+            touch = index_of.get(zone.first_test_time)
+            if touch is None:
+                continue
+            outcome = _resolve(
+                zone, high, low, close, atr, touch, reward, horizon, mode
+            )
+            if outcome is None:
+                continue
+            out.append(
+                Marked(
+                    Observation(
+                        zone.side.value, zone.kind.value, touch, outcome,
+                        {}, 0.0, zone.departure_atr,
+                    ),
+                    touch / n,
+                    min(1.0, (touch + horizon) / n),
+                )
+            )
+    return out
 
 
 def gather(bars: int, reward_atr: float, horizon: int) -> list[Marked]:
@@ -139,7 +217,12 @@ def value_of(observation: Observation, field: str) -> float:
     """The quantity a gate is applied to. `departure` is its own attribute; the
     road ahead lives in `factors`, recomputed as of the touch by `score_as_of`
     so it never knows about walls that were built later."""
-    if field == "departure":
+    # `fvg` and `order_block` name a DETECTOR rather than a factor, and the
+    # quantity their gate moves - gap height, impulse size - is what
+    # `gather_detector` puts in `departure`. Without this they look for a factor
+    # of their own name and raise, which is at least a loud failure rather than
+    # a silent zero.
+    if field in ("departure", "fvg", "order_block"):
         return observation.departure
     return observation.factors[field]
 
@@ -181,11 +264,17 @@ def sign_test(successes: int, trials: int) -> float:
     return min(1.0, 2 * tail)
 
 
-def run(marked: list[Marked], reward_atr: float, horizon: int, field: str) -> dict:
-    grid, shipped, status = GATES[field]
+def run(
+    marked: list[Marked], reward_atr: float, horizon: int, field: str,
+    gates: dict | None = None, label: str = "",
+) -> dict:
+    grid, shipped, status = (gates or GATES)[field]
     edges = np.linspace(0.0, 1.0, FOLDS + 1)
     print(f"\n{'=' * 78}")
-    print(f"WALK-FORWARD on {field}   reward {reward_atr} ATR, horizon {horizon} bars")
+    print(
+        f"WALK-FORWARD on {label or field}   reward {reward_atr} ATR,"
+        f" horizon {horizon} bars"
+    )
     print(f"{'=' * 78}")
 
     print(f"\n  A. the gate at {shipped} ({status}), applied unchanged to each slice")
@@ -299,6 +388,16 @@ def main() -> None:
         for field in GATES:
             everything[f"{field}_r{reward_atr}_h{horizon}"] = run(
                 marked, reward_atr, horizon, field
+            )
+
+        # The two newer detectors, on their own populations. `departure` here
+        # carries the detector's own displacement, so the same grid machinery
+        # applies to a different question.
+        for name in DETECTOR_GATES:
+            events = gather_detector(name, args.bars, reward_atr, horizon)
+            everything[f"{name}_r{reward_atr}_h{horizon}"] = run(
+                events, reward_atr, horizon, name, DETECTOR_GATES,
+                f"{name} displacement",
             )
 
     if args.json:
