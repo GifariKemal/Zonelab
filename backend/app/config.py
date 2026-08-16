@@ -19,6 +19,15 @@ class Settings(BaseSettings):
     twelvedata_key: str = ""
     polygon_key: str = ""
 
+    # The language model, used ONLY to phrase and to look - never to decide.
+    # Empty means the feature is off and says so, exactly like a missing vendor
+    # key: a model that cannot be reached must produce a refusal, not silence
+    # and not a guess.
+    llm_key: str = ""
+    llm_model: str = "glm-5.3"
+    llm_base_url: str = "https://open.bigmodel.cn/api/paas/v4"
+    llm_timeout_seconds: float = 60.0
+
     # Upstream fetches are cached this long. Intraday bars do not change once
     # closed, so this only ever costs freshness on the forming bar.
     cache_ttl_seconds: int = 20

@@ -317,7 +317,30 @@ def detect(
             overlap = 1.0  # a single bar trivially overlaps itself
 
         # --- departure: how far the leg-out ran away from the zone ---------
+        # CLIPPED AT THE FIRST TOUCH, and this is not a refinement. Without the
+        # clip the window keeps running after price has already come back, so
+        # the gate is decided partly by bars that printed AFTER the only moment
+        # a trader could have acted on it.
+        #
+        # tools/calibrate.py has always clipped - `score_as_of` says so in its
+        # own docstring - so the harness and the product were running two
+        # different gates and only one of them was honest. Measured on 24,000
+        # bars across three series: the first touch lands inside the lookahead
+        # window for 87% of touched zones, and 34% of the zones the product drew
+        # would have FAILED the gate applied as of the touch. Zero went the
+        # other way, because the unclipped window is a superset. That is
+        # systematic over-admission, not noise, and it means the drawn
+        # population was never the measured population.
+        first_touch = None
+        for j in range(leg_out[2] + 1, n):
+            if low[j] <= top and high[j] >= bottom:
+                first_touch = j
+                break
         look_to = min(n, leg_out[1] + params.departure_lookahead)
+        if first_touch is not None:
+            # max(), so a zone touched immediately still has one bar of window
+            # rather than an empty slice.
+            look_to = max(leg_out[1] + 1, min(look_to, first_touch))
         if is_demand:
             excursion = float(high[leg_out[1] : look_to].max()) - proximal
         else:

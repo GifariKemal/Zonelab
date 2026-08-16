@@ -211,7 +211,7 @@ def _annotate(
         scale = float(atr[-1])
         plan = plan_for(
             zone, scale, now, INTERVALS[request.interval],
-            equity=request.equity, spread=spread,
+            equity=request.equity, lot=request.lot, spread=spread,
         )
         if plan is not None:
             plans.append(plan)

@@ -698,3 +698,33 @@ def test_zero_disables_the_per_side_cap():
     newest = max(z.time_from for z in uncapped)
     assert max(z.time_from for z in capped) == newest
     assert min(z.time_from for z in capped) > min(z.time_from for z in uncapped)
+
+
+def test_the_departure_window_stops_at_the_first_touch():
+    """The bug that made every gate number in this project too generous.
+
+    tools/calibrate.py always clipped the departure lookahead at the first
+    touch, and said why in `score_as_of`: the finished chart's value knows more
+    than the trader did. The detector never clipped, so the harness and the
+    product ran two different gates under one name for months. Measured across
+    24000 bars, 34% of drawn zones would have FAILED the honest gate and 0%
+    went the other way.
+
+    Here price leaves the base modestly, comes straight back into it, and only
+    THEN runs away hard. The runaway happened after the trader's only moment to
+    act, so the zone must not be credited with it.
+    """
+    rows = (
+        flat(120.0, 6)
+        + leg(120.0, -4.0, 5)       # leg in: drop to 100
+        + flat(100.0, 3)            # the base
+        + leg(100.0, 3.0, 2)        # modest leg out, to 106
+        + leg(106.0, -3.0, 2)       # straight back into the base
+        + leg(100.0, 8.0, 12)       # the run the zone must NOT claim
+        + flat(196.0, 10)
+    )
+    zones, _ = detect(build(rows), params(departure_min_atr=0.0,
+                                          max_zones_per_side=0, show_broken=True))
+    assert zones, "the formation should still be detected"
+    # Without the clip the 72-point run after the touch inflates this hugely.
+    assert max(z.departure_atr for z in zones) < 15.0

@@ -461,6 +461,53 @@ class ImbalanceParams(BaseModel):
     max_zones_per_side: int = Field(default=6, ge=0, le=100)
 
 
+class LotSpec(BaseModel):
+    """What the venue will actually accept as an order size.
+
+    Every field here is a BROKER fact, not a market fact, and getting one wrong
+    is not a rounding error. Standard Cent redefines a lot as 1 troy ounce
+    rather than 100, so treating a cent balance as USD sizes every position 100x
+    too large.
+
+    `volume_step` is the one Exness documents as a field and never publishes a
+    value for: its API exposes `volume_step` and rejects with
+    TRADING_RULE_INVALID_VOLUME_STEP, but no page states the number for gold.
+    0.01 is an INFERENCE from `volume_min`, which Exness does publish, and it is
+    defaulted here so the code runs - it should be replaced by the live value
+    from the terminal or the API rather than trusted.
+    """
+
+    contract_size: float = Field(
+        default=100.0,
+        gt=0.0,
+        description="Units per lot. 100 troy ounces for XAUUSD; 1 on Standard Cent.",
+    )
+    volume_min: float = Field(default=0.01, gt=0.0)
+    volume_max: float = Field(default=200.0, gt=0.0)
+    volume_step: float = Field(
+        default=0.01,
+        gt=0.0,
+        description="Inferred from volume_min, not published. Read it at runtime.",
+    )
+    commission_round_turn: float = Field(
+        default=0.0,
+        ge=0.0,
+        description=(
+            "Per lot, both sides, in account currency. Exness charges both at "
+            "OPEN: 0 on Standard/Cent/Pro, 7.00 on Raw Spread, 11.00 on Zero."
+        ),
+    )
+    leverage: float = Field(
+        default=2000.0,
+        gt=0.0,
+        description=(
+            "Used only for the margin check. Exness steps this down by equity - "
+            "1:2000 under 30k, 1:1000 to 100k, 1:500 above - and caps XAU at "
+            "1:200 to 1:1000 inside a Higher Margin Requirement window."
+        ),
+    )
+
+
 class TradePlan(BaseModel):
     """What a trade at one zone would look like, with no view on whether to take it.
 
@@ -492,6 +539,36 @@ class TradePlan(BaseModel):
     reward_r: float | None
     units: float | None = Field(
         description="Position size, only when an account equity was supplied"
+    )
+    lots: float | None = Field(
+        default=None,
+        description=(
+            "The size an order can actually carry: floored to the venue's step, "
+            "clamped to its maximum. None when no equity was given, or when the "
+            "trade is not placeable at all."
+        ),
+    )
+    placeable: bool = Field(
+        default=True,
+        description=(
+            "False when the size floors BELOW the venue's minimum. Rounding it "
+            "up instead would risk more than the budget by construction, so the "
+            "honest answer is that this account cannot take this trade."
+        ),
+    )
+    realised_risk: float | None = Field(
+        default=None,
+        description=(
+            "What the FLOORED size actually risks, including commission. Not the "
+            "budget: one step is a large fraction of a small account's budget, "
+            "so nominal and realised diverge sharply there and only the realised "
+            "figure is true."
+        ),
+    )
+    realised_risk_pct: float | None = None
+    margin_required: float | None = Field(
+        default=None,
+        description="At the stated leverage. Zero when leverage is unlimited.",
     )
 
     age_bars: int
@@ -553,6 +630,14 @@ class DrawRequest(BaseModel):
     interval: str = "15m"
     bars: int = Field(default=500, ge=50, le=5000)
     provider: str | None = None
+    lot: LotSpec = Field(
+        default_factory=LotSpec,
+        description=(
+            "Venue rules the size must obey. Defaults describe Exness XAUUSD on "
+            "a standard account; `volume_step` in particular is inferred rather "
+            "than published and should be replaced with the live value."
+        ),
+    )
     equity: float | None = Field(
         default=None,
         gt=0.0,

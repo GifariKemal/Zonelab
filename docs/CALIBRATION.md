@@ -1319,6 +1319,59 @@ walk-forward lain di halaman ini.
 > ujiannya sendiri setelah biaya dibebankan**. Yang belum: bukti bahwa ia
 > berlaku di luar emas dan di luar musim panas 2026.
 
+#### KOREKSI 2026-08-17: gerbangnya diukur dengan lookahead, dan angkanya turun
+
+Setiap angka gerbang departure di halaman ini sebelum tanggal ini **dihitung
+dengan lookahead**, dan koreksinya besar. Ini temuan terpenting di proyek ini,
+dan ia ditemukan dengan mengaudit jalur live, bukan dengan mengukur ulang.
+
+`tools/calibrate.py` selalu memotong jendela departure di sentuhan pertama -
+docstring `score_as_of` menyatakannya sendiri: "nilai chart yang sudah jadi tahu
+lebih banyak daripada trader saat itu". **Detektor produknya tidak pernah
+memotong.** Jadi harness dan produk menjalankan dua gerbang berbeda, dan hanya
+satu yang jujur.
+
+Diukur di 24.000 bar, tiga deret:
+
+| | BTCUSDT 15m | BTCUSDT 1h | ETHUSDT 1h |
+|---|---|---|---|
+| Sentuhan pertama jatuh **di dalam** jendela lookahead | 87,4% | 85,1% | 85,9% |
+| Lolos gerbang lama, **gagal** gerbang jujur | **34,0%** | 33,2% | 29,5% |
+| Gagal gerbang lama, lolos gerbang jujur | **0,0%** | 0,0% | 0,0% |
+
+Nol ke arah sebaliknya, karena jendela yang tidak dipotong adalah superset. Itu
+**over-admisi sistematis satu arah**, bukan derau. Sepertiga zona yang digambar
+tidak pernah memenuhi syarat pada saat ia bisa ditindaklanjuti.
+
+**Apa yang berubah setelah dipotong:**
+
+| | Sebelum (lookahead) | Sesudah (jujur) |
+|---|---|---|
+| **Emas 1 jam, dua tahun** | | |
+| n kohort gerbang | 748 | **342** |
+| Ekspektasi | +0,299 (t=7,59) | **+0,235 (t=3,76)** |
+| Di bawah gerbang | -0,369 | **-0,056** |
+| Pemisahan | 0,668 | **0,291** |
+| Walk-forward | 8/8 | **8/8, p=0,0078** |
+| **Emas 15 menit, 5000 bar** | | |
+| Ekspektasi | +0,248 (t=4,32) | **+0,205 (t=2,09)** |
+| Walk-forward | 8/8 | tidak bisa dibaca, n terlalu kecil |
+
+**Bacaan yang jujur, dalam tiga kalimat.** Gerbangnya masih nyata pada sampel
+besar: t=3,76 melewati ambang yang ditetapkan di depan, walk-forward tetap 8
+dari 8, dan ia tetap mengalahkan kedua placebo. Pada sampel kecil ia **tidak**
+lagi melewati ambangnya. Dan kekuatannya selama ini **dilebih-lebihkan kira-kira
+dua kali lipat** - sebagian besar dari "kohort di bawah gerbang itu buruk sekali"
+ternyata zona yang hanya tampak lemah karena departure-nya diukur dengan
+pengetahuan belakangan.
+
+> [!CAUTION]
+> Yang membuat ini pelajaran, bukan sekadar bug: harness-nya **benar sejak
+> awal** dan menyatakan alasannya di docstring-nya sendiri. Yang gagal adalah
+> mengasumsikan produk mewarisi kedisiplinan harness-nya. Dua gerbang berbeda
+> dengan nama yang sama hidup berdampingan selama berbulan-bulan, dan tidak satu
+> pun tes menangkapnya karena tidak ada tes yang membandingkan keduanya.
+
 #### Ambangnya dipilih buta, dan gerbangnya bertahan
 
 Setiap uji gerbang di halaman ini membawa cacat yang sama diam-diam: **ambang 2

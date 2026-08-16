@@ -36,7 +36,9 @@ departure gate in disguise.
 
 from __future__ import annotations
 
-from .models import TradePlan, Zone, ZoneSide
+import math
+
+from .models import LotSpec, TradePlan, Zone, ZoneSide
 
 # Measured cohort survival at reward 2.0 ATR, from docs/CALIBRATION.md. Held as
 # named constants so a doc edit and a code edit cannot silently disagree.
@@ -75,6 +77,7 @@ def build(
     stop_buffer_atr: float = DEFAULT_STOP_BUFFER_ATR,
     equity: float | None = None,
     risk_pct: float = 0.01,
+    lot: LotSpec | None = None,
     spread: float | None = None,
 ) -> TradePlan | None:
     """The geometry of a trade at this zone, or None if it has no geometry.
@@ -145,6 +148,52 @@ def build(
             "biaya; pada XAUUSD dari Dukascopy biayanya nyata dan dibebankan."
         )
 
+    lots = placeable = realised = realised_pct = margin = None
+    if equity is not None and lot is not None:
+        # Exness's own PnL formula: loss = volume x contractSize x price move.
+        # Commission is charged on BOTH sides at OPEN, so it belongs in the
+        # risk per lot rather than being netted off the result later.
+        per_lot = lot.contract_size * risk + lot.commission_round_turn
+        raw = (equity * risk_pct) / per_lot if per_lot > 0 else 0.0
+        # FLOOR, never round to nearest. Rounding up would let realised risk
+        # exceed the budget, and a risk limit that can be exceeded by rounding
+        # is not a limit.
+        stepped = math.floor(raw / lot.volume_step) * lot.volume_step
+        stepped = min(round(stepped, 8), lot.volume_max)
+
+        if stepped < lot.volume_min:
+            # A REJECT, not a clamp up to the minimum. The minimum lot risks
+            # more than the budget by construction here, so clamping would
+            # silently break the very limit the caller asked for. A small
+            # account with a wide stop simply cannot take this trade, and
+            # saying so is the whole point.
+            placeable = False
+            warnings.append(
+                f"Ukuran minimum {lot.volume_min:g} lot akan mempertaruhkan "
+                f"{lot.volume_min * per_lot:,.2f}, di atas anggaran risiko "
+                f"{equity * risk_pct:,.2f}. Akun sebesar ini tidak bisa "
+                f"mengambil trade dengan stop selebar ini - dinaikkan ke lot "
+                f"minimum justru melanggar batas risikonya sendiri."
+            )
+        else:
+            lots, placeable = stepped, True
+            realised = stepped * per_lot
+            realised_pct = realised / equity
+            margin = (
+                stepped * lot.contract_size * entry_filled / lot.leverage
+                if lot.leverage > 0 else 0.0
+            )
+            # One step is a large slice of a small account's budget, so the
+            # nominal risk fraction and the real one part company exactly where
+            # the user can least afford the difference.
+            if abs(realised_pct - risk_pct) > 0.1 * risk_pct:
+                warnings.append(
+                    f"Setelah dibulatkan ke bawah ke {stepped:g} lot, risiko "
+                    f"sebenarnya {realised_pct:.2%}, bukan {risk_pct:.2%} yang "
+                    f"diminta. Satu langkah lot adalah bagian besar dari "
+                    f"anggaran akun sekecil ini."
+                )
+
     return TradePlan(
         zone_id=zone.id,
         side=zone.side,
@@ -158,6 +207,11 @@ def build(
             if equity is not None and risk > 0
             else None
         ),
+        lots=lots,
+        placeable=True if placeable is None else placeable,
+        realised_risk=round(realised, 2) if realised is not None else None,
+        realised_risk_pct=round(realised_pct, 6) if realised_pct is not None else None,
+        margin_required=round(margin, 2) if margin is not None else None,
         age_bars=int(age_bars),
         departure_held_rate=HELD_CLEARED_GATE if cleared else HELD_BELOW_GATE,
         age_held_rate=_age_held_rate(int(age_bars)),

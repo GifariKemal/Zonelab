@@ -59,6 +59,41 @@ def resolve(name: str | None) -> Provider:
     return provider
 
 
+def drop_forming(candles: list[Candle], interval: str) -> list[Candle]:
+    """Remove the bar that has not finished yet, for EVERY provider.
+
+    Four of the six ship it: binance returns the open kline, twelvedata and
+    polygon include the current period, and yahoo appends the live quote as a
+    pseudo-bar stamped with the quote time rather than the bar open - so it is
+    not even on the interval grid, has zero range, and is therefore classified
+    as a base bar by construction. Only dukascopy is clean, because it never
+    requests the current hour.
+
+    Every one of those makes the detector read a bar whose high, low and close
+    are still moving. Measured over 599 real 15m formations: 42 zone states
+    changed and changed back INSIDE one bar, 15 zones vanished and returned, and
+    a stop's risk-per-unit swung 14% in 90 seconds with no bar having closed.
+    None of that is the market. It is an unclosed bar being treated as evidence.
+
+    The guard lives HERE, at the one point every caller routes through, rather
+    than in each provider or inside `resample`. Putting it in resample would
+    leave the same wrong assumption sitting in `detect`; putting it per provider
+    guarantees the next provider forgets it.
+
+    Consequence worth stating: the chart is now always at least one bar behind
+    live price. That is the correct trade. A drawing computed from a bar that
+    has not closed is a drawing that will change, and this project measured its
+    numbers on closed bars.
+    """
+    if not candles:
+        return candles
+    step = INTERVALS.get(interval)
+    if step is None:
+        return candles
+    now = int(time.time())
+    return candles[:-1] if candles[-1].time + step > now else candles
+
+
 async def get_candles(
     symbol: str, interval: str, bars: int, provider_name: str | None = None
 ) -> tuple[list[Candle], str]:
@@ -82,7 +117,7 @@ async def get_candles(
         if hit and time.monotonic() - hit[0] < settings.cache_ttl_seconds:
             return hit[1], provider.name
 
-        candles = await provider.fetch(symbol, interval, bars)
+        candles = drop_forming(await provider.fetch(symbol, interval, bars), interval)
         if not candles:
             raise ProviderError(f"{provider.name} returned no candles for {symbol}")
         _cache[key] = (time.monotonic(), candles)
@@ -96,6 +131,7 @@ __all__ = [
     "Provider",
     "ProviderError",
     "availability",
+    "drop_forming",
     "get_candles",
     "resolve",
 ]
