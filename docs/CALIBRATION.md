@@ -1172,6 +1172,55 @@ Pertanyaan arah dari gambar ditutup di sini. Bukan karena kehabisan ide,
 melainkan karena dua konstruk ICT terakhir yang benar-benar membawa klaim arah
 sudah diuji dan keduanya gagal, satu di antaranya signifikan ke arah sebaliknya.
 
+### H10, momentum, dan angka yang selama ini menggelembung
+
+Sembilan hipotesis gagal mengeluarkan arah dari gambar. Yang selalu muncul
+sebagai gantinya, setiap kali dipakai sebagai **kontrol**, adalah gerak
+sebelumnya: bar yang tidak membawa apa pun selain "harga sedang naik" memisahkan
+return lebih baik daripada kotak mana pun. Kontrol H8 memberi +0,164 dengan
+t=3,83. Itu momentum deret waktu, mapan dan peer-reviewed, dan sama sekali tidak
+membutuhkan gambar - jadi ia kandidat paling jujur untuk satu komponen yang
+hilang dari Zonelab.
+
+Ia juga kandidat yang paling mungkin artefak, karena setiap angka kontrol itu
+diukur dengan cara yang proyek ini kritik di tempat lain: 4000 bar acak dari
+20.000, masing-masing dengan jendela maju 48 bar. Jendela-jendela itu bertumpang
+tindih besar-besaran, jadi pengamatannya jauh dari independen dan galat bakunya
+diremehkan.
+
+`tools/momentum.py` mengambil sampel **tidak bertumpang tindih**: sampel
+berurutan berjarak lookback ditambah horizon, sehingga tidak ada bar yang berada
+di dua lookback atau dua jendela maju. Itu membuang sebagian besar sampelnya
+dengan sengaja. n kecil itu kelihatan; t yang digelembungkan tidak.
+
+| Lookback | DELTA | t | Paruh pertama | Paruh kedua | t versi tumpang tindih |
+|---|---|---|---|---|---|
+| 20 bar | +0,308 | 2,17 | +0,582 | **+0,032** | **5,46** |
+| 60 bar | +0,377 | 2,00 | +0,566 | +0,201 | **13,54** |
+| 120 bar | +0,043 | 0,18 | -0,271 | +0,312 | **10,26** |
+
+Tidak satu pun mencapai t=3,0 yang ditetapkan di depan. Ketiganya meluruh antar
+paruh, dan yang 20 bar runtuh dari t=3,02 ke t=0,15. Yang 120 bar berbalik tanda.
+
+**Putusan: tidak dikonfirmasi.**
+
+> [!CAUTION]
+> Perhatikan kolom terakhirnya. Efeknya hampir sama besar, tetapi t-nya
+> menggelembung sampai **hampir tujuh kali lipat** semata karena jendelanya
+> bertumpang tindih. Angka-angka itulah yang dilaporkan setiap kontrol
+> sebelumnya di proyek ini, termasuk t=3,83 yang membuat momentum tampak seperti
+> jawabannya.
+>
+> Ini **tidak** membatalkan H7. Kontrol yang digelembungkan membuat sebuah nol
+> jadi **lebih kuat**, bukan lebih lemah: selisih yang gagal signifikan bahkan
+> ketika galat bakunya diremehkan adalah nol yang kokoh. Yang dibatalkan adalah
+> membaca kontrol itu sebagai temuan positif, dan itulah yang hampir saya
+> lakukan.
+
+Sepuluh hipotesis arah, sepuluh kali nol. Yang tersisa bukan lagi "momentum
+bekerja tapi bukan milik kita" - melainkan bahwa pada data ini, dengan
+pengukuran yang jujur, **arah tidak terpisahkan sama sekali**.
+
 ### Setelah biaya dibebankan, pada emas sungguhan
 
 Setiap angka sebelum bagian ini **tanpa gesekan**. Itu wajar selama pertanyaannya

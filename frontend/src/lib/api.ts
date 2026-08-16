@@ -51,6 +51,9 @@ export function fetchDrawing(request: {
   bars: number;
   provider: string;
   htf: string | null;
+  /** Null means no account was supplied, and the plan then reports no position
+   *  size. Never send 0: the backend rejects it rather than guess. */
+  equity: number | null;
   refine: boolean;
   session_offset_hours: number;
   detectors: DetectorId[];

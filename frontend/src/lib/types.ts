@@ -144,6 +144,52 @@ export const DEFAULT_IMBALANCE: ImbalanceParams = {
   max_zones_per_side: 6,
 };
 
+/** What a trade at one zone would look like, with no view on whether to take
+ *  it. Every price is geometry; nothing here says which way price goes. */
+export interface TradePlan {
+  zone_id: string;
+  /** Which side the zone is, NOT a recommendation. */
+  side: ZoneSide;
+  entry: number;
+  stop: number;
+  /** The nearest live opposing zone. Null when there is no wall ahead, and left
+   *  null rather than filled with a conventional R multiple. */
+  target: number | null;
+  risk_per_unit: number;
+  reward_r: number | null;
+  /** Only when an account equity was supplied. */
+  units: number | null;
+  age_bars: number;
+  /** Measured survival of the cohort this zone belongs to, not this trade's
+   *  probability, and it excludes costs. */
+  departure_held_rate: number;
+  /** Same kind of number for the age band. Not independent of
+   *  `departure_held_rate`, so the two must never be multiplied. */
+  age_held_rate: number;
+  /** Null when the feed publishes no spread, so nothing was charged. */
+  spread_charged: number | null;
+  /** Always null. Nine pre-registered hypotheses failed to get a sign out of
+   *  these drawings, so the field is a finding rather than a gap. */
+  direction_evidence: null;
+  warnings: string[];
+}
+
+/** One thing the advisor can say, with the doc section that explains it. */
+export interface Note {
+  topic: string;
+  text: string;
+  /** Anchor of the /docs section that teaches this, or null when the note is a
+   *  warning specific to this zone rather than a concept. */
+  learn: string | null;
+}
+
+export interface Advice {
+  zone_id: string;
+  /** The final note is always what CANNOT be known, and the backend enforces
+   *  that ordering with a test. */
+  notes: Note[];
+}
+
 export interface DrawResponse {
   symbol: string;
   interval: string;
@@ -151,6 +197,9 @@ export interface DrawResponse {
   htf?: string | null;
   candles: Candle[];
   drawing: { zones: Zone[] };
+  /** One per drawn zone, in the same order as `drawing.zones`. */
+  plans: TradePlan[];
+  advice: Advice[];
   meta: {
     bars_returned?: number;
     supply_demand?: Record<string, number>;

@@ -39,6 +39,10 @@ export default function Page() {
   // look at is the user's call rather than ours.
   const [detectors, setDetectors] = useState<DetectorId[]>(["supply_demand"]);
   const [params, setParams] = useState<SupplyDemandParams>(DEFAULT_PARAMS);
+  // Kept as the raw field text so "" stays distinct from 0. Empty means no
+  // account was given, and the backend then returns no position size rather
+  // than sizing against an account it invented.
+  const [equity, setEquity] = useState("");
 
   const [data, setData] = useState<DrawResponse | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -90,6 +94,9 @@ export default function Page() {
         detectors,
         imbalance: DEFAULT_IMBALANCE,
         htf: htf === "off" ? null : htf,
+        // Anything not a positive number is "no account". The backend rejects
+        // 0 outright, so a half-typed field must not reach it.
+        equity: Number(equity) > 0 ? Number(equity) : null,
         refine,
         session_offset_hours: Number(sessionOffset),
         supply_demand: params,
@@ -109,7 +116,7 @@ export default function Page() {
     }, DEBOUNCE_MS);
 
     return () => clearTimeout(timer);
-  }, [symbol, interval, bars, provider, htf, refine, sessionOffset, params, detectors, tick]);
+  }, [symbol, interval, bars, provider, htf, refine, sessionOffset, params, detectors, equity, tick]);
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -381,6 +388,10 @@ export default function Page() {
             onSelect={setSelectedId}
             lastPrice={last?.close ?? null}
             chartInterval={interval}
+            plans={data?.plans ?? []}
+            advice={data?.advice ?? []}
+            equity={equity}
+            onEquity={setEquity}
           />
         </aside>
       </div>

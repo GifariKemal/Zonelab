@@ -95,8 +95,20 @@ def main() -> int:
         pid = provider["id"]
         r = draw(provider=pid, interval="1h", bars=200)
         if provider["available"] and not provider["needs_key"]:
-            ok = r.status_code == 200 and len(r.json()["candles"]) > 0
-            check(f"provider {pid} returns candles", ok, r.text[:140] if not ok else "")
+            # "Draws OR explains itself", never "draws". Asserting the second
+            # makes this suite a monitor for somebody else's uptime: dukascopy
+            # answered HTTP 503 during a run here and failed a check about OUR
+            # code. The e2e provider loop was corrected the same way earlier and
+            # this one was missed. What is ours is that a refusal arrives as a
+            # 502 naming the vendor rather than a 500 or a silent empty chart.
+            body = r.text[:140]
+            if r.status_code == 200:
+                ok = len(r.json()["candles"]) > 0
+                detail = "200 with no candles" if not ok else ""
+            else:
+                ok = r.status_code == 502 and pid in body
+                detail = f"expected a 502 naming {pid}, got {r.status_code}: {body}"
+            check(f"provider {pid} draws or says why", ok, detail if not ok else body)
         else:
             # Unavailable must be a spoken 502, never a silent empty chart.
             spoken = r.status_code == 502 and len(r.json().get("detail", "")) > 10

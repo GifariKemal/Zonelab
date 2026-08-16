@@ -355,24 +355,47 @@ function Slider({
   onChange: (value: number) => void;
 }) {
   return (
-    <label className="block" title={hint}>
-      <div className="mb-1 flex items-baseline justify-between gap-2">
-        <span className="text-[12px] text-text-dim">{label}</span>
-        <span className="num text-[12px] text-text">
-          {step < 1 ? value.toFixed(2) : value}
-          {suffix ? <span className="ml-1 text-text-faint">{suffix}</span> : null}
-        </span>
-      </div>
-      <input
-        type="range"
-        min={min}
-        max={max}
-        step={step}
-        value={value}
-        onChange={(e) => onChange(Number(e.target.value))}
-        className="h-1 w-full cursor-pointer appearance-none rounded bg-line-strong"
-      />
-    </label>
+    <div>
+      <label className="block">
+        <div className="mb-1 flex items-baseline justify-between gap-2">
+          <span className="text-[12px] text-text-dim">{label}</span>
+          <span className="num text-[12px] text-text">
+            {step < 1 ? value.toFixed(2) : value}
+            {suffix ? <span className="ml-1 text-text-faint">{suffix}</span> : null}
+          </span>
+        </div>
+        <input
+          type="range"
+          min={min}
+          max={max}
+          step={step}
+          value={value}
+          onChange={(e) => onChange(Number(e.target.value))}
+          className="h-1 w-full cursor-pointer appearance-none rounded bg-line-strong"
+        />
+      </label>
+      {hint ? <Hint>{hint}</Hint> : null}
+    </div>
+  );
+}
+
+/** What a control actually does, on demand.
+ *
+ *  These used to be `title` attributes, which is a tooltip on a mouse and
+ *  nothing at all on a phone or a keyboard - the hint was invisible to everyone
+ *  who most needed it. `details` is focusable, operable with Enter, and taps
+ *  open on touch, without a line of state. It stays folded because twelve
+ *  paragraphs unfolded is the wall of text the panel already reads as. */
+function Hint({ children }: { children: React.ReactNode }) {
+  return (
+    <details className="mt-1">
+      <summary className="w-fit cursor-pointer text-[11px] text-text-faint transition-colors hover:text-text-dim">
+        Apa ini
+      </summary>
+      <p className="mt-1 border-l border-line-strong pl-2 text-[11px] leading-relaxed text-text-faint">
+        {children}
+      </p>
+    </details>
   );
 }
 
@@ -422,7 +445,7 @@ function Segmented({
   onChange: (value: string) => void;
 }) {
   return (
-    <div title={hint}>
+    <div>
       <div className="mb-1 text-[12px] text-text-dim">{label}</div>
       <div className="flex border border-line-strong">
         {options.map(([id, text]) => (
@@ -440,6 +463,7 @@ function Segmented({
           </button>
         ))}
       </div>
+      {hint ? <Hint>{hint}</Hint> : null}
     </div>
   );
 }
