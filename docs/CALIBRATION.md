@@ -1319,6 +1319,53 @@ walk-forward lain di halaman ini.
 > ujiannya sendiri setelah biaya dibebankan**. Yang belum: bukti bahwa ia
 > berlaku di luar emas dan di luar musim panas 2026.
 
+#### Di luar emas, dan koreksi biaya yang harus didahulukan
+
+Sebelum uji itu bisa dijalankan, model biayanya harus diperbaiki. Versi pertama
+memakai 0,07 dan 0,02 dalam **satuan harga absolut**, yaitu angka emas. Dipakai
+apa adanya di BTC seharga 100.000, keduanya kira-kira 0,00009 bp - kolom
+"berbiaya" akan jadi perdagangan gratis yang memakai label berbiaya. Biaya
+sekarang dinyatakan dalam **basis poin nosional**, per instrumen.
+
+Konversi pertamanya juga salah dan ketahuan sebelum dipakai: 0,07 USD per ons
+pada emas 4400 adalah **0,16 bp, bukan 1,6**. Sepuluh kali terlalu keras, dan
+itu memotong 0,07R dari jawabannya.
+
+| Deret | Zona lolos gerbang | Placebo berjangkar | Margin | Walk-forward |
+|---|---|---|---|---|
+| XAUUSD 15m | **+0,285** | -0,094 | **+0,379** | 8/8 |
+| ETHUSDT 1h | **+0,108** | -0,242 | **+0,350** | 8/8 |
+| BTCUSDT 1h | **+0,103** | -0,237 | **+0,340** | 7/8 |
+| BTCUSDT 15m | -0,122 | -0,435 | +0,313 | 1/8 |
+| PAXGUSDT 1h | -0,103 | -0,378 | +0,275 | 2/8 |
+| PAXGUSDT 15m | -0,296 | -0,443 | +0,147 | 0/8 |
+
+**Dua hal yang selama ini saya campur, dan ternyata terpisah rapi.**
+
+Yang **menyeberang**: margin zona di atas placebo berjangkar positif di **enam
+dari enam deret**, dari +0,147 sampai +0,379. Kalau margin itu hanya muncul di
+emas, ia patut dicurigai sebagai artefak satu instrumen. Ia muncul di semuanya,
+termasuk instrumen yang secara absolut rugi. **Gambarnya membawa informasi
+nyata, dan itu kini terbukti lintas instrumen, bukan cuma lintas waktu.**
+
+Yang **tidak menyeberang**: keuntungan absolutnya. Positif setelah biaya cuma
+pada emas 15m, BTC 1 jam, dan ETH 1 jam. Sebabnya struktural dan bukan tentang
+gambarnya sama sekali - komisi Binance 20 bp per putaran melawan emas 0,16 bp,
+sekitar **125 kali lipat**.
+
+Dan pola timeframe-nya konsisten: **15 menit rugi, 1 jam menang**, kecuali pada
+emas yang biayanya terlalu kecil untuk mengganggu. Sebabnya aritmetika, bukan
+pasar: biaya adalah pecahan tetap dari **harga**, sedangkan R adalah jarak
+stop - dan jarak stop mengecil di timeframe rendah. Biaya bp yang sama karena
+itu memakan porsi R yang jauh lebih besar di 15 menit.
+
+> [!IMPORTANT]
+> Kesimpulan yang bisa dipertanggungjawabkan sekarang bukan "zona menghasilkan
+> uang" dan bukan "zona tidak berguna". Melainkan: **zona membawa informasi yang
+> terukur di enam dari enam deret, dan apakah informasi itu terbayar ditentukan
+> oleh struktur biaya instrumen dan timeframe-nya.** Pada biaya kripto di 15
+> menit, informasi senilai +0,31 R tetap tenggelam.
+
 Satu hal yang tidak bisa diukur dan sebabnya struktural: FVG dan order block
 tidak punya konsep zona lawan, jadi targetnya dihitung terhadap zona lawan
 sejenisnya sendiri. Menerapkan aturan jalan milik supply/demand ke gambar metode

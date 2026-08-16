@@ -58,12 +58,32 @@ from tools import history
 from tools.calibrate import POPULATION
 
 HORIZON = 80  # bars a trade is given before it is called a timeout
-# Round-turn commission on gold at a retail ECN is commonly quoted near 7 USD
-# per 100 oz lot, which is 0.07 USD per ounce. Stated, not fitted.
-COMMISSION_PER_UNIT = 0.07
-# Stops are market orders once triggered. One tick of gold is 0.01; two is a
-# deliberately mild assumption and the sweep below shows what a harsher one does.
-SLIPPAGE = 0.02
+
+# COSTS ARE IN BASIS POINTS OF NOTIONAL, not in price units, and that is a
+# correction rather than a preference. The first version of this tool used
+# 0.07 and 0.02 in absolute USD, which are gold numbers: applied unchanged to
+# BTC near 100000 they are roughly 0.00009 bp, so the "costed" column would
+# have been free trading wearing a costed label. Any figure meant to transfer
+# between an instrument priced at 4400 and one priced at 100000 has to be
+# relative to price.
+#
+# Per instrument, because a gold CFD and a Binance spot pair are not charged
+# the same way. `spread_bp` is used ONLY where the feed publishes no spread:
+# Dukascopy XAUUSD carries a measured one per bar and that always wins over an
+# assumption.
+COSTS = {
+    # 7 USD round turn per 100oz lot is 0.07 per ounce, which at gold near 4400
+    # is 0.16bp - not 1.6bp, an arithmetic slip that made the first conversion
+    # ten times too harsh and knocked 0.07R off the answer before it was caught.
+    "XAUUSD": {"commission_bp": 0.16, "slippage_bp": 0.05, "spread_bp": None},
+    # Binance spot taker is 0.1% per side, so 20bp for the round turn. A stop is
+    # a market order and takes liquidity, so the taker rate is the right one to
+    # charge on the exit even when the entry is a resting limit.
+    "_default": {"commission_bp": 20.0, "slippage_bp": 2.0, "spread_bp": 1.0},
+}
+# Every figure above is ROUND TURN, charged once per trade, because that is how
+# the numbers they came from are quoted. Halving them and charging twice would
+# be the same arithmetic with more places to get it wrong.
 PLACEBO_DRAWS = 3  # each zone displaced this many times, for a steadier control
 FOLDS = 8  # same count every other walk-forward here used, so p is comparable
 
@@ -76,7 +96,8 @@ def _params(name: str):
 
 
 def trades(
-    name: str, candles, interval: str, costs: bool, rng=None, anchored: bool = False
+    name: str, candles, interval: str, costs: bool, rng=None,
+    anchored: bool = False, symbol: str = "XAUUSD",
 ) -> list[dict]:
     """Every zone's first touch, resolved to an R multiple.
 
@@ -87,6 +108,7 @@ def trades(
     control has already killed one finding here - reversals at zones were real
     and random boxes reversed just as often.
     """
+    fees = COSTS.get(symbol, COSTS["_default"])
     params = _params(name)
     zones, _ = DETECTORS[name](candles, params)
 
@@ -192,7 +214,17 @@ def trades(
         at_touch = zone.model_copy(update={
             "profit_zone_rr": profit_zone_at(zone, zones, int(time[touch]))
         })
-        spread = candles[touch].spread if costs else None
+        # A measured spread always beats an assumed one. Only Dukascopy
+        # publishes both sides; everything else falls back to a stated bp
+        # figure, and the report says which arm each instrument used.
+        if not costs:
+            spread = None
+        elif candles[touch].spread is not None:
+            spread = candles[touch].spread
+        elif fees["spread_bp"] is not None:
+            spread = float(close[touch]) * fees["spread_bp"] / 10_000
+        else:
+            spread = None
         plan = build(at_touch, scale, int(time[touch]), step, spread=spread)
         if plan is None:
             continue
@@ -201,7 +233,11 @@ def trades(
             continue
 
         long_side = zone.side is ZoneSide.DEMAND
-        friction = (COMMISSION_PER_UNIT + SLIPPAGE) if costs else 0.0
+        friction = (
+            float(close[touch])
+            * (fees["commission_bp"] + fees["slippage_bp"])
+            / 10_000
+        ) if costs else 0.0
         risk = plan.risk_per_unit + friction
         if risk <= 0:
             continue
@@ -280,14 +316,18 @@ def main() -> None:
         print(f"\n{'=' * 74}")
         print(f"{label}   {args.symbol} {args.interval}   horizon {HORIZON} bars")
         if costs:
-            print(f"  spread measured per bar, commission {COMMISSION_PER_UNIT} "
-                  f"and slippage {SLIPPAGE} per unit, both stated not fitted")
+            fees = COSTS.get(args.symbol, COSTS["_default"])
+            measured = any(c.spread is not None for c in candles)
+            print(f"  commission {fees['commission_bp']}bp + slippage "
+                  f"{fees['slippage_bp']}bp of notional, and spread "
+                  + ("MEASURED per bar from the feed"
+                     if measured else f"assumed at {fees['spread_bp']}bp"))
         print(f"{'=' * 74}")
         print(f"  {'':<26}{'n':>7}{'no target':>9}{'win':>9}{'exp R':>10}{'t':>8}")
 
         for name in ("supply_demand", "fvg", "order_block"):
             tag = label[:4].lower()
-            rows = trades(name, candles, args.interval, costs)
+            rows = trades(name, candles, args.interval, costs, symbol=args.symbol)
             report(rows, f"{tag} {name}", out)
             # The departure gate is the one factor that passed walk-forward in
             # all three bracket geometries. Whether it survives costs is the
@@ -299,14 +339,17 @@ def main() -> None:
             rng = np.random.default_rng(20260816)
             placebo: list[dict] = []
             for _ in range(PLACEBO_DRAWS):
-                placebo.extend(trades(name, candles, args.interval, costs, rng))
+                placebo.extend(
+                    trades(name, candles, args.interval, costs, rng,
+                           symbol=args.symbol))
             report(placebo, f"{tag} {name} PLACEBO", out)
 
             anchored: list[dict] = []
             rng2 = np.random.default_rng(20260817)
             for _ in range(PLACEBO_DRAWS):
                 anchored.extend(
-                    trades(name, candles, args.interval, costs, rng2, anchored=True))
+                    trades(name, candles, args.interval, costs, rng2,
+                           anchored=True, symbol=args.symbol))
             report(anchored, f"{tag} {name} ANCHORED PLACEBO", out)
 
             # Split-half on time. An edge that lives in one half is a window
@@ -327,7 +370,8 @@ def main() -> None:
     print(f"\n{'=' * 74}")
     print("  WALK-FORWARD, costed, supply_demand above the departure gate")
     print(f"{'=' * 74}")
-    rows = [r for r in trades("supply_demand", candles, args.interval, True)
+    rows = [r for r in trades("supply_demand", candles, args.interval, True,
+                              symbol=args.symbol)
             if not r["skipped"] and r["cleared"]]
     edges = np.linspace(0, len(candles), FOLDS + 1).astype(int)
     signs = []
