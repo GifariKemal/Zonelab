@@ -3,7 +3,7 @@
 
 <p align="center">
   <img alt="status" src="https://img.shields.io/badge/status-tahap%20awal-orange">
-  <img alt="tests" src="https://img.shields.io/badge/tests-40%20passed-brightgreen">
+  <img alt="tests" src="https://img.shields.io/badge/tests-64%20unit%20%2B%20114%20kontrak%20%2B%2093%20e2e-brightgreen">
   <img alt="calibrated" src="https://img.shields.io/badge/detection-validated%20p%3C0.0001-brightgreen">
   <img alt="license" src="https://img.shields.io/badge/license-proprietary-lightgrey">
 </p>
@@ -187,6 +187,7 @@ jalankan ulang dengan `python -m tools.calibrate`.
 | Struktur pasar (BOS, CHoCH) membawa bias arah | **Tidak dikonfirmasi.** Pada swing besar DELTA +0.549 ATR, t = 2.27, hasil arah terkuat yang pernah ada di sini. Paruhnya membunuhnya: +1.02 lalu +0.08. Tanda tangan window fit |
 | CHoCH lebih informatif daripada BOS | **Terbantah**, dan berlawanan dengan doktrinnya: CHoCH t = 0.26, BOS t = 1.09 pada swing kecil |
 | Menembus level membawa arah | **Terbantah, dan literatur sudah tahu.** Huddart dkk. (Management Science 2009) menemukan menembus batas bawah memberi return berikutnya sama positifnya dengan menembus batas atas: peristiwanya punya besaran, tidak punya tanda |
+| Zona searah bias struktur lebih baik daripada yang melawan | **Tidak dikonfirmasi, dan cara gagalnya yang penting.** FVG pada swing besar lolos ketiga kriteria yang ditetapkan di depan: demand +0.405 (t = 4.63), supply +0.266 (t = 3.06), kedua paruh positif, ketahanan +4.0 poin persen. Lalu kontrolnya jalan. Bar **acak** yang hanya membawa bias, tanpa kotak di mana pun, memisah +0.271 dan +0.184. Selisih-dari-selisih, yaitu apa yang benar-benar ditambahkan zonanya, cuma +0.134 (t = 1.25) dan +0.082 (t = 0.78), dan **negatif** untuk supply/demand maupun order block. Yang terukur adalah biasnya, dan biasnya adalah momentum |
 
 > [!CAUTION]
 > Angka-angka di atas berubah pada 2026-08-13 karena **populasinya dulu salah**.

@@ -912,11 +912,49 @@ function Bukti() {
             <span key="o"><No>Terbantah.</No> Horizon utama 12 bar ditetapkan di depan: t = 1,01 untuk FVG, 0,13 untuk Order Block, 0,27 untuk Supply dan Demand. Kriterianya menuntut t di atas 3,0. Ini hipotesis arah keempat yang gagal.</span>,
           ],
           [
+            "Struktur pasar (BOS, CHoCH) membawa bias arah",
+            <span key="p"><No>Tidak dikonfirmasi.</No> Pada swing besar DELTA +0,549 ATR dengan t = 2,27, hasil arah terkuat yang pernah ada di sini. Paruhnya membunuhnya: +1,02 lalu +0,08. Itu tanda tangan window fit.</span>,
+          ],
+          [
+            "Zona searah bias struktur lebih baik daripada yang melawan",
+            <span key="q"><No>Tidak dikonfirmasi, tetapi cara gagalnya yang penting.</No> FVG lolos ketiga kriteria: demand +0,405 (t = 4,63), supply +0,266 (t = 3,06), kedua paruh positif. Lalu kontrolnya jalan, dan bar acak tanpa kotak apa pun sudah memisah +0,271 dan +0,184. Yang ditambahkan zonanya cuma +0,134 (t = 1,25), dan negatif untuk dua detektor lain.</span>,
+          ],
+          [
             "Umur zona memisahkan hasil",
             <span key="m"><Yes>Terbukti.</Yes> 93,6% pada zona berumur di bawah 10 bar lawan 77,2% di atas 59 bar, pada sentuhan pertama yang sama. Ini satu-satunya temuan arah-hasil yang selamat, dan ia sejalan dengan literatur akademik.</span>,
           ],
         ]}
       />
+      <Note who="Hipotesis yang lolos, sampai kontrolnya dijalankan">
+        <P>
+          H7 menguji satu-satunya klaim arah yang benar-benar dibuat doktrin
+          ICT: <b>timeframe tinggi menetapkan bias, timeframe rendah menetapkan
+          entri</b>. Zona demand yang disentuh saat struktur bullish seharusnya
+          objek yang berbeda dari zona yang sama saat struktur bearish.
+          Perbandingannya dibuat <b>di dalam sisi</b>, sisi zona ditahan tetap
+          dan hanya biasnya diubah, supaya drift sampelnya batal sendiri.
+        </P>
+        <P>
+          Dan ia lolos. FVG pada swing besar: kedua sisi positif, kedua paruh
+          positif, besarannya justru tumbuh. Setelah enam nol, ini hasil pertama
+          yang melewati semua kriteria yang ditetapkan di depan.
+        </P>
+        <P>
+          Masalahnya, <b>&quot;zona demand saat struktur bullish&quot; juga
+          berarti &quot;koreksi di dalam tren naik&quot;</b>, dan membeli itu
+          adalah momentum deret waktu, efek mapan yang tidak ada hubungannya
+          dengan kotak mana pun. Jadi kontras yang sama dihitung ulang pada 4000
+          bar acak yang cuma membawa bias, dengan sisi palsu yang diundi
+          terpisah. Bar-bar itu memisah +0,271 dan +0,184. Yang tersisa untuk
+          zonanya tidak signifikan, dan untuk supply/demand maupun order block
+          justru negatif.
+        </P>
+        <P>
+          Satu hal jujur yang tetap berdiri: <b>biasnya sendiri memisahkan
+          return</b>. Itu bukan temuan baru, itu momentum, dan ia sama sekali
+          tidak membutuhkan gambar apa pun.
+        </P>
+      </Note>
       <h3 className="mb-3 mt-8 text-[17px] font-semibold tracking-[-0.01em]">
         Bacaan pentingnya
       </h3>
@@ -967,11 +1005,13 @@ function Tidak() {
       </ul>
       <Note who="Kenapa tidak ada panah arah di chart">
         <P>
-          Empat hipotesis didaftarkan sebelum diukur, tiga dijalankan, tiga
-          gagal. Yang paling meyakinkan sempat menunjukkan peluruhan 27 poin
-          persen menurut jumlah sentuhan, lalu runtuh jadi <b>77,2%, 77,2%,
+          Tujuh hipotesis arah didaftarkan sebelum diukur, tujuh kali sumbangan
+          gambarnya nol. Yang paling meyakinkan sempat menunjukkan peluruhan 27
+          poin persen menurut jumlah sentuhan, lalu runtuh jadi <b>77,2%, 77,2%,
           77,1%</b> begitu dibandingkan pada umur zona yang sama. Yang meluruh
-          adalah waktu, bukan sentuhan.
+          adalah waktu, bukan sentuhan. Yang terakhir, H7, bahkan lolos semua
+          kriterianya sebelum kontrolnya menunjukkan bahwa biasnya yang bekerja,
+          bukan kotaknya.
         </P>
         <P>
           Dua studi peer-reviewed yang benar-benar menghitung sentuhan

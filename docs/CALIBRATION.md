@@ -987,6 +987,86 @@ dari nol pada instrumen dan dekade yang berbeda.
 
 **Lima hipotesis arah, lima kali tidak lolos.**
 
+### H7, zona searah bias struktur lawan yang melawan
+
+Ini klaim doktrin yang **sebenarnya**, dan satu-satunya yang belum pernah diukur
+siapa pun. Bukan "zona meramalkan arah" - enam hipotesis sudah gagal di situ.
+Melainkan yang dikatakan hampir setiap sumber ICT dan SMC: **timeframe tinggi
+menetapkan BIAS, timeframe rendah menetapkan ENTRI.** Zona demand yang disentuh
+saat struktur bullish seharusnya objek yang berbeda dari zona yang sama saat
+struktur bearish.
+
+Estimandnya **di dalam sisi**, bukan sejajar-lawan-melawan. Sebabnya: sampel ini
+lebih sering bullish daripada bearish, jadi kelompok "sejajar" memuat lebih
+banyak zona demand daripada kelompok "melawan", dan di sampel yang menanjak
+selisih itu sendiri sudah menghasilkan efek. Dengan menahan sisi zona tetap dan
+hanya mengubah biasnya, drift-nya batal.
+
+**Dan ia lolos ketiga kriteria yang ditetapkan di depan.** FVG pada N=25:
+
+| Sisi | Sejajar | Melawan | Selisih | t |
+|---|---|---|---|---|
+| demand | +0,224 | -0,181 | **+0,405** | **4,63** |
+| supply | +0,181 | -0,086 | **+0,266** | **3,06** |
+| bertahan | 44,4% | 40,5% | **+4,0 pp** | z=4,49 |
+
+Kedua sisi positif. Kedua paruh positif. Besarannya tidak runtuh - ia justru
+tumbuh di paruh kedua. Setelah enam nol, ini hasil pertama yang lolos.
+
+**Lalu satu kontrol membatalkannya.**
+
+"Zona demand saat struktur bullish" juga berarti "koreksi di dalam tren naik",
+dan membeli itu adalah **momentum deret waktu** - efek nyata, mapan, dan
+peer-reviewed yang tidak ada hubungannya dengan kotak mana pun. Jadi kontrasnya
+dihitung ulang pada **bar acak** yang hanya membawa bias, dengan sisi palsu yang
+diundi terpisah:
+
+| | Sejajar | Melawan | Selisih | t |
+|---|---|---|---|---|
+| demand, bar acak | +0,143 | -0,129 | **+0,271** | 4,36 |
+| supply, bar acak | +0,056 | -0,129 | **+0,184** | 3,11 |
+
+Bar acak tanpa kotak apa pun sudah menghasilkan sebagian besarnya. Selisih dari
+selisih - apa yang benar-benar **ditambahkan zonanya** di atas biasnya:
+
+| Detektor | Sisi | Zona | Kontrol | Zona menambah | t |
+|---|---|---|---|---|---|
+| fvg | demand | +0,405 | +0,271 | +0,134 | 1,25 |
+| fvg | supply | +0,266 | +0,184 | +0,082 | 0,78 |
+| supply_demand | demand | +0,182 | +0,271 | **-0,089** | -0,80 |
+| supply_demand | supply | +0,134 | +0,184 | **-0,050** | -0,47 |
+| order_block | demand | +0,219 | +0,271 | **-0,052** | -0,59 |
+| order_block | supply | -0,004 | +0,184 | **-0,188** | -2,14 |
+
+**Zonanya tidak menambah apa pun yang terukur, dan pada dua dari tiga detektor
+ia menambah sedikit negatif.** Yang diukur H7 adalah biasnya, dan biasnya adalah
+momentum.
+
+Pada swing kecil (N=2) tidak ada satu pun sumbangan zona yang positif dan
+signifikan, dan supply/demand justru **-0,246 dengan t = -2,20**. Dari dua belas
+pembacaan selisih-dari-selisih, nol positif signifikan dan dua negatif
+signifikan.
+
+Ada satu temuan lagi di N=2 yang harus dilaporkan justru karena arahnya
+memalukan bagi doktrinnya: zona yang searah bias **lebih jarang** bertahan,
+46,4% lawan 50,8% (z = -4,42) untuk supply/demand, 46,9% lawan 50,3% (z = -4,98)
+untuk order block. Kebalikan dari yang diajarkan.
+
+> [!NOTE]
+> t pada kontrol itu sendiri **terlalu optimistis**: 4000 bar acak per deret pada
+> 20.000 bar berarti jendela-jendelanya bertumpang tindih besar-besaran. Itu
+> justru memperkuat nolnya - selisih-dari-selisih yang tidak signifikan meski
+> galat bakunya diremehkan adalah nol yang kokoh.
+
+**Putusan: tidak dikonfirmasi.** Tujuh hipotesis arah, tujuh kali sumbangan
+gambarnya nol.
+
+Satu hal positif yang jujur untuk dikatakan: **biasnya sendiri memisahkan
+return** (+0,271 dan +0,184, keduanya t di atas 3). Itu bukan temuan baru - itu
+momentum deret waktu, yang sudah lama mapan - tetapi ia satu-satunya hal di
+proyek ini yang pernah memisahkan arah sama sekali. Dan ia sama sekali tidak
+membutuhkan gambar apa pun.
+
 ### Aturan berhentinya berlaku
 
 Tiga hipotesis arah dijalankan, tiga gagal. H4 menambah dua detektor yang

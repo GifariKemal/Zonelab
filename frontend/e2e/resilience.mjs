@@ -47,6 +47,16 @@ async function waitForApi(up = true, tries = 40) {
   return false;
 }
 
+// This suite kills the API on purpose, so a run that dies partway leaves the
+// port dead and the NEXT run starts against a broken precondition - it then
+// fails on a missing control rather than saying the API was never up. Ambient
+// state is not a prerequisite worth trusting: bring it up if it is not there.
+if (!apiPid()) {
+  startApi();
+  if (!(await waitForApi(true))) throw new Error("could not start the API on 8100");
+  await sleep(2500);
+}
+
 const browser = await chromium.launch({ args: ["--no-proxy-server"] });
 const page = await browser.newPage({ viewport: { width: 1400, height: 900 } });
 const crashes = [];
