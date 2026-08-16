@@ -19,9 +19,6 @@ class Settings(BaseSettings):
     twelvedata_key: str = ""
     polygon_key: str = ""
 
-    # Local Aurix FastAPI instance (MetaTrader 5 bridge), used when it is up.
-    aurix_url: str = "http://127.0.0.1:8000"
-
     # Upstream fetches are cached this long. Intraday bars do not change once
     # closed, so this only ever costs freshness on the forming bar.
     cache_ttl_seconds: int = 20

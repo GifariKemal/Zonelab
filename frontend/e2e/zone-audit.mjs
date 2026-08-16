@@ -104,16 +104,45 @@ writeFileSync(`${OUT}/zone-audit.json`, JSON.stringify(records, null, 1));
 await browser.close();
 
 // Independent arithmetic on the candles, not a restatement of the zone record.
-const mismatched = records.filter(
-  (r) =>
-    Math.abs(r.claimed.top - r.base_high_from_candles) > 1e-6 ||
-    Math.abs(r.claimed.bottom - r.base_low_from_candles) > 1e-6,
-);
+//
+// With one documented exception, and leaving it out made this check fail on any
+// day a thin base happened to land in the window - correct most runs, wrong
+// intermittently, which is worse than wrong always. A base shorter than
+// `zone_min_atr` ATR is deliberately grown to that floor so it stays visible,
+// hoverable and able to register a touch, and it is grown from the PROXIMAL
+// side only so the stop never moves into the base. So a grown zone matches its
+// candles on the DISTAL edge exactly, and sits outside them on the proximal
+// edge by construction.
+//
+// What still has to hold for a grown zone, and is checked below: the distal is
+// exact, and the proximal moved OUTWARD rather than inward. A zone whose
+// proximal moved into the base would be a real defect and is still caught.
+const exact = (a, b) => Math.abs(a - b) <= 1e-6;
+const mismatched = records.filter((r) => {
+  const demand = r.side === "demand";
+  const distalOk = demand
+    ? exact(r.claimed.bottom, r.base_low_from_candles)
+    : exact(r.claimed.top, r.base_high_from_candles);
+  const proximalOk = demand
+    ? r.claimed.top >= r.base_high_from_candles - 1e-6
+    : r.claimed.bottom <= r.base_low_from_candles + 1e-6;
+  const untouched =
+    exact(r.claimed.top, r.base_high_from_candles) &&
+    exact(r.claimed.bottom, r.base_low_from_candles);
+  r.grown_to_minimum_height = distalOk && proximalOk && !untouched;
+  return !(distalOk && proximalOk);
+});
+const grown = records.filter((r) => r.grown_to_minimum_height).length;
 console.log(`framed ${records.length} zones at ${INTERVAL}`);
 console.log(
   mismatched.length
     ? `MISMATCH: ${mismatched.length} zone(s) do not match their own base candles\n` +
         JSON.stringify(mismatched, null, 1)
-    : "every zone's top and bottom equal its base candles' high and low",
+    : `every zone's distal is exactly its base candles' extreme, and no ` +
+        `proximal moved inward` +
+        (grown
+          ? `\n${grown} of ${records.length} were grown to the minimum height, ` +
+            `from the proximal side only`
+          : ""),
 );
 process.exit(mismatched.length ? 1 : 0);

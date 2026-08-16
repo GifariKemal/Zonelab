@@ -626,31 +626,6 @@ def test_resample_refuses_a_target_that_is_not_higher():
 # --------------------------------------------------------------------------
 # provider normalisation
 # --------------------------------------------------------------------------
-
-
-def test_broker_offset_is_converted_not_relabelled():
-    """The Aurix bridge stamps bars in the broker's timezone, offset included.
-
-    Parsing that and calling `.replace(tzinfo=UTC)` overwrites the offset rather
-    than converting it, shifting every bar by the broker's whole offset. It is
-    silent, it survives every shape check, and it puts the zones on the wrong
-    candles. `astimezone` converts; `replace` relabels.
-    """
-    from datetime import UTC, datetime
-
-    from app.providers.sources import _aurix_epoch
-
-    broker = _aurix_epoch("2026-08-13T17:45:00+07:00")
-    assert datetime.fromtimestamp(broker, UTC).hour == 10, "offset must be applied"
-
-    # Only a stamp with no offset at all may be assumed to already be UTC.
-    naive = _aurix_epoch("2026-08-13T17:45:00")
-    assert datetime.fromtimestamp(naive, UTC).hour == 17
-
-    assert _aurix_epoch(1786617900) == 1786617900
-    assert _aurix_epoch("1786617900") == 1786617900
-
-
 def test_normalize_dedupes_and_sorts():
     """Duplicate bar times crash the chart and double-count in the detector, so
     they are collapsed once at the provider boundary."""

@@ -10,7 +10,6 @@ from ..models import Candle
 from .base import INTERVALS, Provider, ProviderError
 from .sources import (
     SYMBOLS,
-    AurixProvider,
     BinanceProvider,
     PolygonProvider,
     TwelveDataProvider,
@@ -25,7 +24,6 @@ PROVIDERS: dict[str, Provider] = {
         YahooProvider(),
         TwelveDataProvider(),
         PolygonProvider(),
-        AurixProvider(),
         SyntheticProvider(),
     )
 }
@@ -39,9 +37,9 @@ async def availability() -> dict[str, bool]:
     """Which providers can actually serve a request right now.
 
     `available()` is a static capability check - is a key configured, is the URL
-    set. That is enough for the hosted vendors, but the local Aurix bridge can
-    be configured and simply not running, and listing it as available then is a
-    lie the user only discovers by picking it and getting a 502.
+    set. A provider may also expose `probe()` when being configured is not the
+    same as being reachable; listing such a provider as available would be a lie
+    the user only discovers by picking it and getting a 502.
     """
     result: dict[str, bool] = {}
     for name, provider in PROVIDERS.items():

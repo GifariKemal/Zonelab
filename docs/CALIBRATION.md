@@ -722,7 +722,7 @@ dengan pengukuran:
 |---|---|
 | Geometri FVG wick ke wick | **Tidak menyimpang.** Konsensus, dan persis yang diuji dua studi terukur. Versi badan-ke-badan adalah **pola bernama lain** (volume imbalance), bukan varian |
 | Tanpa uji arah candle tengah | Sebagian kodifikasi menuntutnya. **Diukur pada 16.693 gap: uji itu hanya menolak 12, yaitu 0,1%.** Penyimpangannya nyata dan dapat diabaikan, dan sekarang berupa angka bukan pendapat |
-| `min_gap_atr` 0,1 | **Milik kami.** Tidak ada sumber primer yang punya minimum; bawaan indikator berkisar 0 sampai 0,25 ATR. Parameter yang disapu, jadi hasil di sini tidak sebanding dengan statistik FVG terbitan yang tidak menyaring apa pun |
+| `min_gap_atr` 0,1 | **Milik kami.** Tidak ada sumber primer yang punya minimum; bawaan indikator berkisar 0 sampai 0,25 ATR. Disapu, hasilnya di bawah. Hasil di sini tetap tidak sebanding dengan statistik FVG terbitan yang tidak menyaring apa pun |
 | Level 50% (consequent encroachment) | **Sudah ada, dengan nama lain.** `penetration_pct >= 0.5` persis berarti harga menyentuh titik tengah, dan ambang mitigasi dikirim di 0,5. Kotak berstatus `mitigated` menurut definisi sudah mencapainya |
 | Kotak order block = seluruh rentang candle | Konvensi paling umum, dan **paling lebar** dari tiga yang ada. Itu menaikkan tingkat sentuhan secara mekanis dibanding detektor badan-saja, jadi perbandingan lintas studi tidak sah |
 | Tanpa syarat break of structure | **Penyimpangan terbesar**, dan aturannya diperdebatkan. Yang patut diketahui: angka yang biasa dipakai membenarkan syarat itu (52% lawan 65-68% pada 2400 setup) **tidak bisa dilacak** - halaman yang dirujuk sama sekali tidak memuat statistik. Kedua kubu sama-sama tanpa bukti |
@@ -735,6 +735,52 @@ placebo acak pada empat futures selama tujuh tahun dan menemukan reaksinya nyata
 (unggul di 34 dari 36 sel, sekitar 5 poin) tetapi keunggulan dagangnya habis oleh
 biaya di 17 dari 18 konfigurasi. Satu lagi menjalankan 54 variasi aturan SMC pada
 2,55 juta bar EURUSD dan menemukan **tidak satu pun untung** setelah setengah pip.
+
+### Ambang yang kami karang, disapu
+
+Dua dari tiga ambang di `ImbalanceParams` sama sekali tidak punya sumber. Menyebut
+keduanya "parameter yang disapu" di dokumentasi tanpa pernah menyapunya adalah
+kelas klaim yang sama dengan yang proyek ini ada untuk menangkap, jadi ini
+sapuannya. `python -m tools.detectors --sweep`.
+
+| `min_gap_atr` | n | Bertahan | Placebo | Selisih |
+|---|---|---|---|---|
+| 0,00 (mati) | 15235 | 75,6% | 46,4% | **+29,1 pp** |
+| 0,05 | 14012 | 73,5% | 46,1% | +27,4 pp |
+| **0,10 (dikirim)** | 12710 | 71,0% | 45,8% | +25,2 pp |
+| 0,25 | 9401 | 63,5% | 43,6% | +19,8 pp |
+| 0,50 | 5522 | 55,5% | 40,3% | +15,3 pp |
+| 1,00 | 2166 | 49,1% | 32,5% | +16,6 pp |
+
+| Impuls order block | n | Bertahan | Placebo | Selisih |
+|---|---|---|---|---|
+| 0,5 ATR / 5 bar | 46868 | 46,7% | 38,4% | +8,3 pp |
+| 1,0 ATR / 5 bar | 33163 | 50,7% | 38,4% | +12,3 pp |
+| **1,5 ATR / 5 bar (dikirim)** | 21337 | 54,2% | 38,7% | +15,5 pp |
+| 2,5 ATR / 5 bar | 8758 | 60,0% | 41,1% | +18,9 pp |
+| 1,5 ATR / 3 bar | 14065 | 53,5% | 37,4% | +16,1 pp |
+| 1,5 ATR / 10 bar | 31093 | 55,5% | 40,1% | +15,4 pp |
+
+Tiga bacaan, dan yang pertama yang paling penting:
+
+1. **Tidak ada satu pun ambang yang membalik tanda.** Selisihnya positif di
+   setiap nilai yang diuji. Jadi efeknya bukan milik knob-nya. Itulah yang
+   sebenarnya diuji sapuan ini; sisanya detail.
+
+2. **`min_gap_atr` justru MEMBAYAR, bukan membeli.** Selisih terbesar ada di
+   0,00, yaitu tanpa saringan sama sekali (+29,1 pp), dan turun terus seiring
+   ambangnya dinaikkan. Ambang yang dikirim membeli **keterbacaan chart**, bukan
+   kinerja, dan itu harus dikatakan begitu alih-alih dibiarkan terlihat seperti
+   penyaring mutu.
+
+3. **`displacement_bars` nyaris tidak berpengaruh** (+16,1 / +15,5 / +15,4 untuk
+   3, 5, dan 10 bar). Parameter yang tidak menanggung beban, dan itu kabar baik:
+   satu angka karangan yang ternyata tidak menentukan apa-apa.
+
+`displacement_atr` berperilaku seperti `departure_min_atr` pada detektor lama:
+makin ketat makin besar selisihnya, dengan harga jumlah kotak yang jatuh dari
+46.868 ke 8.758. Pertukaran yang sama, dan dibiarkan pada nilai yang dikirim
+karena tidak ada bukti out-of-sample yang membenarkan memindahkannya.
 
 Satu kontrol ditulis lalu **dibuang**, dan alasannya layak dicatat. Kontrol
 "waktu acak" memulai bracket di harga bar acak itu; kalau harga sudah melewati

@@ -53,10 +53,15 @@ two of them were settled by measurement instead of opinion.
                           it is a number rather than an argument.
 
   min_gap_atr = 0.1       OURS. No primary source has a minimum. Indicator
-                          defaults range from 0 (off) to 0.25 x ATR. It is a
-                          swept parameter and results here are therefore not
-                          comparable to published FVG statistics, which gate
-                          nothing.
+                          defaults range from 0 (off) to 0.25 x ATR. SWEPT, and
+                          the result is worth knowing: the gap-versus-placebo
+                          difference is LARGEST with the filter off (+29.1
+                          points) and shrinks as the threshold rises (+25.2 at
+                          the shipped 0.1, +15.3 at 0.5). So this threshold buys
+                          CHART READABILITY and pays for it in measured edge. It
+                          is not a quality filter and must not be read as one.
+                          Results here are also not comparable to published FVG
+                          statistics, which gate nothing at all.
 
   consequent encroachment ALREADY PRESENT, under another name. The 50% level is
                           the most-cited operational level in this literature.
@@ -82,8 +87,15 @@ two of them were settled by measurement instead of opinion.
 
   1.5 ATR over 5 bars     OURS ENTIRELY. No published ATR multiple exists for
                           "impulsive"; the nearest analogues are "2-3x average
-                          candle size" asserted without derivation. A swept
-                          parameter, never a rule.
+                          candle size" asserted without derivation. Swept: the
+                          ATR multiple behaves like the old detector's departure
+                          gate - stricter means a wider margin over placebo
+                          (+8.3 at 0.5 ATR, +15.5 at the shipped 1.5, +18.9 at
+                          2.5) and far fewer boxes (46,868 down to 8,758). The
+                          BAR WINDOW barely matters at all: +16.1, +15.5, +15.4
+                          for 3, 5 and 10 bars. One invented number that turns
+                          out to carry no weight, which is the best thing a
+                          sweep can tell you about a number you made up.
 
   opposite-coloured       Read as `close < open`. Others codify the same phrase
                           as `close < close[1]`, which picks a different candle
