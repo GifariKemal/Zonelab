@@ -4,6 +4,10 @@ Calibration needs tens of thousands of bars and needs the same bars on every
 re-run, otherwise "the score improved" cannot be told apart from "the window
 moved". Binance caps a klines call at 1000 rows, so this pages backwards from
 now and caches the result as .npz.
+
+Binance for the crypto tickers, Dukascopy for the spot-FX and metal symbols it
+has a verified price scale for. The split is invisible to callers: `load` takes
+the same three arguments either way.
 """
 
 from __future__ import annotations
@@ -16,12 +20,23 @@ import numpy as np
 
 from app.models import Candle
 from app.providers.base import INTERVALS
+from app.providers.dukascopy import DIVISOR as DUKASCOPY_SYMBOLS
+
+from tools import dukascopy
 
 CACHE = Path(__file__).resolve().parent.parent / ".cache"
 PAGE = 1000  # vendor hard cap
 
 
 def load(symbol: str, interval: str, bars: int, refresh: bool = False) -> list[Candle]:
+    # XAUUSD here is real spot gold with a measured spread, not PAXG; only
+    # Dukascopy carries it, and everything else this project measures on is a
+    # Binance ticker. Routing on the symbol rather than on a new argument is
+    # what keeps `load(symbol, interval, bars)` working for the two dozen tools
+    # that already call it.
+    if symbol.upper() in DUKASCOPY_SYMBOLS:
+        return dukascopy.load(symbol, interval, bars, refresh)
+
     CACHE.mkdir(exist_ok=True)
     path = CACHE / f"{symbol}-{interval}-{bars}.npz"
 

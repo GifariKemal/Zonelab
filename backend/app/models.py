@@ -21,6 +21,18 @@ class Candle(BaseModel):
     low: float
     close: float
     volume: float = 0.0
+    spread: float | None = Field(
+        default=None,
+        description=(
+            "Mean ask-minus-bid across the bar, in price units. Optional "
+            "because only the Dukascopy tick feed carries both sides: binance, "
+            "yahoo, twelvedata and polygon all ship one price per bar and "
+            "leave this None. Anything that reads it MUST handle None rather "
+            "than assume a number - an absent spread means 'not measured', "
+            "never 'zero', and defaulting it to zero would quietly reinstate "
+            "the free-trading assumption this field exists to remove."
+        ),
+    )
 
 
 class ZoneKind(StrEnum):
@@ -449,11 +461,108 @@ class ImbalanceParams(BaseModel):
     max_zones_per_side: int = Field(default=6, ge=0, le=100)
 
 
+class TradePlan(BaseModel):
+    """What a trade at one zone would look like, with no view on whether to take it.
+
+    Every price here comes from geometry that has been validated to the pixel.
+    The one thing this project could never validate - which way price will go -
+    is represented by `direction_evidence`, which is always None. That field is
+    a finding, not a gap waiting to be filled: nine pre-registered hypotheses
+    failed to get a sign out of these drawings, and the last two failed in the
+    direction OPPOSITE to their own doctrine.
+    """
+
+    zone_id: str
+    side: ZoneSide = Field(
+        description=(
+            "Which side the zone is, NOT a recommendation. A plan on a demand "
+            "zone is what a long would look like if you already had a reason."
+        )
+    )
+    entry: float = Field(description="The proximal line, plus the spread if known")
+    stop: float = Field(description="Beyond the distal by the stop buffer")
+    target: float | None = Field(
+        description=(
+            "The nearest live opposing zone. None when there is no wall ahead, "
+            "and None is left in place rather than substituted with a "
+            "conventional R multiple, because a convention is not a reading."
+        )
+    )
+    risk_per_unit: float
+    reward_r: float | None
+    units: float | None = Field(
+        description="Position size, only when an account equity was supplied"
+    )
+
+    age_bars: int
+    departure_held_rate: float = Field(
+        description=(
+            "Measured survival of the cohort this zone belongs to, 0.858 above "
+            "the 2 ATR gate and 0.644 below it. A COHORT RATE, not this trade's "
+            "probability, and it excludes costs."
+        )
+    )
+    age_held_rate: float = Field(
+        description=(
+            "Same kind of number for the age band. Do NOT multiply it with "
+            "`departure_held_rate`: the two factors were shown to be entangled "
+            "when age turned out to be the departure gate in disguise."
+        )
+    )
+    spread_charged: float | None = Field(
+        description="None when the feed publishes no spread, so nothing was charged"
+    )
+    direction_evidence: None = Field(
+        default=None,
+        description=(
+            "Always None. Kept as an explicit field so that a consumer asking "
+            "'what says this will go up' gets an answer rather than silence."
+        ),
+    )
+    warnings: list[str] = Field(default_factory=list)
+
+
+class Note(BaseModel):
+    """One thing the advisor can say, with the doc section that explains it."""
+
+    topic: str
+    text: str
+    learn: str | None = Field(
+        description=(
+            "Anchor of the /docs section that teaches this, or None when the "
+            "note is a warning specific to this zone rather than a concept."
+        )
+    )
+
+
+class Advice(BaseModel):
+    """Everything the advisor can say about one zone.
+
+    The final note is always what CANNOT be known. That ordering is deliberate
+    and is enforced by a test: a reader who stops early should still have read
+    the honest sentences, and a reader who reads to the end cannot miss the one
+    that matters most.
+    """
+
+    zone_id: str
+    notes: list[Note]
+
+
 class DrawRequest(BaseModel):
     symbol: str = "XAUUSD"
     interval: str = "15m"
     bars: int = Field(default=500, ge=50, le=5000)
     provider: str | None = None
+    equity: float | None = Field(
+        default=None,
+        gt=0.0,
+        description=(
+            "Account size, used ONLY to turn a stop distance into a position "
+            "size. Absent by default, and when it is absent the plan reports no "
+            "size rather than assuming one - a made-up account is the fastest "
+            "way to make a risk number look authoritative while meaning nothing."
+        ),
+    )
     htf: str | None = Field(
         default=None,
         description=(
@@ -497,4 +606,16 @@ class DrawResponse(BaseModel):
     provider: str
     candles: list[Candle]
     drawing: Drawing
+    plans: list[TradePlan] = Field(
+        default_factory=list,
+        description=(
+            "One per drawn zone, in the same order. Geometry and risk only - "
+            "every plan's `direction_evidence` is None, because nothing here "
+            "predicts which way price goes."
+        ),
+    )
+    advice: list[Advice] = Field(
+        default_factory=list,
+        description="One per drawn zone, in the same order as `plans`.",
+    )
     meta: dict[str, Any] = Field(default_factory=dict)

@@ -5,6 +5,8 @@ most error-prone detail here, so each one is spelled out next to its provider
 rather than guessed at call time:
 
     binance     PAXGUSDT        no key, free websocket, tokenized-gold proxy
+    dukascopy   XAUUSD          true spot TICKS, no key, bid+ask so it is the
+                                one source here that yields a measured spread
     yahoo       GC=F            COMEX futures; every spot variant now 404s
     twelvedata  XAU/USD         true spot, slash required, needs a free key
     polygon     C:XAUUSD        true spot, epoch MILLIseconds, needs a key
@@ -29,6 +31,7 @@ from .base import INTERVALS, ProviderError, normalize
 SYMBOLS: dict[str, dict[str, str]] = {
     "XAUUSD": {
         "binance": "PAXGUSDT",
+        "dukascopy": "XAUUSD",
         "yahoo": "GC=F",
         "twelvedata": "XAU/USD",
         "polygon": "C:XAUUSD",
@@ -40,6 +43,7 @@ SYMBOLS: dict[str, dict[str, str]] = {
         "polygon": "X:BTCUSD",
     },
     "EURUSD": {
+        "dukascopy": "EURUSD",
         "yahoo": "EURUSD=X",
         "twelvedata": "EUR/USD",
         "polygon": "C:EURUSD",

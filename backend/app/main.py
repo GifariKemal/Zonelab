@@ -7,13 +7,26 @@ zones computed from bars it is not showing.
 
 from __future__ import annotations
 
+import numpy as np
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 
+from .advisor import explain
 from .config import settings
 from .confluence import mark_nesting
 from .detect import DETECTORS, PARAMS_FOR
-from .models import Candle, DrawRequest, DrawResponse, Drawing, Zone, ZoneState
+from .indicators import wilder_atr
+from .models import (
+    Advice,
+    Candle,
+    DrawRequest,
+    DrawResponse,
+    Drawing,
+    TradePlan,
+    Zone,
+    ZoneState,
+)
+from .plan import build as plan_for
 from .profit_zone import mark_crowding, mark_profit_zones
 from .refine import refine_zones
 from .resample import resample
@@ -157,14 +170,53 @@ async def draw(request: DrawRequest) -> DrawResponse:
         drawing.zones = drawing.zones + shapes
         meta[name] = extra
 
+    # Plans and advice are computed for what SURVIVED to the screen, and that is
+    # the one place in this codebase where working off the display-capped set is
+    # correct rather than a bug: a plan is an offer to act on a box the user can
+    # see. Every cross-zone measurement still happens inside the detector, before
+    # the cap, exactly as before.
+    plans, advice = _annotate(drawing.zones, rows, request)
+
     return DrawResponse(
         symbol=request.symbol,
         interval=request.interval,
         provider=used,
         candles=rows,
         drawing=drawing,
+        plans=plans,
+        advice=advice,
         meta=meta,
     )
+
+
+def _annotate(
+    zones: list[Zone], rows: list[Candle], request: DrawRequest
+) -> tuple[list[TradePlan], list[Advice]]:
+    """A trade plan and an explanation per zone, in the order they are drawn."""
+    if not zones or not rows:
+        return [], []
+
+    high = np.array([c.high for c in rows], dtype=np.float64)
+    low = np.array([c.low for c in rows], dtype=np.float64)
+    close = np.array([c.close for c in rows], dtype=np.float64)
+    atr = wilder_atr(high, low, close, request.supply_demand.atr_period)
+    now = rows[-1].time
+    # Only Dukascopy publishes a spread. When the feed does not, the plan says
+    # so rather than charging zero and quietly flattering every reward figure.
+    spread = rows[-1].spread
+
+    plans: list[TradePlan] = []
+    advice: list[Advice] = []
+    for zone in zones:
+        scale = float(atr[-1])
+        plan = plan_for(
+            zone, scale, now, INTERVALS[request.interval],
+            equity=request.equity, spread=spread,
+        )
+        if plan is not None:
+            plans.append(plan)
+        advice.append(explain(zone, plan, zone.timeframe or request.interval))
+    return plans, advice
 
 
 def _htf_zones(rows: list[Candle], request: DrawRequest) -> tuple[list[Zone], dict]:

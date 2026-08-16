@@ -8,6 +8,7 @@ import time
 from ..config import settings
 from ..models import Candle
 from .base import INTERVALS, Provider, ProviderError
+from .dukascopy import DukascopyProvider
 from .sources import (
     SYMBOLS,
     BinanceProvider,
@@ -21,6 +22,7 @@ PROVIDERS: dict[str, Provider] = {
     p.name: p
     for p in (
         BinanceProvider(),
+        DukascopyProvider(),
         YahooProvider(),
         TwelveDataProvider(),
         PolygonProvider(),
