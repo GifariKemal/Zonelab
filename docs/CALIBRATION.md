@@ -1426,6 +1426,42 @@ pengetahuan belakangan.
 > dengan nama yang sama hidup berdampingan selama berbulan-bulan, dan tidak satu
 > pun tes menangkapnya karena tidak ada tes yang membandingkan keduanya.
 
+#### Uji ambang buta, diulang di enam deret pada populasi jujur
+
+Hasil uji buta pertama dijalankan **sebelum** gerbangnya dipotong, jadi ia
+memakai departure yang terkontaminasi lookahead - dan ia hanya satu deret. Ini
+pengulangannya: enam deret, populasi jujur, aturan pemilihan sama persis.
+
+| Deret | Pilihan buta | Pemisahan di luar sampel | Pada 2,0 yang dikirim |
+|---|---|---|---|
+| XAUUSD 15m | 0,5 | +0,276 (t=2,35) | **+0,413 (t=2,58)** |
+| XAUUSD 1j, dua tahun | 1,5 | +0,244 (t=2,67) | **+0,297 (t=2,93)** |
+| BTCUSDT 15m | 5,0 | +0,138 (t=1,35) | **+0,222 (t=4,60)** |
+| BTCUSDT 1j | **2,0** | +0,261 (t=3,73) | +0,261 (t=3,73) |
+| ETHUSDT 1j | 3,0 | +0,389 (t=4,11) | +0,336 (**t=4,64**) |
+| PAXGUSDT 1j | 4,5 | +0,417 (t=2,93) | +0,298 (**t=4,27**) |
+
+**Pilihan butanya berhamburan dari 0,5 sampai 5,0 tanpa kesepakatan.** Itu tanda
+tangan derau: kalau ada ambang optimal yang nyata, enam deret independen akan
+berkumpul di sekitarnya. Yang terjadi justru sebaliknya - tiap deret memilih
+tempat berbeda, dan satu-satunya yang memilih 2,0 melakukannya karena 2,0 memang
+menang di sana.
+
+Sementara **2,0 punya t tertinggi di lima dari enam deret**, dan pemisahan positif
+di keenamnya.
+
+> [!IMPORTANT]
+> Hasil uji buta pertama **tidak bereproduksi**. Ia memilih 1,0 ATR dan memberi
+> pemisahan +0,878 di luar sampel, dan dilaporkan sebagai bukti kuat bahwa 2,0
+> terlalu konservatif dan membuang lebih banyak daripada perlu. Pada populasi
+> jujur, deret yang sama memilih 1,5 dan memberi +0,244.
+>
+> Dua sebabnya, dan keduanya sudah tercatat di halaman ini sebagai pelajaran:
+> angkanya dihitung pada departure berlookahead, dan ia satu deret. Menariknya,
+> pengulangan ini **membenarkan keputusan untuk tidak mengubah default** yang
+> diambil saat itu justru karena satu pembelahan bukan bukti - dan itu ternyata
+> tepat.
+
 #### Ambangnya dipilih buta, dan gerbangnya bertahan
 
 Setiap uji gerbang di halaman ini membawa cacat yang sama diam-diam: **ambang 2
