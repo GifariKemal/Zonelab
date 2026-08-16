@@ -51,6 +51,7 @@ from app.detect import DETECTORS
 from app.indicators import wilder_atr
 from app.models import ImbalanceParams, SupplyDemandParams, ZoneSide
 from app.plan import build
+from app.profit_zone import profit_zone_at
 from app.providers.base import INTERVALS
 from tools import history
 from tools.calibrate import POPULATION
@@ -62,6 +63,7 @@ COMMISSION_PER_UNIT = 0.07
 # Stops are market orders once triggered. One tick of gold is 0.01; two is a
 # deliberately mild assumption and the sweep below shows what a harsher one does.
 SLIPPAGE = 0.02
+PLACEBO_DRAWS = 3  # each zone displaced this many times, for a steadier control
 
 
 def _params(name: str):
@@ -71,7 +73,18 @@ def _params(name: str):
     return ImbalanceParams(**base)
 
 
-def trades(name: str, candles, interval: str, costs: bool) -> list[dict]:
+def trades(
+    name: str, candles, interval: str, costs: bool, rng=None
+) -> list[dict]:
+    """Every zone's first touch, resolved to an R multiple.
+
+    `rng` turns this into the PLACEBO arm: the box keeps its height, its side
+    and its bar, and is moved to a price it was never drawn at. Everything else
+    is identical, so whatever the placebo earns is what this market pays any
+    bracket of that shape, and only the difference belongs to the drawing. This
+    control has already killed one finding here - reversals at zones were real
+    and random boxes reversed just as often.
+    """
     params = _params(name)
     zones, _ = DETECTORS[name](candles, params)
 
@@ -94,8 +107,48 @@ def trades(name: str, candles, interval: str, costs: bool) -> list[dict]:
         if scale <= 0:
             continue
 
+        if rng is not None:
+            # Same height, same side, same bar, wrong price. Displaced by a
+            # random multiple of its own height so the shift is meaningful
+            # relative to the box rather than to the instrument.
+            shift = float(rng.uniform(-6.0, 6.0)) * (zone.top - zone.bottom)
+            demand = zone.side is ZoneSide.DEMAND
+            zone = zone.model_copy(update={
+                "top": zone.top + shift, "bottom": zone.bottom + shift,
+                "proximal": (zone.top if demand else zone.bottom) + shift,
+                "distal": (zone.bottom if demand else zone.top) + shift,
+            })
+            # The placebo has to be ENTERED the way the real zone was: on the
+            # bar price first reached its proximal line. Reusing the real
+            # zone's touch bar would start the walk before the displaced box
+            # was ever touched, so a box sitting far above price would be
+            # "stopped out" on a bar it had not been entered on. A box price
+            # never reaches at all is not a trade and is dropped, because
+            # counting it would let the placebo dodge losses for free.
+            arrived = None
+            for j in range(touch, min(touch + HORIZON + 1, len(close))):
+                if low[j] <= zone.proximal <= high[j]:
+                    arrived = j
+                    break
+            if arrived is None or arrived + HORIZON >= len(close):
+                continue
+            touch = arrived
+            scale = float(atr[touch - 1])
+            if scale <= 0:
+                continue
+
+        # The road is RECOMPUTED at the touch bar, and this is not a detail.
+        # `zone.profit_zone_rr` is stamped with the LAST bar's time, which is
+        # the right answer for "what does the trader see now" and lookahead for
+        # "what could the trader have seen then" - the opposing zone that sets
+        # the target may not have existed yet. profit_zone_at says exactly this
+        # in its own docstring; the first run of this tool used the stamped
+        # value anyway and every target was contaminated.
+        at_touch = zone.model_copy(update={
+            "profit_zone_rr": profit_zone_at(zone, zones, int(time[touch]))
+        })
         spread = candles[touch].spread if costs else None
-        plan = build(zone, scale, int(time[touch]), step, spread=spread)
+        plan = build(at_touch, scale, int(time[touch]), step, spread=spread)
         if plan is None:
             continue
         if plan.target is None:
@@ -131,6 +184,7 @@ def trades(name: str, candles, interval: str, costs: bool) -> list[dict]:
 
         out.append({
             "skipped": False,
+            "at": touch,
             "r": result,
             "won": result > 0,
             "cleared": zone.departure_atr >= 2.0,
@@ -187,15 +241,32 @@ def main() -> None:
         print(f"  {'':<26}{'n':>7}{'no target':>9}{'win':>9}{'exp R':>10}{'t':>8}")
 
         for name in ("supply_demand", "fvg", "order_block"):
+            tag = label[:4].lower()
             rows = trades(name, candles, args.interval, costs)
-            report(rows, f"{label[:4].lower()} {name}", out)
+            report(rows, f"{tag} {name}", out)
             # The departure gate is the one factor that passed walk-forward in
             # all three bracket geometries. Whether it survives costs is the
             # question this whole tool exists to answer.
-            report([r for r in rows if r["cleared"]],
-                   f"{label[:4].lower()} {name} gate", out)
-            report([r for r in rows if not r["cleared"]],
-                   f"{label[:4].lower()} {name} below", out)
+            report([r for r in rows if r["cleared"]], f"{tag} {name} gate", out)
+            report([r for r in rows if not r["cleared"]], f"{tag} {name} below", out)
+            # And the placebo, right underneath, because a positive number with
+            # no placebo beside it is not a result in this project.
+            rng = np.random.default_rng(20260816)
+            placebo: list[dict] = []
+            for _ in range(PLACEBO_DRAWS):
+                placebo.extend(trades(name, candles, args.interval, costs, rng))
+            report(placebo, f"{tag} {name} PLACEBO", out)
+
+            # Split-half on time. An edge that lives in one half is a window
+            # fit, and this project has caught that twice - once on a factor
+            # that had already passed walk-forward 8 from 8.
+            taken = [r for r in rows if not r["skipped"]]
+            if len(taken) > 200:
+                mid = np.median([r["at"] for r in taken])
+                report([r for r in rows if r["skipped"] or r["at"] <= mid],
+                       f"{tag} {name} first half", out)
+                report([r for r in rows if r["skipped"] or r["at"] > mid],
+                       f"{tag} {name} second half", out)
 
     print(
         "\n  Read the two blocks against each other, not on their own. The gap"

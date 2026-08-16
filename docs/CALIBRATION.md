@@ -1172,6 +1172,75 @@ Pertanyaan arah dari gambar ditutup di sini. Bukan karena kehabisan ide,
 melainkan karena dua konstruk ICT terakhir yang benar-benar membawa klaim arah
 sudah diuji dan keduanya gagal, satu di antaranya signifikan ke arah sebaliknya.
 
+### Setelah biaya dibebankan, pada emas sungguhan
+
+Setiap angka sebelum bagian ini **tanpa gesekan**. Itu wajar selama pertanyaannya
+"apakah kotaknya menandai tempat nyata", dan berhenti wajar begitu ada yang
+bertanya berapa nilainya. Keunggulan beberapa poin persen persis seukuran yang
+dimakan biaya transaksi, jadi keunggulan tanpa biaya bukan hampiran kasar dari
+keunggulan berbiaya - tandanya bisa berlawanan.
+
+`tools/costed.py` yang pertama membebankan apa pun, dan itu baru mungkin karena
+Dukascopy menerbitkan kedua sisi buku. Spread-nya **diukur per bar**, bukan
+diasumsikan: XAUUSD 15m, 1 Juni sampai 14 Agustus 2026, 5000 bar, spread minimum
+0,289, rata-rata 0,668, maksimum 4,361.
+
+Aturannya pesimistis di setiap tempat bar-nya ambigu: bar sentuhan ikut dihitung,
+kalau satu bar memuat stop **dan** target maka **stop** yang diambil, dan spread
+dibebankan di kedua kaki karena stop di bawah posisi long dieksekusi di sisi buku
+yang berlawanan dengan entry-nya.
+
+| Kohort (setelah biaya) | n | Menang | Ekspektasi R | t |
+|---|---|---|---|---|
+| supply_demand, semua | 529 | 62,2% | +0,059 | 1,37 |
+| **supply_demand lolos gerbang** | 307 | 72,0% | **+0,285** | **4,87** |
+| supply_demand di bawah gerbang | 222 | 48,6% | **-0,252** | -4,36 |
+| **supply_demand PLACEBO** | 882 | 47,6% | **-0,120** | -3,25 |
+| fvg | 566 | 54,6% | +0,227 | 3,64 |
+| **fvg PLACEBO** | 1368 | 32,2% | **-0,300** | -9,10 |
+| order_block | 779 | 68,4% | +0,130 | 3,74 |
+| **order_block PLACEBO** | 1413 | 46,1% | **-0,182** | -6,71 |
+
+Gerbang departure memisahkan **+0,285 lawan -0,252**, rentang 0,54R, setelah
+biaya. Uji paruhnya stabil di ketiga detektor (supply_demand +0,056 lalu +0,062;
+fvg +0,168 lalu +0,285).
+
+> [!CAUTION]
+> **Dua kesalahan saya sendiri ditemukan di sini, dan keduanya mengubah
+> jawabannya.**
+>
+> Pertama, versi awal tool ini memakai `zone.profit_zone_rr` apa adanya. Nilai
+> itu distempel dengan waktu bar **terakhir**, yang benar untuk "apa yang dilihat
+> trader sekarang" dan **lookahead** untuk "apa yang bisa dilihat trader saat
+> itu": zona lawan yang menetapkan targetnya bisa belum ada. Docstring
+> `profit_zone_at` sudah mengatakannya persis, dan saya tetap memakai nilai
+> stempelnya. Setiap target di run pertama terkontaminasi.
+>
+> Kedua, placebo pertama saya memakai bar sentuhan zona **asli** sebagai bar
+> masuk kotak yang digeser. Kotak yang duduk jauh di atas harga karena itu
+> "kena stop" di bar yang belum pernah ia masuki. Setelah placebo dimasuki
+> sebagaimana zona asli dimasuki - pada bar harga pertama kali menyentuh
+> proksimalnya - angkanya berayun dari **+0,284 ke -0,120**. Satu keputusan
+> desain menggeser jawaban 0,4R.
+
+> [!WARNING]
+> **Ini pilot, bukan validasi.** Satu instrumen, 2,5 bulan, n=307 pada kohort
+> gerbangnya. Belum ada walk-forward lintas potongan waktu maupun lintas
+> instrumen, dan tanpa itu proyek ini tidak menyalakan gerbang apa pun.
+>
+> Dan satu keberatan struktural yang harus dikatakan sendiri sebelum orang lain
+> mengatakannya: distal zona asli adalah **ekstrem sumbu**, yaitu tempat harga
+> sudah terbukti berbalik, sedangkan distal kotak acak adalah harga sembarang.
+> Sebagian keunggulannya mungkin sekadar "stop di ekstrem nyata adalah stop yang
+> lebih baik" - yang memang persis klaim doktrinnya, tetapi juga dekat dengan
+> tautologi. Membedakan keduanya butuh kontrol yang belum ada di sini.
+
+Satu hal yang tidak bisa diukur dan sebabnya struktural: FVG dan order block
+tidak punya konsep zona lawan, jadi targetnya dihitung terhadap zona lawan
+sejenisnya sendiri. Menerapkan aturan jalan milik supply/demand ke gambar metode
+lain adalah hal yang `main.py` tolak secara eksplisit, jadi angkanya dilaporkan
+dengan batasan itu terpampang.
+
 ### Apakah kotaknya saling bertabrakan
 
 Semua uji kesetiaan sebelumnya menanyakan hal yang sama: apakah kotak **ini**
