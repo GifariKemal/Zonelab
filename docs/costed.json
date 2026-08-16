@@ -27,6 +27,13 @@
   "expectancy_r": -0.06517170816934956,
   "t": -1.646807875168615
  },
+ "fric supply_demand ANCHORED PLACEBO": {
+  "n": 331,
+  "skipped": 16,
+  "win_rate": 0.4954682779456193,
+  "expectancy_r": -0.03996220610375927,
+  "t": -0.6195881511332427
+ },
  "fric supply_demand first half": {
   "n": 265,
   "skipped": 31,
@@ -61,6 +68,13 @@
   "win_rate": 0.32821637426900585,
   "expectancy_r": -0.19457873298899078,
   "t": -5.015220208609978
+ },
+ "fric fvg ANCHORED PLACEBO": {
+  "n": 345,
+  "skipped": 18,
+  "win_rate": 0.336231884057971,
+  "expectancy_r": -0.18943008300357533,
+  "t": -2.5156685826425376
  },
  "fric fvg first half": {
   "n": 283,
@@ -104,6 +118,13 @@
   "expectancy_r": -0.116596759126378,
   "t": -3.942369571800292
  },
+ "fric order_block ANCHORED PLACEBO": {
+  "n": 494,
+  "skipped": 6,
+  "win_rate": 0.5303643724696356,
+  "expectancy_r": -0.05264717008131661,
+  "t": -1.1213098029806814
+ },
  "fric order_block first half": {
   "n": 390,
   "skipped": 16,
@@ -146,6 +167,13 @@
   "expectancy_r": -0.12010782916590124,
   "t": -3.249867562964402
  },
+ "with supply_demand ANCHORED PLACEBO": {
+  "n": 331,
+  "skipped": 16,
+  "win_rate": 0.4984894259818731,
+  "expectancy_r": -0.09380653259052762,
+  "t": -1.5515662381389035
+ },
  "with supply_demand first half": {
   "n": 265,
   "skipped": 31,
@@ -180,6 +208,13 @@
   "win_rate": 0.3216374269005848,
   "expectancy_r": -0.300227276956572,
   "t": -9.095590967875607
+ },
+ "with fvg ANCHORED PLACEBO": {
+  "n": 345,
+  "skipped": 18,
+  "win_rate": 0.336231884057971,
+  "expectancy_r": -0.285964595301896,
+  "t": -4.447612683202766
  },
  "with fvg first half": {
   "n": 283,
@@ -223,6 +258,13 @@
   "expectancy_r": -0.1816995843498568,
   "t": -6.714120588262183
  },
+ "with order_block ANCHORED PLACEBO": {
+  "n": 494,
+  "skipped": 6,
+  "win_rate": 0.520242914979757,
+  "expectancy_r": -0.11682055929953755,
+  "t": -2.699360079192938
+ },
  "with order_block first half": {
   "n": 390,
   "skipped": 16,
@@ -236,5 +278,9 @@
   "win_rate": 0.6683804627249358,
   "expectancy_r": 0.0903431267259891,
   "t": 1.8402562896719723
+ },
+ "walk_forward": {
+  "folds": 8,
+  "positive": 8
  }
 }

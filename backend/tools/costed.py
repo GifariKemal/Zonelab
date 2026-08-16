@@ -48,6 +48,7 @@ import json
 import numpy as np
 
 from app.detect import DETECTORS
+from app.detect.structure import swings
 from app.indicators import wilder_atr
 from app.models import ImbalanceParams, SupplyDemandParams, ZoneSide
 from app.plan import build
@@ -64,6 +65,7 @@ COMMISSION_PER_UNIT = 0.07
 # deliberately mild assumption and the sweep below shows what a harsher one does.
 SLIPPAGE = 0.02
 PLACEBO_DRAWS = 3  # each zone displaced this many times, for a steadier control
+FOLDS = 8  # same count every other walk-forward here used, so p is comparable
 
 
 def _params(name: str):
@@ -74,7 +76,7 @@ def _params(name: str):
 
 
 def trades(
-    name: str, candles, interval: str, costs: bool, rng=None
+    name: str, candles, interval: str, costs: bool, rng=None, anchored: bool = False
 ) -> list[dict]:
     """Every zone's first touch, resolved to an R multiple.
 
@@ -95,6 +97,9 @@ def trades(
     atr = wilder_atr(high, low, close, params.atr_period)
     index_of = {int(t): i for i, t in enumerate(time)}
     step = INTERVALS[interval]
+    # Only needed by the anchored control, and each swing carries the bar it
+    # became knowable on, so a control cannot use a pivot from the future.
+    pivots = swings(high, low, 2, 2) if anchored else []
 
     out = []
     for zone in zones:
@@ -107,7 +112,47 @@ def trades(
         if scale <= 0:
             continue
 
-        if rng is not None:
+        if rng is not None and anchored:
+            # THE MATCHED CONTROL, and it exists because of an objection this
+            # project raised against its own result. A real zone's distal is a
+            # WICK EXTREME - a price at which price has already been shown to
+            # turn - while a randomly displaced box's distal is an arbitrary
+            # level that noise walks through. Part of the margin over the random
+            # placebo may therefore be nothing but "a stop at a real extreme is
+            # a better stop", which is close to a tautology.
+            #
+            # So this control keeps that property and breaks everything else:
+            # the box is rebuilt around a CONFIRMED SWING that has nothing to do
+            # with this zone. Same height, same side, stop at a real extreme,
+            # wrong place. Whatever survives THIS is not the tautology.
+            usable = [s for s in pivots
+                      if s.confirmed_at < touch and s.high is not (
+                          zone.side is ZoneSide.DEMAND)]
+            if not usable:
+                continue
+            pick = usable[int(rng.integers(0, len(usable)))]
+            height = zone.top - zone.bottom
+            demand = zone.side is ZoneSide.DEMAND
+            top = pick.price + height if demand else pick.price
+            bottom = pick.price if demand else pick.price - height
+            zone = zone.model_copy(update={
+                "top": top, "bottom": bottom,
+                "proximal": top if demand else bottom,
+                "distal": bottom if demand else top,
+            })
+            arrived = None
+            for j in range(touch, min(touch + HORIZON + 1, len(close))):
+                if low[j] <= zone.proximal <= high[j]:
+                    arrived = j
+                    break
+            if arrived is None or arrived + HORIZON >= len(close):
+                continue
+            touch = arrived
+            scale = float(atr[touch - 1])
+            if scale <= 0:
+                continue
+
+        elif rng is not None:
             # Same height, same side, same bar, wrong price. Displaced by a
             # random multiple of its own height so the shift is meaningful
             # relative to the box rather than to the instrument.
@@ -257,6 +302,13 @@ def main() -> None:
                 placebo.extend(trades(name, candles, args.interval, costs, rng))
             report(placebo, f"{tag} {name} PLACEBO", out)
 
+            anchored: list[dict] = []
+            rng2 = np.random.default_rng(20260817)
+            for _ in range(PLACEBO_DRAWS):
+                anchored.extend(
+                    trades(name, candles, args.interval, costs, rng2, anchored=True))
+            report(anchored, f"{tag} {name} ANCHORED PLACEBO", out)
+
             # Split-half on time. An edge that lives in one half is a window
             # fit, and this project has caught that twice - once on a factor
             # that had already passed walk-forward 8 from 8.
@@ -267,6 +319,34 @@ def main() -> None:
                        f"{tag} {name} first half", out)
                 report([r for r in rows if r["skipped"] or r["at"] > mid],
                        f"{tag} {name} second half", out)
+
+    # WALK-FORWARD, which is this project's own bar for switching anything on:
+    # a gate is not lit unless the difference points the right way across
+    # unseen time slices. Run only on the costed gate cohort, because that is
+    # the only cell claiming anything.
+    print(f"\n{'=' * 74}")
+    print("  WALK-FORWARD, costed, supply_demand above the departure gate")
+    print(f"{'=' * 74}")
+    rows = [r for r in trades("supply_demand", candles, args.interval, True)
+            if not r["skipped"] and r["cleared"]]
+    edges = np.linspace(0, len(candles), FOLDS + 1).astype(int)
+    signs = []
+    for k in range(FOLDS):
+        fold = [r for r in rows if edges[k] <= r["at"] < edges[k + 1]]
+        if len(fold) < 20:
+            print(f"  fold {k + 1}: {len(fold)} trades, too few to read")
+            continue
+        exp = float(np.mean([r["r"] for r in fold]))
+        signs.append(exp > 0)
+        print(f"  fold {k + 1}: n={len(fold):>4}  exp R {exp:>+7.3f}")
+    if signs:
+        # Sign test. With k readable folds the floor a coin can reach is
+        # 2 / 2^k, so a clean sweep of 8 is p=0.0078 - the same threshold every
+        # other walk-forward here was read against.
+        p = 2 / 2 ** len(signs) if all(signs) or not any(signs) else float("nan")
+        print(f"\n  {sum(signs)} of {len(signs)} folds positive"
+              + (f", sign test p={p:.4f}" if not np.isnan(p) else ""))
+        out["walk_forward"] = {"folds": len(signs), "positive": sum(signs)}
 
     print(
         "\n  Read the two blocks against each other, not on their own. The gap"

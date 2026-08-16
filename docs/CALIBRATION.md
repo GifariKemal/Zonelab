@@ -1272,17 +1272,52 @@ fvg +0,168 lalu +0,285).
 > proksimalnya - angkanya berayun dari **+0,284 ke -0,120**. Satu keputusan
 > desain menggeser jawaban 0,4R.
 
+#### Keberatan tautologi, dan kontrol yang menjawabnya
+
+Keberatan itu saya ajukan sendiri terhadap hasil saya sendiri: distal zona asli
+adalah **ekstrem sumbu**, yaitu harga yang sudah terbukti membalikkan harga,
+sedangkan distal kotak acak adalah level sembarang yang ditembus derau. Sebagian
+keunggulannya bisa jadi tidak lebih dari "stop di ekstrem nyata adalah stop yang
+lebih baik" - yang memang klaim doktrinnya, tetapi juga dekat tautologi.
+
+Placebo **berjangkar** mempertahankan sifat itu dan mematahkan sisanya: kotaknya
+dibangun mengelilingi **swing terkonfirmasi** yang tidak ada hubungannya dengan
+zona itu. Tinggi sama, sisi sama, stop di ekstrem nyata, tempat salah.
+
+| Detektor | Zona asli | Placebo acak | Placebo berjangkar |
+|---|---|---|---|
+| supply_demand, lolos gerbang | **+0,285** | -0,120 | **-0,094** |
+| fvg | +0,227 | -0,300 | -0,286 |
+| order_block | +0,130 | -0,182 | -0,117 |
+
+Placebo berjangkar memang sedikit lebih baik daripada yang acak (-0,094 lawan
+-0,120), yang konsisten dengan ekstrem nyata jadi stop yang sedikit lebih baik.
+Tapi selisih 0,026 itu tidak menjelaskan apa-apa dari 0,379 jarak ke zona
+aslinya. **Keberatannya terjawab: keunggulannya bukan sekadar letak stopnya.**
+
+#### Walk-forward, dan apa yang masih belum dibuktikannya
+
+Standar proyek ini sendiri: gerbang tidak dinyalakan sebelum selisihnya menunjuk
+arah yang benar di potongan waktu yang belum dilihat.
+
+| Fold | 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 |
+|---|---|---|---|---|---|---|---|---|
+| Ekspektasi R | +0,174 | +0,099 | +0,494 | +0,145 | +0,446 | +0,193 | +0,439 | +0,246 |
+
+**8 dari 8 positif, sign test p=0,0078**, ambang yang sama dengan setiap
+walk-forward lain di halaman ini.
+
 > [!WARNING]
-> **Ini pilot, bukan validasi.** Satu instrumen, 2,5 bulan, n=307 pada kohort
-> gerbangnya. Belum ada walk-forward lintas potongan waktu maupun lintas
-> instrumen, dan tanpa itu proyek ini tidak menyalakan gerbang apa pun.
+> Baca 8 dari 8 itu apa adanya, jangan lebih. Kedelapan fold berada **di dalam
+> 2,5 bulan yang sama pada satu instrumen**, dengan n antara 28 dan 48 per fold.
+> Itu membuktikan efeknya stabil sepanjang riwayat ini; ia tidak bisa
+> membuktikan efeknya bertahan melintasi rezim, tahun, atau instrumen lain -
+> dan pelajaran termahal di halaman ini adalah bahwa `age_bars` pernah lolos 8
+> dari 8 di tiga geometri dan tetap ternyata gerbang departure yang menyamar.
 >
-> Dan satu keberatan struktural yang harus dikatakan sendiri sebelum orang lain
-> mengatakannya: distal zona asli adalah **ekstrem sumbu**, yaitu tempat harga
-> sudah terbukti berbalik, sedangkan distal kotak acak adalah harga sembarang.
-> Sebagian keunggulannya mungkin sekadar "stop di ekstrem nyata adalah stop yang
-> lebih baik" - yang memang persis klaim doktrinnya, tetapi juga dekat dengan
-> tautologi. Membedakan keduanya butuh kontrol yang belum ada di sini.
+> Yang bisa dikatakan: ini **satu-satunya hal di proyek ini yang lolos semua
+> ujiannya sendiri setelah biaya dibebankan**. Yang belum: bukti bahwa ia
+> berlaku di luar emas dan di luar musim panas 2026.
 
 Satu hal yang tidak bisa diukur dan sebabnya struktural: FVG dan order block
 tidak punya konsep zona lawan, jadi targetnya dihitung terhadap zona lawan
