@@ -448,6 +448,12 @@ def detect(
                 # extends it and moves this zone's leg-out. Say so rather than
                 # presenting a provisional shape as settled.
                 confirmed=leg_out[2] < n - 1,
+                # Settled means the GATE verdict can no longer move: the
+                # leg-out has ended and the window that decided departure has
+                # fully printed. `look_to` is that window's end, clipped at the
+                # first touch, so this is exactly the bar after which nothing
+                # this zone reports will change.
+                settled=leg_out[2] < n - 1 and look_to < n,
                 anatomy=Anatomy(
                     leg_in_from=leg_in[1],
                     leg_in_to=leg_in[2],

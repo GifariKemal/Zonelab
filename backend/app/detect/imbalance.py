@@ -190,6 +190,11 @@ def _finish(
         first_test_time=life.first_test_time,
         arrival_atr=life.arrival_atr,
         confirmed=born < len(close) - 1,
+        # An imbalance has no departure window to wait out - the box is fixed
+        # the moment it is knowable - so settled and confirmed coincide here.
+        # They are still two fields, because they mean different things and the
+        # next detector may well separate them.
+        settled=born < len(close) - 1,
         anatomy=Anatomy(
             leg_in_from=origin, leg_in_to=origin,
             base_run_from=origin, base_from=origin, base_to=origin,

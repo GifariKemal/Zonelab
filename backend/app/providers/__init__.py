@@ -117,7 +117,13 @@ async def get_candles(
         if hit and time.monotonic() - hit[0] < settings.cache_ttl_seconds:
             return hit[1], provider.name
 
-        candles = drop_forming(await provider.fetch(symbol, interval, bars), interval)
+        # Ask for one MORE than wanted, because the newest is about to be
+        # dropped. Without this the guard silently shortchanges every caller by
+        # a bar - a request for 120 returned 119 - and a caller asking for a
+        # bar count is asking for that many USABLE bars, not that many minus
+        # whatever the feed happened to include.
+        fetched = await provider.fetch(symbol, interval, bars + 1)
+        candles = drop_forming(fetched, interval)[-bars:]
         if not candles:
             raise ProviderError(f"{provider.name} returned no candles for {symbol}")
         _cache[key] = (time.monotonic(), candles)

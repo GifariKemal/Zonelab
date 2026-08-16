@@ -7,6 +7,8 @@ zones computed from bars it is not showing.
 
 from __future__ import annotations
 
+import time
+
 import numpy as np
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
@@ -109,10 +111,23 @@ async def draw(request: DrawRequest) -> DrawResponse:
     # Both numbers, always. Vendors cap a page at their own limit (Binance at
     # 1000, Yahoo by calendar range), and a short answer is otherwise
     # indistinguishable from a quiet market.
+    # Provenance, because a live chart that cannot say WHICH BAR it describes is
+    # asking to be trusted on nothing. The forming bar is dropped upstream, so
+    # the newest bar here is closed - but the user cannot see that, and the gap
+    # between "now" and the bar being drawn is real and varies by provider:
+    # binance is seconds behind, dukascopy up to 59 minutes, and both look
+    # identical on screen without a number.
+    step = INTERVALS[request.interval]
+    as_of = rows[-1].time if rows else 0
     meta: dict[str, object] = {
         "bars_requested": request.bars,
         "bars_returned": len(rows),
         "truncated_by_provider": len(rows) < request.bars,
+        "as_of": as_of,
+        "bar_closed_at": as_of + step if rows else 0,
+        "next_close_at": as_of + 2 * step if rows else 0,
+        "feed_lag_seconds": max(0, int(time.time()) - (as_of + step)) if rows else 0,
+        "fetched_at": int(time.time()),
     }
 
     if "supply_demand" in request.detectors:

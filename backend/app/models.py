@@ -254,12 +254,28 @@ class Zone(BaseModel):
     )
     first_test_time: int | None = None
 
+    settled: bool = Field(
+        default=True,
+        description=(
+            "Every reported field for this zone is final given closed bars: the "
+            "leg-out run has ended AND the departure window that decided the "
+            "gate has fully printed. This is the flag `confirmed` was mistaken "
+            "for. A zone that is confirmed but not settled still has a gate "
+            "verdict that can move."
+        ),
+    )
     confirmed: bool = Field(
         default=True,
         description=(
             "False while the leg-out is still the newest run: the run can grow "
             "with the next bar, so the zone may still shift. The UI draws these "
-            "dashed. Everything older than the newest run is final."
+            "dashed. "
+            "It does NOT mean the zone is final, and its docstring used to claim "
+            "exactly that. An audit measured a confirmed zone's departure_atr "
+            "growing on 101 of 599 bar formations, its state changing 24 times "
+            "and reverting 21, and the flag itself flipping True to False when a "
+            "later bar extended the leg-out. Read it as `leg_out_open`, inverted. "
+            "For finality use `settled`."
         ),
     )
 

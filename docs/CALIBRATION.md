@@ -1319,6 +1319,60 @@ walk-forward lain di halaman ini.
 > ujiannya sendiri setelah biaya dibebankan**. Yang belum: bukti bahwa ia
 > berlaku di luar emas dan di luar musim panas 2026.
 
+### Apa yang literatur sebenarnya katakan, putaran dua
+
+Riset literatur kedua mencari bukti untuk konstruk yang dipakai di sini, dan
+temuan terbesarnya adalah **ketiadaan**.
+
+| Konstruk | Literatur peer-reviewed |
+|---|---|
+| **Stop hunting** | **Nol.** Pencarian judul dan abstrak OpenAlex, semua tahun: 58 hasil, **100% ekologi satwa liar** - rusa, simpanse, daging hutan. Mekanisme terdekat yang pernah terbit, kaskade Osler, menggambarkan harga **menembus terus** melewati level. **Kaki pembalikannya - bagian yang membuat setup ini bisa didagangkan - tidak pernah diuji siapa pun** |
+| **Fair value gap** | **Satu artikel jurnal**, dan ia memakai frasa itu untuk arti lain sama sekali (harga pasar lawan nilai intrinsik) |
+| **Volume profile, point of control, value area** | **Nol artikel empiris**, di OpenAlex maupun Crossref |
+| Time-series momentum | Huang dkk. 2020: t gabungannya **gagal nilai kritis bootstrap**, dan labanya **disamai strategi yang memakai rata-rata sampel historis dan tidak mengasumsikan keterprediksian sama sekali** |
+
+> [!WARNING]
+> OpenAlex dan Zenodo kini tercemar makalah semu ber-DOI hasil generator pada
+> istilah pencarian yang persis sama - satu pihak menyetor massal item berjudul
+> seperti *"LAB #1050 HARMFUL: VIDEO SCOUT: ICT Gems - What to do when a Fair
+> Value Gap fails?"*. Keberadaannya jangan dibaca sebagai minat akademik.
+
+#### Angka yang harus dipakai menakar seluruh program ini
+
+Dua hasil peer-reviewed memberi tolok ukur yang lebih keras daripada apa pun di
+halaman ini:
+
+- **Novy-Marx dan Velikov (RFS 2016)**: anomali dengan perputaran **di bawah 50%
+  per bulan** umumnya menghasilkan spread bersih signifikan; **yang di atasnya
+  jarang**.
+- **Chen dan Velikov (JFQA 2023)**: 204 anomali dengan biaya realistis,
+  rata-ratanya bersih **4 basis poin per bulan**, yang terkuat sekitar 10.
+
+Perputaran Zonelab, diukur: **55 round trip per bulan** pada emas 15 menit dan
+**11,8** pada emas 1 jam. Keduanya jauh di atas garis 50% itu, karena satu round
+trip penuh sudah 100% perputaran.
+
+Ada dua cara membaca ini dan keduanya harus dikatakan. Yang memberatkan:
+strategi berperputaran tinggi adalah kelas yang paling sering mati setelah
+biaya, dan literatur mengatakannya dengan tegas. Yang meringankan: pengukuran di
+halaman ini **sudah membebankan biaya** - spread diukur per bar, komisi dari
+jadwal terbitan, slippage dari tick. Yang membunuh anomali di Novy-Marx adalah
+diukur kotor lalu dibiayai belakangan; ini dibiayai sejak awal.
+
+Dan satu peringatan yang berlaku ke semuanya, dari **Brogaard dan Zareei (JFQA
+2022)**: profitabilitas aturan teknikal di luar sampel **menurun sepanjang
+waktu**. Setiap besaran efek historis di dokumen ini adalah **batas atas, bukan
+perkiraan**.
+
+#### Satu kontrol yang belum kita jalankan, dan seharusnya
+
+Huang dkk. menunjukkan laba momentum **disamai oleh baseline yang tidak memakai
+sinyal apa pun**. Digeneralisasi: **sistem apa pun yang labanya bisa direproduksi
+baseline bebas-sinyal belum membuktikan keunggulan.** Placebo acak dan placebo
+berjangkar di sini menguji "kotak di tempat salah", bukan "tanpa kotak sama
+sekali dengan frekuensi dan geometri bracket yang sama". Itu kontrol berikutnya
+yang layak dibangun.
+
 #### KOREKSI 2026-08-17: gerbangnya diukur dengan lookahead, dan angkanya turun
 
 Setiap angka gerbang departure di halaman ini sebelum tanggal ini **dihitung
