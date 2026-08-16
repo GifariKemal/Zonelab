@@ -115,27 +115,48 @@ def main() -> None:
     args = parser.parse_args()
 
     print("Loading history (cached after the first run)")
-    rows: list[dict] = []
-    for symbol, interval in SERIES:
-        rows.extend(collect(history.load(symbol, interval, args.bars)))
-
-    print(f"\n{'=' * 78}")
-    print("STRUCTURE BIAS   forward return in ATR, split by break direction")
-    print(f"{'=' * 78}")
-    print("  DELTA is after-up minus after-down, which cancels the sample's own")
-    print("  drift exactly. A structure that carries direction needs DELTA > 0.")
-
+    loaded = [history.load(s, tf, args.bars) for s, tf in SERIES]
     out: dict = {}
-    table(rows, "all breaks", out)
-    table([r for r in rows if r["kind"] == "BOS"], "BOS only", out)
-    table([r for r in rows if r["kind"] == "CHoCH"], "CHoCH only", out)
 
-    # Split-half on time. An effect that lives in one half is a window fit, and
-    # this project has caught that twice already.
-    mid = np.median([r["index"] for r in rows])
-    table([r for r in rows if r["index"] <= mid], "first half", out)
-    table([r for r in rows if r["index"] > mid], "second half", out)
+    # TWO swing widths, both fixed before any number existed. No published rule
+    # gives an N for a swing point - every value in circulation is an indicator
+    # default, including the 5 that one popular script hardcodes and the 50 that
+    # another ships as a slider. That makes N a data-snooping surface, and
+    # sweeping it would be choosing the answer. Two stated values, both reported
+    # whatever they say.
+    for left, right, label in ((2, 2, "N=2 minor"), (25, 25, "N=25 major")):
+        rows: list[dict] = []
+        for candles in loaded:
+            rows.extend(collect(candles, left, right))
 
+        print(f"\n{'=' * 78}")
+        print(f"STRUCTURE BIAS   {label}   forward return in ATR")
+        print(f"{'=' * 78}")
+        print("  DELTA is after-up minus after-down, which cancels the sample's")
+        print("  own drift exactly. Structure carrying direction needs DELTA > 0.")
+
+        # Sweeps are held out of every break cohort. A sweep is liquidity taken,
+        # not structure giving way, and pooling them would ask one question of
+        # two opposite events.
+        real = [r for r in rows if r["kind"] != "SWEEP"]
+        table(real, f"{label} all breaks", out)
+        table([r for r in real if r["kind"] == "BOS"], f"{label} BOS", out)
+        table([r for r in real if r["kind"] == "CHoCH"], f"{label} CHoCH", out)
+        table([r for r in rows if r["kind"] == "SWEEP"], f"{label} SWEEP", out)
+
+        # Split-half on time. An effect living in one half is a window fit, and
+        # this project has caught that twice already.
+        mid = np.median([r["index"] for r in real])
+        table([r for r in real if r["index"] <= mid], f"{label} first half", out)
+        table([r for r in real if r["index"] > mid], f"{label} second half", out)
+
+    print(
+        "\n  BOS and CHoCH are ONE predicate wearing two labels, not two"
+        "\n  hypotheses. Both are the same close-crossover of a confirmed swing;"
+        "\n  which name it gets depends only on where the bias already pointed."
+        "\n  They are a breakdown, not independent tests, and an earlier writeup"
+        "\n  in this project treated them as two."
+    )
     print(
         "\n  The t values above assume independent events. Breaks cluster and the"
         "\n  five series are correlated, so the effective sample is smaller than n"

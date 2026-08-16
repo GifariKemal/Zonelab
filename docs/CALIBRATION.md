@@ -911,35 +911,81 @@ menghasilkan keunggulan arah yang indah dan seluruhnya terbuat dari masa depan.
 Setiap swing membawa `confirmed_at`, setiap break hanya diuji terhadap swing yang
 sudah terkonfirmasi, dan itu **diasersikan di pengujian**, bukan dipercaya.
 
-Diukur pada 9210 break di lima deret. Estimandnya selisih **setelah break naik
-dikurangi setelah break turun**, yang membatalkan drift sampel secara persis.
-
-| Kelompok | n | DELTA @12 bar | t |
-|---|---|---|---|
-| Semua break | 9210 | +0,0724 | 0,99 |
-| BOS saja | 4581 | +0,1116 | 1,09 |
-| CHoCH saja | 4629 | +0,0273 | 0,26 |
-| Paruh pertama | 4605 | +0,1089 | 1,09 |
-| Paruh kedua | 4605 | +0,0421 | 0,40 |
-
-**Bar yang ditetapkan di depan: t >= 3,0 di horizon utama, tanda sama di kedua
-paruh, BOS dan CHoCH sepakat.** Dua kriteria terakhir lolos. Yang pertama tidak,
-dan tidak mendekat.
-
-Ini berbeda dari empat nol sebelumnya dan bedanya layak dinyatakan tepat.
-**Tandanya positif hampir di setiap sel** - kedua jenis break, kedua paruh,
-seluruh horizon - dan tumbuh dengan horizon sampai +0,295 ATR di 48 bar (t=1,86).
-Itu bukan nol datar; itu efek kecil bertanda konsisten yang **tidak melewati bar
-yang ditetapkan untuk data yang sudah menanggung sebanyak ini pengujian**. Dan
-t-nya optimistis, karena break menggerombol dan lima deretnya berkorelasi.
-
 > [!IMPORTANT]
-> Satu hal yang berlawanan langsung dengan doktrinnya: **CHoCH adalah yang
-> paling lemah** (t=0,26), lebih lemah daripada BOS (t=1,09). Doktrin
-> memperlakukan CHoCH sebagai peristiwa berinformasi tinggi, sinyal bahwa tren
-> berbalik. Di sini ia justru yang paling tidak memberi tahu apa pun.
+> **Koreksi atas laporan pertama saya sendiri.** Saya melaporkan BOS dan CHoCH
+> sebagai dua hipotesis. Keduanya **satu predikat yang sama** - penutupan
+> menembus swing terkonfirmasi - dan nama yang didapat hanya bergantung ke mana
+> bias sudah menunjuk. Mereka rincian, bukan dua uji bebas, dan memperlakukannya
+> sebagai dua adalah menghitung ganda.
 
-**Putusan: tidak dikonfirmasi.** Lima hipotesis arah, lima kali tidak lolos.
+Tidak ada aturan terbitan yang memberi nilai N untuk swing point. Setiap angka
+yang beredar adalah bawaan indikator, termasuk 5 yang di-hardcode satu skrip
+populer dan 50 yang dikirim skrip lain sebagai slider. Jadi **N adalah permukaan
+data-snooping**, dan menyapunya berarti memilih jawaban. Dua nilai ditetapkan di
+depan dan keduanya dilaporkan apa pun katanya.
+
+Estimandnya selisih **setelah break naik dikurangi setelah break turun**, yang
+membatalkan drift sampel secara persis.
+
+| N | Kelompok | n | DELTA @12 bar | t |
+|---|---|---|---|---|
+| 2 | Semua break | 9210 | +0,072 | 0,99 |
+| 2 | BOS | 4581 | +0,112 | 1,09 |
+| 2 | CHoCH | 4629 | +0,027 | 0,26 |
+| 2 | SWEEP | 8725 | +0,043 | 0,63 |
+| **25** | **Semua break** | **1100** | **+0,549** | **2,27** |
+| 25 | BOS | 556 | +0,608 | 1,59 |
+| 25 | CHoCH | 544 | +0,499 | 1,69 |
+| 25 | SWEEP | 1053 | +0,428 | 1,89 |
+| 25 | **Paruh pertama** | 550 | **+1,021** | **3,07** |
+| 25 | **Paruh kedua** | 550 | **+0,076** | **0,22** |
+
+Pada struktur besar efeknya **delapan kali lebih besar** daripada di struktur
+kecil, dan t naik ke 2,27. Itu hasil terkuat yang pernah dihasilkan proyek ini
+untuk pertanyaan arah.
+
+**Dan paruhnya membunuhnya.** Paruh pertama +1,02 dengan t=3,07; paruh kedua
++0,08 dengan t=0,22. Tandanya memang sama, jadi kriteria "tanda sama di kedua
+paruh" lolos secara harfiah - tetapi besarannya runtuh **tiga belas kali lipat**.
+Itu tanda tangan window fit, bukan efek.
+
+**Putusan: tidak dikonfirmasi.** Bar utamanya t >= 3,0 pada seluruh sampel, dan
+2,27 tidak sampai. Memilih N=25 karena ia terlihat lebih baik justru snooping
+yang aturan dua-nilai itu ada untuk mencegah.
+
+### Yang membuat nol ini berbeda: literatur memperkirakannya
+
+Empat nol sebelumnya berdiri sendiri. Yang ini punya rekaman peer-reviewed yang
+memperkirakannya, dan itu mengubah statusnya dari "kami tidak menemukan apa-apa"
+menjadi "kami menemukan apa yang sudah diketahui".
+
+- **Huddart, Lang & Yetman (Management Science, 2009)** meneliti perilaku harga
+  di sekitar tertinggi dan terendah 52 minggu. Menembus batas **bawah**
+  menghasilkan lonjakan volume yang sama dan **return berikutnya yang sama
+  positifnya** dengan menembus batas atas. **Peristiwanya punya besaran, tetapi
+  tidak punya tanda.** Itu persis hasil kami pada zona, gap, order block, dan
+  sekarang struktur - sudah ditegakkan pada sampel ekuitas besar.
+- **Brock, Lakonishok & LeBaron (JF, 1992)** adalah analog akademik BOS: beli
+  saat harga menembus maksimum lokal 50, 150, atau 200 hari. Hasil in-sample
+  kuat pada DJI 1897-1986. Lalu **Sullivan, Timmermann & White (JF, 1999)**
+  menjalankannya out-of-sample 1987-1996: p=0,154, dan penulisnya menulis
+  "hasilnya sepenuhnya terbalik". Lalu **Bajgrowicz & Scaillet (JFE, 2012)**
+  pada 1962-2011: **nol aturan yang unggul, pada biaya transaksi nol.**
+- Mekanisme jujur satu-satunya di level seperti ini, gugusan stop milik Osler,
+  bernilai sekitar **0,0014% pada 30 menit** - kira-kira 0,14 basis poin, dua
+  orde besaran di bawah spread ritel.
+
+Jadi struktur yang tidak membawa arah bukan kejutan. Ia hasil yang paling
+mapan di seluruh literatur perdagangan teknikal, dan kami menemukannya ulang
+dari nol pada instrumen dan dekade yang berbeda.
+
+> [!NOTE]
+> **Sweep membawa kira-kira sebanyak break** (+0,428 lawan +0,549 di N=25).
+> Kalau menembus level dan gagal menembus level memberi hasil yang serupa,
+> yang diukur adalah peristiwanya, bukan arahnya. Itu pengamatan Huddart lagi,
+> dari arah yang berbeda.
+
+**Lima hipotesis arah, lima kali tidak lolos.**
 
 ### Aturan berhentinya berlaku
 

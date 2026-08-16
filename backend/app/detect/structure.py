@@ -141,22 +141,46 @@ def breaks(
                 live_low = swing
 
         # A close beyond, never a wick. A wick through that closes back inside
-        # is a sweep - liquidity taken - and calling it a break would merge two
-        # opposite events into one name.
-        if live_high is not None and close[i] > live_high.price:
-            kind = "BOS" if bias >= 0 else "CHoCH"
-            out.append(
-                Break(i, times[i], kind, 1, live_high.price, live_high.index, bias)
-            )
-            bias = 1
-            live_high = None
-        elif live_low is not None and close[i] < live_low.price:
-            kind = "BOS" if bias <= 0 else "CHoCH"
-            out.append(
-                Break(i, times[i], kind, -1, live_low.price, live_low.index, bias)
-            )
-            bias = -1
-            live_low = None
+        # is a SWEEP - liquidity taken - and calling it a break would merge two
+        # opposite events into one name. Sweeps are emitted rather than silently
+        # skipped: it is the only object in this doctrine with a peer-reviewed
+        # mechanism behind it (stop orders clustering just beyond a level), and
+        # a detector that drops them cannot ever be asked about them.
+        #
+        # Up is evaluated before down, so an outside bar that closes beyond BOTH
+        # levels emits both and ends bearish. No source addresses that case; the
+        # order is a stated choice, and both events are kept rather than one
+        # being swallowed by an `elif`.
+        if live_high is not None:
+            if close[i] > live_high.price:
+                kind = "BOS" if bias >= 0 else "CHoCH"
+                out.append(
+                    Break(i, times[i], kind, 1, live_high.price, live_high.index, bias)
+                )
+                bias = 1
+                live_high = None
+            elif high[i] > live_high.price:
+                out.append(
+                    Break(i, times[i], "SWEEP", 1, live_high.price,
+                          live_high.index, bias)
+                )
+                # The level stays armed and unchanged. Raising it to the sweep
+                # wick would change every break downstream, and doctrine is
+                # silent on which is right.
+
+        if live_low is not None:
+            if close[i] < live_low.price:
+                kind = "BOS" if bias <= 0 else "CHoCH"
+                out.append(
+                    Break(i, times[i], kind, -1, live_low.price, live_low.index, bias)
+                )
+                bias = -1
+                live_low = None
+            elif low[i] < live_low.price:
+                out.append(
+                    Break(i, times[i], "SWEEP", -1, live_low.price,
+                          live_low.index, bias)
+                )
 
     return out, found
 
@@ -175,7 +199,11 @@ def bias_series(candles: list[Candle], left: int = 2, right: int = 2) -> np.ndar
     cursor = 0
     for i in range(len(candles)):
         while cursor < len(events) and events[cursor].index <= i:
-            at = events[cursor].direction
+            # A sweep is liquidity being taken, not structure giving way, so it
+            # must not move the bias. Reading `direction` off every event
+            # regardless of kind would let a wick flip the trend.
+            if events[cursor].kind != "SWEEP":
+                at = events[cursor].direction
             cursor += 1
         out[i] = at
     return out

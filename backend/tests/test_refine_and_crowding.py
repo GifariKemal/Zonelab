@@ -516,10 +516,19 @@ def test_a_wick_through_is_not_a_break():
     rows += [bar(t + (1 + i) * STEP, 100.0, 100.0, 0.2, 0.2) for i in range(6)]
 
     events, _ = breaks(rows, left=2, right=2)
+    before = bias_series(rows, left=2, right=2)
 
-    assert all(e.direction != 1 or rows[e.index].close > e.level for e in events)
     pierced = [e for e in events if e.index == len(rows) - 7]
-    assert not pierced, "a wick through must not register as a break"
+    assert pierced, "the wick through must be REPORTED, not silently dropped"
+    assert all(e.kind == "SWEEP" for e in pierced)
+    # Every genuine break must have closed beyond the level it broke.
+    for e in events:
+        if e.kind != "SWEEP":
+            close = rows[e.index].close
+            assert (close > e.level) if e.direction == 1 else (close < e.level)
+    # And a sweep must not move the bias, or a wick could flip the trend.
+    at = pierced[0].index
+    assert before[at] == before[at - 1]
 
 
 def test_the_first_break_is_a_bos_not_a_choch():
