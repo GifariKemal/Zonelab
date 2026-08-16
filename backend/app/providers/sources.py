@@ -66,6 +66,12 @@ def vendor_symbol(provider: str, symbol: str) -> str:
 def _client() -> httpx.AsyncClient:
     return httpx.AsyncClient(
         timeout=settings.http_timeout_seconds,
+        # The User-Agent is LOAD-BEARING, not courtesy. Measured 2026-08-16:
+        # the same Yahoo request answers HTTP 429 "Edge: Too Many Requests" on
+        # httpx's default `python-httpx/*` UA and 200 on any other string,
+        # including this one, on the first call of the day. Yahoo blocklists
+        # the client library by name, so deleting this line as boilerplate
+        # breaks every Yahoo fetch with an error that reads like a rate limit.
         headers={"User-Agent": "Zonelab/0.1 (local research tool)"},
         follow_redirects=True,
     )
@@ -155,8 +161,21 @@ class YahooProvider:
     name = "yahoo"
     _INTERVALS = {
         "1m": "1m", "5m": "5m", "15m": "15m", "30m": "30m",
-        "1h": "60m", "1d": "1d", "1w": "1wk",
+        "1h": "60m", "4h": "4h", "1d": "1d", "1w": "1wk",
     }  # fmt: skip
+
+    # Yahoo's intraday depth is a RECENCY wall, not a window width. Measured
+    # 2026-08-16 against the live endpoint: a 60-day-wide 15m window starting
+    # 90 days back is refused with the same HTTP 422 as a 90-day-wide one, so
+    # the range cannot be paged backwards - what is past the wall is simply not
+    # obtainable. Clamping here is the difference between a shorter chart and
+    # NO chart: before it, 3000 15m bars computed a 69-day range and 422'd, and
+    # 3000 is well inside `max_bars`. 1d/1w keep the old 730 because neither
+    # has been measured and inventing a limit is worse than the one in use.
+    #
+    # 1m is EIGHT days, not the seven every write-up repeats: measured, 7d
+    # returns 7126 bars, 8d returns 9655, and 9d is the first to 422.
+    _WALL_DAYS = {"1m": 8, "5m": 60, "15m": 60, "30m": 60, "1h": 730, "4h": 730}
 
     def available(self) -> bool:
         return True
@@ -164,14 +183,17 @@ class YahooProvider:
     async def fetch(self, symbol: str, interval: str, bars: int) -> list[Candle]:
         step = self._INTERVALS.get(interval)
         if step is None:
-            raise ProviderError(f"yahoo has no {interval} interval (4h is unsupported)")
+            raise ProviderError(f"yahoo has no {interval} interval")
 
         # Yahoo takes a calendar range, not a bar count. Pad generously: markets
         # close, so wall-clock span is always longer than bars x interval.
         span_days = max(1, math.ceil(bars * INTERVALS[interval] / 86400 * 2.2))
         payload = await _get_json(
             f"https://query1.finance.yahoo.com/v8/finance/chart/{vendor_symbol(self.name, symbol)}",
-            {"interval": step, "range": f"{min(span_days, 730)}d"},
+            {
+                "interval": step,
+                "range": f"{min(span_days, self._WALL_DAYS.get(interval, 730))}d",
+            },
         )
 
         chart = payload.get("chart") if isinstance(payload, dict) else None
@@ -214,7 +236,23 @@ class YahooProvider:
                     volume=float(volumes[i] or 0) if i < len(volumes) else 0.0,
                 )
             )
-        return normalize(candles, bars)
+        rows = normalize(candles, bars)
+
+        # Yahoo refuses an interval it will not serve by answering 200 with a
+        # SILENTLY COARSER series, not with an error: measured 2026-08-16,
+        # interval=1h with range=max came back as 267 bars spanning 2000 to
+        # 2026, which is monthly. Real prices on the wrong timeframe are the
+        # worst failure available here because nothing downstream can detect
+        # it - a zone drawn on monthly bars is still a valid-looking zone. The
+        # smallest gap between consecutive bars is exactly one interval inside
+        # any session, so it is the cheapest thing that catches the swap.
+        gaps = [b.time - a.time for a, b in zip(rows, rows[1:])]
+        if gaps and min(gaps) > INTERVALS[interval]:
+            raise ProviderError(
+                f"yahoo was asked for {interval} bars and returned none closer "
+                f"together than {min(gaps)}s: it downgraded the interval silently"
+            )
+        return rows
 
 
 class TwelveDataProvider:

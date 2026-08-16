@@ -42,12 +42,20 @@ def load(symbol: str, interval: str, bars: int, refresh: bool = False) -> list[C
         raw = np.load(path)
         return _to_candles(raw["rows"])
 
-    rows = _download(symbol, interval, bars)
-    np.savez_compressed(path, rows=rows)
+    rows, missed = _download(symbol, interval, bars)
+    # A holed series is NOT cached. The per-hour cache already kept everything
+    # that did arrive, so re-running is cheap and fills the gaps; writing the
+    # final file here would freeze the holes in place and every later run would
+    # read them back as if they were the market being quiet.
+    if missed:
+        print(f"  not caching: {missed} hours unreachable. Re-run to fill them; "
+              f"the hours already fetched are cached and will not be re-asked.")
+    else:
+        np.savez_compressed(path, rows=rows)
     return _to_candles(rows)
 
 
-def _download(symbol: str, interval: str, bars: int) -> np.ndarray:
+def _download(symbol: str, interval: str, bars: int) -> tuple[np.ndarray, int]:
     step = INTERVALS[interval]
     end = datetime.now(UTC).replace(minute=0, second=0, microsecond=0)
 
@@ -62,13 +70,21 @@ def _download(symbol: str, interval: str, bars: int) -> np.ndarray:
     ticks: list[tuple[int, float, float, float]] = []
     starts: set[int] = set()  # bucket count, so the aggregate is not rebuilt per batch
     hours = 0
+    missed = 0
     while len(starts) <= bars and hours < ceiling:
         batch = [end - timedelta(hours=h) for h in range(hours + 1, hours + 1 + BATCH)]
-        page = asyncio.run(fetch_ticks(symbol, batch))
+        # Tolerant here and nowhere else. The feed refuses connections for a
+        # stretch after a few hundred hours, so all-or-nothing means a long
+        # download can never finish - measured 2026-08-16, a 5000-hour pull died
+        # at hour 144. Every completed hour is cached, so a tolerant pull that
+        # reports its holes and is re-run converges on a complete series.
+        page, failed = asyncio.run(fetch_ticks(symbol, batch, tolerate_gaps=True))
         ticks.extend(page)
+        missed += failed
         starts.update(t[0] // 1000 // step * step for t in page)
         hours += BATCH
-        print(f"  {symbol} {interval}: {len(starts)} bars from {hours}h", end="\r")
+        print(f"  {symbol} {interval}: {len(starts)} bars from {hours}h"
+              f"{f', {missed} hours unreachable' if missed else ''}    ", end="\r")
 
     covered_from = int((end - timedelta(hours=hours)).timestamp())
     candles = to_candles(ticks, interval, covered_from, int(end.timestamp()))[-bars:]
@@ -77,11 +93,12 @@ def _download(symbol: str, interval: str, bars: int) -> np.ndarray:
             f"dukascopy served no {interval} bars for {symbol} across {hours} hours"
         )
 
-    print(f"  {symbol} {interval}: {len(candles)} bars from {hours}h of ticks")
+    print(f"  {symbol} {interval}: {len(candles)} bars from {hours}h of ticks"
+          + (f", {missed} hours unreachable" if missed else ""))
     return np.array(
         [[c.time, c.open, c.high, c.low, c.close, c.volume, c.spread] for c in candles],
         dtype=np.float64,
-    )
+    ), missed
 
 
 def _to_candles(rows: np.ndarray) -> list[Candle]:

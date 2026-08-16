@@ -8,6 +8,11 @@ now and caches the result as .npz.
 Binance for the crypto tickers, Dukascopy for the spot-FX and metal symbols it
 has a verified price scale for. The split is invisible to callers: `load` takes
 the same three arguments either way.
+
+A third route exists only because it must be asked for by name. Gold has two
+sources here and they are not interchangeable - Dukascopy is spot, Yahoo is the
+COMEX future - so nothing may pick between them on a caller's behalf. Prefix
+the symbol, `yahoo:XAUUSD`, and see tools/yahoo.py for what that instrument is.
 """
 
 from __future__ import annotations
@@ -22,13 +27,24 @@ from app.models import Candle
 from app.providers.base import INTERVALS
 from app.providers.dukascopy import DIVISOR as DUKASCOPY_SYMBOLS
 
-from tools import dukascopy
+from tools import dukascopy, yahoo
 
 CACHE = Path(__file__).resolve().parent.parent / ".cache"
 PAGE = 1000  # vendor hard cap
 
 
 def load(symbol: str, interval: str, bars: int, refresh: bool = False) -> list[Candle]:
+    # An explicit `yahoo:` prefix rather than a new argument, for the same
+    # reason the Dukascopy route is a test on the symbol: it keeps
+    # `load(symbol, interval, bars)` intact for the two dozen callers, and it
+    # lets any of them reach the cross-check series by editing one string in a
+    # SERIES list or on a command line instead of learning a keyword. It has to
+    # be spelled out because the two gold series are different INSTRUMENTS, so
+    # falling back from one to the other would swap spot for futures silently.
+    source, _, ticker = symbol.partition(":")
+    if source.lower() == "yahoo":
+        return yahoo.load(ticker, interval, bars, refresh)
+
     # XAUUSD here is real spot gold with a measured spread, not PAXG; only
     # Dukascopy carries it, and everything else this project measures on is a
     # Binance ticker. Routing on the symbol rather than on a new argument is

@@ -135,6 +135,41 @@ def test_a_missing_hour_is_a_gap_not_an_error(tmp_path, monkeypatch):
         asyncio.run(run(lambda r: httpx.Response(403), HOUR - timedelta(hours=3)))
 
 
+def test_a_bulk_pull_tolerates_an_unreachable_hour_and_a_chart_does_not(
+    tmp_path, monkeypatch
+):
+    """The one asymmetry in this module, and it is deliberate.
+
+    A chart quietly missing an hour is a lie about the market and the user
+    cannot see the hole, so interactively an unreachable hour must be said. In a
+    bulk pull the rule inverts: measured 2026-08-16, the feed stops accepting
+    connections for a stretch after a few hundred hours, and under all-or-
+    nothing a 5000-hour download died at hour 144 and could never finish.
+    """
+    monkeypatch.setattr(dukascopy, "HOUR_CACHE", tmp_path)
+
+    # Patched at _hour, not at the transport: fetch_ticks builds its own
+    # AsyncClient, so a MockTransport handed to the test's client is never used
+    # and the test silently reaches the real feed. It did exactly that once.
+    async def refuse(client, vendor, hour, divisor):
+        raise ProviderError("network error contacting ...: ConnectTimeout")
+
+    monkeypatch.setattr(dukascopy, "_hour", refuse)
+    hours = [HOUR - timedelta(hours=h) for h in range(3)]
+
+    async def run(tolerate):
+        return await dukascopy.fetch_ticks("XAUUSD", hours, tolerate_gaps=tolerate)
+
+    with pytest.raises(ProviderError):
+        asyncio.run(run(False))
+
+    ticks, failed = asyncio.run(run(True))
+    assert ticks == []
+    # Returned, not logged, so a caller cannot mistake a holed pull for a whole
+    # one - which is what stops the holes being written into the bar cache.
+    assert failed == len(hours)
+
+
 def test_a_past_hour_is_fetched_once_and_a_404_is_never_cached(tmp_path, monkeypatch):
     """The cache is what makes this feed usable: one HTTP request PER HOUR means
     a 500-bar H1 chart is 500 requests, and changing timeframe would pay for the

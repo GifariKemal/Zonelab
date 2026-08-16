@@ -79,6 +79,8 @@ MAX_INTERACTIVE_HOURS = 1200
 # the next few minutes hit a connect timeout. Lowered rather than diagnosed,
 # because the vendor publishes no rate limit and guessing one would be fiction.
 CONCURRENCY = 4
+RETRIES = 5
+BACKOFF = 1.0  # seconds, doubled per attempt: 1, 2, 4, 8
 
 
 def hour_url(vendor: str, hour: datetime) -> str:
@@ -188,14 +190,14 @@ async def _hour(
         return [(int(r[0]), float(r[1]), float(r[2]), float(r[3])) for r in rows]
 
     url = hour_url(vendor, hour)
-    for attempt in range(3):
+    for attempt in range(RETRIES):
         try:
             response = await client.get(url)
         except httpx.HTTPError as exc:
             # Measured 2026-08-16: a plain connection timeout on one hour in a
             # run where its neighbours all answered. Retried rather than
             # raised, or a single flaky hour aborts a 5000-hour download.
-            if attempt == 2:
+            if attempt == RETRIES - 1:
                 # The class name, not just str(exc). httpx.ConnectTimeout
                 # stringifies to the EMPTY STRING, so the obvious f-string
                 # produced "network error contacting <url>: " - a message that
@@ -207,7 +209,11 @@ async def _hour(
                     f"request per hour and answers slowly in bursts; a smaller "
                     f"request usually goes through."
                 ) from exc
-            await asyncio.sleep(0.5 * (attempt + 1))
+            # Exponential, not linear. Measured 2026-08-16: after roughly 150
+            # hours the feed stops accepting connections for a stretch, and
+            # three tries 0.5s apart all land inside that stretch. Backing off
+            # to seconds is what lets a long download ride it out.
+            await asyncio.sleep(BACKOFF * 2 ** attempt)
             continue
 
         # A tickless hour - weekend, holiday, or a quiet metal overnight - is
@@ -241,9 +247,22 @@ async def _hour(
 
 
 async def fetch_ticks(
-    symbol: str, hours: list[datetime]
-) -> list[tuple[int, float, float, float]]:
-    """Every tick in `hours`, unordered. Shared by the provider and the loader."""
+    symbol: str, hours: list[datetime], tolerate_gaps: bool = False
+) -> tuple[list[tuple[int, float, float, float]], int]:
+    """Every tick in `hours`, unordered, plus the count of hours that failed.
+
+    `tolerate_gaps` is the difference between a chart and a download, and it is
+    not a convenience. Interactively, one unreachable hour must be said: a chart
+    silently missing an hour is a lie about the market. In a bulk historical
+    pull it is the opposite - measured 2026-08-16, the feed stops accepting
+    connections for a stretch after roughly 150 hours, and with an all-or-
+    nothing rule a 5000-hour download can therefore never finish. Since every
+    completed hour is cached, a tolerant pull that reports its gap count and is
+    simply re-run converges; an intolerant one does not.
+
+    The count is RETURNED rather than logged, so a caller cannot accidentally
+    treat a holed download as a complete one.
+    """
     vendor = vendor_symbol("dukascopy", symbol)
     divisor = DIVISOR.get(vendor.upper())
     if divisor is None:
@@ -253,10 +272,18 @@ async def fetch_ticks(
         )
 
     gate = asyncio.Semaphore(CONCURRENCY)
+    failed = 0
 
     async def one(hour: datetime) -> list[tuple[int, float, float, float]]:
+        nonlocal failed
         async with gate:
-            return await _hour(client, vendor, hour, divisor)
+            try:
+                return await _hour(client, vendor, hour, divisor)
+            except ProviderError:
+                if not tolerate_gaps:
+                    raise
+                failed += 1
+                return []
 
     async with httpx.AsyncClient(
         timeout=settings.http_timeout_seconds,
@@ -264,7 +291,7 @@ async def fetch_ticks(
         follow_redirects=True,
     ) as client:
         pages = await asyncio.gather(*(one(hour) for hour in hours))
-    return [tick for page in pages for tick in page]
+    return [tick for page in pages for tick in page], failed
 
 
 class DukascopyProvider:
@@ -295,7 +322,9 @@ class DukascopyProvider:
 
         end = datetime.now(UTC).replace(minute=0, second=0, microsecond=0)
         hours = [end - timedelta(hours=h) for h in range(1, hours_needed + 1)]
-        ticks = await fetch_ticks(symbol, hours)
+        # Not tolerant: a chart quietly missing an hour is a lie about the
+        # market, and the user cannot see the hole.
+        ticks, _ = await fetch_ticks(symbol, hours)
         if not ticks:
             # Gold and FX are shut from Friday 21:00 to Sunday 22:00 UTC, so a
             # small bar count asked for over a weekend reaches back into
