@@ -1303,3 +1303,67 @@ nol build browser Playwright, dan `explorer.exe` hidup.
 > "turbopack: 4" pada mesin yang benar-benar bersih, karena perintah PowerShell
 > yang menghitung memuat kata-kata itu di command line-nya sendiri. Itu jebakan
 > yang sama, ketiga kalinya dalam satu sesi.
+
+### Lanjutan: flicker, dan tiga percobaan gagal untuk membereskannya
+
+Pengguna melaporkan "terkadang ada proses cmd yang tiba-tiba muncul terus
+hilang". Diukur, bukan didiagnosis dari deskripsi:
+
+```
+distinct cmd.exe seen in 20s: 15
+   x12  C:\Windows\system32\cmd.exe /c ...\Zonelab\start.bat
+```
+
+**Dua belas `start.bat` yatim**, satu per uji coba yang saya jalankan, semuanya
+terjebak di loop penahan jendela:
+
+```bat
+:hold
+ping -n 3600 127.0.0.1 >nul
+goto :hold
+```
+
+Loop itu **memunculkan `ping.exe` sungguhan setiap jam, per instance**. Terhitung
+saat itu: 12 `ping.exe` hidup, satu per yatim, saling bergilir. Itu flicker-nya.
+
+`ping` diganti `pause >nul`, sebuah perintah **internal** cmd yang tidak
+memunculkan proses apa pun. Sesudahnya, dengan server jalan: `ping.exe` = 0.
+
+Lalu tiga percobaan menutup celahnya, dan dua gagal dengan bentuk yang sama:
+
+1. **Sapuan wmic untuk `cmd.exe` yang menyebut `start.bat`.** `call` tidak
+   memunculkan proses baru, jadi ketika `start.bat` memanggil `stop.bat /q`,
+   sapuan itu berjalan **di dalam** cmd.exe yang command line-nya memuat
+   `start.bat`. Ia membunuh `start.bat` di tengah pembersihannya sendiri,
+   sebelum satu server pun menyala.
+2. **Digerbangi `/q`.** Itu memperbaiki nomor 1 dan membuka nomor 2: proses
+   **wrapper** yang menjalankan uji yang memanggil `stop.bat` juga menyebut
+   `start.bat` di command line-nya. Mesin yang benar-benar bersih melaporkan
+   "Stopping a start.bat launcher" lalu "something is STILL running".
+3. **Dibuang.** `:bytitle` dengan dua filter, `IMAGENAME eq cmd.exe` **dan**
+   judulnya, sudah menangani kasus nyata dengan presisi. Yang tidak tercakup
+   adalah `start.bat` yang diluncurkan skrip lain, dan itu pola pengujian saya,
+   bukan cara siapa pun memakainya.
+
+Ditambah satu suntingan saya yang **merusak berkasnya**: `s.index(":freeport")`
+menemukan **call site**-nya, bukan definisi labelnya, jadi blok baru tersisip di
+tengah dan menghapus kata `call`. Ketahuan dari `grep -n "^call :\|^:[a-z]"` yang
+menampilkan `:freeport %API_PORT% "API"` tanpa `call`.
+
+### Siklus akhir, terukur
+
+| Langkah | Server | `ping.exe` | API | Web | Warning di log |
+|---|---|---|---|---|---|
+| bersih | 0 | 0 | - | - | - |
+| start #1 | 4 | **0** | 200 | 200 | 0 |
+| start #2 | 4 | **0** | 200 | 200 | 0 |
+| start #3 | 4 | **0** | 200 | 200 | 0 |
+| stop | **0** | **0** | mati | mati | - |
+| stop lagi | 0 | 0 | - | - | "Nothing was running" |
+
+> [!CAUTION]
+> Empat kali dalam satu sesi sebuah filter mencocokkan perintah yang sedang
+> memfilter. Dua kali itu cuma alarm palsu; sekali itu hampir membunuh
+> `start.bat` sendiri; dan sekali - lewat judul jendela - benar-benar menutup
+> desktop pengguna. **Sebelum mempercayai hitungan proses, kecualikan shell-nya
+> lebih dulu.**
