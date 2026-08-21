@@ -1,6 +1,6 @@
 """Explain a drawing in sentences, each one carrying the number behind it.
 
-An advisor that predicts would have to invent the one thing nine pre-registered
+An advisor that predicts would have to invent the one thing twelve pre-registered
 hypotheses could not produce. This one explains instead, and the difference is
 not modesty - it is what makes the other sentences worth believing. Every line
 below is either a measurement from docs/CALIBRATION.md or arithmetic on geometry
@@ -40,6 +40,18 @@ FORMATIONS: dict[ZoneKind, tuple[str, str]] = {
                    "harga yang dilewati tanpa transaksi dua arah"),
     ZoneKind.OB: ("Order Block",
                   "lilin berlawanan terakhir sebelum gerakan impulsif"),
+    # Peran kotaknya berbalik, bukan kotak baru: harga menutup melewatinya, lalu
+    # pita yang sama dibaca dari arah sebelah. Penjelasannya harus menyebut
+    # hasil ukurnya, karena inilah satu-satunya konstruk di daftar ini yang
+    # doktrinnya jual sebagai arah dan H8 justru mengukurnya NEGATIF signifikan
+    # di ketiga detektor: tahu sebuah kotak terbalik membuat tebakan arah lebih
+    # buruk daripada tidak tahu.
+    ZoneKind.IFVG: ("Inversion Fair Value Gap",
+                    "gap yang ditembus penutupan, lalu dibaca dari sisi "
+                    "sebaliknya - diukur di sini TIDAK membawa arah"),
+    ZoneKind.BRK: ("Breaker Block",
+                   "order block yang ditembus penutupan, lalu dibaca dari sisi "
+                   "sebaliknya - diukur di sini TIDAK membawa arah"),
 }
 
 
@@ -133,8 +145,9 @@ def explain(zone: Zone, plan: TradePlan | None, interval: str) -> Advice:
         topic="Yang TIDAK bisa saya katakan",
         text=(
             f"Apakah harga akan datang ke {side} ini, dan ke mana ia pergi "
-            f"sesudahnya. Sembilan hipotesis arah diuji di proyek ini dan "
-            f"sembilanya nol; dua yang terakhir bahkan gagal ke arah kebalikan "
+            f"sesudahnya. Dua belas hipotesis arah pre-registered diuji di "
+            f"proyek ini dan dua belasnya nol; dua yang terakhir bahkan gagal "
+            f"ke arah kebalikan "
             f"doktrinnya. Gambar ini memberitahu DI MANA, bukan KE MANA. Arah "
             f"harus datang dari kamu atau dari sesuatu di luar gambar ini."
         ),

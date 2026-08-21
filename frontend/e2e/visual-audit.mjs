@@ -22,7 +22,13 @@ const browser = await chromium.launch({ args: ["--no-proxy-server"] });
 const page = await browser.newPage({ viewport: { width: 1500, height: 820 }, deviceScaleFactor: 2 });
 await page.goto("http://127.0.0.1:3100/", { waitUntil: "networkidle" });
 await page.waitForTimeout(6000);
-await page.locator("select").nth(2).selectOption(String(BARS));
+// BY NAME, NOT BY POSITION. `select").nth(3)` was the HTF picker until a
+// Broker picker landed beside it on 2026-08-20 and every index after Source
+// shifted by one - the sweep then timed out waiting for a combobox that had
+// moved, which reads as a broken app rather than as a moved control. Each
+// `<select>` carries an `aria-label`, so the accessible name is the stable
+// handle and a new picker cannot break this again.
+await page.getByRole("combobox", { name: "Bars" }).selectOption(String(BARS));
 await page.waitForTimeout(3000);
 
 const summary = [];
@@ -39,7 +45,7 @@ for (const tf of TIMEFRAMES) {
       const r = await fetch(`${api}/api/draw`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ symbol: "XAUUSD", interval, bars, detectors: ["supply_demand"] }),
+        body: JSON.stringify({ symbol: "XAUUSD", interval, bars, layers: ["supply_demand"] }),
       });
       return r.json();
     },
@@ -65,8 +71,10 @@ for (const tf of TIMEFRAMES) {
     "Markers under the candles: `I` leg-in, `c` the rest of the consolidation,",
     "`B` the base the box is drawn on, `O` leg-out. `c` appears only when a long",
     "pause was clipped so the box sits on the bars the move actually left from.",
-    "The shaded box is the zone. The brighter horizontal rule inside it is the",
-    "proximal line, the edge price meets first on the way back.",
+    "The shaded box is the zone. The proximal line, the edge price meets first",
+    "on the way back, is the TOP border of a demand box and the BOTTOM border of",
+    "a supply one - so it sits ON an edge rather than inside the box, unless",
+    "refinement moved it. Its dash pattern names the detector.",
     "",
   ];
 

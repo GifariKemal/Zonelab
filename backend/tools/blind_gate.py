@@ -115,7 +115,7 @@ def main() -> None:
         return
 
     print(f"\n  Chosen blind: {gate:.1f} ATR, separation {gap:+.3f} in sample")
-    print(f"  Shipped:      2.0 ATR")
+    print("  Shipped:      2.0 ATR")
     print()
     evaluate(second, gate, f"SECOND HALF at the blindly chosen {gate:.1f} ATR")
     print()

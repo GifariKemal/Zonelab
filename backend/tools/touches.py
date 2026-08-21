@@ -217,8 +217,8 @@ def report(sequences: list[list[bool]], reward: float, horizon: int, mode: str) 
     out: dict = {"zones": len(sequences)}
 
     # ---- unconditional, and labelled as the selected thing it is ------------
-    print(f"\n  UNCONDITIONAL, and this population SHRINKS AND CHANGES each row")
-    print(f"  {'touch':<8}{'n':>7}{'held':>9}")
+    print("\n  UNCONDITIONAL, and this population SHRINKS AND CHANGES each row")
+    print("  {'touch':<8}{'n':>7}{'held':>9}")
     rows = []
     for k in range(MAX_TOUCH):
         at_k = [s[k] for s in sequences if len(s) > k]
@@ -230,8 +230,8 @@ def report(sequences: list[list[bool]], reward: float, horizon: int, mode: str) 
     out["unconditional"] = rows
 
     # ---- paired: the same zones, twice -------------------------------------
-    print(f"\n  PAIRED, same zones at touch 1 and at touch k")
-    print(f"  {'vs touch':<10}{'pairs':>7}{'touch 1':>10}{'touch k':>10}{'diff':>9}{'exact p':>10}")
+    print("\n  PAIRED, same zones at touch 1 and at touch k")
+    print("  {'vs touch':<10}{'pairs':>7}{'touch 1':>10}{'touch k':>10}{'diff':>9}{'exact p':>10}")
     paired = []
     for k in range(1, MAX_TOUCH):
         pairs = [(s[0], s[k]) for s in sequences if len(s) > k]
@@ -251,8 +251,8 @@ def report(sequences: list[list[bool]], reward: float, horizon: int, mode: str) 
     out["paired"] = paired
 
     # ---- hazard -------------------------------------------------------------
-    print(f"\n  HAZARD, share failing AT this touch given it reached it")
-    print(f"  {'touch':<8}{'reached':>9}{'failed':>9}{'hazard':>9}")
+    print("\n  HAZARD, share failing AT this touch given it reached it")
+    print("  {'touch':<8}{'reached':>9}{'failed':>9}{'hazard':>9}")
     hazard = []
     for k in range(MAX_TOUCH):
         reached = [s for s in sequences if len(s) > k]

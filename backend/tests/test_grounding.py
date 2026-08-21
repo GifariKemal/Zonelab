@@ -89,3 +89,25 @@ def test_the_verdict_explains_itself_rather_than_just_failing():
 
 def test_a_reply_with_no_numbers_at_all_is_grounded():
     assert check("Ini zona demand pembalikan.", PAYLOAD).grounded
+
+
+def test_a_price_quoted_to_every_last_digit_is_grounded():
+    """Writing ALL the digits is the trivially allowed case of "fewer digits".
+
+    Zone prices arrive as float32 widened to float64, so a faithful quote can
+    carry ten decimal places. The precision rule reads at most six and reported
+    zero for a longer tail, which compared the price against itself rounded to a
+    whole number and rejected it. The first real chart audit came back UNUSABLE
+    for quoting nine of its own payload's prices back exactly - a checker that
+    fails on perfect fidelity is failing at the one thing it exists to permit.
+    """
+    exact = 4476.2998046875
+    verdict = check(f"Tepi atasnya {exact}.", {"top": exact})
+
+    assert verdict.grounded, verdict.reason()
+    # Fewer digits, correctly rounded, still passes: that is the original rule.
+    assert check("Tepi atasnya 4476.30.", {"top": exact}).grounded
+    # And the guarantee it must not have traded away to get there. Two decimals
+    # is the precision the panel and the price axis actually show, so this is
+    # the shape an invented price really arrives in.
+    assert not check("Tepi atasnya 4476.31.", {"top": exact}).grounded

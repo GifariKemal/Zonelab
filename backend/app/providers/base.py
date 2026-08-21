@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from typing import Protocol, runtime_checkable
+from typing import Protocol
 
 from ..models import Candle
 
@@ -29,7 +29,6 @@ INTERVALS: dict[str, int] = {
 }
 
 
-@runtime_checkable
 class Provider(Protocol):
     name: str
 

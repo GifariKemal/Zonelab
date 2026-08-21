@@ -11,6 +11,7 @@ rate limit must be three different messages, never one empty chart.
 from __future__ import annotations
 
 import sys
+from collections import Counter
 
 import httpx
 
@@ -31,7 +32,7 @@ def draw(**body) -> httpx.Response:
         "symbol": "XAUUSD",
         "interval": "15m",
         "bars": 300,
-        "detectors": ["supply_demand"],
+        "layers": ["supply_demand"],
         **body,
     }
     return httpx.post(f"{BASE}/api/draw", json=payload, timeout=60.0)
@@ -46,8 +47,24 @@ def main() -> int:
     config = r.json() if r.status_code == 200 else {}
     check("config returns 200", r.status_code == 200)
     check(
-        "config lists providers, symbols, intervals, detectors",
-        all(k in config for k in ("providers", "symbols", "intervals", "detectors")),
+        "config lists providers, symbols, intervals, layers",
+        all(k in config for k in ("providers", "symbols", "intervals", "layers")),
+    )
+    # One list, and every entry says what it is. The split into `detectors` and
+    # `overlays` is gone: it made the same intent have two spellings, and a UI
+    # could wire a control to one list while the engine read the other.
+    check(
+        "config no longer splits detectors from overlays",
+        "detectors" not in config and "overlays" not in config,
+        str(sorted(config)),
+    )
+    check(
+        "every advertised layer carries a kind and its evidence",
+        all(
+            layer["kind"] in ("detector", "overlay", "report") and layer["evidence"]
+            for layer in config.get("layers", [])
+        ),
+        str([layer["id"] for layer in config.get("layers", []) if not layer["evidence"]]),
     )
     check(
         "config marks keyless providers available",
@@ -81,8 +98,26 @@ def main() -> int:
                 for c in candles
             ),
         )
-        step = times[1] - times[0]
-        check("bar spacing matches the interval", step == 3600, f"got {step}s")
+        # The MODAL gap, not the first pair. Gold closes for an hour a day and
+        # for the weekend, so a legitimate 1h series carries 7200s gaps at the
+        # maintenance break and ~180000s ones across Sunday. Sampling times[1] -
+        # times[0] asks whether the window happened to START on a break, which
+        # it did on 2026-08-18 and the check failed with "got 7200s" on data
+        # that was entirely correct: 286 of 299 gaps were 3600.
+        #
+        # What the check is really for is a granularity error - a feed handing
+        # back 2h bars for a 1h request. Modal spacing catches that and cannot
+        # be fooled by session structure. The second assertion is the other half
+        # of it: every gap must be a whole multiple of the interval, so a feed
+        # that silently shifts its grid still fails.
+        gaps = [b - a for a, b in zip(times, times[1:])]
+        modal = Counter(gaps).most_common(1)[0][0]
+        check("bar spacing matches the interval", modal == 3600, f"got {modal}s")
+        check(
+            "every gap is a whole multiple of the interval",
+            all(g % 3600 == 0 for g in gaps),
+            str(sorted({g for g in gaps if g % 3600})[:4]),
+        )
 
     # ---- every interval on the default provider --------------------------
     for interval in config.get("intervals", []):
@@ -91,28 +126,34 @@ def main() -> int:
         check(f"interval {interval} draws", ok, r.text[:100] if not ok else "")
 
     # ---- every provider --------------------------------------------------
+    # "Draws OR explains itself", for EVERY provider and whatever `available`
+    # predicted. Asserting anything stronger makes this suite a monitor for
+    # somebody else's uptime: dukascopy answered HTTP 503 during one run and
+    # failed a check about OUR code.
+    #
+    # The `available` branch that used to be here made the opposite mistake and
+    # failed the same way. It demanded that an unavailable provider FAIL, so when
+    # dukascopy's rate limit lifted between the probe and the request, it served
+    # 200 candles and was marked a failure for working. Availability is a
+    # prediction with a 120 second cache behind it; a prediction going stale is
+    # not a defect in this API.
+    #
+    # What IS ours, and all this asserts: a refusal arrives as a 502 naming the
+    # vendor, never a 500 and never a silent empty chart.
     for provider in config.get("providers", []):
         pid = provider["id"]
         r = draw(provider=pid, interval="1h", bars=200)
-        if provider["available"] and not provider["needs_key"]:
-            # "Draws OR explains itself", never "draws". Asserting the second
-            # makes this suite a monitor for somebody else's uptime: dukascopy
-            # answered HTTP 503 during a run here and failed a check about OUR
-            # code. The e2e provider loop was corrected the same way earlier and
-            # this one was missed. What is ours is that a refusal arrives as a
-            # 502 naming the vendor rather than a 500 or a silent empty chart.
-            body = r.text[:140]
-            if r.status_code == 200:
-                ok = len(r.json()["candles"]) > 0
-                detail = "200 with no candles" if not ok else ""
-            else:
-                ok = r.status_code == 502 and pid in body
-                detail = f"expected a 502 naming {pid}, got {r.status_code}: {body}"
-            check(f"provider {pid} draws or says why", ok, detail if not ok else body)
+        body = r.text[:140]
+        if r.status_code == 200:
+            ok = len(r.json()["candles"]) > 0
+            detail = "200 with no candles"
         else:
-            # Unavailable must be a spoken 502, never a silent empty chart.
-            spoken = r.status_code == 502 and len(r.json().get("detail", "")) > 10
-            check(f"provider {pid} explains why it cannot run", spoken, r.text[:140])
+            # Case-insensitive, because a missing key is named by its ENV VAR:
+            # "ZONELAB_TWELVEDATA_KEY is not set" names the provider perfectly
+            # well and a lowercase `in` does not see it.
+            ok = r.status_code == 502 and pid.lower() in body.lower()
+            detail = f"expected a 502 naming {pid}, got {r.status_code}: {body}"
+        check(f"provider {pid} draws or says why", ok, detail if not ok else body)
 
     # ---- zone invariants over real data ----------------------------------
     r = draw(bars=800, supply_demand={"show_broken": True, "max_zones_per_side": 50})
@@ -257,10 +298,28 @@ def main() -> int:
 
     # Higher-timeframe nesting. Both cohorts must exist, or the flag is
     # measuring nothing: an "always true" label cannot distinguish anything.
-    nested = [z for z in htf["drawing"]["zones"] if z["timeframe"] == "15m" and z["nested_in"]]
-    alone = [z for z in htf["drawing"]["zones"] if z["timeframe"] == "15m" and not z["nested_in"]]
-    check("nesting produces both cohorts", len(nested) > 0 and len(alone) > 0,
-          f"{len(nested)} nested, {len(alone)} alone")
+    # The "both cohorts appear" check USED to live here and has moved to
+    # tests/test_confluence.py, where the answer is arithmetic. It is a question
+    # about a MECHANISM, and asked here it was really asking about today's
+    # market: it failed on 2026-08-17 with "0 nested, 7 alone" because a 1000-bar
+    # 15m window happened to hold a single 4h zone. Moving it to the synthetic
+    # provider did not fix that either - its time anchor is `now`, so the
+    # higher-timeframe buckets slide with the wall clock and the same request
+    # gave 3 nested at one hour and 0 at the next.
+    #
+    # This comment used to add "synthetic prices are seeded", and that was wrong
+    # at the time: the seed was `abs(hash(symbol))`, which CPython randomises per
+    # process, so the prices moved too. Finding one cause and stopping is what
+    # let the second one live here in writing for as long as it did. The seed is
+    # `crc32` now and the sentence is finally true.
+    #
+    # What stays here is what a contract test can actually promise: the field is
+    # present, and whatever it names is a HIGHER timeframe. Those hold on every
+    # chart, in every session.
+    nested = [z for z in htf["drawing"]["zones"]
+              if z["timeframe"] == "15m" and z["nested_in"]]
+    check("every zone carries the nesting field",
+          all("nested_in" in z for z in htf["drawing"]["zones"]))
     check("nesting names only higher timeframes",
           all(tf == "4h" for z in nested for tf in z["nested_in"]))
     check("nothing is nested when no higher timeframe is requested",
@@ -390,12 +449,24 @@ def main() -> int:
           not walled or counts[-1] < counts[0], f"{counts} walled={walled}")
 
     # ---- the other two detectors -----------------------------------------
-    check("all three detectors are advertised",
-          set(get("/api/config").json()["detectors"])
-          == {"supply_demand", "fvg", "order_block"})
+    # Compared against the REGISTRY rather than a literal set. The literal said
+    # three while the registry grew to five, so this assertion failed for being
+    # stale rather than for finding anything - and a check that cries wolf when a
+    # detector is added is a check people learn to ignore. What it is really for
+    # is the wiring invariant: everything the engine can run must be advertised,
+    # or the UI cannot offer it. The catalogue is one list now, so the detectors
+    # are the entries that SAY they are detectors - which also means a layer
+    # filed under the wrong kind fails here rather than silently losing its
+    # per-side cap in the UI.
+    from app.detect import DETECTORS
+
+    layers = get("/api/config").json()["layers"]
+    advertised = {layer["id"] for layer in layers if layer["kind"] == "detector"}
+    check("every registered detector is advertised",
+          advertised == set(DETECTORS), f"advertised {sorted(advertised)}")
 
     for name, code in (("fvg", "FVG"), ("order_block", "OB")):
-        body = draw(bars=1500, detectors=[name]).json()
+        body = draw(bars=1500, layers=[name]).json()
         shapes = body["drawing"]["zones"]
         check(f"{name} draws something", len(shapes) > 0, str(body["meta"].get(name)))
         check(f"{name} stamps its own kind",
@@ -414,14 +485,14 @@ def main() -> int:
         # to be retracted, and starting without one is the lesson applied.
         check(f"{name} claims no score", all(z["formation_score"] == 0 for z in shapes))
 
-    both = draw(bars=1500, detectors=["supply_demand", "fvg"]).json()["drawing"]["zones"]
+    both = draw(bars=1500, layers=["supply_demand", "fvg"]).json()["drawing"]["zones"]
     kinds = {z["kind"] for z in both}
     check("detectors compose rather than replace one another",
           "FVG" in kinds and kinds - {"FVG"}, str(sorted(kinds)))
 
     # A fair value gap has no opposing zone and therefore no road, so the
     # supply/demand road filter must not reach across and eat it.
-    guarded = draw(bars=1500, detectors=["supply_demand", "fvg"],
+    guarded = draw(bars=1500, layers=["supply_demand", "fvg"],
                    supply_demand={"min_profit_zone_rr": 3.0}).json()["drawing"]["zones"]
     check("the road filter does not touch another detector's drawings",
           sum(1 for z in guarded if z["kind"] == "FVG")
@@ -431,9 +502,15 @@ def main() -> int:
     check("unknown interval is a 502 with a reason",
           draw(interval="7m").status_code == 502)
     # Was `fvg`, which stopped being unknown the day the detector shipped and
-    # turned this into a test of nothing. A name no detector will ever have.
-    check("unknown detector is a 422",
-          draw(detectors=["not_a_detector"]).status_code == 422)
+    # turned this into a test of nothing. A name nothing will ever be called.
+    check("unknown layer is a 422",
+          draw(layers=["not_a_layer"]).status_code == 422)
+    # An overlay is validated by the SAME list now, so a typo in one has to fail
+    # the same way a typo in a detector does. Before the merge an overlay name
+    # was never checked at all - it was a boolean inside its own params block -
+    # so this half of the contract is new and is the half worth pinning.
+    check("an unknown layer is rejected even beside valid ones",
+          draw(layers=["gaps", "not_an_overlay"]).status_code == 422)
     check("unknown provider is a 502 with a reason",
           draw(provider="nope").status_code == 502)
     check("bars below the floor is a 422",

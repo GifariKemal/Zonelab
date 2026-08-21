@@ -48,6 +48,7 @@ import json
 import numpy as np
 
 from app.detect import DETECTORS
+from app.layers import PARAMS_BY_ID
 from app.models import ImbalanceParams, SupplyDemandParams, ZoneSide
 from tools import history
 
@@ -63,16 +64,24 @@ def draw(candles, cap: int | None = None) -> list:
     produce from the panel, not a measurement population.
 
     Note what the cap actually caps: it is applied PER DETECTOR and PER SIDE, so
-    the shipped 12 permits 3 x 2 x 12 = 72 boxes on one chart, not 12.
+    the shipped 6 permits 5 x 2 x 6 = 60 boxes on one chart, not 6.
+
+    Driven off the registry rather than a literal list of names, and that is a
+    correction rather than a tidy-up: this function named three detectors while
+    the registry grew to five, so `ifvg` and `breaker` were absent from the one
+    measurement in the repo that asks what the user actually sees. app/drawing.py
+    had the identical defect and its comment says why it matters - a detector
+    wired into one place and forgotten in the other fails silently, which is the
+    only kind of failure this project treats as unacceptable.
     """
     zones = []
-    for name in ("supply_demand", "fvg", "order_block"):
+    for name, detect in DETECTORS.items():
         extra = {} if cap is None else {"max_zones_per_side": cap}
         params = (
-            SupplyDemandParams(**extra) if name == "supply_demand"
+            SupplyDemandParams(**extra) if PARAMS_BY_ID[name] == "supply_demand"
             else ImbalanceParams(**extra)
         )
-        found, _ = DETECTORS[name](candles, params)
+        found, _ = detect(candles, params)
         zones.extend(found)
     return zones
 

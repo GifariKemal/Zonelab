@@ -434,8 +434,8 @@ function Formasi() {
         atau supply.
       </P>
       <P>
-        Dua kode lain muncul kalau kamu menyalakan detektor tambahannya di
-        header. <K>FVG</K> adalah fair value gap: tiga bar berurutan yang wick
+        Dua kode lain muncul kalau kamu menyalakan lapisannya di menu Layers,
+        panel kiri. <K>FVG</K> adalah fair value gap: tiga bar berurutan yang wick
         luarnya tidak pernah bertemu, jadi ada pita harga yang dilompati. Itu
         satu-satunya objek di seluruh kosakata SMC yang definisinya tidak
         menyisakan ruang tafsir. <K>OB</K> adalah order block: candle
@@ -592,13 +592,16 @@ function Panel() {
     <section>
       <Level id="panel" title="Panel kiri, tombol per tombol" tag="RUJUKAN" />
       <P lede>
-        Dua belas slider, dan jujurnya hanya dua yang perlu kamu sentuh. Sisanya
-        tombol eksplorasi. Kolom terakhir menandai mana yang punya bukti di
-        belakangnya.
+        Panel kiri sekarang satu menu: tiap lapisan punya satu sakelar, dan
+        knob-nya baru muncul di bawahnya kalau lapisan itu menyala. Daftarnya
+        dibaca dari registry backend, bukan diketik di frontend, jadi urutannya
+        adalah urutan gambar. Yang di bawah ini knob milik supply dan demand
+        beserta overlay struktur; jujurnya hanya dua yang perlu kamu sentuh, dan
+        kolom terakhir menandai mana yang punya bukti di belakangnya.
       </P>
 
       <h3 className="mb-3 mt-8 text-[17px] font-semibold tracking-[-0.01em]">
-        Grup Detector, menentukan apa yang dianggap gerakan keras
+        Knob supply dan demand, menentukan apa yang dianggap gerakan keras
       </h3>
       <Table
         head={["Kontrol", "Artinya", "Kalau digeser", "Bukti"]}
@@ -643,7 +646,7 @@ function Panel() {
       />
 
       <h3 className="mb-3 mt-8 text-[17px] font-semibold tracking-[-0.01em]">
-        Grup Base, menentukan apa yang dianggap berhenti
+        Knob supply dan demand, menentukan apa yang dianggap berhenti
       </h3>
       <Table
         head={["Kontrol", "Artinya", "Kalau digeser", "Bukti"]}
@@ -676,7 +679,7 @@ function Panel() {
       />
 
       <h3 className="mb-3 mt-8 text-[17px] font-semibold tracking-[-0.01em]">
-        Grup Lifecycle dan Display
+        Knob supply dan demand, daur hidup dan tampilan
       </h3>
       <Table
         head={["Kontrol", "Artinya"]}
@@ -714,6 +717,13 @@ function Mtf() {
         entri milik yang lebih rendah.</b> Picker <K>HTF</K> di header menghitung
         zona dari bar hasil agregasi lalu memproyeksikannya ke chart.
       </P>
+      <P>
+        <b>Lima detektor kotak bisa dibaca di timeframe lebih tinggi</b>, bukan
+        satu: supply dan demand, fair value gap, order block, inverted FVG, dan
+        breaker. Layer yang tidak bisa - cycle grid, defining range, opening gap -
+        sudah membawa derajatnya sendiri, jadi tidak ada timeframe lebih tinggi
+        untuk membacanya, dan panel mengatakan itu daripada diam.
+      </P>
       <ul className="mb-4 max-w-[68ch] list-disc space-y-2 pl-5">
         <li>
           <b>Bucket ditambatkan ke epoch, bukan ke bar pertama di jendela.</b>{" "}
@@ -729,6 +739,12 @@ function Mtf() {
           <b>Bucket kosong tidak diciptakan.</b> Akhir pekan meninggalkan lubang
           pada emas dan FX. Mengisinya dengan bar datar akan mengarang justru
           bentuk konsolidasi yang dicari detektor ini.
+        </li>
+        <li>
+          <b>Bar mingguan digeser fasenya ke hari Minggu.</b> Jangkar epoch benar
+          untuk 4h dan 1d dan salah fasenya untuk 1w: 1 Januari 1970 hari Kamis,
+          jadi pekan tanpa koreksi berjalan Kamis ke Rabu sementara seri W1 broker
+          mulai Minggu. Sebelum dikoreksi, setiap zona mingguan salah empat hari.
         </li>
       </ul>
 
@@ -1013,8 +1029,8 @@ function Tidak() {
       </ul>
       <Note who="Kenapa tidak ada panah arah di chart">
         <P>
-          Sembilan hipotesis arah didaftarkan sebelum diukur, sembilan kali
-          sumbangan gambarnya nol. Yang paling meyakinkan sempat menunjukkan peluruhan 27
+          Dua belas hipotesis arah pre-registered didaftarkan sebelum diukur,
+          dua belas kali sumbangan gambarnya nol. Yang paling meyakinkan sempat menunjukkan peluruhan 27
           poin persen menurut jumlah sentuhan, lalu runtuh jadi <b>77,2%, 77,2%,
           77,1%</b> begitu dibandingkan pada umur zona yang sama. Yang meluruh
           adalah waktu, bukan sentuhan. Yang terakhir, H7, bahkan lolos semua
@@ -1068,6 +1084,17 @@ function Istilah() {
           [<N key="j">AUC</N>, "Ukuran apakah sebuah angka bisa memeringkat hasil. 0,5 berarti tidak bisa sama sekali."],
           [<N key="k">walk-forward</N>, "Uji pada potongan waktu yang belum pernah dilihat saat ambangnya dipilih."],
           [<N key="l">placebo</N>, "Zona palsu berukuran dan bersisi sama, dipindah ke harga acak. Kontrol."],
+          [<N key="m">DFR</N>, "Defining range. Q1 dari satu derajat siklus dibagi tiga, sepertiga pertama dibuang, ekstrem sisanya. Bukti paling lemah di kanvas: satu paragraf tentang indikator tertutup, belum pernah diuji. Karena itu tintanya paling redup dan proyeksinya digambar di KEDUA sisi setiap kelipatan, sebab sumbernya tidak menyebut arah."],
+          [<N key="n">SSMT</N>, "Divergensi lintas instrumen: dua instrumen di kuartal yang sama, satu mengambil level sebelumnya dan satu gagal. Satu-satunya overlay yang butuh panggilan provider kedua, dan venue basketnya dipilih terpisah dari chart."],
+          [<N key="o">STACK</N>, "Dua opening gap dari JENIS berbeda yang bandnya bertumpang. Persentasenya adalah tinggi tumpangan dibagi band yang lebih KECIL, dan penyebut itu rekonstruksi dari satu angka terbitan, bukan kutipan."],
+          [<N key="p">gutter</N>, "Kolom 46 piksel di tepi kanan yang hanya milik nama. Setiap garis horizontal berhenti di situ, jadi tidak ada garis yang menembus nama milik layer lain."],
+          [<N key="q">keluarga tinta</N>, "Lima warna kanvas: grid paling redup, lalu DFR, structure, SSMT, dan levels paling cerah. Warna menyatakan KELUARGA, nama menyatakan objeknya. Hijau dan merah hanya untuk demand dan supply; emas hanya untuk kontrol."],
+          [<N key="r">quadrennial</N>, "Siklus empat tahun, satu tahun per kuartal, dan Q2 adalah tahun Pilpres Amerika - jadi 2024 dan 2028 Q2, dan 2026 Q4. Jangkarnya fakta, bukan angka yang dicocokkan. Siklus kuartalan Jan-Mar sampai Okt-Des sudah ada sebelumnya dengan nama derajat year."],
+          [<N key="s">TQO~</N>, "True open kuadrennial, dan tildenya wajib: Q2-nya dibuka 1 Januari, pasar tutup 1 Januari setiap tahun, jadi di bawah aturan ketat level ini terukur nol kali pada sepuluh tahun emas 1 jam. Dengan approximate menyala ia diambil dari bar pertama setelah batas, digambar putus-putus, dalam jangkauan 120 jam."],
+          [<N key="u">preset</N>, "Satu set layer bernama yang Anda pilih sendiri, plus params minimum yang dibutuhkan layernya untuk menggambar - tiga dari enam belas layer menggambar nol dengan params bawaan, dan angkanya terukur: cycle grid, defining range, dan SSMT. Bukan deteksi fase otomatis: layer yang disembunyikan inferensi tidak bisa dibedakan dari layer yang tidak menemukan apa-apa, dan pembedaan itu yang dijaga seluruh engine ini."],
+          [<N key="v">snapshot</N>, "Respons yang sedang tampil, disimpan apa adanya dengan catatan dan empat angka lag. Tidak digambar ulang, karena satu tick mendarat antara apa yang benar sekarang dan apa yang Anda lihat - jadi snapshot yang digambar ulang adalah snapshot chart yang tidak pernah dilihat siapa pun."],
+          [<N key="w">overdue lawan intra-bar</N>, "feed_lag_seconds saja BUKAN staleness: ia now dikurangi bar_closed_at, jadi di chart 15 menit ia berjalan 0 sampai 900 semata karena waktu berjalan di dalam bar yang terbentuk. Yang melebihi satu bar penuh itu staleness sungguhan."],
+          [<N key="t">P / D / EQ</N>, "Huruf di ekor tag SSMT: posisi ekstremnya di dealing range yang bisa diketahui saat ia tercetak. P premium (kuartil teratas), D discount (terbawah), EQ dua kuartil tengah. Tidak ada huruf berarti rentangnya belum terkonfirmasi - bukan 0,5 yang dikarang. Dilaporkan, tidak diskor."],
         ]}
       />
     </section>

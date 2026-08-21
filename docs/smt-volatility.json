@@ -1,0 +1,708 @@
+{
+ "claim": "SSMT is accurate in low volatility and a false signal in extreme volatility; proposed gate ATR > 2.5x 30-day mean",
+ "bracket": {
+  "widths": [
+   0.5,
+   1.0,
+   2.0
+  ],
+  "horizon": 40,
+  "symmetric": true,
+  "null": 0.5
+ },
+ "degree": "day",
+ "interval": "1h",
+ "bars": 50000,
+ "results": {
+  "XAUUSD|XAGUSD|0.5": {
+   "n": 519,
+   "whole_sample": 0.5337,
+   "quartiles": [
+    {
+     "quartile": 1,
+     "name": "calmest",
+     "ratio_from": 0.268,
+     "ratio_to": 0.791,
+     "n": 130,
+     "down_first": 0.4846,
+     "vs_sample": -0.0491
+    },
+    {
+     "quartile": 2,
+     "name": "quiet",
+     "ratio_from": 0.791,
+     "ratio_to": 0.926,
+     "n": 130,
+     "down_first": 0.5077,
+     "vs_sample": -0.026
+    },
+    {
+     "quartile": 3,
+     "name": "busy",
+     "ratio_from": 0.926,
+     "ratio_to": 1.091,
+     "n": 130,
+     "down_first": 0.5538,
+     "vs_sample": 0.0201
+    },
+    {
+     "quartile": 4,
+     "name": "wildest",
+     "ratio_from": 1.093,
+     "ratio_to": 2.553,
+     "n": 129,
+     "down_first": 0.5891,
+     "vs_sample": 0.0554
+    }
+   ],
+   "above_2_5x": {
+    "n": 1,
+    "down_first": 1.0
+   }
+  },
+  "XAUUSD|XAGUSD|1.0": {
+   "n": 529,
+   "whole_sample": 0.5255,
+   "quartiles": [
+    {
+     "quartile": 1,
+     "name": "calmest",
+     "ratio_from": 0.268,
+     "ratio_to": 0.787,
+     "n": 133,
+     "down_first": 0.5414,
+     "vs_sample": 0.0158
+    },
+    {
+     "quartile": 2,
+     "name": "quiet",
+     "ratio_from": 0.788,
+     "ratio_to": 0.925,
+     "n": 132,
+     "down_first": 0.5227,
+     "vs_sample": -0.0028
+    },
+    {
+     "quartile": 3,
+     "name": "busy",
+     "ratio_from": 0.926,
+     "ratio_to": 1.091,
+     "n": 132,
+     "down_first": 0.5152,
+     "vs_sample": -0.0104
+    },
+    {
+     "quartile": 4,
+     "name": "wildest",
+     "ratio_from": 1.093,
+     "ratio_to": 2.553,
+     "n": 132,
+     "down_first": 0.5227,
+     "vs_sample": -0.0028
+    }
+   ],
+   "above_2_5x": {
+    "n": 1,
+    "down_first": 1.0
+   }
+  },
+  "XAUUSD|XAGUSD|2.0": {
+   "n": 530,
+   "whole_sample": 0.4642,
+   "quartiles": [
+    {
+     "quartile": 1,
+     "name": "calmest",
+     "ratio_from": 0.268,
+     "ratio_to": 0.783,
+     "n": 133,
+     "down_first": 0.5113,
+     "vs_sample": 0.0471
+    },
+    {
+     "quartile": 2,
+     "name": "quiet",
+     "ratio_from": 0.784,
+     "ratio_to": 0.92,
+     "n": 133,
+     "down_first": 0.4812,
+     "vs_sample": 0.0171
+    },
+    {
+     "quartile": 3,
+     "name": "busy",
+     "ratio_from": 0.921,
+     "ratio_to": 1.087,
+     "n": 132,
+     "down_first": 0.4167,
+     "vs_sample": -0.0475
+    },
+    {
+     "quartile": 4,
+     "name": "wildest",
+     "ratio_from": 1.087,
+     "ratio_to": 2.553,
+     "n": 132,
+     "down_first": 0.447,
+     "vs_sample": -0.0172
+    }
+   ],
+   "above_2_5x": {
+    "n": 1,
+    "down_first": 1.0
+   }
+  },
+  "XAUUSD|DXY|0.5": {
+   "n": 1342,
+   "whole_sample": 0.497,
+   "quartiles": [
+    {
+     "quartile": 1,
+     "name": "calmest",
+     "ratio_from": 0.215,
+     "ratio_to": 0.797,
+     "n": 336,
+     "down_first": 0.4792,
+     "vs_sample": -0.0179
+    },
+    {
+     "quartile": 2,
+     "name": "quiet",
+     "ratio_from": 0.797,
+     "ratio_to": 0.932,
+     "n": 336,
+     "down_first": 0.4673,
+     "vs_sample": -0.0298
+    },
+    {
+     "quartile": 3,
+     "name": "busy",
+     "ratio_from": 0.934,
+     "ratio_to": 1.107,
+     "n": 335,
+     "down_first": 0.5313,
+     "vs_sample": 0.0343
+    },
+    {
+     "quartile": 4,
+     "name": "wildest",
+     "ratio_from": 1.107,
+     "ratio_to": 3.23,
+     "n": 335,
+     "down_first": 0.5104,
+     "vs_sample": 0.0134
+    }
+   ],
+   "above_2_5x": {
+    "n": 3,
+    "down_first": 0.0
+   }
+  },
+  "XAUUSD|DXY|1.0": {
+   "n": 1393,
+   "whole_sample": 0.4961,
+   "quartiles": [
+    {
+     "quartile": 1,
+     "name": "calmest",
+     "ratio_from": 0.215,
+     "ratio_to": 0.801,
+     "n": 349,
+     "down_first": 0.467,
+     "vs_sample": -0.029
+    },
+    {
+     "quartile": 2,
+     "name": "quiet",
+     "ratio_from": 0.802,
+     "ratio_to": 0.934,
+     "n": 348,
+     "down_first": 0.5144,
+     "vs_sample": 0.0183
+    },
+    {
+     "quartile": 3,
+     "name": "busy",
+     "ratio_from": 0.934,
+     "ratio_to": 1.11,
+     "n": 348,
+     "down_first": 0.4885,
+     "vs_sample": -0.0075
+    },
+    {
+     "quartile": 4,
+     "name": "wildest",
+     "ratio_from": 1.111,
+     "ratio_to": 3.23,
+     "n": 348,
+     "down_first": 0.5144,
+     "vs_sample": 0.0183
+    }
+   ],
+   "above_2_5x": {
+    "n": 3,
+    "down_first": 0.3333
+   }
+  },
+  "XAUUSD|DXY|2.0": {
+   "n": 1388,
+   "whole_sample": 0.4769,
+   "quartiles": [
+    {
+     "quartile": 1,
+     "name": "calmest",
+     "ratio_from": 0.215,
+     "ratio_to": 0.797,
+     "n": 348,
+     "down_first": 0.4741,
+     "vs_sample": -0.0028
+    },
+    {
+     "quartile": 2,
+     "name": "quiet",
+     "ratio_from": 0.797,
+     "ratio_to": 0.93,
+     "n": 347,
+     "down_first": 0.4899,
+     "vs_sample": 0.013
+    },
+    {
+     "quartile": 3,
+     "name": "busy",
+     "ratio_from": 0.93,
+     "ratio_to": 1.105,
+     "n": 347,
+     "down_first": 0.4813,
+     "vs_sample": 0.0043
+    },
+    {
+     "quartile": 4,
+     "name": "wildest",
+     "ratio_from": 1.105,
+     "ratio_to": 3.23,
+     "n": 346,
+     "down_first": 0.4624,
+     "vs_sample": -0.0145
+    }
+   ],
+   "above_2_5x": {
+    "n": 3,
+    "down_first": 0.6667
+   }
+  },
+  "XAUUSD|XPTUSD|0.5": {
+   "n": 321,
+   "whole_sample": 0.4953,
+   "quartiles": [
+    {
+     "quartile": 1,
+     "name": "calmest",
+     "ratio_from": 0.47,
+     "ratio_to": 0.814,
+     "n": 81,
+     "down_first": 0.4198,
+     "vs_sample": -0.0756
+    },
+    {
+     "quartile": 2,
+     "name": "quiet",
+     "ratio_from": 0.814,
+     "ratio_to": 0.982,
+     "n": 80,
+     "down_first": 0.475,
+     "vs_sample": -0.0203
+    },
+    {
+     "quartile": 3,
+     "name": "busy",
+     "ratio_from": 0.982,
+     "ratio_to": 1.214,
+     "n": 80,
+     "down_first": 0.4625,
+     "vs_sample": -0.0328
+    },
+    {
+     "quartile": 4,
+     "name": "wildest",
+     "ratio_from": 1.217,
+     "ratio_to": 2.705,
+     "n": 80,
+     "down_first": 0.625,
+     "vs_sample": 0.1297
+    }
+   ],
+   "above_2_5x": {
+    "n": 2,
+    "down_first": 1.0
+   }
+  },
+  "XAUUSD|XPTUSD|1.0": {
+   "n": 336,
+   "whole_sample": 0.506,
+   "quartiles": [
+    {
+     "quartile": 1,
+     "name": "calmest",
+     "ratio_from": 0.47,
+     "ratio_to": 0.814,
+     "n": 85,
+     "down_first": 0.4824,
+     "vs_sample": -0.0236
+    },
+    {
+     "quartile": 2,
+     "name": "quiet",
+     "ratio_from": 0.814,
+     "ratio_to": 0.98,
+     "n": 84,
+     "down_first": 0.5,
+     "vs_sample": -0.006
+    },
+    {
+     "quartile": 3,
+     "name": "busy",
+     "ratio_from": 0.982,
+     "ratio_to": 1.205,
+     "n": 84,
+     "down_first": 0.5,
+     "vs_sample": -0.006
+    },
+    {
+     "quartile": 4,
+     "name": "wildest",
+     "ratio_from": 1.207,
+     "ratio_to": 2.705,
+     "n": 83,
+     "down_first": 0.5422,
+     "vs_sample": 0.0362
+    }
+   ],
+   "above_2_5x": {
+    "n": 2,
+    "down_first": 0.5
+   }
+  },
+  "XAUUSD|XPTUSD|2.0": {
+   "n": 330,
+   "whole_sample": 0.4424,
+   "quartiles": [
+    {
+     "quartile": 1,
+     "name": "calmest",
+     "ratio_from": 0.47,
+     "ratio_to": 0.812,
+     "n": 83,
+     "down_first": 0.4699,
+     "vs_sample": 0.0275
+    },
+    {
+     "quartile": 2,
+     "name": "quiet",
+     "ratio_from": 0.813,
+     "ratio_to": 0.975,
+     "n": 83,
+     "down_first": 0.3855,
+     "vs_sample": -0.0569
+    },
+    {
+     "quartile": 3,
+     "name": "busy",
+     "ratio_from": 0.977,
+     "ratio_to": 1.193,
+     "n": 82,
+     "down_first": 0.4268,
+     "vs_sample": -0.0156
+    },
+    {
+     "quartile": 4,
+     "name": "wildest",
+     "ratio_from": 1.201,
+     "ratio_to": 2.705,
+     "n": 82,
+     "down_first": 0.4878,
+     "vs_sample": 0.0454
+    }
+   ],
+   "above_2_5x": {
+    "n": 2,
+    "down_first": 0.5
+   }
+  },
+  "XAUUSD|BTCUSD|0.5": {
+   "n": 1142,
+   "whole_sample": 0.5228,
+   "quartiles": [
+    {
+     "quartile": 1,
+     "name": "calmest",
+     "ratio_from": 0.194,
+     "ratio_to": 0.789,
+     "n": 286,
+     "down_first": 0.542,
+     "vs_sample": 0.0192
+    },
+    {
+     "quartile": 2,
+     "name": "quiet",
+     "ratio_from": 0.789,
+     "ratio_to": 0.914,
+     "n": 286,
+     "down_first": 0.5175,
+     "vs_sample": -0.0053
+    },
+    {
+     "quartile": 3,
+     "name": "busy",
+     "ratio_from": 0.914,
+     "ratio_to": 1.087,
+     "n": 285,
+     "down_first": 0.5088,
+     "vs_sample": -0.014
+    },
+    {
+     "quartile": 4,
+     "name": "wildest",
+     "ratio_from": 1.089,
+     "ratio_to": 4.012,
+     "n": 285,
+     "down_first": 0.5228,
+     "vs_sample": 0.0
+    }
+   ],
+   "above_2_5x": {
+    "n": 6,
+    "down_first": 0.5
+   }
+  },
+  "XAUUSD|BTCUSD|1.0": {
+   "n": 1194,
+   "whole_sample": 0.5168,
+   "quartiles": [
+    {
+     "quartile": 1,
+     "name": "calmest",
+     "ratio_from": 0.18,
+     "ratio_to": 0.789,
+     "n": 299,
+     "down_first": 0.5151,
+     "vs_sample": -0.0017
+    },
+    {
+     "quartile": 2,
+     "name": "quiet",
+     "ratio_from": 0.789,
+     "ratio_to": 0.915,
+     "n": 299,
+     "down_first": 0.505,
+     "vs_sample": -0.0117
+    },
+    {
+     "quartile": 3,
+     "name": "busy",
+     "ratio_from": 0.915,
+     "ratio_to": 1.087,
+     "n": 298,
+     "down_first": 0.4933,
+     "vs_sample": -0.0235
+    },
+    {
+     "quartile": 4,
+     "name": "wildest",
+     "ratio_from": 1.089,
+     "ratio_to": 4.012,
+     "n": 298,
+     "down_first": 0.5537,
+     "vs_sample": 0.0369
+    }
+   ],
+   "above_2_5x": {
+    "n": 7,
+    "down_first": 0.5714
+   }
+  },
+  "XAUUSD|BTCUSD|2.0": {
+   "n": 1191,
+   "whole_sample": 0.4744,
+   "quartiles": [
+    {
+     "quartile": 1,
+     "name": "calmest",
+     "ratio_from": 0.18,
+     "ratio_to": 0.785,
+     "n": 298,
+     "down_first": 0.4966,
+     "vs_sample": 0.0223
+    },
+    {
+     "quartile": 2,
+     "name": "quiet",
+     "ratio_from": 0.786,
+     "ratio_to": 0.91,
+     "n": 298,
+     "down_first": 0.5101,
+     "vs_sample": 0.0357
+    },
+    {
+     "quartile": 3,
+     "name": "busy",
+     "ratio_from": 0.91,
+     "ratio_to": 1.081,
+     "n": 298,
+     "down_first": 0.453,
+     "vs_sample": -0.0214
+    },
+    {
+     "quartile": 4,
+     "name": "wildest",
+     "ratio_from": 1.083,
+     "ratio_to": 4.012,
+     "n": 297,
+     "down_first": 0.4377,
+     "vs_sample": -0.0367
+    }
+   ],
+   "above_2_5x": {
+    "n": 7,
+    "down_first": 0.5714
+   }
+  },
+  "pooled|0.5": {
+   "n": 3324,
+   "whole_sample": 0.5114,
+   "quartiles": [
+    {
+     "quartile": 1,
+     "name": "calmest",
+     "ratio_from": 0.194,
+     "ratio_to": 0.795,
+     "n": 832,
+     "down_first": 0.5,
+     "vs_sample": -0.0114
+    },
+    {
+     "quartile": 2,
+     "name": "quiet",
+     "ratio_from": 0.795,
+     "ratio_to": 0.929,
+     "n": 831,
+     "down_first": 0.4838,
+     "vs_sample": -0.0277
+    },
+    {
+     "quartile": 3,
+     "name": "busy",
+     "ratio_from": 0.93,
+     "ratio_to": 1.105,
+     "n": 832,
+     "down_first": 0.5216,
+     "vs_sample": 0.0102
+    },
+    {
+     "quartile": 4,
+     "name": "wildest",
+     "ratio_from": 1.105,
+     "ratio_to": 4.012,
+     "n": 829,
+     "down_first": 0.5404,
+     "vs_sample": 0.029
+    }
+   ],
+   "above_2_5x": {
+    "n": 12,
+    "down_first": 0.5
+   }
+  },
+  "pooled|1.0": {
+   "n": 3452,
+   "whole_sample": 0.5087,
+   "quartiles": [
+    {
+     "quartile": 1,
+     "name": "calmest",
+     "ratio_from": 0.18,
+     "ratio_to": 0.795,
+     "n": 865,
+     "down_first": 0.4994,
+     "vs_sample": -0.0093
+    },
+    {
+     "quartile": 2,
+     "name": "quiet",
+     "ratio_from": 0.795,
+     "ratio_to": 0.93,
+     "n": 862,
+     "down_first": 0.5162,
+     "vs_sample": 0.0076
+    },
+    {
+     "quartile": 3,
+     "name": "busy",
+     "ratio_from": 0.93,
+     "ratio_to": 1.107,
+     "n": 864,
+     "down_first": 0.4873,
+     "vs_sample": -0.0214
+    },
+    {
+     "quartile": 4,
+     "name": "wildest",
+     "ratio_from": 1.107,
+     "ratio_to": 4.012,
+     "n": 861,
+     "down_first": 0.5319,
+     "vs_sample": 0.0232
+    }
+   ],
+   "above_2_5x": {
+    "n": 13,
+    "down_first": 0.5385
+   }
+  },
+  "pooled|2.0": {
+   "n": 3439,
+   "whole_sample": 0.4708,
+   "quartiles": [
+    {
+     "quartile": 1,
+     "name": "calmest",
+     "ratio_from": 0.18,
+     "ratio_to": 0.791,
+     "n": 861,
+     "down_first": 0.4948,
+     "vs_sample": 0.024
+    },
+    {
+     "quartile": 2,
+     "name": "quiet",
+     "ratio_from": 0.791,
+     "ratio_to": 0.925,
+     "n": 859,
+     "down_first": 0.4773,
+     "vs_sample": 0.0065
+    },
+    {
+     "quartile": 3,
+     "name": "busy",
+     "ratio_from": 0.925,
+     "ratio_to": 1.098,
+     "n": 861,
+     "down_first": 0.453,
+     "vs_sample": -0.0178
+    },
+    {
+     "quartile": 4,
+     "name": "wildest",
+     "ratio_from": 1.099,
+     "ratio_to": 4.012,
+     "n": 858,
+     "down_first": 0.458,
+     "vs_sample": -0.0127
+    }
+   ],
+   "above_2_5x": {
+    "n": 13,
+    "down_first": 0.6154
+   }
+  }
+ }
+}

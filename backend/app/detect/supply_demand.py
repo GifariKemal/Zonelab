@@ -83,9 +83,51 @@ _STATE_PRIORITY = {
     ZoneState.BROKEN: 0,
 }
 
-# Kept for the calibration harness, which needs a stable scale to bucket raw
-# departure on. Nothing in the shipped score uses it any more.
-_DEPARTURE_SATURATION = 5.0
+
+#: Bars of TRAILING volume the leg-out is judged against, and the minimum that
+#: makes the judgement possible at all.
+#:
+#: THIS REPLACES `volume.mean()` OVER THE WHOLE WINDOW, which was lookahead and
+#: reached the user. A zone that formed in 2024 was scored against the mean
+#: volume of every bar in the request, including bars years in its future, while
+#: the comment above the use said "everything here is fixed when the zone forms
+#: and never moves again" and `Zone.settled` promised the same. Both were false.
+#:
+#: Measured through the shipped API on 2026-08-20, XAUUSD 15m, mt5, caps lifted:
+#: nine zones appear in both a 500-bar and a 3000-bar window with byte-identical
+#: geometry, and SEVEN of them carry a different `formation_score` in the two -
+#: 0.7960 against 0.7792, 0.8516 against 0.8387. Same zone, same bars under it,
+#: different number because the user moved the Bars picker. Over 3000 to 50000
+#: bars the window mean went 1840.8 to 3250.3, a 77% shift.
+#:
+#: It was not only cosmetic. `_dedupe` ranks overlapping zones by this score, so
+#: WHICH box is drawn was future-dependent too: on XAUUSD 15m two supply zones
+#: that both predate bar 3000 swap survivor between a 3000-bar and a 20000-bar
+#: request, with no change to either one's geometry.
+#:
+#: 200 is the same lookback `curve_lookback` already uses for the neighbouring
+#: "what counts as normal here" question, so it is this file's own convention
+#: rather than a new number. Trailing rather than expanding, because an
+#: expanding mean anchored to the window's first bar is still a function of
+#: where the caller started.
+#:
+#: ALL OF IT OR NONE OF IT, and the middle ground was tried first and measured
+#: wrong. A baseline over "however many bars happen to precede this zone" is
+#: still a function of where the window starts: with a 20-bar floor, seven of
+#: ten zones still moved between a 500-bar and a 3000-bar request, because a
+#: zone 100 bars into the short window is 2600 bars into the long one and gets a
+#: different amount of history either side. Requiring the full 200 leaves
+#: exactly one boundary - a zone either has the same 200 bars behind it in every
+#: window that contains them, or it has no baseline at all and goes neutral.
+#:
+#: What remains, stated rather than hidden: a zone inside the first 200 bars of
+#: the window scores neutral on volume and the same zone scores properly in a
+#: longer window. That is a warm-up, not lookahead - nothing from the future
+#: enters either answer - and it is the same shape as any trailing indicator's
+#: first N bars. `formation_score` orders the display and feeds `_dedupe`; it
+#: gates nothing, which is why a neutral warm-up is an acceptable price and a
+#: future-dependent score was not.
+_VOLUME_BASELINE_BARS = 200
 
 
 class LifecycleParams(Protocol):
@@ -113,6 +155,29 @@ class Lifecycle:
     break_index: int | None
 
 
+# THE HOT SPOT, MEASURED AND DELIBERATELY LEFT ALONE.
+#
+# cProfile on 50,000 bars with all twelve bar layers on: this function is 26.60s
+# of 37.06s total tottime over 55,322 calls, 53,629 of them from
+# `imbalance._finish`. The next-largest entry is 0.97s. It is a per-candidate
+# Python scalar loop over numpy arrays, and it is called once per candidate box
+# BEFORE the state filter, so most of the work is discarded - at 1500 bars
+# `order_block` reports 1,493 candidates and draws 7 boxes.
+#
+# Not optimised, and the reason is that the two paths through here want opposite
+# things. Where a display cap is finite, replaying newest-first and stopping once
+# the cap is satisfied would skip almost all of it - but that path is already
+# fast: 500 bars, the UI's own default, costs 18ms end to end. Where the cap is 0
+# the caller is MEASURING, and every candidate has to be replayed by definition,
+# so there is nothing to skip. The expensive path is the one that cannot be
+# short-circuited without changing the answer, and the cheap path does not need
+# it. Vectorising the walk itself is the real fix and it is a rewrite of the
+# lifecycle semantics, not a tweak; `docs/BACKLOG.md` carries it.
+#
+# What this DOES mean for anyone reading a timing: above roughly 5,000 bars every
+# second belongs to this function. The provider is not the bottleneck (the MT5
+# terminal answers a 50,001-bar read in 2.8ms) and neither is serialisation
+# (75ms for a 5.65MB response).
 def replay_lifecycle(
     time: np.ndarray,
     high: np.ndarray,
@@ -182,6 +247,40 @@ def replay_lifecycle(
     )
 
 
+def cap_per_side(zones: list[Zone], limit: int) -> list[Zone]:
+    """Keep the newest `limit` zones per side, 0 meaning no cap.
+
+    Cap per side by recency: the zones price can actually reach next are the ones
+    nearest in time, not the strongest one from 400 bars ago. Selection is by
+    TIME rather than by any quality figure, deliberately - the only composite
+    this project ever tried to rank with turned out to rank backwards.
+
+    Zero disables it, and that escape hatch is not a nicety. This cap is a
+    READABILITY limit, but it selects on time, so any measurement taken through
+    it is a measurement of the recent tail wearing the whole history's name. It
+    did exactly that here until 2026-08-13.
+
+    Lives here, and is imported by the imbalance detectors and by the API, because
+    the rule was written out three separate times and the third copy appeared the
+    day a refining pass had to lift the cap and put it back. A display rule
+    duplicated across three files is the same hazard the detector registry warns
+    about: change it in one place, and the other two keep the old behaviour while
+    still looking correct.
+    """
+    if limit == 0:
+        return sorted(zones, key=lambda z: z.time_from)
+    kept: list[Zone] = []
+    for side in (ZoneSide.DEMAND, ZoneSide.SUPPLY):
+        per_side = sorted(
+            (z for z in zones if z.side is side),
+            key=lambda z: z.time_from,
+            reverse=True,
+        )
+        kept.extend(per_side[:limit])
+    kept.sort(key=lambda z: z.time_from)
+    return kept
+
+
 def detect(
     candles: list[Candle], params: SupplyDemandParams
 ) -> tuple[list[Zone], dict[str, float]]:
@@ -220,7 +319,9 @@ def detect(
     run_list = runs(labels)
 
     has_volume = bool(volume.any())
-    mean_volume = float(volume.mean()) if has_volume else 0.0
+    # Prefix sums so each zone's trailing baseline is O(1) rather than a slice
+    # per zone. See `_VOLUME_BASELINE_BARS` for why it is trailing at all.
+    volume_prefix = np.concatenate(([0.0], np.cumsum(volume))) if has_volume else None
 
     found: list[Zone] = []
 
@@ -401,16 +502,41 @@ def detect(
         # Everything here is fixed when the zone forms and never moves again.
         # That is the point: it describes how the zone was built, and makes no
         # statement about what price will do when it comes back.
+        #
+        # THAT SENTENCE WAS FALSE UNTIL 2026-08-20 and the comment is what made
+        # it hard to see: the volume factor divided by the mean volume of the
+        # WHOLE requested window, so a zone's score moved when the user widened
+        # the Bars picker. See `_VOLUME_BASELINE_BARS` for the measurement and
+        # for why `_dedupe` made it worse than cosmetic.
         f_tightness = float(
             np.clip(1.0 - (height / atr_base) / params.base_max_atr, 0.0, 1.0)
         )
         span = params.base_max_bars - 1
         f_compactness = 1.0 - ((base_to - base_from) / span if span > 0 else 0.0)
-        if has_volume and mean_volume > EPS:
+        # The baseline is the volume of the bars BEFORE this leg, never the
+        # window's. `leg_out[1]` is the leg's first bar, so the slice stops
+        # short of it and no bar the leg itself contributed can raise the bar it
+        # is being judged against.
+        baseline = 0.0
+        if volume_prefix is not None:
+            lo = max(0, leg_out[1] - _VOLUME_BASELINE_BARS)
+            # Not `span`: that name is already the compactness denominator four
+            # lines up, and shadowing it here would leave two different meanings
+            # of one word inside one loop body.
+            history = leg_out[1] - lo
+            if history >= _VOLUME_BASELINE_BARS:
+                baseline = (
+                    float(volume_prefix[leg_out[1]] - volume_prefix[lo]) / history
+                )
+        if baseline > EPS:
             leg_vol = float(volume[leg_out[1] : leg_out[2] + 1].mean())
-            f_volume = min(leg_vol / (2.0 * mean_volume), 1.0)
+            f_volume = min(leg_vol / (2.0 * baseline), 1.0)
         else:
-            f_volume = 0.5  # neutral: absent volume must not look like weak volume
+            # Neutral, and it covers two cases on purpose: a feed with no volume
+            # at all, and a zone too near the start of the series to have a
+            # baseline. Both are "not measurable here", and neither may be
+            # rendered as weak volume.
+            f_volume = 0.5
 
         factors = {
             "tightness": round(f_tightness * _W_TIGHTNESS, 4),
@@ -491,23 +617,7 @@ def detect(
         mark_profit_zones(visible, int(time[-1]))
         mark_crowding(visible, params.min_profit_zone_rr)
 
-    result: list[Zone] = []
-    for side in (ZoneSide.DEMAND, ZoneSide.SUPPLY):
-        # Cap per side by recency: the zones price can actually reach next are
-        # the ones nearest in time, not the strongest one from 400 bars ago.
-        #
-        # Zero disables it, and that escape hatch is not a nicety. This cap is a
-        # READABILITY limit, but it selects on time, so any measurement taken
-        # through it is a measurement of the recent tail wearing the whole
-        # history's name. It did exactly that here until 2026-08-13.
-        per_side = [z for z in visible if z.side is side]
-        per_side.sort(key=lambda z: z.time_from, reverse=True)
-        result.extend(
-            per_side if params.max_zones_per_side == 0
-            else per_side[: params.max_zones_per_side]
-        )
-
-    result.sort(key=lambda z: z.time_from)
+    result = cap_per_side(visible, params.max_zones_per_side)
     stats["zones"] = len(result)
     # Per-side counts BEFORE the display cap. Without these the only visible
     # numbers are post-cap, so a detector that genuinely found more of one side

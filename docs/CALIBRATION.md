@@ -16,6 +16,10 @@ dan [`reaction.json`](reaction.json).
 > jauh lebih sering daripada formasi yang ditolak gerbang, di 8 dari 8 potongan
 > waktu yang belum pernah dilihat. Namun ketika harga tiba, ia tidak berbalik
 > lebih sering daripada di kotak acak, dan 40 bar kemudian perpindahannya nol.
+>
+> Dua batasan ditemukan belakangan dan berlaku ke seluruh angka judul itu:
+> keunggulan gerbangnya **hanya ada di sentuhan pertama**, dan setelah seleksi
+> kohort dibebankan ia adalah **selang +15,1 sampai +21,3 pp**, bukan satu angka.
 
 ## Cacat yang membatalkan pengukuran sebelumnya
 
@@ -101,6 +105,48 @@ JEBOL.
 Ketiganya p<0,0001. **Deteksinya nyata**, dan sekarang diukur pada sampel 11 kali
 lebih besar yang mencakup seluruh riwayat, bukan ekornya.
 
+### Seleksi yang belum pernah diungkap, dan ia menggeser angka judulnya
+
+Baris tebal di tabel itu punya satu kebocoran yang tidak pernah dinyatakan di
+mana pun pada halaman ini, dan arahnya **menyanjung gerbangnya**.
+
+`replay_lifecycle` menguji jebol **sebelum** ia menguji apakah bar itu berada di
+dalam zona, lalu keluar dari loop (`app/detect/supply_demand.py` baris 145-151).
+Jadi bar yang **masuk ke zona sekaligus menutup melewati distal** tercatat
+sebagai jebol dan **tidak pernah** tercatat sebagai sentuhan, dan zona itu keluar
+dari seluruh sampel hasil.
+
+Kalau kebocoran itu mengenai kedua kohort dengan porsi yang sama, ia tidak
+menggeser selisih apa pun. Terukur, porsinya tidak sama:
+
+| Kohort | Jebol tanpa pernah tercatat menyentuh | Porsi |
+|---|---|---|
+| **Lolos gerbang** (departure >= 2) | 366 dari 3611 zona | **10,14%** |
+| Ditolak gerbang (departure < 2) | 406 dari 9052 zona | **4,49%** |
+
+Zona yang lolos gerbang lebih dari dua kali lipat lebih sering hilang lewat pintu
+itu, dan yang hilang adalah zona yang **jebol**. Batas bawahnya dihitung secara
+konservatif: setiap zona semacam itu dinilai **gagal** pada sebuah sentuhan
+pertama nosional. Pada reward 1,0 ATR angka judulnya bergerak dari **+21,30 pp ke
++15,08 pp**, dengan kohort lolos 76,7% pada n=3450 dan kohort ditolak 61,6% pada
+n=9038.
+
+> [!IMPORTANT]
+> **Pernyataan judul yang jujur adalah sebuah selang, bukan satu angka: +15,1
+> sampai +21,3 poin persen.** Ujung atasnya mengabaikan seleksi ini sepenuhnya,
+> ujung bawahnya membebankan seluruhnya ke kohort yang lolos.
+
+Perhatikan di mana ujung bawah itu mendarat: **+15,08 pp praktis berimpit dengan
++15,3 pp**, yaitu selisih di dalam pita umur yang diukur lewat jalur yang sama
+sekali berbeda di [bagian umur dan gerbang](#umur-dan-gerbang-dan-klaim-yang-saya-bantah-sendiri).
+Dua koreksi yang tidak berbagi satu pun langkah perhitungan berhenti di tempat
+yang sama.
+
+Ini **belum pernah diungkap di dokumen mana pun di sini**. Daftar "Yang tidak
+diukur" hanya menyebut bahwa zona yang tidak pernah disentuh tidak punya hasil;
+ia tidak pernah memecah seleksi itu menurut kohort, dan justru pemecahan itulah
+yang mengubah angkanya.
+
 ## Bertahan di luar sampel
 
 Ini pengukuran yang belum pernah ada di sini. Riwayat dibelah menjadi sembilan
@@ -134,6 +180,71 @@ tidak.
 > potongan. Karena itu jumlah potongannya sembilan dan bukan enam: dengan lima
 > potongan yang dinilai, nilai terkecilnya 0,0625, dan uji yang jawaban
 > terbaiknya "tidak signifikan" bukan uji.
+
+## Sentuhan kedua dan seterusnya, dan gerbangnya tidak ikut ke sana
+
+Daftar "Yang tidak diukur" di halaman ini selalu dibuka dengan baris yang sama:
+semua pengukuran berhenti di sentuhan pertama. `tools/later_touches.py`
+mengakhirinya, dan jawabannya tidak menyenangkan.
+
+Populasi: enam deret (`PAXGUSDT` 15m dan 1j, `BTCUSDT` 15m dan 1j, `ETHUSDT` 1j,
+`XAUUSD` 1j dari Yahoo), parameter POPULATION, `max_zones_per_side=0`, sekitar
+27.000 peristiwa sentuhan, sekitar 15.600 di antaranya pada sentuhan kedua atau
+lebih. Yang diterapkan adalah gerbang yang **benar-benar dikirim** (lolos berarti
+`departure >= 2,0` ATR), pada tiap nomor sentuhan, dan angkanya selisih kohort
+lolos dikurangi kohort ditolak.
+
+| Sentuhan | reward 0,5 ATR | reward 1,0 ATR | reward 2,0 ATR |
+|---|---|---|---|
+| **1** | **+14,5 pp** | **+21,3 pp** | **+11,5 pp** |
+| 2 | +0,2 | -0,5 | -3,2 |
+| 3 | +0,3 | -2,5 | -4,7 |
+| 4 | -1,0 | -4,7 | -5,9 |
+| 5 | -1,7 | -6,7 | -5,2 |
+| **Gabungan 2 ke atas** | -0,2, tidak signifikan | **-2,5** (z=-3,44, p=0,0006) | **-4,3** (z=-4,78, p<0,0001) |
+
+Di sentuhan pertama pada reward 0,5, kohort lolos berisi 3086 peristiwa lawan
+8641 yang ditolak. Sesudah sentuhan pertama keunggulannya **hilang seluruhnya**,
+dan pada dua geometri ia menyeberang ke negatif dengan signifikansi.
+
+**Bracket setara-R, dan ia mengubah bacaannya.** Bracket kedua (target 2,0 kali
+tinggi zona) dijalankan **setelah** tabel di atas dilihat, jadi ia ditandai **post
+hoc dan dikeluarkan dari putusan**. Hasilnya: sentuhan 1 **+16,4 pp**, gabungan 2
+ke atas **+0,7 pp** dan tidak signifikan. **Tandanya berbalik antar bracket**, dan
+halaman ini sudah punya diagnostik untuk persis itu: besaran yang berbalik tanda
+antara dua bracket yang menilai tinggi zona secara berlawanan adalah tinggi zona.
+
+> [!WARNING]
+> Jadi negatif di sentuhan 2 ke atas adalah **tinggi zona, bukan gerbang yang
+> bekerja terbalik**. Bedanya menentukan: "gerbangnya berhenti bekerja" dan
+> "gerbangnya bekerja terbalik" adalah dua klaim yang berbeda, dan hanya yang
+> pertama didukung data ini. Tidak ada gerbang kontrarian yang boleh dibaca dari
+> tabel itu.
+
+Per sisi pada sentuhan 2 ke atas, reward 1,0: **demand -4,3 pp** (signifikan),
+**supply -0,6 pp** (tidak). Gerbangnya **buta sisi secara konstruksi**, jadi hasil
+yang hanya muncul di satu sisi adalah peringatan tentang pengukurannya, bukan
+temuan tentang pasarnya.
+
+> [!IMPORTANT]
+> **Nilai terukur gerbang departure adalah gejala SENTUHAN PERTAMA.** Setiap zona
+> sentuhan kedua dan seterusnya yang digambar chart ini melewati **tidak satu pun
+> filter yang pernah divalidasi proyek ini.**
+
+Empat kaveat, dan semuanya dicetak karena tabel di atas tidak berdiri tanpa
+mereka:
+
+1. **Tautologi distal menggigit tabel sekundernya.** Bar yang menutup melewati
+   distal sekaligus menggagalkan sentuhan itu **dan** mematikan zonanya, jadi
+   sebagian dari "sentuhan belakangan lebih sering gagal" mengulang "sentuhan
+   terdekat ke kematian adalah yang mati". Ini konfon yang sama yang sudah
+   dibuang sekali di H1, dan di sini ia belum dibuang.
+2. **Pita umurnya lebar.** Pita tertua membentang dari 34 sampai 15.650 bar, jadi
+   pengendalian umurnya kasar.
+3. **Satu deret menanggung sebagian besar negatifnya.** `PAXGUSDT` 1j sendirian
+   memberi -8,7 pp di reward 2,0.
+4. **Peristiwa yang bertumpuk tidak diberi bobot keunikan**, jadi n efektifnya
+   lebih kecil daripada n nominal, sebagaimana berlaku di seluruh halaman ini.
 
 ## `departure` adalah ambang, bukan gradien
 
@@ -353,6 +464,97 @@ sama, efek umurnya lenyap dan berbalik:
 bukan sesuatu yang sudah kita punya.** Dua uji itu menjawab pertanyaan berbeda
 dan sebuah faktor harus lewat keduanya. `age_bars` dipertahankan di dalam
 `tools/walkforward.py` sebagai negatif terdokumentasi, bukan dihapus.
+
+### Umur dan gerbang, dan klaim yang saya bantah sendiri
+
+Bacaan pertama atas harness sentuhan-lanjut di atas menghasilkan klaim yang
+tampak masuk akal dan keluar lebih dulu: karena jendela departure **dipotong di
+sentuhan pertama**, departure dan umur-saat-sentuhan-pertama terikat, sehingga
++21,3 pp di judul itu "sebenarnya" +7,6 pp dan sebagian besar sisanya adalah umur
+atau pemotongannya.
+
+Klaim itu diperiksa ulang secara adversarial, dan hasilnya terbelah rapi:
+**mekanismenya benar, inferensinya salah.** Keduanya dilaporkan, dan bantahannya
+yang jadi kesimpulan.
+
+Harness pemeriksanya divalidasi lebih dulu terhadap angka yang sudah terbit: ia
+mereproduksi `docs/calibration.json` **persis**, n=2710 lolos dan 7488 ditolak,
++21,37 pp, z=+20,82.
+
+**DIKONFIRMASI, mekanismenya.** Pada deret sintetis dengan base yang identik
+bita-per-bita dan kaki keluar yang juga identik bita-per-bita, `departure_atr`
+terbaca sebagai berikut ketika sentuhan pertama digeser menjauh:
+
+| Jarak sentuhan pertama (bar) | 1 | 3 | 5 | 9 | 17 | 19 | 21 ke atas |
+|---|---|---|---|---|---|---|---|
+| `departure_atr` | 8,037 | 8,901 | 9,765 | 11,494 | 14,951 | 15,383 | **datar** |
+
+Ia **fungsi tangga yang monoton tidak menurun terhadap umur**, naik ketat hanya
+selama sentuhannya jatuh di dalam `departure_lookahead` 20 bar, lalu berhenti.
+Lantainya adalah seluruh ekskursi kaki keluar, jadi pemotongan itu **tidak pernah
+mengecilkan pengukuran kaki keluarnya sendiri**.
+
+**DIBANTAH, "dua dari tiga pita tidak terukur".** Hanya **satu** yang tidak.
+Pita yang dipakai adalah tersil dari **seluruh** peristiwa sentuhan, lalu
+diterapkan ke subhimpunan sentuhan pertama, padahal **54,4% sentuhan pertama
+terjadi pada umur tepat 1 bar**. Titik potong 5 dan 34 karena itu adalah
+persentil ke-75 dan ke-90 populasi itu, bukan tersil. Tersil sesungguhnya dari
+populasi sentuhan pertama adalah 1 / 2-3 / 4 ke atas, dan gerbangnya
+**signifikan di ketiganya**:
+
+| Pita umur sentuhan pertama | Selisih gerbang | p |
+|---|---|---|
+| tepat 1 bar | **+35,8 pp** | <0,0001 |
+| 2 sampai 3 bar | **+14,3 pp** | <0,0001 |
+| 4 bar ke atas | **+13,1 pp** | <0,0001 |
+
+**DIBANTAH, "keunggulannya sebenarnya +7,6 pp".** Angka +7,6 adalah yang
+**terlemah dari tiga pita**, dibaca sebagai kalau ia mewakili semuanya. Selisih
+di dalam umur yang dibobot strata (Mantel-Haenszel) pada pita yang sama itu
+adalah **+15,3 pp**, dan ia berkisar **+13,3 sampai +17,6 pp** di delapan
+pembagian pita yang berbeda. Angka pita tengahnya sendiri bergerak dari +2,5 ke
++14,8 pp tergantung pembagiannya, dan **angka yang berubah enam kali lipat
+mengikuti pilihan sembarang bukan temuan**.
+
+**Sel yang menentukan.** Pada umur **tepat 1 bar** tidak ada sisa ragam umur yang
+mungkin tersisa untuk menjelaskan apa pun. Di sana, pada 5549 sentuhan pertama
+atau 54% populasinya, selisihnya **+35,8 pp**: kohort lolos 98,0% pada n=51
+lawan kohort ditolak 62,3% pada n=5498, z=+5,25. **Selisih terbesar di seluruh
+tabel duduk persis di tempat umur tidak bisa menjelaskan apa-apa.**
+
+**DIBANTAH, "pemotongannya yang jadi sebab".** Departure dihitung ulang **tanpa
+pemotongan**, dan gerbangnya justru terbaca **lebih baik**, bukan lebih buruk:
+gabungan +41,46 pp lawan +21,37, di dalam umur +40,2 pp, dan **setiap** pita umur
+membaik. Korelasi Spearman antara umur dan departure turun dari +0,776 ke +0,389.
+
+> [!CAUTION]
+> Jendela yang tidak dipotong **membaca bar sesudah sentuhan**, jadi ia bukan
+> gerbang yang bisa didagangkan dan angka +41,46 itu **tidak boleh dikutip
+> sebagai kinerja**. Ia diagnostik mekanisme saja. Halaman ini sudah menetapkan
+> bahwa jendela tak terpotong **over-admisi 34%**, dan itu tetap berlaku.
+
+Pemisahannya juga tidak seluruhnya milik pemotongan. Setengahnya iya, setengahnya
+tidak:
+
+| Pita umur | Terpotong (lolos / ditolak) | Tanpa potong (lolos / ditolak) |
+|---|---|---|
+| muda | 51 / 5498 | **2468 / 3081** |
+| tua | 994 / 20 | 994 / 20 |
+
+Pita tua **tidak bergerak sama sekali**, dan sebabnya geometri: disentuh 34 bar
+atau lebih setelah lahir dengan departure di bawah 2 ATR nyaris mustahil terjadi.
+
+> [!IMPORTANT]
+> Yang perlu dinyatakan dengan jujur: **halaman ini sudah mengungkap
+> mekanismenya**, di bagian `age_bars` di atas ("Ia gerbang departure yang
+> menyamar ... Umur dan departure karena itu terikat secara konstruksi"), dan
+> sudah menjalankan pengondisiannya ke arah sebaliknya. Yang **baru** hanyalah
+> tabel ke arah kebalikannya dan angka +15,3 pp itu.
+>
+> Dan inilah lubang yang sesungguhnya. Halaman ini secara eksplisit mengasuransi
+> angka judulnya terhadap konfon **tinggi zona** ("placebo mempertahankan tinggi
+> zona aslinya"), dan **tidak punya satu kalimat pun yang setara untuk UMUR**.
+> **+15,3 pp adalah angka yang masuk ke lubang itu.**
 
 ### `profit_zone_rr` lolos semuanya
 
@@ -1221,6 +1423,87 @@ Sepuluh hipotesis arah, sepuluh kali nol. Yang tersisa bukan lagi "momentum
 bekerja tapi bukan milik kita" - melainkan bahwa pada data ini, dengan
 pengukuran yang jujur, **arah tidak terpisahkan sama sekali**.
 
+### H11, konjungsi tiga bagian, dan sumber yang membatalkan pembacaan H9
+
+H9 menguji "sweep lalu break berlawanan" dan menyebutnya Market Structure Shift.
+Itu **dua pertiga definisinya**. Bagian ketiga, displacement, tidak pernah masuk,
+dan H9 menutup kasus atas konstruk yang belum lengkap.
+
+Transkrip mentorship ICT 2022 diambil sebagai berkas SRT (35 episode, 211.989
+kata) dan menolak pembacaan dua bagian itu dengan nama:
+
+> "It's not that it goes above this old, relative equal high, and then goes down
+> below that - that's not it, folks, that's not it. You have to see it go below
+> that in displacement with energetic move, take out a short term low."
+> (Episode 24, 2022-05-06)
+
+Dan displacement-nya dioperasionalkan **bukan sebagai ukuran** melainkan sebagai
+ketidakefisienan di dalam kaki itu sendiri:
+
+> "you don't have a trade entry yet, until you determine if it has a fair value
+> gap ... if there isn't one there, you don't have a trade."
+> (Episode 6, 2022-02-04)
+
+**Tidak ada sumber di tingkat mana pun yang memberi kelipatan ATR.** Jadi
+displacement diuji sebagai FVG di dalam kaki break, sebagaimana sumbernya
+mendefinisikannya, bukan sebagai ambang karangan.
+
+H9 direproduksi lebih dulu dan cocok bita-per-bita: t = -0,79 (n=1385) dan -0,12
+(n=4576), paruh -0,436 / +0,106 dan -0,034 / +0,017, serta kelangkaan 7 dan 43 di
+N=25. **Tidak ada satu pun angka terbit yang bergerak.**
+
+H11 memakai pin yang sama persis dengan H9, didaftarkan sebelum diukur: lebar
+swing 2 dan 25, jendela 5 dan 20, horizon 1/3/6/12/24/48 dengan **12 sebagai
+horizon utama**, dan bar konfirmasi t >= 3,0 **ditambah** tanda sama di kedua
+paruh **ditambah** ia harus mengalahkan **keduanya**, break biasa dan sel sweep
+tanpa gap.
+
+| Konfigurasi | Kohort | DELTA @12 bar | t | n |
+|---|---|---|---|---|
+| N=2, jendela 5 | **sweep + gap** | **-0,8272** | **-2,66** | 593 |
+| | sweep tanpa gap | +0,3581 | 1,36 | 792 |
+| | gap tanpa sweep | +0,2294 | 1,65 | 2801 |
+| | break biasa | -0,0099 | -0,07 | 2327 |
+| | **displacement menambah** | **-1,1853** | **-2,91** | |
+| N=2, jendela 20 | sweep + gap | -0,0297 | -0,24 | 3233 |
+| N=25, jendela 5 | sweep + gap | 7 peristiwa, tidak bisa diuji | | |
+| N=25, jendela 20 | sweep + gap | 39 peristiwa, tidak bisa diuji | | |
+| Kontrol, gerak sebelumnya saja | | **+0,1636** | **3,83** | |
+
+Paruh N=2 jendela 5: -1,0116 lalu -0,6784. Paruh N=2 jendela 20: +0,0622 lalu
+-0,1111.
+
+**Putusan: gagal menembus bar di keempat konfigurasi.** Kontrol yang tidak
+membawa gambar apa pun tetap mengalahkan setiap sel di tabel itu, seperti di
+setiap uji arah sebelumnya, dan seperti sebelumnya t=3,83 itu sendiri
+digelembungkan oleh jendela yang bertumpang tindih, jadi ia pembanding bukan
+temuan.
+
+> [!WARNING]
+> Sel yang menggoda adalah N=2 jendela 5: tandanya konsisten di kedua paruh dan
+> displacement-nya menambah -1,19 dengan t=-2,91. **Ia tidak boleh diubah menjadi
+> klaim kontrarian.** Pada jendela terpin yang satunya, paruhnya berbalik tanda.
+> **Satu dari dua jendela yang dipin bukan hasil**, dan memilih yang lebih menarik
+> setelah melihat keduanya persis cara sebuah nol berubah jadi temuan.
+
+#### Sensitivitas pivot: satu kecurigaan yang gugur setelah diukur
+
+Kelangkaan 7 dan 43 di H9 dicurigai artefak definisi kami sendiri: fraktal
+simetris di repo ini jauh lebih selektif daripada pivot satu sisi yang dipakai
+kodifikasi publik dengan pemasangan terbanyak. Kalau benar, "terlalu langka untuk
+diuji" akan jadi pernyataan tentang kode kami, bukan tentang pasar.
+
+Diukur: pada tingkat swing, definisi kami hanya sekitar **20% lebih selektif**
+(sekitar 0,8 kali jumlah swing di N=25 maupun N=50), **bukan dua kali**. Faktor
+dua itu baru muncul di **konjungsinya**, yang menuntut sweep dan break terjadi
+bersamaan sehingga jumlahnya berskala kira-kira sebagai perkalian: 7 lawan 14,
+dan 43 lawan 84.
+
+Bahkan setelah digandakan, N=25 jendela 5 tetap tidak terukur. **Jadi kelangkaan
+H9 adalah pasarnya, bukan definisi kami**, dan tidak ada yang ditukar: fraktal
+simetris dengan `confirmed_at = i + right` justru yang membuat setiap angka
+terbit di halaman ini bebas lookahead.
+
 ### Setelah biaya dibebankan, pada emas sungguhan
 
 Setiap angka sebelum bagian ini **tanpa gesekan**. Itu wajar selama pertanyaannya
@@ -1725,7 +2008,7 @@ pengukuran. Ini disengaja dan kebalikan dari tool lain: pertanyaannya bukan "apa
 yang ditemukan detektor" melainkan "apa yang dilihat pengguna", jadi display cap
 adalah bagian dari jawaban, bukan bias yang harus dihindari.
 
-Tiga besaran, dan hanya satu di antaranya cacat:
+Empat besaran, dan dua di antaranya cacat:
 
 - **Tumpang tindih sesisi antar detektor** bukan cacat. FVG di dalam zona demand
   adalah dua metode yang sepakat, dan itu justru alasan menjalankan keduanya.
@@ -1770,11 +2053,67 @@ Dua perubahan menghasilkannya, dan hanya satu yang soal gambar:
 > kali. **Angka bagus yang diperoleh dengan aturan yang tidak bisa dibenarkan
 > lebih berbahaya daripada angka sedang yang benar.**
 
+#### Diukur ulang dengan lima detektor, dan tinta itu naik lagi
+
+Tabel di atas diukur dengan **tiga** detektor. Sekarang ada **lima**, `ifvg` dan
+`breaker` menyusul, dan `tools/collisions.py` menuliskan ketiga nama itu secara
+hardcode. Jadi satu-satunya pengukuran di repo ini yang menanyakan **apa yang
+dilihat pengguna** justru buta terhadap dua kotak yang benar-benar digambar
+untuknya. Sekarang ia dijalankan dari registry, bukan dari daftar nama.
+
+Diukur ulang pada 500 bar, seluruh detektor menyala, cap seperti yang dikirim:
+
+| | Tiga detektor | **Lima detektor** |
+|---|---|---|
+| Zona tergambar | 131 | **198** |
+| Pasangan diperiksa | - | 3866 |
+| Tumpang tindih sesisi | 195 | **465** |
+| Tumpang tindih berlawanan | 20 | **99** |
+| Tinta rata-rata | 26,7% | **31,6%** |
+| Tumpukan terdalam | 7 | **11** |
+
+Tinta per deret: `PAXGUSDT` 15m 36,2%, `PAXGUSDT` 1j 22,8%, `BTCUSDT` 15m 26,4%,
+`BTCUSDT` 1j 30,3%, `ETHUSDT` 1j 42,3%.
+
+Ini **regresi keterbacaan yang nyata**, dan baris yang dipakai halaman ini
+sendiri berlaku apa adanya: lewat kira-kira sepertiga chart, kotaknya berhenti
+menganotasi harga dan menjadi latar belakangnya.
+
+| Display cap | Kotak | Tinta rata-rata | Tumpang tindih berlawanan |
+|---|---|---|---|
+| 3 | 120 | 19,6% | 65 |
+| 4 | 150 | 24,6% | 78 |
+| **6 (dikirim)** | **198** | **31,6%** | **99** |
+| 8 | 238 | 40,1% | 104 |
+| 12 | 291 | 46,1% | 104 |
+
+Seluruh baris di atas diukur **sesudah** tepi kiri kotak inversi diperbaiki, jadi
+tabel ini dan `docs/collisions.json` berasal dari satu jalannya yang sama.
+Sebelum perbaikan itu, cap yang dikirim membaca 33,6% dan cap 12 membaca 49,8%:
+kotak inversi dulu digambar sejak bar induknya, jadi ia mengecat rentang waktu
+yang bukan miliknya. Selisihnya kecil dan arahnya satu, dan ia disebut di sini
+supaya angka lama yang beredar bisa dikenali sebagai angka lama.
+
+**Bacaan pertama atas lonjakan sisi-berlawanan itu salah, dan salahnya diperiksa
+bukan didiamkan.** Saya menduga penyebabnya kotak induk yang digambar
+berdampingan dengan inversinya sendiri. Terukur: **nol** dari 99 tumpang tindih
+berlawanan adalah kotak melawan induknya sendiri. Sebabnya struktural, dan
+seharusnya bisa saya duga dari kodenya: menginversi menuntut induknya **jebol**
+lebih dulu, sementara `show_broken` dikirim dalam keadaan mati, jadi induknya
+tidak pernah ada di chart pada saat yang sama.
+
+Yang benar-benar terjadi: **79 dari 99** melibatkan kotak inversi melawan persegi
+**lain**. Itu bukan artefak, itu **ongkos sesungguhnya dari menambahkan dua
+detektor ini**, dan ia harus dibayar dengan cap atau tidak dibayar sama sekali.
+
 ### Aturan berhentinya berlaku
 
-Tiga hipotesis arah dijalankan, tiga gagal. H4 menambah dua detektor yang
-terbukti menandai sesuatu, dan tidak satu pun dari mereka mengubah jawaban soal
-arah.
+Setiap hipotesis arah yang didaftarkan di halaman ini gagal, dan hitungannya
+tidak ditulis ulang di sini justru karena ia terus bertambah: yang berlaku adalah
+daftar H1 sampai H11 di atas, bukan sebuah angka yang basi setiap kali satu
+hipotesis baru dijalankan. H4 menambah dua detektor yang terbukti menandai
+sesuatu, H11 menambah konjungsi tiga bagian yang sumbernya benar-benar jelaskan,
+dan tidak satu pun dari mereka mengubah jawaban soal arah.
 
 **Tidak ada panah yang bisa digambar dari apa pun yang diukur di sini.** Yang
 bisa dikatakan, dan ini bukan hasil kosong: umur zona memisahkan hasil sebesar
@@ -1792,15 +2131,106 @@ potongan dan bukan p per potongan.
 
 ## Yang tidak diukur
 
-- **Sentuhan kedua dan seterusnya.** Semua di atas hanya sentuhan pertama.
+> [!NOTE]
+> **Satu baris dicoret dari daftar ini.** "Sentuhan kedua dan seterusnya" sudah
+> diukur, dan hasilnya ada di [bagian sentuhan
+> lanjut](#sentuhan-kedua-dan-seterusnya-dan-gerbangnya-tidak-ikut-ke-sana):
+> keunggulan gerbang departure adalah **gejala sentuhan pertama**, +14,5 sampai
+> +21,3 pp di sana dan nol sampai negatif sesudahnya, sehingga setiap zona
+> sentuhan lanjut yang digambar chart melewati filter yang belum tervalidasi.
+
 - **Zona yang tidak pernah disentuh** tidak punya hasil, jadi tidak masuk sampel.
 - **Kontrol placebo hanya menguji level sembarangan**, bukan level struktural
   lain seperti swing high biasa atau angka bulat.
 - **Emas hanya diwakili PAXG.** Tiga dari lima deret adalah kripto.
-- **Tidak ada biaya transaksi, spread, atau slippage.** Ini bukan hasil dagang.
+- **Tabel utama di halaman ini tanpa biaya transaksi, spread, atau slippage.**
+  Itu tetap berlaku untuk tabel bertahan/gagal di atas, dan TIDAK lagi berlaku
+  untuk seluruh halaman: bagian biaya di atas menjalankan ulang kohort gerbang
+  dengan komisi, slippage, spread dan carry yang diriset, dan justru di situlah
+  keunggulan emasnya berhenti melewati biayanya pada jadwal komisi yang benar
+  benar bisa diambil. Baca dua-duanya, jangan salah satu.
 - **Satu riwayat adalah satu lintasan.** Walk-forward menunjukkan efeknya stabil
   di seluruh riwayat ini; ia tidak bisa menunjukkan efeknya bertahan ke depan.
 - **Peristiwa yang bertumpuk tidak diberi bobot keunikan.** Beberapa zona lahir
   pada ayunan yang sama dan disentuh berdekatan, jadi n efektifnya lebih kecil
   daripada n nominal. Bootstrap blok pada uji reaksi menanganinya; uji dua
   proporsi pada tabel utama tidak.
+- **Walk-forward belum distratifikasi menurut umur.** Delapan potongan itu
+  menguji apakah gerbangnya bertahan lintas waktu, bukan apakah ia bertahan di
+  dalam pita umur yang sama pada tiap potongan. Selisih +15,3 pp di dalam umur
+  diukur pada seluruh riwayat sekaligus.
+- **Selang +15,1 sampai +21,3 pp belum bisa dipersempit.** Menutupnya menuntut
+  hasil bebas-distal seperti yang sudah dibangun di H1, dijalankan pada kohort
+  yang jebol tanpa pernah tercatat menyentuh. Sampai itu ada, angka judulnya
+  adalah selang dan bukan titik.
+- **Koreksi umur dan koreksi seleksi hanya dijalankan di reward 1,0 ATR.** Kedua
+  angka itu belum punya pasangan di geometri 0,5 dan 2,0, jadi belum diketahui
+  apakah selangnya bergerak bersama geometri bracket-nya.
+
+## SSMT lawan volatilitas, 20 Agustus 2026: klaim tidak terbukti, dan ambangnya nyaris tidak pernah menyala
+
+Klaim yang diajukan ke proyek ini: *"SMT Divergence pada pasar dengan volatilitas
+rendah sangat akurat, tapi pada pasar dengan volatilitas ekstrem, SMT sering kali
+menjadi false signal"*, disertai usulan gerbang **ATR > 2,5x rata-rata 30 hari**.
+
+Angka 2,5 datang tanpa pengukuran, dan proyek ini tidak mengirim ambang yang
+belum diukur. Tetapi klaim di bawahnya empiris dan murah diuji, jadi diuji lebih
+dulu.
+
+```
+python -m tools.smt_volatility --bars 50000 --interval 1h --degree day \
+  --provider mt5 --pairs "XAUUSD|XAGUSD,XAUUSD|DXY,XAUUSD|XPTUSD,XAUUSD|BTCUSD" \
+  --json ../docs/smt-volatility.json
+```
+
+**Bracketnya simetris**, `k` ATR ke dua arah dari close di `knowable_at`. Simetris
+dengan sengaja: di bawah random walk ia selesai di 50% secara konstruksi, jadi
+50% ITU null-nya dan tidak butuh estimasi terpisah. Bracket asimetris akan butuh
+baseline sendiri dan membiarkan geometri bracket menyamar sebagai temuan, yaitu
+kesalahan yang sudah didokumentasikan panjang di `calibrate.resolve` soal tinggi
+zona. Seri yang menyentuh kedua sisi dalam satu bar **dibuang**, bukan diskor:
+data bar tidak bisa mengatakan mana yang lebih dulu, dan menghitungnya sebagai
+gagal akan memberatkan klaim sementara sebagai berhasil akan memanjakannya.
+
+### Gabungan empat pasangan
+
+| bracket | n | seluruh sampel | Q1 tenang | Q4 paling liar | rentang |
+|---|---|---|---|---|---|
+| 0,5 ATR | 3324 | 51,1% | 50,0% | 54,0% | **+4,0** |
+| 1,0 ATR | 3452 | 50,9% | 49,9% | 53,2% | **+3,3** |
+| 2,0 ATR | 3439 | 47,1% | 49,5% | 45,8% | **-3,7** |
+
+**Klaimnya tidak terbukti.** Selisih kuartil tertenang lawan terliar di bawah 5
+poin di ketiga lebar bracket, dan galat baku satu proporsi pada n sekitar 830 per
+keranjang adalah 1,7 poin, jadi selisih 4 poin itu sekitar 1,6 sigma. Lebih
+menentukan daripada besarnya: **tandanya berbalik**. Pasar liar terbaca lebih baik
+pada bracket 0,5 dan 1,0 ATR, dan lebih buruk pada 2,0. Efek yang nyata tidak
+berbalik tanda mengikuti lebar bracket; artefak bracket melakukannya.
+
+### Temuan kedua, dan ini yang menutup usulannya
+
+**Ambang yang diusulkan nyaris tidak pernah menyala.** ATR > 2,5x rata-rata 30
+hari terjadi **12 sampai 13 kali dari sekitar 3.400 divergensi**, yaitu 0,4%.
+Andai efeknya nyata, filter yang menyala pada empat dari seribu peristiwa tidak
+bisa mengubah apa pun. Usulannya bukan hanya tidak terdukung, ia juga tidak
+relevan pada skala yang diusulkan.
+
+### Temuan ketiga, tidak diminta tetapi penting
+
+**Seluruh sampel berada di null.** 51,1% / 50,9% / 47,1% terhadap null 50%. Jadi
+SSMT bearish - simbol chart mengambil high kuarter sebelumnya sementara
+partnernya gagal - **tidak punya keunggulan arah yang terukur** di sampel ini,
+volatilitas atau bukan.
+
+> [!IMPORTANT]
+> Ini konsisten dengan dua belas hipotesis arah pre-registered yang sudah gagal
+> di proyek ini, dan ia **tidak** membatalkan layer SSMT: layer itu menggambar di
+> mana divergensi terjadi, dan tidak pernah mengklaim arah. Yang dibatalkan
+> adalah membaca satu divergensi sebagai sinyal jual. Aturan konjungsi tiga
+> syarat di `app/deduce.py` boleh saja berperilaku lain, dan itu pertanyaan
+> terbuka yang hanya bisa dijawab log shadow trading - tetapi satu dari tiga
+> premisnya sekarang terukur berada di null, dan itu justru gunanya
+> pre-registration.
+
+**Yang dihemat:** satu modul Regime Detection, satu ambang karangan, dan satu
+filter yang akan membuang peristiwa tanpa imbalan terukur.

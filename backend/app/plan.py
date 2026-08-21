@@ -1,6 +1,6 @@
 """Turn a drawn zone into a trade plan, without inventing a direction.
 
-Nine pre-registered hypotheses have now failed to get DIRECTION out of these
+Twelve pre-registered hypotheses have now failed to get DIRECTION out of these
 drawings, and the last two failed in the direction opposite to their doctrine.
 So this module does not decide whether to buy. It answers the questions that
 were actually validated, and the split matters enough to state plainly:
@@ -10,6 +10,7 @@ were actually validated, and the split matters enough to state plainly:
       where the stop goes     beyond the distal, which is the doctrine's own stop
       where the target is     the nearest live opposing zone, the "road ahead"
       how much to risk        arithmetic, once the stop distance is known
+      what it costs           the researched table in app/costs.py, charged here
       how much to trust it    the two factors that survived walk-forward
 
     NOT ANSWERED HERE, and no field pretends otherwise
@@ -38,7 +39,7 @@ from __future__ import annotations
 
 import math
 
-from .models import LotSpec, TradePlan, Zone, ZoneSide
+from .models import CostSpec, LotSpec, TradePlan, Zone, ZoneSide
 
 # Measured cohort survival at reward 2.0 ATR, from docs/CALIBRATION.md. Held as
 # named constants so a doc edit and a code edit cannot silently disagree.
@@ -46,7 +47,6 @@ DEPARTURE_GATE_ATR = 2.0
 HELD_CLEARED_GATE = 0.858
 HELD_BELOW_GATE = 0.644
 AGE_BANDS = ((10, 0.936), (59, 0.772))  # (upper bound in bars, held rate)
-HELD_OLDEST = 0.772
 
 # No published source gives a stop buffer. Seiden and the ICT material both say
 # "beyond the distal" and stop there. This is stated, not swept: a swept buffer
@@ -66,7 +66,11 @@ def _age_held_rate(age_bars: int) -> float:
     for upper, rate in AGE_BANDS:
         if age_bars < upper:
             return rate
-    return HELD_OLDEST
+    # The last band's rate, read from the table rather than restated. It used to
+    # be a second constant holding the same 0.772, in the one file whose comment
+    # above says the constants exist so a doc edit and a code edit cannot
+    # silently disagree.
+    return AGE_BANDS[-1][1]
 
 
 def build(
@@ -79,6 +83,7 @@ def build(
     risk_pct: float = 0.01,
     lot: LotSpec | None = None,
     spread: float | None = None,
+    costs: CostSpec | None = None,
 ) -> TradePlan | None:
     """The geometry of a trade at this zone, or None if it has no geometry.
 
@@ -87,6 +92,13 @@ def build(
     feed supplies it, is charged to the entry and to the stop, because a stop
     is hit on the other side of the book from the entry and ignoring that
     flatters every reward figure by exactly one spread.
+
+    `costs` is the rest of the friction - commission, slippage, the spread when
+    the feed publishes none, and carry per night - from the researched table in
+    app/costs.py. None means no schedule could be established for this symbol,
+    and the plan then says the reward is frictionless rather than implying the
+    trade is free. Nothing in `costs` moves the stop or the target: the spread
+    is charged once, to the fill, and the rest is reported.
     """
     height = zone.top - zone.bottom
     if height <= 0 or atr <= 0:
@@ -98,7 +110,16 @@ def build(
 
     entry = zone.proximal
     stop = zone.distal - way * buffer
-    cost = spread or 0.0
+    # A MEASURED spread always wins over the table's constant, and the order is
+    # not a preference: the table's own figure is a median borrowed from the one
+    # feed that publishes both sides, so this bar's actual book beats another
+    # feed's typical bar every time it exists.
+    assumed_spread = (
+        entry * costs.spread_bp / 10_000
+        if spread is None and costs is not None and costs.spread_bp is not None
+        else None
+    )
+    cost = spread if spread is not None else (assumed_spread or 0.0)
     # Both legs pay. Entering long lifts the fill to the ask; the stop below is
     # hit on the bid. Charging one side only is the commonest way a backtest
     # quietly beats the market it was run on.
@@ -110,7 +131,38 @@ def build(
     target = None
     if zone.profit_zone_rr is not None:
         target = entry + way * zone.profit_zone_rr * height
-    reward_r = abs(target - entry_filled) / risk if target is not None else None
+    reward = abs(target - entry_filled) if target is not None else None
+    reward_r = reward / risk if reward is not None else None
+
+    # Commission, slippage and carry. None of it moves the geometry: the spread
+    # above is charged ONCE, by lifting the fill a full spread and leaving the
+    # stop, which is arithmetically identical to paying half a spread on each
+    # leg. A review read that shape as a 2x overcharge and the arithmetic
+    # refuted it, so the spread is reported inside `cost_charged` as the
+    # component it already is rather than added a second time.
+    cost_charged = cost_share = carry_per_night = None
+    unmeasured: list[str] = []
+    if costs is not None:
+        if costs.carry_bp_per_night is not None:
+            carry_per_night = entry * costs.carry_bp_per_night / 10_000
+        for bp, label in ((costs.commission_bp, "komisi"),
+                          (costs.slippage_bp, "slippage"),
+                          (costs.carry_bp_per_night, "biaya menginap")):
+            if bp is None:
+                unmeasured.append(label)
+        # Basis points of notional at the entry price, which is how every figure
+        # in the table is quoted: a flat per-lot fee set when gold traded at 1200
+        # is a different cost entirely at 4400, and only the relative form
+        # transfers between an instrument priced at 4400 and one at 100000.
+        per_turn = (costs.commission_bp or 0.0) + (costs.slippage_bp or 0.0)
+        cost_charged = (
+            cost + entry * per_turn / 10_000 + (carry_per_night or 0.0) * costs.nights
+        )
+        # No target means no reward, so there is no share to take. Not 0.0, and
+        # not the cost over some conventional R multiple - the convention would
+        # be the reading this project refuses to invent.
+        if reward:
+            cost_share = cost_charged / reward
 
     age_bars = max(0, (now - zone.time_from) // max(interval_seconds, 1))
     cleared = zone.departure_atr >= DEPARTURE_GATE_ATR
@@ -141,12 +193,50 @@ def build(
             "Tidak ada zona lawan hidup di depannya, jadi tidak ada target yang "
             "terukur. Angka apa pun di situ akan jadi konvensi, bukan bacaan chart."
         )
-    if spread is None:
+    # Spelled out rather than reusing `assumed_spread is not None`, which means
+    # the same thing only because of an invariant set eighty lines above. The
+    # reader here had to go and find it, and the type checker could not find it
+    # at all - it flagged `costs.spread_bp` as an access on None, which was a
+    # false alarm about correct code and is exactly how a checker teaches people
+    # to ignore it.
+    if spread is None and costs is not None and costs.spread_bp is not None:
         warnings.append(
-            "Feed ini tidak menerbitkan spread, jadi entry dan stop di sini tanpa "
-            "gesekan. Tidak ada satu pun angka di proyek ini yang menyertakan "
-            "biaya; pada XAUUSD dari Dukascopy biayanya nyata dan dibebankan."
+            f"Feed ini tidak menerbitkan spread, jadi yang dibebankan adalah "
+            f"konstanta {costs.spread_bp:g} bp".replace(".", ",")
+            + f" dari tabel biaya ({costs.source}), bukan spread bar ini sendiri."
         )
+    elif spread is None:
+        warnings.append(
+            "Feed ini tidak menerbitkan spread dan tabel biaya tidak punya angka "
+            "penggantinya, jadi entry dan stop di sini tanpa gesekan spread sama "
+            "sekali. Pada XAUUSD dari Dukascopy spreadnya nyata: mediannya 1,6 bp "
+            "dan melebar lewat 2,0 USD menjelang tutup Jumat."
+        )
+    if costs is None:
+        warnings.append(
+            "Tidak ada jadwal biaya untuk simbol ini, jadi reward di atas adalah "
+            "reward TANPA GESEKAN. Bukan berarti gratis, berarti belum diukur. "
+            "Pada emas biaya memakan 9,4% R di jadwal sentral dan 20,5% di "
+            "satu-satunya jadwal komisi yang benar-benar bisa diambil, dan di "
+            "angka kedua walk-forward-nya jatuh dari 8 dari 8 ke 4 dari 8."
+        )
+    else:
+        if costs.nights == 0:
+            warnings.append(
+                "Biaya di atas MENGASUMSIKAN posisi ditutup di hari yang sama "
+                "(nights=0), padahal entry di zona bisa menggantung berhari-hari."
+                + (
+                    f" Tiap rollover yang dilewati menambah {carry_per_night:g} "
+                    f"per unit, jadi kalikan sendiri dengan malam yang Anda tahan."
+                    if carry_per_night else ""
+                )
+            )
+        if unmeasured:
+            warnings.append(
+                f"Tabel biaya ini tidak mengukur {', '.join(unmeasured)}, jadi "
+                f"komponen itu TIDAK ADA di dalam biaya yang dibebankan - hilang, "
+                f"bukan nol."
+            )
 
     lots = placeable = realised = realised_pct = margin = None
     if equity is not None and lot is not None:
@@ -215,7 +305,14 @@ def build(
         age_bars=int(age_bars),
         departure_held_rate=HELD_CLEARED_GATE if cleared else HELD_BELOW_GATE,
         age_held_rate=_age_held_rate(int(age_bars)),
-        spread_charged=round(cost, 6) if spread is not None else None,
+        spread_charged=(
+            round(cost, 6) if spread is not None or assumed_spread is not None else None
+        ),
+        cost_charged=round(cost_charged, 6) if cost_charged is not None else None,
+        cost_share_of_reward=round(cost_share, 6) if cost_share is not None else None,
+        carry_per_night=(
+            round(carry_per_night, 6) if carry_per_night is not None else None
+        ),
         direction_evidence=None,
         warnings=warnings,
     )

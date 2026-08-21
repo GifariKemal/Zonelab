@@ -1,0 +1,63 @@
+{
+ "series": [
+  {
+   "symbol": "mt5:XAUUSD",
+   "interval": "15m",
+   "bars": 50000,
+   "pattern_n": 1730,
+   "pattern_reversal_rate": 0.3554913294797688,
+   "base_n": 7796,
+   "base_reversal_rate": 0.48345305284761414,
+   "lift": -0.12796172336784534
+  },
+  {
+   "symbol": "mt5:XAUUSD",
+   "interval": "1h",
+   "bars": 35158,
+   "pattern_n": 1096,
+   "pattern_reversal_rate": 0.33485401459854014,
+   "base_n": 5271,
+   "base_reversal_rate": 0.4803642572566875,
+   "lift": -0.14551024265814738
+  },
+  {
+   "symbol": "PAXGUSDT",
+   "interval": "1h",
+   "bars": 50000,
+   "pattern_n": 1518,
+   "pattern_reversal_rate": 0.3346508563899868,
+   "base_n": 7935,
+   "base_reversal_rate": 0.454820415879017,
+   "lift": -0.12016955948903019
+  },
+  {
+   "symbol": "BTCUSDT",
+   "interval": "1h",
+   "bars": 50000,
+   "pattern_n": 1534,
+   "pattern_reversal_rate": 0.3161668839634941,
+   "base_n": 8173,
+   "base_reversal_rate": 0.45882784779150865,
+   "lift": -0.14266096382801452
+  },
+  {
+   "symbol": "ETHUSDT",
+   "interval": "1h",
+   "bars": 50000,
+   "pattern_n": 1550,
+   "pattern_reversal_rate": 0.3296774193548387,
+   "base_n": 8156,
+   "base_reversal_rate": 0.4605198626777832,
+   "lift": -0.13084244332294453
+  }
+ ],
+ "pooled": {
+  "pattern_n": 7428,
+  "pattern_reversal_rate": 0.33467959073774906,
+  "base_n": 37331,
+  "base_reversal_rate": 0.46652915807237955,
+  "lift": -0.1318495673346305,
+  "p": 7.538010129657438e-115
+ },
+ "swing_n": 3
+}

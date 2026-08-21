@@ -27,7 +27,7 @@ from app.models import Candle
 from app.providers.base import INTERVALS
 from app.providers.dukascopy import DIVISOR as DUKASCOPY_SYMBOLS
 
-from tools import dukascopy, yahoo
+from tools import dukascopy, mt5, yahoo
 
 CACHE = Path(__file__).resolve().parent.parent / ".cache"
 PAGE = 1000  # vendor hard cap
@@ -44,6 +44,15 @@ def load(symbol: str, interval: str, bars: int, refresh: bool = False) -> list[C
     source, _, ticker = symbol.partition(":")
     if source.lower() == "yahoo":
         return yahoo.load(ticker, interval, bars, refresh)
+
+    # The local terminal, on the same rule and for the same reason as `yahoo:`.
+    # `mt5:XAUUSD` is the broker's spot CFD, `yahoo:XAUUSD` the COMEX future and
+    # bare `XAUUSD` Dukascopy spot - measured 56 dollars apart on 2026-08-19 at
+    # the same minute, so none of the three may stand in for another. It has no
+    # page cap and no rate limit, which is what makes a 50,000-bar walk-forward
+    # on real broker gold possible at all; see tools/mt5.py.
+    if source.lower() == "mt5":
+        return mt5.load(ticker, interval, bars, refresh)
 
     # XAUUSD here is real spot gold with a measured spread, not PAXG; only
     # Dukascopy carries it, and everything else this project measures on is a

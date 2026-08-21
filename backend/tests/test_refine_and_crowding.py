@@ -598,3 +598,60 @@ def test_a_level_is_only_broken_once():
     upward = [e for e in events if e.direction == 1]
 
     assert len(upward) == 1, f"one level, one break, got {len(upward)}"
+
+
+def test_the_road_a_refined_zone_reports_ignores_the_display_cap():
+    """The road ahead must not depend on how many boxes the chart had room for.
+
+    Refinement moves the proximal line, so the road and the crowding stamp have
+    to be recomputed after it - and until this test existed that recomputation
+    ran on the CAPPED set. A wall the cap cut for readability still blocks the
+    road, so the error pointed one way only: it made the road look longer than it
+    was, by exactly the zones the cap discarded.
+
+    The check is the invariant rather than a fixed number: the same zone, drawn
+    under two different caps, must report the same road. Run through the API on
+    purpose - the defect lived in the wiring between the detector and the cap,
+    not in either of them.
+
+    This test used to fail about one run in three, and the cause was not here.
+    The synthetic provider seeded itself from `abs(hash(symbol))`, which CPython
+    randomises per process, so the price series - and with it the 4h zone count -
+    changed on every fresh interpreter; when the count came out 1 there was
+    nothing for a cap of 1 to cap and the precondition below failed honestly. The
+    seed is now `crc32` and this passed 8 fresh runs out of 8, which is
+    consistent with the fix rather than proof of it.
+    """
+    from fastapi.testclient import TestClient
+
+    from app.main import app
+
+    client = TestClient(app)
+
+    def draw(cap: int) -> tuple[dict, dict]:
+        body = client.post("/api/draw", json={
+            "symbol": "BTCUSDT", "interval": "15m", "bars": 2000,
+            "provider": "synthetic", "htf": "4h", "refine": True,
+            "supply_demand": {"max_zones_per_side": cap, "show_broken": True},
+        }).json()
+        htf = {
+            z["id"]: z for z in body["drawing"]["zones"] if z["timeframe"] == "4h"
+        }
+        # Nested under `layers` since HTF stopped being supply-and-demand only:
+        # five box detectors can answer now and a flat bucket let the last one
+        # overwrite the rest.
+        return body["meta"]["htf"]["layers"]["supply_demand"], htf
+
+    _, uncapped = draw(0)
+    capped_meta, capped = draw(1)
+
+    # The fixture has to actually exercise the cap, or the comparison below is
+    # satisfied by there being nothing to compare.
+    assert capped_meta["zones_before_cap"] > capped_meta["zones"], capped_meta
+    assert len(capped) < len(uncapped)
+
+    shared = set(capped) & set(uncapped)
+    assert shared, "the cap kept no zone the uncapped run also drew"
+    for zone_id in shared:
+        assert capped[zone_id]["profit_zone_rr"] == uncapped[zone_id]["profit_zone_rr"]
+        assert capped[zone_id]["crowded_at"] == uncapped[zone_id]["crowded_at"]

@@ -49,7 +49,7 @@ import numpy as np
 
 from app.detect import DETECTORS
 from app.indicators import wilder_atr
-from app.models import Candle, ImbalanceParams, SupplyDemandParams, Zone
+from app.models import Candle, ImbalanceParams, SupplyDemandParams
 from tools import history
 from tools.calibrate import POPULATION, _two_proportion, first_touch, resolve, shift
 
@@ -172,7 +172,7 @@ def sweep(loaded: list, reward: float = 2.0, horizon: int = 80) -> dict:
         return len(drawn), float(np.mean(drawn)), float(np.mean(placebo))
 
     shipped_fvg = SETTINGS["fvg"]
-    print(f"\n  fvg, min_gap_atr           n     held  placebo     diff")
+    print("\n  fvg, min_gap_atr           n     held  placebo     diff")
     out["min_gap_atr"] = []
     for value in (0.0, 0.05, 0.1, 0.25, 0.5, 1.0):
         SETTINGS["fvg"] = ImbalanceParams(
@@ -187,7 +187,7 @@ def sweep(loaded: list, reward: float = 2.0, horizon: int = 80) -> dict:
     SETTINGS["fvg"] = shipped_fvg
 
     shipped_ob = SETTINGS["order_block"]
-    print(f"\n  order_block, impulse       n     held  placebo     diff")
+    print("\n  order_block, impulse       n     held  placebo     diff")
     out["displacement"] = []
     for atr_mult, bars in ((0.5, 5), (1.0, 5), (1.5, 5), (2.5, 5), (1.5, 3), (1.5, 10)):
         SETTINGS["order_block"] = ImbalanceParams(

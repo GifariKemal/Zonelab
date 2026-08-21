@@ -15,7 +15,6 @@ worse than the defect it fixes.
 
 from __future__ import annotations
 
-from collections import Counter
 
 from app.detect.supply_demand import detect
 from app.models import SupplyDemandParams

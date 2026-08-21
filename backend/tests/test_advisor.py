@@ -47,7 +47,13 @@ def test_the_last_note_is_always_what_cannot_be_known():
                  {"kind": ZoneKind.FVG}, {"side": ZoneSide.SUPPLY}):
         notes = advice_for(**over).notes
         assert "TIDAK" in notes[-1].topic
-        assert "sembilan" in notes[-1].text.lower()
+        # The ANCHOR, not the numeral. This line said "sembilan" and that is how
+        # the drift survived: the count moved to twelve in 35 other files and the
+        # one assertion that could have caught it was pinning the stale word.
+        # `tests/test_prose_consistency.py` owns the numeral and owns it in both
+        # languages; this test owns the fact that the note is present at all.
+        assert "pre-registered" in notes[-1].text.lower()
+        assert "hipotesis arah" in notes[-1].text.lower()
 
 
 def test_it_never_tells_anyone_to_buy_or_sell():

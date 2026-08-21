@@ -141,7 +141,7 @@ def main() -> None:
                 signs.append(d > 0)
 
         print()
-        delta = line(pooled, f"L{lookback} POOLED, non-overlapping", out)
+        line(pooled, f"L{lookback} POOLED, non-overlapping", out)
         mid = np.median([r["index"] for r in pooled])
         line([r for r in pooled if r["index"] <= mid],
              f"L{lookback} first half", out)

@@ -5,3 +5,30 @@ pydantic-settings>=2.7
 httpx>=0.28
 numpy>=2.5
 pytest>=8.0
+
+# TEST-ONLY, and installed on the upstream's own instruction rather than by
+# choice. Starlette 1.6 deprecated driving `TestClient` with httpx and says so on
+# every import: "Using `httpx` with `starlette.testclient` is deprecated; install
+# `httpx2` instead." That printed one warning beside every one of 526 passing
+# tests, which is how a warning stops being read - and the deprecation is a real
+# signal, not noise, because the path it names is going away.
+#
+# It does NOT replace httpx above. The providers import httpx directly and keep
+# doing so; these are two distributions with two module names, and only the test
+# client picks up the new one.
+httpx2>=2.12
+
+# Windows ships no system timezone database, so stdlib `zoneinfo` reads this
+# package instead. app/clock.py needs America/New_York with real DST, because
+# the quarter grid is nailed to New York wall time and a fixed UTC offset would
+# shift every level by an hour for part of the year. Without tzdata installed,
+# importing app/clock.py raises ZoneInfoNotFoundError on a fresh Windows venv -
+# it was present here only because someone had installed it by hand.
+tzdata>=2026.1; sys_platform == "win32"
+
+# The local terminal provider. Windows-only by the vendor's own build - there is
+# no wheel for anything else - so it is marked rather than left to fail an
+# install on Linux. app/providers/mt5.py imports it defensively and reports the
+# provider unavailable where it is missing, so a non-Windows checkout still runs
+# with every network source intact.
+MetaTrader5>=5.0.45; sys_platform == "win32"

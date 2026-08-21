@@ -2,7 +2,7 @@
 
 A model asked about a chart will produce a fluent, confident, plausible answer
 whether or not anything supports it, and the single most damaging thing it could
-produce here is a directional call. Ten pre-registered hypotheses failed to get
+produce here is a directional call. Twelve pre-registered hypotheses failed to get
 direction out of these drawings; a model that says "this looks bullish" would
 undo all of that in one sentence, and it would sound better than the truth.
 
@@ -148,8 +148,20 @@ def check(reply: str, payload) -> Verdict:
         # Rounded to the precision the MODEL wrote, not to a fixed tolerance.
         # A relative tolerance scales with magnitude and therefore stops
         # protecting exactly where it matters most - on a four-figure price.
-        places = _decimals(token)
         written = abs(value)
+        # Exact first, and this line is a bug fix rather than an optimisation.
+        # `_decimals` reports 0 places for a tail longer than six digits, so a
+        # model quoting a raw float32 price back PERFECTLY - 4476.2998046875 -
+        # was compared as round(4476.2998046875, 0) and rejected. The rule this
+        # module states is "fewer digits, not different digits", and writing
+        # every digit is the trivially allowed case of it. The first real chart
+        # audit came back UNUSABLE for quoting nine of its own prices correctly.
+        if any(abs(abs(ok) - written) <= EPSILON for ok in allowed):
+            continue
+        # Then the rounding rule, at the precision the MODEL wrote. A relative
+        # tolerance scales with magnitude and therefore stops protecting exactly
+        # where it matters most - on a four-figure price.
+        places = _decimals(token)
         if any(abs(round(abs(ok), places) - written) <= EPSILON for ok in allowed):
             continue
         unsupported.append(value)

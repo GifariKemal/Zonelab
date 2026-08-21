@@ -2,32 +2,46 @@
   "name": "frontend",
   "version": "0.1.0",
   "private": true,
+  "type": "module",
+  "allowScripts": {
+    "unrs-resolver": false
+  },
   "scripts": {
     "dev": "next dev -p 3100",
     "build": "next build",
     "start": "next start -p 3100",
     "lint": "eslint",
+    "typecheck": "tsc --noEmit",
+    "check": "npm run typecheck && npm run lint",
     "e2e": "node e2e/sweep.mjs .playwright-shots",
     "e2e:resilience": "node e2e/resilience.mjs .playwright-shots",
     "e2e:zones": "node e2e/zone-audit.mjs .playwright-shots",
     "e2e:visual": "node e2e/visual-audit.mjs .playwright-shots/visual",
-    "e2e:pixels": "node e2e/pixel-truth.mjs .playwright-shots/pixel"
+    "e2e:pixels": "node e2e/pixel-truth.mjs .playwright-shots/pixel",
+    "e2e:clicks": "node e2e/click-everything.mjs .playwright-shots",
+    "e2e:offscreen": "node e2e/offscreen-zones.mjs 1h 500",
+    "e2e:clock": "node e2e/clock.mjs .playwright-shots",
+    "e2e:ribbon": "node e2e/ribbon.mjs .playwright-shots",
+    "e2e:labels": "node e2e/labels.mjs .playwright-shots",
+    "e2e:chart": "node e2e/chart-audit.mjs .playwright-shots",
+    "e2e:viewports": "node e2e/viewports.mjs .playwright-shots/viewports",
+    "e2e:wiring": "node e2e/wiring.mjs .playwright-shots"
   },
   "dependencies": {
     "lightweight-charts": "^5.2.1",
-    "next": "16.3.0",
+    "next": "^16.3.1",
     "react": "19.2.8",
     "react-dom": "19.2.8"
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4",
-    "@types/node": "^20",
+    "@types/node": "^22.20.1",
     "@types/react": "^19",
     "@types/react-dom": "^19",
-    "eslint": "^9",
-    "eslint-config-next": "16.3.0",
+    "eslint": "^9.39.5",
+    "eslint-config-next": "^16.3.1",
     "playwright": "^1.62.1",
     "tailwindcss": "^4",
-    "typescript": "^5"
+    "typescript": "^6.0.3"
   }
 }

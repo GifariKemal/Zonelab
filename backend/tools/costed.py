@@ -14,7 +14,7 @@ assumed: on XAUUSD it runs about 0.54 to 0.67 USD with gold near 4370, and
 widens past 2.0 into the Friday close.
 
 WHAT THIS IS NOT
-It is not a strategy backtest, because there is no strategy: nine pre-registered
+It is not a strategy backtest, because there is no strategy: Twelve pre-registered
 hypotheses failed to get a DIRECTION out of these drawings, so nothing here
 decides whether to be long or short. What it measures is the doctrine's own
 claim taken at face value - every zone traded in its own direction, demand long
@@ -47,6 +47,7 @@ import json
 
 import numpy as np
 
+from app.costs import BROKERS, row_for, schedule
 from app.detect import DETECTORS
 from app.detect.structure import swings
 from app.indicators import wilder_atr
@@ -59,119 +60,14 @@ from tools.calibrate import POPULATION
 
 HORIZON = 80  # bars a trade is given before it is called a timeout
 
-# COSTS ARE IN BASIS POINTS OF NOTIONAL, not in price units, and that is a
-# correction rather than a preference. The first version of this tool used
-# 0.07 and 0.02 in absolute USD, which are gold numbers: applied unchanged to
-# BTC near 100000 they are roughly 0.00009 bp, so the "costed" column would
-# have been free trading wearing a costed label. Any figure meant to transfer
-# between an instrument priced at 4400 and one priced at 100000 has to be
-# relative to price.
-#
-# Per instrument, because a gold CFD and a Binance spot pair are not charged
-# the same way. `spread_bp` is used ONLY where the feed publishes no spread:
-# Dukascopy XAUUSD carries a measured one per bar and that always wins over an
-# assumption.
-COSTS = {
-    # 7 USD round turn per 100oz lot is 0.07 per ounce, which at gold near 4400
-    # is 0.16bp - not 1.6bp, an arithmetic slip that made the first conversion
-    # ten times too harsh and knocked 0.07R off the answer before it was caught.
-    #
-    # That 0.16bp is honest arithmetic on an UNVERIFIED premise. The only gold
-    # commission schedule that could actually be retrieved is IBKR's, at 1.5bp
-    # per side, so 3.0bp round turn - nineteen times higher. The retail "3.50
-    # USD per side per lot" figure is repeated everywhere and published nowhere.
-    # Part of why it looks so cheap in bp is real: retail per-lot commissions
-    # are flat USD amounts set when gold traded at 1200 to 1800, and gold has
-    # since tripled, so the same fee has quietly fallen from about 0.4bp to
-    # 0.16bp. Run --conservative to see the answer at IBKR's published rate.
-    #
-    # Slippage was 0.05bp and that was simply wrong, not merely optimistic.
-    # Measured on Dukascopy ticks: the mid moves 0.17bp in a 250ms retail round
-    # trip at the median and 0.79bp at p90. A stop is a market order once
-    # triggered AND is fired by a directional move, so the true figure is
-    # adverse-biased above that unsigned floor. 0.5bp is the central estimate.
-    "XAUUSD": {
-        "commission_bp": 0.16, "slippage_bp": 0.5,
-        # Used only where the feed publishes no spread, which is every gold
-        # source here except Dukascopy. 1.6bp is the MEASURED median on
-        # Dukascopy ticks at the London/NY overlap, so it is a real number
-        # borrowed rather than an assumption invented.
-        "spread_bp": 1.6,
-        # Overnight financing, which was missing entirely and is not a footnote:
-        # 80 bars of 15m is 20 hours against a 21:00 UTC rollover, so nearly
-        # every trade crosses exactly one. IBKR publishes 1.29bp/day to borrow
-        # gold short and 0.028bp/day storage long; a CFD adds an unpublished
-        # markup on both sides. 1.0bp per rollover is the central estimate, and
-        # Wednesday is charged triple at most venues, which can cost more than
-        # the entire round turn.
-        "swap_bp": 1.0,
-    },
-    # Binance spot: 0.1% per side and - the detail that matters here - maker
-    # and taker are IDENTICAL at VIP 0, so a resting limit entry saves nothing.
-    # 20bp round turn without the BNB discount, which a conservative backtest
-    # should not assume. Spot ownership has no financing, unlike a gold CFD.
-    #
-    # 2.0bp slippage and 1.0bp spread are roughly 20x harsher than the measured
-    # book for BTC (0.0016bp quoted, 0.00bp slip on a 10k order) and about right
-    # for PAXG at size (2.53bp on 100k). Kept as a stated conservative
-    # assumption rather than tuned per pair, and labelled as an assumption
-    # because on crypto the fee is three orders of magnitude larger than the
-    # spread - the fee IS the cost model and everything else is rounding.
-    "_default": {
-        "commission_bp": 20.0, "slippage_bp": 2.0, "spread_bp": 1.0,
-        "swap_bp": 0.0,
-    },
-}
-# Conservative alternates, run with --conservative. Not a sweep to pick from:
-# both columns get reported and a decision is made on the pessimistic one.
-CONSERVATIVE = {
-    "XAUUSD": {"commission_bp": 3.0, "slippage_bp": 1.5, "swap_bp": 2.0},
-}
+# The cost table used to live here, which is exactly why the shipped trade plan
+# charged the spread only: the researched numbers were reachable from the
+# measurement and from nowhere else. It is now app/costs.py, read by this tool
+# AND by app/plan.py, and every provenance comment moved with its number. All
+# figures are BASIS POINTS OF NOTIONAL, per instrument, with `--conservative`
+# and `--broker` selecting the alternate rows; `schedule` does the merge so the
+# two call sites below cannot pick different rows.
 
-# Broker profiles, run with --broker. The gap between the central and the
-# conservative column above is ENTIRELY a commission schedule, so the only way
-# to know which one applies to a given trader is to price their actual broker.
-# A profile here must cite where its numbers came from; an uncited profile is
-# the same unverified retail figure this file already warns about.
-BROKERS: dict[str, dict[str, dict[str, float]]] = {
-    # Verified from Exness's own Help Center, 2026-08-16. Commission is quoted
-    # PER LOT PER SIDE and a XAUUSD lot is 100 troy ounces, so at gold 4400 the
-    # notional is 440,000 and 1bp is 44 USD.
-    #
-    #   Zero        5.50/side -> 11.00 round turn -> 0.250bp
-    #   Raw Spread  3.50/side ->  7.00 round turn -> 0.159bp
-    #
-    # Zero is the profile modelled even though Raw Spread's commission is lower,
-    # because Zero is the only account whose ALL-IN cost is knowable: Exness
-    # publishes no XAUUSD spread for any account type, and Zero is the one that
-    # contractually commits to zero spread on its top-30 instruments for 95% of
-    # the day. Raw Spread's total is commission plus an unpublished number.
-    #
-    # Swap is 0.0 and that is verified rather than assumed: Indonesia is on
-    # Exness's Islamic swap-free country list, where the status is automatic,
-    # account-wide and covers all instruments.
-    #
-    # `admin_bp` is the line that actually decides this strategy. Exness charges
-    # 200 USD per lot per night on XAUUSD held past 21:00 UTC, which is 4.545bp
-    # - more than THIRTEEN round-turn commissions, per rollover crossed. It is
-    # discretionary, can be applied to already-open positions, and its stated
-    # trigger is trading that is not "primarily within the trading day", which
-    # describes this strategy exactly.
-    "exness_zero": {
-        "XAUUSD": {
-            "commission_bp": 0.25, "slippage_bp": 0.5,
-            # NOT None. A measured spread from the feed still wins, but a
-            # broker profile must never blank the fallback: on a feed that
-            # ships one price per bar (Yahoo, and every gold source here except
-            # Dukascopy) None means no spread is charged at all, and the run
-            # silently becomes spread-free. 0.15bp is the top of the range
-            # Exness's own zero-spread commitment implies for its top-30
-            # instruments outside the 95% window.
-            "spread_bp": 0.15,
-            "swap_bp": 0.0, "admin_bp": 4.545,
-        },
-    },
-}
 # 21:00 UTC in northern summer, 22:00 in winter. The earlier hour is modelled
 # because charging at the earlier cutoff catches more trades, and this whole
 # line item is one a backtest must not flatter itself on.
@@ -210,19 +106,7 @@ def trades(
     control has already killed one finding here - reversals at zones were real
     and random boxes reversed just as often.
     """
-    # The routing prefix is about WHERE the bars came from, not about what the
-    # instrument costs to trade. Without stripping it, `yahoo:XAUUSD` falls
-    # through to the crypto default and gets charged 20bp - a Binance fee
-    # schedule applied to a gold CFD, which would have made the cross-year run
-    # look catastrophic for a reason that has nothing to do with gold.
-    fees = {**COSTS.get(symbol.split(":")[-1], COSTS["_default"])}
-    if conservative:
-        fees.update(CONSERVATIVE.get(symbol.split(":")[-1], {}))
-    if broker:
-        # A broker profile REPLACES the generic assumption rather than layering
-        # on it, because the whole point is to stop guessing what this trader
-        # actually pays.
-        fees.update(BROKERS.get(broker, {}).get(symbol.split(":")[-1], {}))
+    fees = schedule(symbol, conservative, broker)
     params = _params(name)
     zones, _ = DETECTORS[name](candles, params)
 
@@ -354,10 +238,23 @@ def trades(
         # a cost model that flatters itself on timing is the thing this tool
         # exists to avoid.
         nights = (HORIZON * step) / 86_400 if costs else 0.0
+        # SWAP IS A SIDE. Measured on the connected Exness terminal 2026-08-20:
+        # XAUUSD swap_long is -541.4 points, 1.20bp a night at gold 4500, while
+        # swap_short is exactly zero. Charging one figure to both sides billed
+        # every short for a cost it never pays - and it leans the same way the
+        # drawing does, because a demand zone is a long. A row with no
+        # `swap_bp_short` was never read side by side, and its single figure
+        # then applies to both, exactly as before.
+        swap_bp = fees.get("swap_bp", 0.0)
+        # The enum and not the string it happens to equal. `ZoneSide` is a
+        # StrEnum today, so `== "supply"` is True - and would go silently False
+        # the day it stops being one, charging every short the long's swap again
+        # with nothing to show for it.
+        if plan.side is ZoneSide.SUPPLY and "swap_bp_short" in fees:
+            swap_bp = fees["swap_bp_short"]
         friction = (
             float(close[touch])
-            * (fees["commission_bp"] + fees["slippage_bp"]
-               + fees.get("swap_bp", 0.0) * nights)
+            * (fees["commission_bp"] + fees["slippage_bp"] + swap_bp * nights)
             / 10_000
         ) if costs else 0.0
         risk = plan.risk_per_unit + friction
@@ -495,12 +392,17 @@ def main() -> None:
         print(f"\n{'=' * 74}")
         print(f"{label}   {args.symbol} {args.interval}   horizon {HORIZON} bars")
         if costs:
-            fees = {**COSTS.get(args.symbol.split(":")[-1], COSTS["_default"])}
-            if args.conservative:
-                fees.update(CONSERVATIVE.get(args.symbol.split(":")[-1], {}))
-            if args.broker:
-                fees.update(BROKERS.get(args.broker, {}).get(args.symbol.split(":")[-1], {}))
+            fees = schedule(args.symbol, args.conservative, args.broker)
             measured = any(c.spread is not None for c in candles)
+            # The ROW is printed, not only the numbers. `_default` is a Binance
+            # spot schedule at 20bp and gold's own row is 0.16bp, so a run that
+            # has silently fallen through prints a cost 125 times too large and
+            # nothing on screen says so. It happened here, and every expectancy
+            # in that run was negative for a reason that had nothing to do with
+            # the market.
+            row = row_for(args.symbol)
+            note = "" if row != "_default" else "  <- FALLBACK, not this instrument's own row"
+            print(f"  cost row: {row}{note}")
             print(f"  commission {fees['commission_bp']}bp + slippage "
                   f"{fees['slippage_bp']}bp of notional, and spread "
                   + ("MEASURED per bar from the feed"

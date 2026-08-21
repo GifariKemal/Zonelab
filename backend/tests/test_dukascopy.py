@@ -245,12 +245,9 @@ def test_the_bulk_loader_folds_ticks_instead_of_hoarding_them(monkeypatch):
     wrong: a bar split over two batches must not take its open from whichever
     batch was processed first.
     """
-    import numpy as np
-
     from app.providers.dukascopy import to_candles
     from tools import dukascopy as loader
 
-    step = 900  # 15m
     end = datetime.now(UTC).replace(minute=0, second=0, microsecond=0)
     base = int(end.timestamp())
 
@@ -287,3 +284,65 @@ def test_the_bulk_loader_folds_ticks_instead_of_hoarding_them(monkeypatch):
         assert row[3] == pytest.approx(want.low)
         assert row[4] == pytest.approx(want.close)
         assert row[6] == pytest.approx(want.spread)
+
+
+def test_a_throttled_feed_is_reported_unavailable_and_not_merely_unreachable(
+    monkeypatch,
+):
+    """429 is a No, and this is the test that says why.
+
+    `available()` returns True unconditionally - there is no key to check - so
+    `/api/config` advertised dukascopy as usable while a fetch died 502 after
+    18.35 seconds. The first probe written for this asked the datafeed ROOT and
+    accepted anything under 500, which answered True while a real tick file
+    answered 429: the same lie in a new place.
+
+    That matters because the host throttles rather than refuses. After a burst it
+    answers 429 to everything for a while, and the fetch path turns a 429 into
+    five retries with 1, 2, 4 and 8 second backoff - so a throttled provider
+    costs 15 seconds and presents as a hang, which is the worst of both.
+
+    404 must stay a Yes: a weekend hour has no ticks and legitimately 404s, and
+    an answer of any kind proves the route.
+    """
+    import asyncio
+
+    import httpx
+
+    from app.providers import dukascopy
+
+    seen: list[str] = []
+
+    def answer(code: int):
+        class Client:
+            async def __aenter__(self):
+                return self
+
+            async def __aexit__(self, *_):
+                return False
+
+            async def head(self, url):
+                seen.append(url)
+                return httpx.Response(code)
+
+        return lambda *a, **k: Client()
+
+    for code, expected in ((200, True), (404, True), (403, True), (429, False), (503, False)):
+        dukascopy._probe = None
+        monkeypatch.setattr(dukascopy.httpx, "AsyncClient", answer(code))
+        assert asyncio.run(dukascopy.DukascopyProvider().probe()) is expected, code
+
+    assert seen, "the probe made no request at all"
+    assert "_ticks.bi5" in seen[-1], (
+        f"the probe asked {seen[-1]}, not a tick file - the root does not exercise "
+        "the path a fetch uses"
+    )
+
+    # Cached, because this runs on every /api/config.
+    dukascopy._probe = None
+    monkeypatch.setattr(dukascopy.httpx, "AsyncClient", answer(429))
+    asyncio.run(dukascopy.DukascopyProvider().probe())
+    before = len(seen)
+    asyncio.run(dukascopy.DukascopyProvider().probe())
+    assert len(seen) == before, "a cached answer still hit the network"
+    dukascopy._probe = None

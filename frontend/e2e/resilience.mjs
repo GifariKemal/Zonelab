@@ -103,21 +103,29 @@ await sleep(2500);
 await page.reload({ waitUntil: "networkidle" });
 await sleep(5000);
 
-const options = await page.locator("select").nth(1).locator("option").allTextContents();
+// BY NAME, NOT BY POSITION. `select").nth(3)` was the HTF picker until a
+// Broker picker landed beside it on 2026-08-20 and every index after Source
+// shifted by one - the sweep then timed out waiting for a combobox that had
+// moved, which reads as a broken app rather than as a moved control. Each
+// `<select>` carries an `aria-label`, so the accessible name is the stable
+// handle and a new picker cannot break this again.
+const options = await page.getByRole("combobox", { name: "Source" }).locator("option").allTextContents();
 check("a configured provider is offered even with a bad key", options.includes("twelvedata"),
       options.join(","));
 
-await page.locator("select").nth(1).selectOption("twelvedata");
+await page.getByRole("combobox", { name: "Source" }).selectOption("twelvedata");
 await sleep(7000);
 const keyError = await alertText();
 check("a rejected key surfaces the vendor's own words", keyError.length > 0, keyError.join("|"));
 check("the rejected key is not confused with an empty market",
       /key|apikey|invalid|twelvedata/i.test(keyError.join(" ")), keyError.join("|"));
 
-await page.screenshot({ path: process.argv[2] + "\\resilience-bad-key.png" });
+await page.screenshot({
+  path: `${process.argv[2] ?? ".playwright-shots"}/resilience-bad-key.png`,
+});
 
 // ---- back to a working provider ----------------------------------------
-await page.locator("select").nth(1).selectOption("binance");
+await page.getByRole("combobox", { name: "Source" }).selectOption("binance");
 await sleep(6000);
 check("switching back to a good provider clears the error",
       (await alertText()).length === 0, (await alertText()).join("|"));

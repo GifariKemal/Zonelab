@@ -489,7 +489,7 @@ def report(datasets: list[Dataset], reward: float, horizon: int, mode: str) -> d
     # Session, as a table rather than a rank. Six four-hour blocks so each has
     # enough zones to mean anything.
     hours = np.array([o.factors["_touch_hour"] for o in real])
-    print(f"\n  touch session (UTC)   n     held    vs base")
+    print("\n  touch session (UTC)   n     held    vs base")
     sessions = []
     for start in range(0, 24, 4):
         pick = (hours >= start) & (hours < start + 4)
@@ -665,9 +665,9 @@ def report(datasets: list[Dataset], reward: float, horizon: int, mode: str) -> d
     # construction and reads inverted, which is what a pure artefact looks like.
     heights = np.array([o.factors["zone_height_atr"] for o in real])
     if heights.std() > 1e-12:
-        print(f"\n  stop-distance confound")
+        print("\n  stop-distance confound")
         edges = np.quantile(heights, [0, 0.25, 0.5, 0.75, 1.0])
-        print(f"  {'zone height':<20}{'n':>7}{'held':>9}   <- taller means a further stop")
+        print("  {'zone height':<20}{'n':>7}{'held':>9}   <- taller means a further stop")
         for i in range(4):
             lo_e, hi_e = edges[i], edges[i + 1]
             pick = (heights >= lo_e) & (heights <= hi_e if i == 3 else heights < hi_e)
@@ -727,7 +727,7 @@ def report(datasets: list[Dataset], reward: float, horizon: int, mode: str) -> d
     # different question; this one answers "if `min_profit_zone_rr` shipped at
     # this value, what changes on the chart the user is looking at".
     roads = np.array([o.factors["profit_zone_rr"] for o in real])
-    print(f"\n  road gate      kept    held kept   held cut     test")
+    print("\n  road gate      kept    held kept   held cut     test")
     gates = []
     for threshold in (0.5, 1.0, 1.5, 2.0, 3.0):
         keep = roads >= threshold
@@ -748,7 +748,7 @@ def report(datasets: list[Dataset], reward: float, horizon: int, mode: str) -> d
     # Decile lift on the composite. If the top decile does not beat the base
     # rate, the composite is not usable as a ranking however good its AUC.
     strengths = np.array([o.strength for o in real])
-    print(f"\n  strength quintile   n     held      lift vs base")
+    print("\n  strength quintile   n     held      lift vs base")
     edges = np.quantile(strengths, [0, 0.2, 0.4, 0.6, 0.8, 1.0])
     quintiles = []
     for i in range(5):

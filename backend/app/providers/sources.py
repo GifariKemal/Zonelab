@@ -4,6 +4,9 @@ Symbol strings verified against each vendor on 2026-08-13. They are the single
 most error-prone detail here, so each one is spelled out next to its provider
 rather than guessed at call time:
 
+    mt5         XAUUSD          the local terminal's own history: the broker's
+                                real tape, with its real spread, no network at
+                                all. Lives in mt5.py, not this file.
     binance     PAXGUSDT        no key, free websocket, tokenized-gold proxy
     dukascopy   XAUUSD          true spot TICKS, no key, bid+ask so it is the
                                 one source here that yields a measured spread
@@ -30,6 +33,7 @@ from .base import INTERVALS, ProviderError, normalize
 # does not carry the instrument, which is reported rather than silently retried.
 SYMBOLS: dict[str, dict[str, str]] = {
     "XAUUSD": {
+        "mt5": "XAUUSD",
         "binance": "PAXGUSDT",
         "dukascopy": "XAUUSD",
         "yahoo": "GC=F",
@@ -37,17 +41,91 @@ SYMBOLS: dict[str, dict[str, str]] = {
         "polygon": "C:XAUUSD",
     },
     "BTCUSD": {
+        "mt5": "BTCUSD",
         "binance": "BTCUSDT",
         "yahoo": "BTC-USD",
         "twelvedata": "BTC/USD",
         "polygon": "X:BTCUSD",
     },
     "EURUSD": {
+        "mt5": "EURUSD",
         "dukascopy": "EURUSD",
         "yahoo": "EURUSD=X",
         "twelvedata": "EUR/USD",
         "polygon": "C:EURUSD",
     },
+    # --- the correlated instruments, for cross-asset reads -------------------
+    # Gold is not analysed alone here: the method this engine is being built for
+    # reads divergence ACROSS correlated instruments, so the metals complex, the
+    # dollar, yields, energy and the indices all have to be reachable by one id.
+    #
+    # Every ticker below was fetched from Yahoo before it was written down, on
+    # 2026-08-18, and each returned real bars. `DX=F` was tried for the dollar
+    # index and 404s, which is why the dollar is the `.NYB` cash index instead.
+    #
+    # FUTURES ARE PREFERRED OVER CASH INDICES, and that is a session decision
+    # rather than a taste one. Measured on the same 5-day 1h window: the futures
+    # return 116 bars, the cash indices 35 to 36, because the cash index only
+    # prints during regular trading hours. Aligning a cash index against gold
+    # intersects down to the index's session and throws away two thirds of the
+    # bars - so `NAS100` and the yields map to the CME contracts, and the cash
+    # tickers are left out rather than offered as a trap.
+    #
+    # The `mt5` column was read off the Exness terminal's own `symbols_get()` on
+    # 2026-08-19, all 314 of them, rather than guessed from the Yahoo ticker.
+    # Two entries below have NO mt5 name and that is deliberate: this broker
+    # carries no bond contract at all. `US30` exists and is the Dow Jones index,
+    # not the 30-year bond, and mapping `US30Y` onto it would put an equity
+    # index behind a yield id - real prices under the wrong name, which is the
+    # one failure nothing downstream can detect.
+    "XAGUSD": {"mt5": "XAGUSD", "yahoo": "SI=F", "twelvedata": "XAG/USD", "polygon": "C:XAGUSD"},
+    "XPTUSD": {"mt5": "XPTUSD", "yahoo": "PL=F", "twelvedata": "XPT/USD"},
+    "XPDUSD": {"mt5": "XPDUSD", "yahoo": "PA=F", "twelvedata": "XPD/USD"},
+    "COPPER": {"mt5": "XCUUSD", "yahoo": "HG=F"},
+    "DXY": {"mt5": "DXY", "yahoo": "DX-Y.NYB"},
+    "NAS100": {"mt5": "USTEC", "yahoo": "NQ=F"},
+    "SPX500": {"mt5": "US500", "yahoo": "ES=F"},
+    "WTI": {"mt5": "USOIL", "yahoo": "CL=F"},
+    "BRENT": {"mt5": "UKOIL", "yahoo": "BZ=F"},
+    # The 10-year note and the 30-year bond as CME contracts. The `^TNX` and
+    # `^TYX` yield series exist and were verified, but they are cash, they print
+    # a YIELD rather than a price (so they move inverse to the contract), and
+    # they carry a third of the bars. Both facts would have to be explained at
+    # every call site, so the contracts are what this table offers.
+    "US10Y": {"yahoo": "ZN=F"},
+    "US30Y": {"yahoo": "ZB=F"},
+    "ETHUSD": {"mt5": "ETHUSD", "binance": "ETHUSDT", "yahoo": "ETH-USD", "polygon": "X:ETHUSD"},
+    # --- added 2026-08-20, because they WORKED and were unreachable -----------
+    # `US30` and `GBPJPY` returned real bars from this terminal all along, through
+    # the pass-through below, and neither was in this table - so neither appeared
+    # in the symbol picker, which is generated from these keys. They were
+    # reachable only by hand-editing a URL. `DE40` was tried and this broker has
+    # no such symbol; the DAX is `DE30` here, which nothing knew about.
+    #
+    # Same rule as the block above: the mt5 column comes from the terminal's own
+    # `symbols_get()` and the yahoo column was fetched before being written down.
+    # Measured on one 5-day 1h window: `YM=F` 90 bars against `^DJI` 31, and
+    # `NIY=F` 90 against `^N225` 36 - so the futures again, for the session reason
+    # already stated.
+    "US30": {"mt5": "US30", "yahoo": "YM=F"},
+    # THE DOLLAR-YEN, which belongs in a gold complex more than most indices do.
+    # Verified: 113 bars on the same window.
+    "USDJPY": {"mt5": "USDJPY", "yahoo": "USDJPY=X"},
+    "GBPJPY": {"mt5": "GBPJPY", "yahoo": "GBPJPY=X"},
+    # Natural gas, the energy leg beside WTI and BRENT.
+    "NGAS": {"mt5": "XNGUSD", "yahoo": "NG=F"},
+    # THE DAX IS MT5-ONLY HERE, and that is the honest entry rather than a gap.
+    # Yahoo publishes no DAX future: `FDAX=F` 404s and `DAX=F` answers 200 with
+    # zero bars. The cash index `^GDAXI` exists and returns 45 bars against the
+    # futures' 90, and this table's own rule is that a cash index is left out
+    # rather than offered as a trap. One provider is a fact about the venue, the
+    # same shape `US10Y` and `US30Y` already have in reverse.
+    "DE30": {"mt5": "DE30"},
+    # NOT ADDED, deliberately: `twelvedata` and `polygon` do carry several of the
+    # instruments above under mechanical ids like `USD/JPY`, and no key is
+    # installed on this machine to verify them. Writing an unverified mapping
+    # would break this table's one rule. Until then `vendor_symbol` says "does not
+    # carry", which is a true statement about what has been checked.
 }
 
 
@@ -82,7 +160,12 @@ async def _get_json(url: str, params: dict | None = None) -> dict | list:
         try:
             response = await client.get(url, params=params)
         except httpx.HTTPError as exc:
-            raise ProviderError(f"network error contacting {url}: {exc}") from exc
+            # The class name, not just str(exc). httpx.ConnectTimeout stringifies
+            # to the EMPTY STRING, so the obvious f-string ends at a colon and
+            # names no cause at all - the same swallowed failure dukascopy.py
+            # already had to fix, here at the helper every vendor routes through.
+            why = str(exc) or type(exc).__name__
+            raise ProviderError(f"network error contacting {url}: {why}") from exc
     if response.status_code != 200:
         raise ProviderError(
             f"upstream returned HTTP {response.status_code}: {response.text[:200]}"
@@ -132,7 +215,7 @@ class BinanceProvider:
             raise ProviderError("binance returned an unexpected payload")
 
         # A kline that is short a field or carries a non-numeric one raises
-        # IndexError/ValueError here, and `_fetch` in main.py only converts
+        # IndexError/ValueError here, and `fetch` in fetching.py only converts
         # ProviderError, so the user would get a bare 500 naming nothing. The
         # vendor that misbehaved has to be said out loud, as YahooProvider does.
         try:

@@ -128,7 +128,7 @@ def test_a_silently_coarser_series_is_refused_rather_than_drawn(monkeypatch):
 
 
 def test_a_missing_series_names_yahoo_instead_of_raising_a_keyerror(monkeypatch):
-    """`_fetch` in main.py converts ProviderError and nothing else, so a
+    """`fetch` in fetching.py converts ProviderError and nothing else, so a
     KeyError on an absent `low` would reach the user as a bare 500 naming no
     vendor. Yahoo's shape is not a contract, so the gap has to be reported.
     """

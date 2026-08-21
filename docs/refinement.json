@@ -37,5 +37,374 @@
   "leverage_median": 2.1965811965812114,
   "leverage_mean": 3.051642132369678,
   "expectancy_ratio_median": 1.9711146008604796
+ },
+ "three_r0.5_h40": {
+  "n": 536,
+  "pairs": 742,
+  "lost_declined": 194,
+  "lost_unresolved": 12,
+  "drop_reasons": {
+   "refine_candidates": 950.0,
+   "refined": 730.0,
+   "refine_no_ltf_bars": 3.0,
+   "refine_no_inner_base": 0.0,
+   "refine_not_contained": 131.0,
+   "refine_no_gain": 86.0
+  },
+  "plain_held": 0.8544776119402985,
+  "once_held": 0.7947761194029851,
+  "twice_held": 0.7201492537313433,
+  "p_once_vs_drawn": 0.001424496094649118,
+  "p_twice_vs_once": 2.775636864143019e-07,
+  "p_twice_vs_drawn": 8.30117458325366e-10,
+  "stop_fraction_once_median": 0.4594107115344772,
+  "stop_fraction_twice_median": 0.18274389345900022,
+  "stop_fraction_step2_median": 0.42374999999999996,
+  "by_stop_distance": {
+   "0.00 to 0.25": {
+    "refined": 0.6363636363636364,
+    "twice": 0.6486486486486487
+   },
+   "0.25 to 0.50": {
+    "refined": 0.6875,
+    "twice": 0.7783251231527094
+   },
+   "0.50 to 0.75": {
+    "plain": 0.8636363636363636,
+    "refined": 0.8630952380952381,
+    "twice": 0.9666666666666667
+   },
+   "0.75 to 1.00": {
+    "plain": 0.8658536585365854,
+    "refined": 0.8863636363636364
+   },
+   "1.00 to 1.50": {
+    "plain": 0.8625592417061612,
+    "refined": 0.9215686274509803
+   },
+   "1.50 and up": {
+    "plain": 0.8378378378378378
+   }
+  },
+  "survivor_bias": {
+   "through all three": {
+    "n": 536,
+    "plain_held": 0.8544776119402985,
+    "once_held": 0.7947761194029851,
+    "step1_fraction": 0.45940000000000003,
+    "plain_stop_atr": 1.3174641169636137
+   },
+   "declined at step 2": {
+    "n": 194,
+    "plain_held": 0.8298969072164949,
+    "once_held": 0.7422680412371134,
+    "step1_fraction": 0.2808,
+    "plain_stop_atr": 1.3740084614597299
+   }
+  },
+  "per_triple": {
+   "PAXGUSDT 1h/15m/5m": {
+    "n": 89,
+    "plain_held": 0.8539325842696629,
+    "once_held": 0.7303370786516854,
+    "twice_held": 0.6741573033707865,
+    "stop_fraction_median": 0.16331224841864522
+   },
+   "PAXGUSDT 4h/1h/15m": {
+    "n": 78,
+    "plain_held": 0.8205128205128205,
+    "once_held": 0.8333333333333334,
+    "twice_held": 0.7435897435897436,
+    "stop_fraction_median": 0.18570282141264818
+   },
+   "BTCUSDT 4h/1h/15m": {
+    "n": 91,
+    "plain_held": 0.8791208791208791,
+    "once_held": 0.8241758241758241,
+    "twice_held": 0.7032967032967034,
+    "stop_fraction_median": 0.17623715194189507
+   },
+   "PAXGUSDT 1d/4h/1h": {
+    "n": 70,
+    "plain_held": 0.8285714285714286,
+    "once_held": 0.8,
+    "twice_held": 0.7285714285714285,
+    "stop_fraction_median": 0.19093714829663477
+   },
+   "BTCUSDT 1d/4h/1h": {
+    "n": 77,
+    "plain_held": 0.8831168831168831,
+    "once_held": 0.7402597402597403,
+    "twice_held": 0.6753246753246753,
+    "stop_fraction_median": 0.20272382228175959
+   },
+   "ETHUSDT 1d/4h/1h": {
+    "n": 73,
+    "plain_held": 0.863013698630137,
+    "once_held": 0.821917808219178,
+    "twice_held": 0.7671232876712328,
+    "stop_fraction_median": 0.16132445384950417
+   },
+   "yahoo:XAUUSD 1d/4h/1h": {
+    "n": 58,
+    "plain_held": 0.8448275862068966,
+    "once_held": 0.8275862068965517,
+    "twice_held": 0.7758620689655172,
+    "stop_fraction_median": 0.2022743340939812
+   }
+  }
+ },
+ "ratio_r0.5_h40": {
+  "n": 87,
+  "plain_held": 0.8045977011494253,
+  "once_held": 0.7241379310344828,
+  "twice_held": 0.6551724137931034,
+  "stop_fraction_median": 0.11769991015273909
+ },
+ "three_r1.0_h40": {
+  "n": 530,
+  "pairs": 734,
+  "lost_declined": 192,
+  "lost_unresolved": 12,
+  "drop_reasons": {
+   "refine_candidates": 950.0,
+   "refined": 730.0,
+   "refine_no_ltf_bars": 3.0,
+   "refine_no_inner_base": 0.0,
+   "refine_not_contained": 131.0,
+   "refine_no_gain": 86.0
+  },
+  "plain_held": 0.6452830188679245,
+  "once_held": 0.5962264150943396,
+  "twice_held": 0.5358490566037736,
+  "p_once_vs_drawn": 0.0129204519111262,
+  "p_twice_vs_once": 0.0002564885942369217,
+  "p_twice_vs_drawn": 3.940596212087971e-06,
+  "stop_fraction_once_median": 0.4594107115344772,
+  "stop_fraction_twice_median": 0.18213912770348883,
+  "stop_fraction_step2_median": 0.42169999999999996,
+  "by_stop_distance": {
+   "0.00 to 0.25": {
+    "refined": 0.45454545454545453,
+    "twice": 0.5034013605442177
+   },
+   "0.25 to 0.50": {
+    "refined": 0.5114942528735632,
+    "twice": 0.5577889447236181
+   },
+   "0.50 to 0.75": {
+    "plain": 0.7727272727272727,
+    "refined": 0.6707317073170732,
+    "twice": 0.6666666666666666
+   },
+   "0.75 to 1.00": {
+    "plain": 0.691358024691358,
+    "refined": 0.5909090909090909
+   },
+   "1.00 to 1.50": {
+    "plain": 0.5825242718446602,
+    "refined": 0.7450980392156863
+   },
+   "1.50 and up": {
+    "plain": 0.6702702702702703
+   }
+  },
+  "survivor_bias": {
+   "through all three": {
+    "n": 530,
+    "plain_held": 0.6452830188679245,
+    "once_held": 0.5962264150943396,
+    "step1_fraction": 0.45940000000000003,
+    "plain_stop_atr": 1.320241097388183
+   },
+   "declined at step 2": {
+    "n": 192,
+    "plain_held": 0.6666666666666666,
+    "once_held": 0.5520833333333334,
+    "step1_fraction": 0.2808,
+    "plain_stop_atr": 1.3740084614597299
+   }
+  },
+  "per_triple": {
+   "PAXGUSDT 1h/15m/5m": {
+    "n": 87,
+    "plain_held": 0.632183908045977,
+    "once_held": 0.5287356321839081,
+    "twice_held": 0.47126436781609193,
+    "stop_fraction_median": 0.16118935837246395
+   },
+   "PAXGUSDT 4h/1h/15m": {
+    "n": 78,
+    "plain_held": 0.6666666666666666,
+    "once_held": 0.6410256410256411,
+    "twice_held": 0.5512820512820513,
+    "stop_fraction_median": 0.18570282141264818
+   },
+   "BTCUSDT 4h/1h/15m": {
+    "n": 91,
+    "plain_held": 0.7252747252747253,
+    "once_held": 0.6593406593406593,
+    "twice_held": 0.5604395604395604,
+    "stop_fraction_median": 0.17623715194189507
+   },
+   "PAXGUSDT 1d/4h/1h": {
+    "n": 70,
+    "plain_held": 0.6428571428571429,
+    "once_held": 0.5857142857142857,
+    "twice_held": 0.5142857142857142,
+    "stop_fraction_median": 0.19093714829663477
+   },
+   "BTCUSDT 1d/4h/1h": {
+    "n": 77,
+    "plain_held": 0.6493506493506493,
+    "once_held": 0.5714285714285714,
+    "twice_held": 0.5584415584415584,
+    "stop_fraction_median": 0.20272382228175959
+   },
+   "ETHUSDT 1d/4h/1h": {
+    "n": 70,
+    "plain_held": 0.5857142857142857,
+    "once_held": 0.6142857142857143,
+    "twice_held": 0.5571428571428572,
+    "stop_fraction_median": 0.15721416874331118
+   },
+   "yahoo:XAUUSD 1d/4h/1h": {
+    "n": 57,
+    "plain_held": 0.5789473684210527,
+    "once_held": 0.5614035087719298,
+    "twice_held": 0.543859649122807,
+    "stop_fraction_median": 0.20454741618475727
+   }
+  }
+ },
+ "ratio_r1.0_h40": {
+  "n": 85,
+  "plain_held": 0.6,
+  "once_held": 0.5176470588235295,
+  "twice_held": 0.47058823529411764,
+  "stop_fraction_median": 0.11475409836073518
+ },
+ "three_r2.0_h80": {
+  "n": 530,
+  "pairs": 733,
+  "lost_declined": 192,
+  "lost_unresolved": 11,
+  "drop_reasons": {
+   "refine_candidates": 950.0,
+   "refined": 730.0,
+   "refine_no_ltf_bars": 3.0,
+   "refine_no_inner_base": 0.0,
+   "refine_not_contained": 131.0,
+   "refine_no_gain": 86.0
+  },
+  "plain_held": 0.42641509433962266,
+  "once_held": 0.3339622641509434,
+  "twice_held": 0.30377358490566037,
+  "p_once_vs_drawn": 3.1632431884368734e-10,
+  "p_twice_vs_once": 0.01658900337497471,
+  "p_twice_vs_drawn": 3.7288032400274995e-11,
+  "stop_fraction_once_median": 0.4594107115344772,
+  "stop_fraction_twice_median": 0.18213912770348883,
+  "stop_fraction_step2_median": 0.42169999999999996,
+  "by_stop_distance": {
+   "0.00 to 0.25": {
+    "refined": 0.38636363636363635,
+    "twice": 0.2945205479452055
+   },
+   "0.25 to 0.50": {
+    "refined": 0.27906976744186046,
+    "twice": 0.2964824120603015
+   },
+   "0.50 to 0.75": {
+    "plain": 0.4318181818181818,
+    "refined": 0.3090909090909091,
+    "twice": 0.3548387096774194
+   },
+   "0.75 to 1.00": {
+    "plain": 0.3625,
+    "refined": 0.3258426966292135
+   },
+   "1.00 to 1.50": {
+    "plain": 0.42718446601941745,
+    "refined": 0.54
+   },
+   "1.50 and up": {
+    "plain": 0.44623655913978494
+   }
+  },
+  "survivor_bias": {
+   "through all three": {
+    "n": 530,
+    "plain_held": 0.42641509433962266,
+    "once_held": 0.3339622641509434,
+    "step1_fraction": 0.45940000000000003,
+    "plain_stop_atr": 1.3186193985751289
+   },
+   "declined at step 2": {
+    "n": 192,
+    "plain_held": 0.453125,
+    "once_held": 0.3385416666666667,
+    "step1_fraction": 0.2808,
+    "plain_stop_atr": 1.3924867740334232
+   }
+  },
+  "per_triple": {
+   "PAXGUSDT 1h/15m/5m": {
+    "n": 90,
+    "plain_held": 0.4888888888888889,
+    "once_held": 0.37777777777777777,
+    "twice_held": 0.3111111111111111,
+    "stop_fraction_median": 0.1622508033955546
+   },
+   "PAXGUSDT 4h/1h/15m": {
+    "n": 78,
+    "plain_held": 0.4230769230769231,
+    "once_held": 0.3333333333333333,
+    "twice_held": 0.32051282051282054,
+    "stop_fraction_median": 0.18570282141264818
+   },
+   "BTCUSDT 4h/1h/15m": {
+    "n": 88,
+    "plain_held": 0.3977272727272727,
+    "once_held": 0.32954545454545453,
+    "twice_held": 0.29545454545454547,
+    "stop_fraction_median": 0.17732440747748288
+   },
+   "PAXGUSDT 1d/4h/1h": {
+    "n": 70,
+    "plain_held": 0.45714285714285713,
+    "once_held": 0.38571428571428573,
+    "twice_held": 0.35714285714285715,
+    "stop_fraction_median": 0.19093714829663477
+   },
+   "BTCUSDT 1d/4h/1h": {
+    "n": 77,
+    "plain_held": 0.44155844155844154,
+    "once_held": 0.33766233766233766,
+    "twice_held": 0.2987012987012987,
+    "stop_fraction_median": 0.20272382228175959
+   },
+   "ETHUSDT 1d/4h/1h": {
+    "n": 70,
+    "plain_held": 0.42857142857142855,
+    "once_held": 0.2857142857142857,
+    "twice_held": 0.2571428571428571,
+    "stop_fraction_median": 0.15721416874331118
+   },
+   "yahoo:XAUUSD 1d/4h/1h": {
+    "n": 57,
+    "plain_held": 0.3157894736842105,
+    "once_held": 0.2631578947368421,
+    "twice_held": 0.2807017543859649,
+    "stop_fraction_median": 0.20454741618475727
+   }
+  }
+ },
+ "ratio_r2.0_h80": {
+  "n": 89,
+  "plain_held": 0.4606741573033708,
+  "once_held": 0.3258426966292135,
+  "twice_held": 0.30337078651685395,
+  "stop_fraction_median": 0.11475409836073518
  }
 }

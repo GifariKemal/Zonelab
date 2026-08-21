@@ -76,14 +76,61 @@ two of them were settled by measurement instead of opinion.
                           the touch rate against a body-only detector, so
                           cross-study comparison is invalid.
 
-  no structure break      THE BIGGEST DEPARTURE, and a contested rule. Required
-                          by some codifications, "recommended not mandatory" by
-                          others, absent from the candle-level definition
-                          itself. Worth knowing: the figures usually quoted to
-                          justify requiring it (52% against 65-68% on 2,400
-                          setups) are UNTRACEABLE - the page they are attributed
-                          to contains no statistics at all. Neither camp has
-                          evidence, so this is a stated choice on both sides.
+  no structure break      NOW OFFERED, still off by default. Contested rule:
+                          required by some codifications, "recommended not
+                          mandatory" by others, absent from the candle-level
+                          definition itself. Since 2026-08-17
+                          `require_structure_break` implements the ICT reading -
+                          the impulse must CLOSE beyond a swing that was already
+                          confirmed when it broke, from `structure.breaks` at
+                          `structure_n` either side, within
+                          `structure_break_bars` of the block candle, in the
+                          impulse's own direction. A SWEEP never qualifies: the
+                          sources call it the opposite event, liquidity taken
+                          rather than structure giving way, and admitting one
+                          would merge the two into one name. The break is
+                          recorded on the box in `structure_break_time`, so the
+                          claim is auditable bar by bar rather than asserted.
+                          Cost, measured with no state filter and no cap on the
+                          cached series: PAXGUSDT 1h 3536 blocks become 936
+                          (26.5%), BTCUSDT 1h 4045 become 1208 (29.9%), XAUUSD 1h
+                          2674 become 741 (27.7%). The gate throws away roughly
+                          three blocks in four and RUNS FASTER doing it: 0.48s
+                          against 1.01s on 20,000 bars, because 2600 fewer boxes
+                          is 2600 fewer lifecycle replays and the structure pass
+                          costs less than they did. So nothing about the price
+                          argues either way. Whether the survivors are BETTER has
+                          not been measured, and until it has, "fewer and
+                          stricter" is not a finding.
+                          It ships OFF, and the reason is unchanged: the figures
+                          usually quoted to justify requiring it (52% against
+                          65-68% on 2,400 setups) are UNTRACEABLE - the page they
+                          are attributed to contains no statistics at all.
+                          Neither camp has evidence, and this project does not
+                          ship a gate it has not put through the rig. The excuse
+                          for not OFFERING the rule has expired now that
+                          app/detect/structure.py computes exactly it; the excuse
+                          for not defaulting it on has not.
+
+  displacement as a size  STILL THE TEST, no longer the whole report. Every box
+                          from this module now carries a `Displacement`: where
+                          the leg ran, its size in ATR, whether it left a fair
+                          value gap, and whether it broke structure. That last
+                          field is None whenever no structure was computed for
+                          the call - which is every call with the gate off - and
+                          None is NOT False. What GATES a box is still the size
+                          plus the optional break above; the object exists so the
+                          two structural properties ICT actually names are
+                          readable on the box instead of only in this docstring.
+                          `left_gap` uses the SAME wick-to-wick predicate the gap
+                          detector uses, `_gap`, because two definitions of a gap
+                          in one file is how they drift apart.
+                          The object is not free and the price is stated: one per
+                          box, plus four gap comparisons, is +12% on the
+                          order-block path (1.13s against 1.01s for 3536 boxes on
+                          20,000 bars, min of 7 interleaved runs). The population
+                          it describes is unchanged, field for field, on the same
+                          series.
 
   1.5 ATR over 5 bars     OURS ENTIRELY. No published ATR multiple exists for
                           "impulsive"; the nearest analogues are "2-3x average
@@ -119,13 +166,15 @@ from ..indicators import EPS, wilder_atr
 from ..models import (
     Anatomy,
     Candle,
+    Displacement,
     ImbalanceParams,
     Zone,
     ZoneKind,
     ZoneSide,
     ZoneState,
 )
-from .supply_demand import replay_lifecycle
+from .structure import breaks
+from .supply_demand import cap_per_side, replay_lifecycle
 
 
 def _arrays(candles: list[Candle]):
@@ -136,6 +185,21 @@ def _arrays(candles: list[Candle]):
         np.array([c.low for c in candles], dtype=np.float64),
         np.array([c.close for c in candles], dtype=np.float64),
     )
+
+
+def _gap(high: np.ndarray, low: np.ndarray, mid: int) -> int:
+    """Wick-to-wick fair value gap centred on bar `mid`. +1 up, -1 down, 0 none.
+
+    The single definition of a gap in this file. `detect_fvg` reads it to find
+    boxes and `detect_order_block` reads it to answer whether its impulse left an
+    inefficiency behind; writing the comparison out twice is how the two answers
+    would eventually disagree about what a gap is.
+    """
+    if high[mid - 1] < low[mid + 1]:
+        return 1
+    if low[mid - 1] > high[mid + 1]:
+        return -1
+    return 0
 
 
 def _finish(
@@ -152,6 +216,9 @@ def _finish(
     atr: np.ndarray,
     params: ImbalanceParams,
     displacement: float,
+    *,
+    leg: Displacement | None = None,
+    break_time: int | None = None,
 ) -> Zone | None:
     """Wrap a raw box in the same lifecycle and contract as a supply zone.
 
@@ -159,6 +226,14 @@ def _finish(
     bar AFTER it. Starting on the bar itself would let the candle that created
     the gap count as the first test of it, which is how a detector ends up
     reporting that its own construction touched it.
+
+    `leg` and `break_time` are the described displacement and the structure break
+    that qualified the box. Both are keyword-only and default to absent, so the
+    one other caller, inversion.py, keeps working unchanged and cannot acquire
+    either of them by accident of argument order: an inverted box inherits its
+    parent's
+    geometry, and describing the parent's leg as the child's would be a claim
+    nobody has measured.
     """
     if top - bottom <= EPS:
         return None
@@ -185,6 +260,8 @@ def _finish(
         ),
         formation_score=0.0,  # deliberately unscored, see the module docstring
         departure_atr=round(displacement, 3),
+        displacement=leg,
+        structure_break_time=break_time,
         touches=life.touches,
         penetration_pct=round(life.penetration, 4),
         first_test_time=life.first_test_time,
@@ -228,10 +305,10 @@ def detect_fvg(
     found: list[Zone] = []
     for i in range(1, n - 1):
         first, third = i - 1, i + 1
-        up = high[first] < low[third]
-        down = low[first] > high[third]
-        if not (up or down):
+        direction = _gap(high, low, i)
+        if direction == 0:
             continue
+        up = direction == 1
         stats["candidates"] += 1
 
         top, bottom = (
@@ -243,12 +320,25 @@ def detect_fvg(
             stats["rejected_too_small"] += 1
             continue
 
+        size = (top - bottom) / scale
         zone = _finish(
             ZoneKind.FVG,
             ZoneSide.DEMAND if up else ZoneSide.SUPPLY,
             top, bottom, first, third,
             time, high, low, close, atr, params,
-            (top - bottom) / scale,
+            size,
+            # The three bars ARE the leg here, and the gap IS the inefficiency,
+            # so `left_gap` is true by construction rather than by test.
+            # `broke_structure` stays None: no structure is computed for gaps at
+            # all, and None says "not tested" where False would say "tested and
+            # failed". `atr` repeats `departure_atr` on purpose - the scalar
+            # remains the gate, the object only describes it.
+            leg=Displacement(
+                time_from=int(time[first]),
+                time_to=int(time[third]),
+                atr=round(size, 3),
+                left_gap=True,
+            ),
         )
         if zone is not None:
             found.append(zone)
@@ -281,17 +371,38 @@ def detect_order_block(
     candle must close the other way, because that candle is the start of the
     impulse. In a run of three bearish candles only the third has a bullish
     successor.
+
+    STRUCTURE, opt-in. With `require_structure_break` the impulse must also close
+    beyond a confirmed swing - the ICT requirement this detector shipped without
+    for a year. Off by default and for a stated reason; read the module
+    docstring's departure list before turning it on or reading anything into it.
     """
     n = len(candles)
     stats: dict[str, float] = {
         "bars": n, "candidates": 0, "rejected_weak_move": 0,
-        "rejected_not_last": 0, "rejected_state_filter": 0,
+        "rejected_not_last": 0, "rejected_no_structure_break": 0,
+        "rejected_state_filter": 0,
     }
     if n < params.atr_period + params.displacement_bars + 2:
         return [], stats
 
     time, open_, high, low, close = _arrays(candles)
     atr = wilder_atr(high, low, close, params.atr_period)
+
+    # Structure only when the gate asks for it. It is a second full pass over the
+    # bars - fractal swings plus a forward walk - and paying for it on every call
+    # would buy nothing for the default path, which is why `broke_structure` is
+    # None rather than False there. None means NOT TESTED.
+    #
+    # SWEEPs are dropped at the door instead of at the test below. A sweep is a
+    # wick through a level that closed back inside: the sources read it as
+    # liquidity taken, the OPPOSITE event to structure giving way, so it can
+    # never qualify a block and must not be one dropped `if` away from doing so.
+    breaks_at: dict[int, list] = {}
+    if params.require_structure_break:
+        for event in breaks(candles, params.structure_n, params.structure_n)[0]:
+            if event.kind != "SWEEP":
+                breaks_at.setdefault(event.index, []).append(event)
 
     found: list[Zone] = []
     for i in range(1, n - params.displacement_bars - 1):
@@ -333,10 +444,69 @@ def detect_order_block(
             stats["rejected_not_last"] += 1
             continue
 
+        # The structural test, LAST of the three so each rejection lands under
+        # the reason that actually fired. A block with no impulse is not reported
+        # as a block that failed to break structure.
+        #
+        # `impulse` is the direction the move ran, which is the direction the
+        # break must have: a bearish block precedes an UP move, and a break
+        # downward inside that window is a different event about a different
+        # level. The window is the bars AFTER the block candle - the impulse is
+        # what has to do the breaking, not the block candle itself - and it stops
+        # at `structure_break_bars`, which is as far forward as this detector is
+        # allowed to look. `breaks()` supplies the rest of the honesty: it tests
+        # only against swings whose `confirmed_at` had already passed, so no
+        # break here knows about a pivot nobody could see yet.
+        impulse = 1 if bearish else -1
+        born = i + params.displacement_bars
+        break_time = None
+        if params.require_structure_break:
+            hit = next(
+                (
+                    e
+                    for k in range(1, params.structure_break_bars + 1)
+                    for e in breaks_at.get(i + k, ())
+                    if e.direction == impulse
+                ),
+                None,
+            )
+            if hit is None:
+                stats["rejected_no_structure_break"] += 1
+                continue
+            # A box is not knowable before the evidence that admitted it. With
+            # the default windows the break lands inside the impulse window and
+            # this changes nothing; with `structure_break_bars` set wider than
+            # `displacement_bars` it is the difference between a lifecycle that
+            # starts after the box exists and one that starts before.
+            break_time, born = hit.time, max(born, hit.index)
+
         zone = _finish(
             ZoneKind.OB, side, float(high[i]), float(low[i]), i,
-            i + params.displacement_bars,
+            born,
             time, high, low, close, atr, params, move,
+            leg=Displacement(
+                time_from=int(time[nxt]),
+                time_to=int(time[i + params.displacement_bars]),
+                atr=round(move, 3),
+                # None with the gate off, and True with it on because a block
+                # that did not break structure never reaches this line. False is
+                # therefore unreachable here by construction, not by omission:
+                # answering False would require measuring structure on the
+                # default path, which costs a second pass for a field nothing
+                # currently reads.
+                broke_structure=True if params.require_structure_break else None,
+                # The same wick-to-wick rule the gap detector uses, asked of the
+                # impulse instead of a standalone triple. Centres run to
+                # `displacement_bars - 1` so the third bar of any gap is at most
+                # the bar the box became knowable on - one bar further and the
+                # box would be describing a candle that had not printed yet. A
+                # gap the other way is not this leg's inefficiency.
+                left_gap=any(
+                    _gap(high, low, m) == impulse
+                    for m in range(nxt, i + params.displacement_bars)
+                ),
+            ),
+            break_time=break_time,
         )
         if zone is not None:
             found.append(zone)
@@ -375,19 +545,7 @@ def _present(
     visible = [z for z in found if z.state in allowed]
     stats["rejected_state_filter"] = len(found) - len(visible)
 
-    result: list[Zone] = []
-    for side in (ZoneSide.DEMAND, ZoneSide.SUPPLY):
-        per_side = sorted(
-            (z for z in visible if z.side is side),
-            key=lambda z: z.time_from,
-            reverse=True,
-        )
-        result.extend(
-            per_side if params.max_zones_per_side == 0
-            else per_side[: params.max_zones_per_side]
-        )
-
-    result.sort(key=lambda z: z.time_from)
+    result = cap_per_side(visible, params.max_zones_per_side)
     stats["zones"] = len(result)
     stats["found_demand"] = sum(1 for z in found if z.side is ZoneSide.DEMAND)
     stats["found_supply"] = len(found) - stats["found_demand"]

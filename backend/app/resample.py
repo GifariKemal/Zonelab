@@ -14,6 +14,11 @@ Three things make that correct rather than merely plausible.
    first bar instead would move every HTF zone whenever the user changed the
    bar count, which looks exactly like a detector bug.
 
+   THE EPOCH IS THE RIGHT ANCHOR AND THE WRONG PHASE FOR ONE STEP. See
+   `WEEK_PHASE` below: 1970-01-01 was a Thursday, so `time // 604800` produces
+   weeks that run Thursday to Wednesday. Measured against this broker's own W1
+   series, every weekly zone this module produced was four days out of place.
+
 2. **The final bucket is dropped unless it is complete.** A forming H4 bar has
    a high and low that will still change. A zone built on it would move under
    the user, and would also be a look-ahead if anyone measured it later.
@@ -28,6 +33,26 @@ from __future__ import annotations
 
 from .models import Candle
 from .providers.base import INTERVALS
+
+#: Weekly buckets need a phase shift that no other step needs, and this is a
+#: measured correction rather than a preference.
+#:
+#: 1970-01-01 was a THURSDAY, so `time // 604800 * 604800` lands every weekly
+#: boundary on a Thursday. Asked for the same instrument at the same moment, this
+#: broker's own W1 series returns weeks opening SUNDAY 00:00 - and before this
+#: constant existed, a 1w HTF request on a daily gold chart returned four zones
+#: starting 2024-08-22, 2025-02-06, 2025-04-03 and 2025-09-11, every one of them
+#: a Thursday. Four days out, on every weekly zone, silently.
+#:
+#: `session_offset_hours` cannot repair it: that knob is bounded to +-12h in
+#: `models/api.py` precisely because it is meant for a broker day starting at
+#: 22:00 or 01:00, not for a four-day error.
+#:
+#: 3 days forward from Thursday is Sunday. The daily and 4h grids need no phase
+#: at all, and that is measured too: aggregating this broker's 1h series into 1d
+#: reproduced its native D1 bars exactly, 0 differing bars out of 39 shared, and
+#: invented no bucket the broker does not have.
+WEEK_PHASE = 3 * 86400
 
 
 def resample(
@@ -52,8 +77,10 @@ def resample(
         return []
 
     # Floor-divide handles negative offsets correctly in Python, so a broker day
-    # starting at 22:00 the previous evening can be written as -2.
-    shift = int(session_offset_hours * 3600)
+    # starting at 22:00 the previous evening can be written as -2. The weekly
+    # phase is added on top rather than replacing the offset, so a broker whose
+    # day starts at 22:00 still gets its week starting on the right DAY.
+    shift = int(session_offset_hours * 3600) + (WEEK_PHASE if target == "1w" else 0)
     buckets: dict[int, list[Candle]] = {}
     for candle in candles:
         start = ((candle.time - shift) // step) * step + shift
@@ -81,12 +108,3 @@ def resample(
         out.pop()
 
     return out
-
-
-def bucket_close(bucket_open: int, target: str) -> int:
-    """When the HTF bar opening at `bucket_open` finishes.
-
-    This is the instant its zone becomes knowable. Anything drawn earlier is a
-    zone the trader could not have seen.
-    """
-    return bucket_open + INTERVALS[target]

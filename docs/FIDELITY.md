@@ -461,12 +461,15 @@ pada biaya transaksi trader, yang tidak dimodelkan proyek ini sama sekali.
 > terpisah menunjukkan mengapa. Kalibrasi menemukan tinggi kotak sendiri
 > meramalkan hasil: kuartil terpendek bertahan 52,4% dan tertinggi 61,4% di
 > reward 2,0, semata karena stop yang jauh lebih jarang tersentuh. Refinement
-> memotong tinggi ke 48,6%, yaitu memindahkan zona ke kuartil terpendek, dan
-> selisih 9,9 poin persen yang terukur di sini **hampir persis** rentang yang
-> dijelaskan geometri bracket itu. Jadi yang dibeli refinement adalah stop yang
-> lebih dekat, dan yang dibayarnya adalah konsekuensi aritmetis dari stop yang
-> lebih dekat. Tidak ada informasi yang hilang, hanya risiko yang dipindahkan.
+> memotong tinggi ke 48,6%, yaitu memindahkan zona ke kuartil terpendek. Jadi
+> yang dibeli refinement adalah stop yang lebih dekat, dan yang dibayarnya
+> adalah konsekuensi aritmetis dari stop yang lebih dekat.
 > Rinciannya di [`CALIBRATION.md`](CALIBRATION.md) bagian konfon jarak stop.
+>
+> **Dikoreksi.** Versi sebelumnya paragraf ini menambahkan bahwa selisih 9,9 poin
+> persen itu "hampir persis" sebaran kuartil 9,0 pp. Bacaan besaran itu
+> **terbantah oleh langkah kedua**, dan koreksinya di bawah. Yang selamat adalah
+> bagian geometrinya; aritmetika besarannya tidak.
 
 Karena itu `refine` **mati secara bawaan** dan muncul sebagai pilihan di header
 begitu HTF menyala. Dijaga oleh enam pengujian unit dan enam asersi kontrak API,
@@ -481,6 +484,49 @@ refinement.
 > membawa `state` lamanya akan digambar segar di chart yang jelas-jelas
 > menunjukkannya sudah jebol. Dijaga oleh
 > `test_refinement_recomputes_the_lifecycle_it_invalidated`.
+
+### Langkah kedua, dan separuh mana dari penjelasan itu yang selamat
+
+Penjelasan geometri bracket di atas membuat sebuah ramalan, dan ramalan itu bisa
+dijatuhkan: kalau seluruh kerugian refinement adalah konsekuensi aritmetis dari
+stop yang lebih dekat, maka mengecilkan sekali lagi harus memungut kerugian
+sebesar itu lagi. Diukur pada zona yang sama, bar yang sama, tiga lengan
+berdampingan (sebagaimana digambar, disempurnakan sekali, disempurnakan dua kali),
+dengan 536, 530, dan 530 zona menembus ketiganya.
+
+| Reward | Langkah dua lawan langkah satu | Kumulatif lawan sebagaimana digambar |
+|---|---|---|
+| 0,5 ATR | **-7,5 pp** | -13,4 pp |
+| 1,0 ATR | **-6,0 pp** | -10,9 pp |
+| 2,0 ATR | **-3,0 pp** | -12,3 pp |
+
+Ketiga selisih langkah dua signifikan. Jarak stop turun ke **48,8%** dari aslinya
+setelah satu langkah dan **20,7%** setelah dua.
+
+**Separuh yang bisa difalsifikasi bertahan.** Di setiap bin jarak stop yang kedua
+lengannya punya 30 zona atau lebih, lengan yang disempurnakan dua kali bertahan
+**sama tinggi atau lebih tinggi, tidak pernah lebih rendah**. Pada jarak stop yang
+sama, zona yang disempurnakan dua kali bukan zona yang lebih buruk. Itu pernyataan
+yang bisa gagal, dan ia tidak gagal.
+
+**Bacaan besarannya yang gagal.** Aritmetika yang sama, dipakai pada penyusutan
+kedua, meramalkan kira-kira 9 pp lagi di reward 2,0; yang terukur **-3,0**.
+Ketergantungan pada geometrinya bahkan **berbalik**: langkah satu paling mahal di
+reward 2,0 dan paling murah di 0,5, sedangkan langkah dua paling mahal di 0,5 dan
+paling murah di 2,0. Jadi "hampir persis" pada angka 9,9 pp itu kebetulan yang
+tampak meyakinkan, bukan mekanisme yang terbukti.
+
+Dua kaveat yang harus ikut tercetak, karena keduanya membatasi kepada siapa angka
+di atas berlaku:
+
+- **192 dari 733 zona ditolak di langkah dua**, didominasi oleh penjaga
+  containment yang memang dikirim. Yang selamat adalah **separuh yang lebih
+  jinak**: penyusutan langkah satu mereka bermedian 45,9% dari jarak stop asal,
+  lawan 28,1% pada zona yang gugur. Jadi angka dua langkah menggambarkan separuh
+  yang lebih jinak dari zona yang sudah disempurnakan sekali, bukan populasinya.
+- **Tidak ada apa pun di sini yang menemukan lantai.** Dua langkah terukur
+  mengatakan berapa harga dua langkah, bukan di mana turun lagi berhenti masuk
+  akal.
 
 ## Invalidasi karena zona lawan baru
 
@@ -558,18 +604,62 @@ sudah empat kali keliru soal hal yang dinalar alih-alih diukur.
 |---|---|---|---|---|
 | supply_demand | 9 | 0,5 px | 1,8 px | 6 dari 6 |
 | fvg | 13 | 0,5 px | 1,7 px | **6 dari 6** |
-| order_block | 24 | 0,5 px | 1,8 px | **5 dari 6** |
+| order_block | 12 | 0,5 px | 1,8 px | **6 dari 6** |
 
-**Order block gagal satu asersi, dan itu dicatat apa adanya:** tepi kiri terbaca
-pada 23 dari 24 kotak, sementara asersinya menuntut seluruhnya. Kotak order block
-adalah **rentang satu candle**, jadi tepi kirinya duduk setengah bar dari
-candle-nya sendiri - kasus yang secara geometris lebih sempit daripada base
-berbilang bar milik supply and demand. Satu kotak dari 24 kalah oleh candle
-tetangganya.
+**Baris order block dikoreksi.** Versi sebelumnya file ini melaporkan 24 kotak
+dan **5 dari 6** asersi, dengan tepi kiri terbaca pada 23 dari 24 kotak. Kotak
+order block adalah **rentang satu candle**, jadi tepi kirinya duduk setengah bar
+dari candle-nya sendiri, dan satu kotak kalah oleh candle tetangganya.
+Pengukuran itu diambil ketika display cap masih 12, yang mengizinkan 24 kotak di
+layar. Pada cap yang benar-benar dikirim, yaitu 6, maksimumnya 12 kotak dan
+**seluruh 12 lulus**.
 
-Ini cacat kecil pada keterbacaan, bukan pada penempatan: penempatan vertikalnya
-tetap 0,5 dan 1,8 piksel, sama dengan detektor lama. Dilaporkan sebagai gagal
-karena memang gagal.
+Cap yang lebih kecil hanya memperkecil kesempatan cacatnya muncul, jadi
+penyebabnya dikejar sampai ketemu dan dihapus lewat konstruksi, bukan lewat
+keberuntungan. Seluruh badan zona dicat pada z-order kanvas "bottom", yaitu
+**sebelum** candle, sehingga garis batas kotak selebar satu candle duduk di bawah
+candle-nya sendiri. Sekarang isiannya tetap di bawah candle sementara garis batas
+dan garis proximal dicat **di atasnya**. Cakupan garis batas terburuk naik dari
+0,909 ke **1,000**, dan cakupan tepi atas terburuk dari 0,845 ke **0,998**.
+
+## Cacat yang tidak bisa dilihat oleh harness mana pun di repo ini
+
+Ini entri keempat dari tema berulang file ini, **"gambarnya benar dan
+presentasinya berbohong"**, dan ia layak mendapat bagian sendiri karena tidak
+satu pun uji di repo ini yang bisa menangkapnya. Bukan karena ujinya kurang
+teliti, melainkan karena bentuk cacatnya berada di luar apa yang mereka ukur.
+
+Auditor chart di `app/llm.py` akhirnya bisa dijalankan, dijembatani ke CLI lokal
+sehingga tidak butuh kunci API. Diberi tangkapan layar hasil render plus daftar
+bentuk milik engine sendiri, ia melaporkan: engine menggambar **enam** zona,
+sementara kanvasnya menampilkan **satu kotak utuh dan sepotong tipis kotak
+kedua**. Empat sisanya duduk di bawah rentang harga yang dirender dan lenyap
+bersama keterangannya.
+
+Sebabnya: skala harga menskala otomatis ke **candle**, jadi zona mana pun yang
+berada di luar rentang candle terpotong tanpa suara. Diperiksa ulang terhadap
+tangkapan layarnya sesudah itu: sumbunya berhenti di 4360,00 sementara zona
+memanjang sampai 4184,3.
+
+Mengapa tidak ada harness yang bisa melihatnya: `e2e/pixel-truth.mjs` dan
+`e2e/zone-audit.mjs` sama-sama mengukur zona yang **dikandung** kanvas. Cacat ini
+justru zona yang **tidak** dikandung kanvas, jadi keduanya buta secara
+struktural terhadapnya, bukan sekadar kebetulan tidak menemukannya.
+
+**Perbaikannya memberi tahu pembacanya, bukan menskala ulang.** Menskala ulang
+supaya zona yang jauh ikut masuk akan memampatkan candle-nya, dan itu persis
+cacat tinta yang diukur proyek ini. Jadi yang dipasang adalah spanduk yang
+menyebut berapa zona berada di luar layar dan ke arah mana, plus hitungan panel
+yang berbunyi "N terlihat dari M", bukan "M digambar". Uji baru
+`e2e/offscreen-zones.mjs` mereproduksi kasusnya dan lulus.
+
+### Legendanya salah menggambarkan garis proximal
+
+Legenda menyebut garis proximal sebagai "garis horizontal yang lebih terang **di
+dalam** kotak". Diperiksa pada 34 zona di ketujuh jenis detektor: `proximal` sama
+dengan `top` pada **setiap** zona demand dan sama dengan `bottom` pada **setiap**
+zona supply, nol pengecualian. Ia berimpit dengan garis batas secara konstruksi
+dan tidak pernah menjadi garis di dalam kotak. Yang salah teksnya, bukan garisnya.
 
 ## Apakah kita sudah mengadopsi ICT dengan benar
 
@@ -581,13 +671,29 @@ Satu hal harus dikatakan lebih dulu supaya tabelnya tidak disalahbaca:
 Online Trading Academy. Menilainya dengan penggaris ICT adalah salah kategori,
 kecuali di satu tempat kosakatanya bertabrakan (`curve` lawan premium/discount).
 
-Dan satu catatan provenans yang menentukan bobot seluruh bagian ini: **materi
-primer ICT tidak ada dalam bentuk yang bisa diambil.** Tidak ada buku, tidak ada
-makalah, tidak ada glosarium kanonik; primernya sebuah kanal YouTube. Yang
-tersedia hanyalah kodifikasi vendor (LuxAlgo, yang menjadi standar de facto
-karena skrip TradingView-nya paling banyak dipasang) dan blog afiliasi yang
-sebagian terbaca seperti hasil generator. Tidak satu pun angka di bawah ini
-berasal dari sumber peer-reviewed, karena tidak ada.
+Dan satu catatan provenans yang menentukan bobot seluruh bagian ini, **dan yang
+versi sebelumnya file ini salah menyatakannya.** Dulu tertulis di sini bahwa
+materi primer ICT tidak ada dalam bentuk yang bisa diambil. Itu keliru:
+materinya **bisa** diambil. 35 transkrip SRT dari mentorship 2022, **211.989
+kata**, sudah diunduh dan di-grep, dan kutipan di bagian MSS di bawah berasal
+dari sana.
+
+Sisa klaim lamanya tetap berlaku dan tidak dilunakkan. Tetap tidak ada buku,
+tidak ada makalah, tidak ada glosarium kanonik, dan tidak satu pun sumber
+peer-reviewed di seluruh garis keturunan ini. Transkripnya sendiri dihasilkan
+mesin dan rusak secara kasatmata: "fear value gap" dan "fair Vega" untuk fair
+value gap, "buys thoughts" untuk buy stops. Jadi tingkat sumbernya adalah
+**transkrip otomatis atas video**, satu tingkat di atas blog dan jauh di bawah
+sebuah dokumen. Selebihnya tetap kodifikasi vendor (LuxAlgo, yang menjadi
+standar de facto karena skrip TradingView-nya paling banyak dipasang) dan blog
+afiliasi yang sebagian terbaca seperti hasil generator.
+
+> [!NOTE]
+> Koreksi ini membuat dua pilihan yang sudah terpasang **lebih kuat dasarnya**,
+> bukan lebih lemah. Kotak order block sebagai seluruh rentang lilin kini punya
+> dukungan tier-a, bukan sekadar konvensi mayoritas. Dan "2 sampai 3 kali
+> rentangnya" untuk displacement ternyata angka ICT sendiri, bukan karangan
+> pihak ketiga.
 
 ### Yang sudah setia
 
@@ -595,7 +701,7 @@ berasal dari sumber peer-reviewed, karena tidak ada.
 |---|---|
 | Geometri FVG (3 bar, wick ke wick, `<` ketat) | Setia, satu-satunya detektor tanpa diskresi |
 | Kapan FVG bisa diketahui (lilin tengah tidak menguji gap buatannya sendiri) | Setia, dan ini properti anti-lookahead terpenting di file itu |
-| Kotak order block = seluruh rentang lilin | Setia pada konvensi mayoritas |
+| Kotak order block = seluruh rentang lilin | Setia, dan sejak transkrip primer bisa diambil, ini didukung sumber tier-a, bukan sekadar konvensi mayoritas |
 | Invalidasi lewat penutupan menembus tepi jauh | Setia, dan versi yang lebih ketat dari yang beredar |
 | Swing fractal, tunda konfirmasi `confirmed_at = i + right` | Setia, dan rekayasa terbaik di repo ini |
 | BOS lawan CHoCH lewat penutupan, break pertama selalu BOS | Setia, dan kehalusan yang kebanyakan implementasi salah |
@@ -607,36 +713,124 @@ berasal dari sumber peer-reviewed, karena tidak ada.
 |---|---|
 | Order block "terakhir" | **Dulu salah, diperbaiki 2026-08-16.** Lihat CALIBRATION.md |
 | Displacement pada FVG | Lebarnya gap dipakai sebagai proksi lilin displacement. Objek yang berbeda: gap lebar dari lilin lembut lolos, lilin agresif bergap 0,09 ATR dibuang |
-| Displacement pada order block | 1,5 ATR dalam 5 bar adalah angka karangan sendiri, dan sudah dinyatakan begitu. ICT menuntut uji **struktural**, bukan uji besaran |
-| Order block tidak menuntut break of structure | Penyimpangan ICT terbesar yang tersisa. Dulu beralasan `structure.py` belum ada; **alasan itu sudah kedaluwarsa** |
-| Liquidity sweep | Yang dikode adalah "wick melewati swing dan penutupannya tidak". Tanpa syarat pembalikan, tanpa displacement, tanpa equal highs. Karena levelnya tetap terpasang, satu level bisa memancarkan sweep tanpa batas: 8.725 sweep lawan 9.210 break |
-| `curve` bukan premium/discount ICT | Rentangnya 200 bar bergulir, bukan dealing range swing ke swing; dibagi tiga, bukan kuartil di sekitar ekuilibrium 50%; dibekukan saat zona lahir, padahal ICT membacanya saat sentuhan |
+| Displacement pada order block | Sekarang sebuah objek, `Zone.displacement`, bukan lagi ambang skalar telanjang. Ambang 1,5 ATR dalam 5 bar tetap angka repo sendiri; ICT menyebut 2 sampai 3 kali rentangnya. Uji strukturalnya dilaporkan lewat `broke_structure` |
+| Order block tidak menuntut break of structure | **Sekarang tersedia lewat `require_structure_break`, tetapi mati secara bawaan.** Lihat angkanya di bawah |
+| **Breaker block** | **IMPLEMENTED_DEVIATES, dan ini harus dinyatakan.** Definisi ketatnya menuntut liquidity run, dan justru itu yang memisahkan breaker dari mitigation block. Materi tier-a juga menandai lilin **searah** sebelum raid, bukan lilin lawannya. Yang dikirim repo ini adalah bacaan yang oleh kodifikasi terpasang-terbanyak sendiri disebut versi ritel yang lebih longgar |
+| Liquidity sweep | Yang dikode adalah "wick melewati swing dan penutupannya tidak". Pembalikan kini **dilaporkan** lewat `reversed_within`, tetapi tetap bukan syarat; tetap tanpa displacement, tetap tanpa equal highs. Karena levelnya tetap terpasang, satu level bisa memancarkan sweep tanpa batas: 8.725 sweep lawan 9.210 break |
+| `curve` bukan premium/discount ICT | Tetap benar tentang `curve`, dan sengaja dibiarkan begitu: rentangnya 200 bar bergulir, dibagi tiga, dibekukan saat zona lahir. Bacaan ICT sekarang berdiri sebagai medan terpisah, `dealing_range_pos`, bukan menimpa bacaan Seiden |
 
-### Yang belum ada sama sekali, diurutkan menurut sentralitasnya bagi arah
+### Yang diadopsi, dan dengan syarat apa
 
-1. **Market Structure Shift** (sweep lalu penutupan menembus struktur lawan).
-   Inilah yang ICT klaim membawa arah, bukan CHoCH. H6 menguji BOS, CHoCH, dan
-   SWEEP sebagai tiga kelompok terpisah dan **tidak pernah menguji
-   konjungsinya.** Menguji bagian-bagiannya lalu menyatakan keseluruhannya mati
-   adalah celah logika yang nyata. Primitifnya sudah lengkap.
-2. **Inversion FVG dan breaker block.** Gap yang ditembus lalu berbalik peran.
-   `replay_lifecycle` sudah menghitung `break_index` lalu **membuangnya**. Ini
-   detektor termurah yang belum ada, dan CALIBRATION.md sudah menyebut celahnya
-   sendiri: seluruh 11.469 sentuhan pertama datang dari sisi dekat, nol menembus
-   kotak, jadi subsampel yang memisahkan penerusan dari pembalikan memang belum
-   pernah ada.
-3. **Premium/discount pada dealing range ICT**, dibaca saat sentuhan.
-4. **Displacement sebagai objek**, bukan sekadar ambang skalar.
-5. **Struktur internal lawan swing sebagai konjungsi.** Dua nilai N dijalankan
-   berdampingan bukan berarti keduanya disilangkan; tidak ada yang pernah
-   mengondisikan yang kecil pada yang besar.
+Kelima butir yang dulu berdiri di sini sebagai "belum ada sama sekali" sudah
+dikerjakan, dan tabel ini menggantikan daftarnya. Market Structure Shift, yang
+dulu butir nomor satu, mendapat bagiannya sendiri di bawah karena definisi yang
+dipakai engine ini ternyata ikut salah. Satu baris tambahan datang dari tabel
+penyimpangan, yaitu order block yang menuntut break of structure.
 
-Sisanya (equal highs/lows, mitigation block, OTE, killzone, SMT divergence,
-Power of 3) entah butuh primitif lintas simbol yang tidak ada, atau butuh
-instrumen ber-sesi yang bukan kripto, atau bersandar pada sumber tier terendah.
+| Konstruk | Status | Bentuk yang dikirim |
+|---|---|---|
+| Inversion FVG dan breaker block | **Dikirim**, detektor `ifvg` dan `breaker` | Geometrinya persegi induk yang dimasuki lagi **dari sisi berlawanan**. `break_index`, yang selama ini dihitung `replay_lifecycle` lalu dibuang setiap pemanggil, ternyata peristiwanya |
+| Premium/discount pada dealing range ICT | **Dikirim**, `Zone.dealing_range_pos` | Dibaca pada **sentuhan pertama**, di rentang swing ke swing. Terpisah dari `curve` |
+| Displacement sebagai objek | **Dikirim**, `Zone.displacement` | `time_from`, `time_to`, `atr`, `broke_structure`, `left_gap` |
+| Order block menuntut break of structure | **Tersedia, mati secara bawaan** | `require_structure_break` |
+| Struktur internal lawan swing sebagai konjungsi | **Dikirim** sebagai overlay struktur pasar | `swings` dan `structure` masuk amplop gambar; dua skala fraktal disilangkan untuk pertama kalinya lewat `aligned_with_swing`; penolakan sweep dilaporkan lewat `reversed_within`; MSS menjadi objeknya sendiri |
+
+Overlay strukturnya **digambar untuk kesetiaan, tidak pernah sebagai sinyal**.
+Begitu pula `ifvg` dan `breaker`: keduanya digambar dan **tidak** dijual sebagai
+pembawa arah, karena H8 mengukur sentuhan pasca-inversi sebagai **negatif
+signifikan** dibanding kontrol yang hanya tahu gerak berjalan.
 
 > [!IMPORTANT]
-> Dua konstruk ICT tersisa yang benar-benar membawa klaim arah sudah **diuji dan
+> `broke_structure` bernilai None ketika struktur tidak dihitung, dan **None
+> bukan False**. Siapa pun yang menyaring dengan `not broke_structure` akan
+> membuang zona yang statusnya tidak diketahui bersama zona yang benar-benar
+> gagal menembus struktur, lalu melaporkannya sebagai satu populasi.
+
+#### Cacat tepi kiri pada kotak terinversi
+
+Ditemukan dan diperbaiki di hari yang sama, dan dicatat karena ia **yang keempat
+dari jenisnya di file ini**: kotak hasil inversi digambar dengan tepi kirinya di
+bar asal **induknya**, sehingga ia mengklaim ada sepanjang jendela ketika pita
+yang sama justru sisi lawannya. Terukur, bukan dinalar: **9 dari 9** breaker pada
+satu deret 500 bar dimulai sebelum ia terinversi. Tepi kirinya sekarang
+`inverted_at`.
+
+Yang **tidak** diperbaiki oleh itu, dan harus dikatakan supaya perbaikannya tidak
+dikreditkan lebih dari haknya: tabrakan sisi berlawanan tidak berubah, 100
+menjadi 99, dan **nol** di antaranya ternyata kotak yang berdiri di sebelah
+induknya sendiri. Inversi menuntut induknya jebol lebih dulu, dan `show_broken`
+dikirim dalam keadaan mati, jadi induknya memang tidak pernah ada di layar pada
+saat yang sama.
+
+#### `dealing_range_pos` bukan `curve` yang diganti nama
+
+Korelasi keduanya 0,842 dan 0,848 pada dua deret, jadi godaan untuk
+memperlakukannya sebagai satu medan itu nyata. Tetapi keduanya **identik secara
+numerik** hanya pada 43 dari 1835 dan 37 dari 2077 zona.
+
+Anti-lookahead diverifikasi pada skala, bukan pada contoh: deret dipotong di bar
+15.000 lalu ditandai ulang, dan **0 dari 1409** serta **0 dari 1568** nilai
+berubah.
+
+> [!WARNING]
+> Pada PAXG 1h **kedua sisi terbaca tinggi**, demand 0,603 dan supply 0,560. Itu
+> pola searah yang sama persis dengan yang dulu membongkar `curve` mentah sebagai
+> drift, bukan sebagai posisi pada kurva. Tidak ada yang boleh menyekor medan ini
+> tanpa memisahkan per sisi lebih dulu.
+
+#### Order block dengan break of structure: angkanya ada, pembelaannya tidak
+
+Dengan gerbangnya menyala, order block tinggal **26,5%** pada PAXGUSDT 1h (3536
+menjadi 936), **29,9%** pada BTCUSDT 1h, dan **27,7%** pada XAUUSD 1h dari Yahoo.
+Membuang tiga perempat populasi adalah keputusan yang butuh bukti, dan bukti itu
+tidak ada: angka yang biasa dikutip untuk membenarkan syarat ini (52% lawan
+65-68% pada 2.400 setup) **tidak bisa dilacak ke sumber mana pun**. Jadi tidak
+ada kubu yang punya bukti, bukan hanya satu kubu, dan gerbangnya dikirim mati.
+
+Perilaku bawaannya dibuktikan tidak berubah, bukan diasumsikan: modul versi
+sebelumnya dimuat di proses yang sama, lalu setiap medan setiap zona
+dibandingkan. Identik.
+
+### Definisi MSS yang dipakai engine ini salah, dan sekarang diperbaiki
+
+Engine ini memasangkan MSS sebagai "sebuah sweep, lalu break ke arah lawan". Itu
+**dua pertiga** definisinya. Transkrip 2022 menolak bacaan dua bagian itu dengan
+menyebut namanya:
+
+> "It's not that it goes above this old, relative equal high, and then goes down
+> below that - that's not it, folks, that's not it. You have to see it go below
+> that in displacement with energetic move, take out a short term low."
+> (Episode 24, 2022-05-06)
+
+Dan displacement ia operasionalkan **bukan** sebagai ukuran lilin atau kelipatan
+ATR, melainkan sebagai ketidakefisienan di dalam kakinya, dipakai sebagai
+gerbang:
+
+> "you don't have a trade entry yet, until you determine if it has a fair value
+> gap. Where does that reside? Between the displacement high and the displacement
+> low ... if there isn't one there, you don't have a trade."
+> (Episode 6, 2022-02-04)
+
+Karena itu sebuah MSS sekarang menuntut adanya fair value gap di dalam kaki dari
+sweep sampai break, diuji dengan predikat `_gap` **yang sama** dengan yang dipakai
+detektor FVG. Tidak ada angka yang dikarang di sini. Akibatnya: **52 menjadi 38**
+MSS pada PAXGUSDT 15m, dan **58 menjadi 31** pada BTCUSDT 1h.
+
+Dua penyimpangan tersisa, dan keduanya disebut terang-terangan:
+
+- ICT **tidak** menuntut penutupan melewati levelnya ("we traded above it, it does
+  not need to close above that. Okay, real important", Episode 3; "preferably
+  close below that", Episode 6), sedangkan break di sini selalu menuntutnya. Jadi
+  MSS engine ini adalah **subset ketat** dari MSS miliknya, bukan bacaan yang
+  lebih longgar.
+- ICT mengonfirmasi gap-nya pada bar **setelah** break. Membaca bar itu berarti
+  memasukkan masa depan ke dalam peristiwa yang digambar pada bar break, jadi
+  kakinya hanya dipindai sampai `break - 1`, dan sebuah MSS yang satu-satunya
+  gap-nya justru mengangkangi bar break akan terlewat. Menutupnya butuh
+  `confirmed_at` pada `StructureEvent`.
+
+> [!IMPORTANT]
+> Dua konstruk ICT yang benar-benar membawa klaim arah sudah **diuji dan
 > keduanya gagal** pada 2026-08-16. Sentuhan pasca-inversi (H8) menambah
 > **negatif signifikan** di ketiga detektor dibanding kontrol yang cuma tahu
 > gerak 20 bar terakhir. Konjungsi sweep lalu MSS (H9) tidak pernah mendekati
@@ -644,18 +838,258 @@ instrumen ber-sesi yang bukan kripto, atau bersandar pada sumber tier terendah.
 > **terlalu langka untuk diuji sama sekali** (7 dan 43 peristiwa). Rinciannya di
 > [CALIBRATION.md](CALIBRATION.md).
 >
-> Artinya daftar konstruk ICT yang membawa klaim arah **dan** bisa diuji dengan
-> primitif yang ada sekarang sudah habis. Sisanya di tabel di atas butuh
-> primitif lintas simbol yang tidak ada, atau instrumen ber-sesi yang bukan
-> kripto, atau bersandar pada sumber tier terendah. Pertanyaan arah dari gambar
-> ditutup bukan karena kehabisan ide, melainkan karena idenya sudah habis diuji.
+> Satu kaveat yang harus dibawa ke mana pun hasil H9 dikutip: H9 memakai definisi
+> MSS dua bagian yang baru saja dibantah di atas. Ia menguji sesuatu, dan yang
+> diujinya bukan MSS menurut sumbernya.
+
+### Klaim "sudah habis" yang berdiri di sini, dan mengapa ia salah
+
+Dari dua kegagalan di atas, versi sebelumnya file ini menyimpulkan bahwa daftar
+konstruk ICT yang membawa klaim arah **dan** bisa diuji dengan primitif yang ada
+sudah habis, sehingga pertanyaan arah dari gambar bisa ditutup. **Kesimpulan itu
+salah, dan salahnya empat kali.**
+
+1. **Tiga konstruk yang dilabeli terhalang oleh file ini sendiri ternyata tidak
+   terhalang apa pun.** Equal highs/lows, mitigation block, dan OTE seluruhnya
+   OHLCV murni di atas `swings()` yang sudah ada. Tidak butuh instrumen kedua,
+   tidak butuh jam.
+2. **Alasan "kripto tidak punya sesi" tidak berlaku di repo ini.** Sudah ada
+   Dukascopy XAUUSD dan EURUSD, waktu candle sudah epoch UTC, `resample.py` sudah
+   punya `session_offset_hours`, dan `tools/costed.py` sudah mengerjakan
+   aritmetika jam sesi. Satu-satunya yang kripto-saja adalah daftar `SERIES` di
+   `tools/detectors.py`. Yang dilaporkan sebagai keterbatasan instrumen ternyata
+   keterbatasan satu daftar.
+3. **Enumerasinya tidak pernah ditutup sejak awal.** Konstruk bernama yang tidak
+   muncul di dokumen mana pun di repo ini, baik di sini maupun di CALIBRATION.md:
+   CISD, unicorn, turtle soup, SFP, IPDA data ranges, CRT, Model 2022, BPR,
+   propulsion block, rejection block, implied FVG, immediate rebalance, SCOB,
+   standard deviation projections, STH/ITH/LTH, IRL/ERL, quasimodo, weekly
+   profiles, quarterly theory. Sebuah daftar tidak bisa dinyatakan habis kalau ia
+   tidak pernah lengkap.
+4. **H9 tidak menguji definisi yang diberikan sumbernya.** Ia menguji MSS dua
+   bagian, dan sumbernya menolak bacaan itu dengan menyebut namanya. Lihat bagian
+   MSS di atas.
+
+Versi yang bisa dipertahankan, dan yang menggantikan klaim lama: **setiap
+konstruk ICT berarah yang levelnya adalah ekstrem swing sudah diuji di sini, dan
+semuanya gagal.** Itu klaim yang jauh lebih sempit, dan hanya itu yang benar-benar
+diukur.
+
+## Konstruk waktu, dan batas yang jujur untuk masing-masing
+
+Semua yang di atas berpijak pada harga. Bagian ini berpijak pada **jam**, dan itu
+kelas kesalahan yang berbeda: sebuah zona yang salah gambar terlihat salah, sebuah
+kuarter yang salah jam terlihat benar sampai ada yang mengeceknya di hari
+pergantian DST. Karena itu tidak ada satu pun angka di bagian ini yang diambil
+dari contoh; semuanya properti yang diuji `tools/session_accuracy.py`, dan
+hasilnya **26/26 lolos pada 3 deret, rentang 873 hari, 73.956 kuarter**.
+
+### Gridnya menutup waktu, dan lubangnya adalah lubang yang diakui
+
+| Derajat | Kuarter diuji | Lubang | Celah tak terduga | Tumpang tindih |
+|---|---|---|---|---|
+| year | 11 | 0 | 0 | 0s |
+| month | 115 | 10 x 604.800s | 0 | 0s |
+| week | 500 | 124 x 255.600 / 259.200 / 262.800s | 0 | 0s |
+| day | 3.492 | 0 | 0 | 0s |
+| session | 13.968 | 0 | 0 | 0s |
+| micro | 55.870 | 0 | 0 | 0s |
+
+Dua lubang itu bukan bug, dan sebab keduanya berasal dari doktrinnya sendiri.
+**Jumat bukan kuarter kelima**: kuarter mingguannya adalah Senin sampai Kamis, jadi
+gridnya menutup Minggu 18:00 sampai Kamis 18:00 New York, tepat 96 jam, dan
+menyisakan Jumat plus akhir pekan. Nominalnya 72 jam, yaitu 259.200s; dua
+ukuran lainnya, 71 dan 73 jam, **adalah tanda tangan DST** dan justru bukti bahwa
+tidak ada offset UTC yang dipatok mati di mana pun.
+
+Di derajat bulan sebabnya berbeda dan lebih rapi daripada yang terlihat. Kuarter
+bulanan adalah empat siklus minggu dari **Senin pertama** bulan itu, jadi kedua
+tepi setiap lubang jatuh pada Senin 18:00 New York, dan konsekuensinya lubangnya
+selalu **kelipatan bulat satu minggu**. Di rentang ini ia selalu tepat satu
+minggu, 604.800s, dan hanya muncul di 10 dari sekitar 28 pergantian bulan; di
+sisanya minggu keempat bulan lama bersambung langsung ke Senin pertama bulan baru
+tanpa lubang sama sekali. Bukan lubang di setiap bulan, dan bukan lubang berukuran
+sembarang.
+
+Uji itu menolak lolos secara kebetulan dengan dua cara. Ia memisahkan "lubang yang
+didokumentasikan" dari "celah lain", dan yang kedua harus nol. Dan ia memeriksa
+bahwa jendelanya **benar-benar memuat pergantian DST** sebelum menyatakan apa pun
+tentang DST: 2 offset UTC berbeda terlihat pada 3.492 kuarter harian, 0 di luar
+jam 18, 00, 06 dan 12 New York. Sebuah uji zona waktu yang dijalankan pada jendela
+tanpa transisi hanya mengukur keberuntungan.
+
+Untuk true open, aturannya "tidak ada bar, tidak ada level" dan itu diuji dua
+arah: 953 true open pada PAXGUSDT dan BTCUSDT, **0 yang bukan harga open bar itu
+sendiri**. Pada yahoo:XAUUSD, 873 batas harian menghasilkan 595 level dan 278
+absen, dengan **0 yang absen tanpa alasan**. Emas COMEX tutup; grid tidak
+mengarang harga untuk menutupinya.
+
+### DFR memenuhi aturannya, dan sumbernya tetap belum diverifikasi
+
+Empat properti lolos di ketiga instrumen: rentangnya mulai sepertiga masuk ke Q1
+dan berakhir di penutupan Q1, high dan low-nya memang ekstrem bar di jendela itu,
+dan yang paling penting, **sebuah defining range tidak berubah ketika masa
+depannya dibuang** (40 dihitung ulang pada penutupan Q1 masing-masing, 0 bergeser).
+Itu asersi anti-lookahead, bukan pernyataan gaya.
+
+Yang lolos di situ adalah **konsistensi implementasi**, bukan kebenaran aturannya.
+DFR di sini bersumber tunggal, belum diverifikasi terhadap materi kursus tempat ia
+berasal, dan tidak ada seorang pun, di dalam maupun di luar repo ini, yang pernah
+menerbitkan statistik terukur atasnya. Verdict saya atas DFR pernah saya balik
+sendiri di sesi pengukuran ketika bukti baru masuk, dan itu sebabnya kaveat ini
+berdiri di sini alih-alih di catatan kaki.
+
+### SSMT: angkanya nyaris seluruhnya ditentukan oleh pilihan pasangannya
+
+| Pasangan | Laju divergensi | Hubungan |
+|---|---|---|
+| emas vs perak | 14,9% | berkorelasi, jenis pasangan yang dimaksud doktrinnya |
+| emas vs platinum | 21,0% | berkorelasi |
+| emas vs NASDAQ | 36,0% | berhubungan lemah |
+| emas vs BTC | 43,3% | tidak berhubungan |
+| emas vs DXY | 59,5% | berkorelasi **terbalik** |
+
+Lajunya melacak korelasi dengan rapi, dan itu justru pemeriksaan kewajaran yang
+membuat modul ini bisa dipercaya. Ia juga jebakan tafsir yang hampir terbit:
+angka 43% pertama kali dilaporkan sebagai temuan, padahal ia diukur pada
+gold-vs-BTC. **Mencari divergensi antara dua instrumen yang tidak berkorelasi
+adalah kesalahan kategori, bukan sumber setup yang kaya.**
+
+Satu cacat alat lagi yang layak dicatat karena bentuknya akan berulang: provider
+sintetis **mengarang instrumen**. Ia dengan senang hati mengembalikan 76
+divergensi terhadap simbol yang tidak ada. Sekarang responsnya membawa peringatan,
+dan uji isolasinya memakai provider yang menolak, bukan yang mengarang.
+
+### Bias top-down dan checklist: aturan pemiliknya, dihitung, tidak diukur
+
+Bias membaca empat timeframe dan mensyaratkan **semuanya** sejalan, sesuai
+prosedur pemiliknya. Bacaan yang tidak diketahui dan "belum ada break" sama-sama
+**tidak** dihitung sebagai sejalan, dan field `disagreeing` menyebut timeframe yang
+mematahkannya, karena verdict tanpa nama menyembunyikan satu-satunya hal yang bisa
+ditindaklanjuti.
+
+`ChecklistReport` sengaja **tidak membawa pass atau fail**. Kelima itemnya punya
+provenance dan tingkat keyakinan berbeda: DFR bersumber tunggal, manipulation
+adalah konjungsi bersih antara fase waktu dan sweep, dan laju SSMT bergantung penuh
+pada tabel di atas. Satu centang hijau akan menyembunyikan item mana yang memikul
+bebannya, dan akan menyajikan checklist yang dicentang **dengan tangan** oleh
+pemiliknya sebagai sesuatu yang sudah divalidasi engine ini. Belum ada satu pun
+dari kelimanya yang diukur terhadap hasil.
+
+### Empat konstruk berikutnya, dan apa yang masing-masing tidak bisa dijanjikan
+
+NDOG, NWOG, Event Horizon, CISD, liquidity pool, dan premium/discount berbasis
+waktu sekarang ada kodenya. Tidak ada satu pun dari mereka yang punya statistik
+terukur, dari siapa pun: pencarian tidak menemukan padanan dari dua studi fair
+value gap yang sudah dipakai repo ini. Semuanya aturan gambar, dan yang berikut
+ini adalah hal-hal yang ditemukan saat membangunnya, bukan saat mengukurnya.
+
+**Event Horizon adalah satu-satunya objek di engine ini yang nilainya tidak
+final saat lahir.** Setiap zona di sini selesai begitu ia terbentuk; tepinya
+adalah harga yang sudah tercetak dan tidak pernah bergerak lagi. Sebuah level
+Event Horizon tidak begitu: kedekatan diukur dalam ruang HARGA, bukan waktu, jadi
+gap baru yang muncul di antara dua gap lama akan mengurutkan ulang pasangannya
+dan **memindahkan level yang sudah ada di chart tanpa satu harga pun berubah**.
+Seluruh harness pengukuran di repo ini dibangun di atas asumsi objek final saat
+lahir, jadi apa pun yang mengukur level ini harus bertanya "berapa levelnya pada
+bar N", bukan "berapa levelnya sekarang". Itu sebabnya `event_horizons` punya
+parameter `as_of`, dan sebabnya jumlah gap yang disimpan bukan sekadar batas
+tampilan: menjatuhkan satu gap **menghapus** sebuah level dan memasangkan ulang
+tetangganya, sehingga dua nilai `keep` memberi dua himpunan level yang berbeda,
+bukan yang satu himpunan bagian dari yang lain.
+
+**CISD memindahkan ketergantungan ke medan yang belum pernah dipakai repo ini.**
+Ia konstruk pertama di sini yang berpatokan pada harga OPEN sebuah lilin; order
+block, FVG, sweep, dan BOS semuanya berpatokan pada high dan low. Dugaan awal
+saya, dan saya tulis di brief-nya, adalah bahwa open lebih rawan berbeda antar
+provider daripada ekstrem. **Dugaan itu tidak didukung datanya.** Pada 495 bar
+15m yang dimiliki dua feed emas sekaligus:
+
+| Medan | Beda tanda per bar |
+|---|---|
+| open lawan close, yang dipakai CISD | 3,84% |
+| high lawan high sebelumnya | 3,04% |
+| low lawan low sebelumnya | 4,45% |
+| close lawan close sebelumnya | 3,44% |
+
+Open duduk di tengah rombongan. Yang nyata bukan itu, melainkan
+**pelipatgandaannya**: satu tanda yang terbalik memecah atau menyatukan satu
+*run* utuh, sehingga beda input 3,84% per bar menjadi **beda 29% tentang bar mana
+yang membawa CISD**, kira-kira delapan kali lipat. Ketika kedua feed sepakat soal
+barnya, mereka hampir selalu sepakat soal jangkarnya (47 dari 49). Jadi mode
+kegagalannya adalah peristiwa utuh yang hanya ada di satu feed, bukan level yang
+melenceng. Kaveatnya: kedua feed itu instrumen berbeda, spot Dukascopy lawan
+futures COMEX Yahoo, jadi angka di atas batas atas ketidaksepakatan, bukan
+jawaban bersih.
+
+**Killzone London dibuka pada satu-satunya jam yang bisa tidak ada.** Jendelanya
+02:00 sampai 05:00 New York, dan transisi DST Amerika terjadi tepat pukul 02:00.
+`clock.py` sempat menyatakan bahwa tidak ada batas kuarter yang pernah jatuh
+antara 02:00 dan 03:00, sehingga pertanyaan ini tidak pernah muncul di sana. Di
+sini ia muncul. Pada 9 Maret 2025 pukul 02:00 tidak ada; dengan `fold=0` ia
+dipetakan ke 03:00 EDT dan killzone hari itu berdurasi dua jam nyata. Tidak ada
+sumber yang menyatakan apa itu killzone 02:00 pada hari tanpa 02:00, jadi itu
+**konsekuensi dari sebuah pilihan**, bukan kutipan, dan diuji langsung alih-alih
+ditunggu muncul di chart. Jendela Asia tidak terpengaruh di kedua hari transisi.
+
+**"In discount" bisa menjawab dirinya sendiri tiga cara sekaligus, dan pada
+pembacaan langsung pertama ia melakukannya.** Anchor-nya bersumber tunggal, jadi
+ketiga kandidat selalu dihitung dan dilaporkan. Pada emas 1h, 17 Agustus 2026:
+
+| Anchor | Rentang | Posisi | Bacaan |
+|---|---|---|---|
+| parent_cycle | 4430,9 sampai 4493,1 | 0,365 | discount |
+| parent_previous | 4422,3 sampai 4486,5 | 0,488 | discount |
+| previous_quarter | 4441,4 sampai 4459,5 | 0,674 | **premium** |
+
+Satu boolean akan mengatakan "in discount" dan menyembunyikan bahwa salah satu
+anchor mengatakan sebaliknya. Karena itu ketidaksepakatan naik ke `notes`, bukan
+disimpan di field yang tidak dibuka orang.
+
+**Tiga batas tampilan baru, dan alasannya diukur.** Pada 1200 bar emas 1h: 53
+gap, 212 pool, 131 CISD. Semua digambar apa adanya akan menghasilkan 53 pita yang
+masing-masing memanjang ke tepi kanan, 212 ray bernama, dan satu peristiwa di
+setiap bar kesembilan. Batasnya mengikuti preseden yang sudah ada, `max_quarters`
+dan `max_events`, dan seperti keduanya: nol berarti tanpa batas, dan setiap
+pengukuran wajib melewatkan nol. Untuk gap, batasnya juga memangkas **pita**, bukan
+hanya level, karena 53 pita di samping 4 level yang berasal dari lima di antaranya
+adalah gambar yang tidak bisa dibaca balik ke masukannya sendiri.
 
 ## Yang belum diuji
 
 - **Premis mekaniknya sendiri.** Cerita "order institusional yang belum terisi"
   diperdebatkan dan tidak bisa diverifikasi dari data harga. Yang bisa diuji hanya
   apakah zonanya informatif, dan itulah yang diuji di `CALIBRATION.md`.
-- **Sentuhan kedua dan seterusnya.** Semua pengukuran hasil di sini berhenti pada
-  sentuhan pertama, termasuk yang baru.
-- **Refinement bertingkat.** Turun satu timeframe diuji; turun dua tidak, dan
-  tidak ada sumber yang menerbitkan lantai di mana turun lagi berhenti masuk akal.
+- **Konstruk ICT yang tidak pernah masuk enumerasi mana pun di repo ini.**
+  Unicorn, turtle soup, SFP, IPDA data ranges, CRT, Model 2022, BPR, propulsion
+  block, rejection block, implied FVG, immediate rebalance, SCOB, standard
+  deviation projections, STH/ITH/LTH, IRL/ERL, quasimodo, weekly profiles.
+  Ditambah tiga yang salah dilabeli terhalang, yaitu equal highs/lows, mitigation
+  block, dan OTE, yang sebenarnya OHLCV murni di atas `swings()`.
+- **Dibangun, diuji sebagai properti, tetap tidak diukur.** Quarterly theory dan
+  CISD keluar dari daftar "tidak pernah dienumerasi" di atas, bersama NDOG, NWOG,
+  Event Horizon, liquidity pool, dan premium/discount berbasis waktu: sekarang ada
+  kodenya dan ada properti yang menjaganya, lihat bagian konstruk waktu. Yang
+  belum ada tetap yang paling penting, dan berlaku untuk ketujuhnya: tidak ada
+  satu pun angka yang menghubungkan mereka dengan hasil trade. **Dibangun bukan
+  diukur**, dan dua kata itu tidak boleh saling dipinjam.
+- **`tCISD`, varian berbasis waktu dari CISD.** Disebut namanya di sumber yang
+  sama, sengaja tidak dibangun, dan tidak ada yang mendekatinya di sini.
+- **Varian NWOG yang mengukur ke Senin 09:30.** ICT mengirim dua bacaan; yang
+  dipakai di sini bacaan "actual", yang juga dipakai setiap kodifikasi pihak
+  ketiga. Yang satunya jalan yang tidak diambil, dan menambahkannya nanti berarti
+  `kind` kedua, bukan menyunting yang ini.
+- **`confirmed_at` pada `StructureEvent`.** Tanpa itu, MSS yang satu-satunya
+  gap-nya mengangkangi bar break tetap terlewat, dan itu penyimpangan yang
+  diketahui, bukan yang dicurigai.
+- **Keterbacaan chart lima detektor.** Sekarang terukur lebih sulit dibaca: 198
+  zona, tinta 31,6%, dan pada deret terburuk 42,3%. Belum ada yang mengukur pada
+  angka berapa gambarnya berhenti bisa dipakai.
+
+> [!NOTE]
+> Dua butir yang dulu berdiri di daftar ini sudah dicoret karena sudah diukur,
+> bukan karena ditinggalkan. **Sentuhan kedua dan seterusnya**: keunggulan
+> gerbang departure ternyata gejala sentuhan pertama, tinggal -0,2 / -2,5 / -4,3
+> pp pada sentuhan kedua dan seterusnya, lihat [`CALIBRATION.md`](CALIBRATION.md).
+> **Refinement bertingkat**: langkah keduanya sudah diukur, lihat bagian langkah
+> kedua di atas.

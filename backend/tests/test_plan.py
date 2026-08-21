@@ -10,8 +10,10 @@ from __future__ import annotations
 
 import pytest
 
+from app.costs import BROKERS, COSTS, spec
 from app.models import (
     Anatomy,
+    CostSpec,
     LotSpec,
     TradePlan,
     Zone,
@@ -213,3 +215,153 @@ def test_no_lot_spec_means_no_lots_rather_than_an_assumed_venue():
     plan = build(zone(), atr=1.0, now=T0, interval_seconds=STEP, equity=10_000.0)
     assert plan is not None
     assert plan.lots is None and plan.placeable is True
+
+
+# The costs. Until these fields existed the plan charged the SPREAD ONLY, so the
+# reward on screen was the frictionless one while the project's own measurement
+# said costs take 9.4% to 20.5% of R on gold - and at the upper figure the
+# out-of-sample walk-forward fell from 8 of 8 slices to 4 of 8. So what is worth
+# testing is not the multiplication. It is that an unmeasured cost reads as
+# unmeasured, that a measured spread outranks an assumed one, and that the spread
+# is still charged exactly once.
+
+
+def test_an_unknown_symbol_is_charged_nothing_and_the_plan_says_so():
+    """None means NOT MEASURED here, never 'measured as free'. A zero-filled
+    spec would quietly reinstate the frictionless reward these fields remove."""
+    assert spec("XAGUSD") is None  # silver has no researched row
+    assert spec("_default") is None  # the crypto fallback is not a symbol
+
+    plan = build(zone(), atr=1.0, now=T0, interval_seconds=STEP)
+    assert plan is not None
+    assert plan.cost_charged is None
+    assert plan.cost_share_of_reward is None
+    assert plan.carry_per_night is None
+    assert any("TANPA GESEKAN" in w for w in plan.warnings)
+
+
+def test_a_measured_spread_beats_the_assumed_constant():
+    """The table's 1.6bp is itself a measured median, borrowed from the one feed
+    that publishes both sides of the book. This bar's own book still wins."""
+    gold = spec("XAUUSD")
+    assert gold is not None and gold.spread_bp == 1.6
+
+    assumed = build(zone(), atr=1.0, now=T0, interval_seconds=STEP, costs=gold)
+    measured = build(zone(), atr=1.0, now=T0, interval_seconds=STEP, spread=0.5,
+                     costs=gold)
+    assert assumed is not None and measured is not None
+    # 1.6bp of the 100.0 proximal is 0.016, and the plan names it as borrowed.
+    assert assumed.spread_charged == pytest.approx(0.016)
+    assert any("konstanta 1,6 bp" in w for w in assumed.warnings)
+    # The feed's 0.5 replaces it rather than adding to it.
+    assert measured.spread_charged == pytest.approx(0.5)
+    assert measured.entry == pytest.approx(100.5)
+    assert not any("konstanta" in w for w in measured.warnings)
+
+
+def test_the_spread_is_charged_once_even_though_the_cost_table_also_names_it():
+    """A report once claimed the spread was charged twice and the arithmetic
+    refuted it: the fill rises one full spread and the stop does not move, which
+    is identical to paying half a spread on each leg. `cost_charged` reports that
+    same spread as a component, so it must not add a second one."""
+    schedule = CostSpec(commission_bp=None, slippage_bp=None, spread_bp=None)
+    free = build(zone(), atr=1.0, now=T0, interval_seconds=STEP, costs=schedule)
+    paid = build(zone(), atr=1.0, now=T0, interval_seconds=STEP, spread=0.5,
+                 costs=schedule)
+    assert free is not None and paid is not None
+    assert paid.stop == pytest.approx(free.stop)
+    assert paid.entry == pytest.approx(free.entry + 0.5)
+    assert paid.risk_per_unit == pytest.approx(free.risk_per_unit + 0.5)
+    assert paid.cost_charged == pytest.approx(0.5)  # once, not 1.0
+    # And an all-None schedule says which lines are missing rather than adding
+    # them up as zeroes.
+    assert any("hilang" in w for w in paid.warnings)
+
+
+def test_the_plan_charges_carry_for_every_night_it_assumes():
+    gold = spec("XAUUSD")
+    assert gold is not None and gold.carry_bp_per_night == 1.0
+    over = spec("XAUUSD").model_copy(update={"nights": 2})
+
+    intraday = build(zone(), atr=1.0, now=T0, interval_seconds=STEP, spread=0.0,
+                     costs=gold)
+    held = build(zone(), atr=1.0, now=T0, interval_seconds=STEP, spread=0.0,
+                 costs=over)
+    assert intraday is not None and held is not None
+    # 1.0bp of the 100.0 proximal, per rollover crossed.
+    assert intraday.carry_per_night == pytest.approx(0.01)
+    assert held.carry_per_night == pytest.approx(0.01)
+    assert held.cost_charged == pytest.approx(intraday.cost_charged + 0.02)
+    # nights=0 is an ASSUMPTION of an intraday hold, and a zone entry can sit
+    # unfilled for days, so the plan names it and reports the per-night figure
+    # even at zero nights so the reader can do the multiplication.
+    assert any("MENGASUMSIKAN" in w for w in intraday.warnings)
+    assert not any("MENGASUMSIKAN" in w for w in held.warnings)
+
+
+def test_cost_share_of_reward_is_absent_when_there_is_no_reward_to_share():
+    gold = spec("XAUUSD")
+    walled = build(zone(), atr=1.0, now=T0, interval_seconds=STEP, costs=gold)
+    open_road = build(zone(profit_zone_rr=None), atr=1.0, now=T0,
+                      interval_seconds=STEP, costs=gold)
+    assert walled is not None and open_road is not None
+    assert walled.target is not None and walled.cost_charged is not None
+    # 0.66bp of commission plus slippage, 1.6bp of assumed spread and one 1.0bp
+    # rollover, against the 3.984 to target.
+    assert walled.cost_share_of_reward == pytest.approx(
+        walled.cost_charged / abs(walled.target - walled.entry), rel=1e-3
+    )
+    assert open_road.target is None
+    assert open_road.cost_charged is not None  # the cost is still real
+    assert open_road.cost_share_of_reward is None
+
+
+def test_the_exness_night_fee_is_carried_rather_than_dropped():
+    """4.545bp per night, verified from Exness's own Help Center: 200 USD per lot
+    on a 100oz XAUUSD lot held past 21:00 UTC. It is larger than every other cost
+    in the model combined, and the CostSpec field it belongs in is carry.
+
+    THE SWAP ON TOP OF IT IS A SIDE. Read off the connected terminal on
+    2026-08-20, XAUUSD: `swap_long` -541.4 points, which on a 100 ounce lot is
+    -54.14 USD a night and 1.20bp at gold 4500, against `swap_short` of exactly
+    zero. So a long carries 4.545 + 1.20 and a short carries 4.545 and nothing
+    else. This used to be one number for both, and one number charged every
+    short for a cost it never pays - an error that leans the same way the
+    drawing does, because a demand zone is a long.
+    """
+    exness = spec("XAUUSD", broker="exness_zero")
+    assert exness is not None
+    assert exness.carry_bp_per_night == pytest.approx(5.745), "long: admin + swap"
+    assert exness.carry_asymmetric is True
+
+    short = spec("XAUUSD", broker="exness_zero", long_side=False)
+    assert short is not None
+    assert short.carry_bp_per_night == pytest.approx(4.545), "short: admin only"
+    assert exness.commission_bp == 0.25
+    assert "BROKERS[exness_zero]" in exness.source
+
+    # A row nobody has read side by side must behave exactly as it did before:
+    # one figure, both sides, and `carry_asymmetric` False so nothing downstream
+    # implies a measurement that was never taken.
+    generic_long = spec("XAUUSD")
+    generic_short = spec("XAUUSD", long_side=False)
+    assert generic_long is not None and generic_short is not None
+    assert generic_long.carry_bp_per_night == generic_short.carry_bp_per_night
+    assert generic_long.carry_asymmetric is False
+
+    conservative = spec("XAUUSD", conservative=True)
+    assert conservative is not None
+    assert conservative.commission_bp == 3.0  # IBKR's published 1.5bp per side
+    assert "CONSERVATIVE" in conservative.source
+
+
+def test_the_product_and_the_harness_read_the_same_table():
+    """The whole reason app/costs.py exists. When the table lived in
+    tools/costed.py the shipped plan could not reach it, and a corrected cost
+    landed in the measurement only."""
+    from tools import costed
+
+    assert costed.schedule.__module__ == "app.costs"
+    assert costed.BROKERS is BROKERS
+    assert spec("yahoo:XAUUSD") == spec("XAUUSD")  # the routing prefix is not a symbol
+    assert spec("XAUUSD").commission_bp == COSTS["XAUUSD"]["commission_bp"]

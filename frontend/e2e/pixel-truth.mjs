@@ -25,7 +25,7 @@
 import { writeFileSync } from "node:fs";
 import { chromium } from "playwright";
 
-const OUT = process.argv[2];
+const OUT = process.argv[2] ?? ".playwright-shots";
 const INTERVAL = process.argv[3] ?? "15m";
 const BARS = Number(process.argv[4] ?? 500);
 // Which detector's boxes to read back off the canvas. Until this argument
@@ -34,7 +34,6 @@ const BARS = Number(process.argv[4] ?? 500);
 // reasoning, not measurement, and this project has been wrong four times about
 // things it reasoned instead of measuring.
 const DETECTOR = process.argv[5] ?? "supply_demand";
-const BUTTON = { supply_demand: "S&D", fvg: "FVG", order_block: "OB" }[DETECTOR];
 const API = "http://127.0.0.1:8100";
 
 // The border is a 1px stroke at a half-pixel offset and the box is rounded to
@@ -56,17 +55,45 @@ await page.goto("http://127.0.0.1:3100/", { waitUntil: "networkidle" });
 await page.waitForTimeout(6000);
 
 await page.locator(`div[aria-label="Timeframe"] button:text-is("${INTERVAL}")`).click();
-await page.locator("select").nth(2).selectOption(String(BARS));
+// BY NAME, NOT BY POSITION. `select").nth(3)` was the HTF picker until a
+// Broker picker landed beside it on 2026-08-20 and every index after Source
+// shifted by one - the sweep then timed out waiting for a combobox that had
+// moved, which reads as a broken app rather than as a moved control. Each
+// `<select>` carries an `aria-label`, so the accessible name is the stable
+// handle and a new picker cannot break this again.
+await page.getByRole("combobox", { name: "Bars" }).selectOption(String(BARS));
 await page.waitForTimeout(6000);
+
+/** The switch for one layer, found by the label the REGISTRY gives it.
+ *
+ *  Not by a label typed here. The menu is built from `/api/config`'s `layers`,
+ *  so the only name that is guaranteed to match the DOM is the one the server
+ *  sent - a table of short captions in this file was exactly the kind of second
+ *  copy the layer registry exists to remove. */
+const layerSwitch = async (id) => {
+  const label = await page.evaluate(
+    async ([api, want]) => {
+      const cfg = await (await fetch(`${api}/api/config`)).json();
+      return cfg.layers.find((l) => l.id === want)?.label ?? null;
+    },
+    [API, id],
+  );
+  if (!label) {
+    console.error(`no layer "${id}" in the registry the API serves`);
+    await browser.close();
+    process.exit(2);
+  }
+  return page.getByRole("switch", { name: label, exact: true });
+};
 
 // Leave exactly ONE detector on, so the boxes painted on the canvas are the
 // same set the fetch below returns. With two on, every box from the other
 // detector is paint the record cannot account for, and each one reads as a
 // drawing that went missing.
 if (DETECTOR !== "supply_demand") {
-  await page.locator(`div[aria-label="Detectors"] button:text-is("${BUTTON}")`).click();
+  await (await layerSwitch(DETECTOR)).click();
   await page.waitForTimeout(2500);
-  await page.locator('div[aria-label="Detectors"] button:text-is("S&D")').click();
+  await (await layerSwitch("supply_demand")).click();
   await page.waitForTimeout(6000);
 }
 
@@ -75,7 +102,7 @@ const drawn = await page.evaluate(
     const r = await fetch(`${api}/api/draw`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ symbol: "XAUUSD", interval, bars, detectors: [detector] }),
+      body: JSON.stringify({ symbol: "XAUUSD", interval, bars, layers: [detector] }),
     });
     return r.json();
   },

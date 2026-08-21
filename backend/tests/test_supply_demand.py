@@ -15,7 +15,7 @@ import pytest
 from app.detect.supply_demand import detect
 from app.indicators import classify_candles, runs, wilder_atr
 from app.models import Candle, SupplyDemandParams, ZoneKind, ZoneSide, ZoneState
-from app.providers.base import normalize
+from app.providers.base import INTERVALS, normalize
 
 STEP = 900  # 15-minute bars
 T0 = 1_700_000_000
@@ -614,6 +614,60 @@ def test_resample_anchors_to_the_epoch_not_the_window():
         assert (a.high, a.low) == (b.high, b.low) or time == min(shared), (
             "a shared complete bucket must aggregate identically"
         )
+
+
+def test_a_weekly_bucket_opens_on_sunday_not_on_the_epochs_thursday():
+    """The one step where an epoch anchor has the wrong PHASE.
+
+    `time // 604800` counts from 1970-01-01, which was a Thursday, so an
+    unshifted weekly aggregate runs Thursday to Wednesday. Measured against this
+    broker's own W1 series the correction is not cosmetic: before `WEEK_PHASE`
+    existed, a 1w request on a daily gold chart returned four zones opening
+    2024-08-22, 2025-02-06, 2025-04-03 and 2025-09-11 - four Thursdays, four days
+    away from where the same weeks sit in the terminal.
+
+    Pinned offline on purpose. The broker comparison is the stronger evidence and
+    it lives in `tools/history.py` runs, but it needs a live terminal; this test
+    has to fail on a laptop with no MT5 and no network.
+    """
+    import datetime
+
+    from app.resample import resample
+
+    # A full year of daily bars, so the assertion spans DST changes in both
+    # directions rather than one comfortable month.
+    start = 1_700_000_000 - (1_700_000_000 % 86400)
+    daily = [
+        Candle(time=start + i * 86400, open=10.0, high=11.0, low=9.0, close=10.5)
+        for i in range(370)
+    ]
+    weekly = resample(daily, "1w", "1d")
+    assert len(weekly) > 50, f"a year of days must make a year of weeks, got {len(weekly)}"
+
+    days = {
+        datetime.datetime.fromtimestamp(c.time, datetime.UTC).strftime("%a")
+        for c in weekly
+    }
+    assert days == {"Sun"}, f"weekly buckets opened on {sorted(days)}"
+
+    midnight = {
+        datetime.datetime.fromtimestamp(c.time, datetime.UTC).strftime("%H:%M")
+        for c in weekly
+    }
+    assert midnight == {"00:00"}, f"weekly buckets opened at {sorted(midnight)}"
+
+    # And the phase must not leak into any other step, which is the way a fix
+    # like this usually breaks something else.
+    for target in ("1h", "4h", "1d"):
+        source = "15m" if target != "1d" else "1h"
+        bars = [
+            Candle(time=start + i * INTERVALS[source], open=10.0, high=11.0, low=9.0, close=10.5)
+            for i in range(400)
+        ]
+        for candle in resample(bars, target, source):
+            assert candle.time % INTERVALS[target] == 0, (
+                f"{target} bucket at {candle.time} is no longer epoch-aligned"
+            )
 
 
 def test_resample_does_not_invent_bars_across_a_gap():

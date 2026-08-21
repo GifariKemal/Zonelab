@@ -15,7 +15,7 @@ from collections import Counter
 import numpy as np
 
 from app.detect.supply_demand import detect
-from app.models import SupplyDemandParams, ZoneSide
+from app.models import SupplyDemandParams
 from tools import history
 
 # Cached series only. Downloading four more timeframes to answer a structural

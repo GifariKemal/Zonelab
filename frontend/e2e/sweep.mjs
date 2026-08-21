@@ -6,7 +6,10 @@
  */
 import { chromium } from "playwright";
 
-const SHOTS = process.argv[2];
+// Defaulted, never left undefined: the artifacts used to land in a directory
+// literally named "undefined" whenever the gate ran the harness without an
+// argument, which is how the gate always runs it.
+const SHOTS = process.argv[2] ?? ".playwright-shots";
 const URL = "http://127.0.0.1:3100/";
 const results = [];
 const errors = [];
@@ -35,9 +38,24 @@ async function newPage(opts = {}) {
   return page;
 }
 
+/** How many zones the engine DREW, read off the panel header.
+ *
+ *  The header now says either "N drawn" or, when the price scale hides some,
+ *  "N visible of M". This used to match /\d+ drawn/ anywhere on the page, and
+ *  the moment an off-screen banner appeared - its text is "2 of 6 drawn zones
+ *  are outside the price range" - the bare match started reading the HIDDEN
+ *  count instead. It reported "3 -> 3" for a step that really went 3 to 9, so
+ *  the harness said a detector had drawn nothing when it had drawn six boxes.
+ *  Scoped to the header, and it returns the TOTAL in both wordings, because the
+ *  question these assertions ask is what the engine drew.
+ */
 const zoneCount = async (page) => {
-  const t = await page.locator("text=/\\d+ drawn/").first().textContent();
-  return Number(t.match(/(\d+)/)[1]);
+  const t = await page
+    .locator('header:has(h2:text-is("Zones")) span.num')
+    .first()
+    .textContent();
+  const split = t.match(/(\d+)\s+visible of\s+(\d+)/);
+  return Number(split ? split[2] : t.match(/(\d+)\s+drawn/)[1]);
 };
 const settle = (page, ms = 2600) => page.waitForTimeout(ms);
 
@@ -78,7 +96,13 @@ await page.locator('div[aria-label="Timeframe"] button:text-is("15m")').click();
 await settle(page, 3000);
 
 // ================================================================ providers
-const providers = await page.locator("select").nth(1).locator("option").allTextContents();
+// BY NAME, NOT BY POSITION. `select").nth(3)` was the HTF picker until a
+// Broker picker landed beside it on 2026-08-20 and every index after Source
+// shifted by one - the sweep then timed out waiting for a combobox that had
+// moved, which reads as a broken app rather than as a moved control. Each
+// `<select>` carries an `aria-label`, so the accessible name is the stable
+// handle and a new picker cannot break this again.
+const providers = await page.getByRole("combobox", { name: "Source" }).locator("option").allTextContents();
 check("only available providers are offered", providers.length >= 3, providers.join(","));
 
 // A provider either draws a chart or says in the upstream's own words why it
@@ -88,7 +112,7 @@ check("only available providers are offered", providers.length >= 3, providers.j
 // exactly the behaviour this app is built to surface rather than swallow.
 expectingFailure = true;
 for (const p of providers) {
-  await page.locator("select").nth(1).selectOption(p);
+  await page.getByRole("combobox", { name: "Source" }).selectOption(p);
   await settle(page, 3500);
   const alerts = await appAlert(page);
   const drew = (await page.locator("canvas").count()) > 0 && alerts.length === 0;
@@ -101,14 +125,14 @@ for (const p of providers) {
   }
 }
 expectingFailure = false;
-await page.locator("select").nth(1).selectOption("binance");
+await page.getByRole("combobox", { name: "Source" }).selectOption("binance");
 await settle(page, 3000);
 
 // ================================================================== symbols
-const symbols = await page.locator("select").nth(0).locator("option").allTextContents();
+const symbols = await page.getByRole("combobox", { name: "Symbol" }).locator("option").allTextContents();
 expectingFailure = true; // binance carries neither EURUSD nor every alt symbol
 for (const s of symbols) {
-  await page.locator("select").nth(0).selectOption(s);
+  await page.getByRole("combobox", { name: "Symbol" }).selectOption(s);
   await settle(page, 3500);
   const alerts = await appAlert(page);
   // BTCUSD and EURUSD are not on every provider; a spoken error is the correct
@@ -117,7 +141,7 @@ for (const s of symbols) {
         (await page.locator("canvas").count()) > 0 || alerts.length > 0,
         alerts.join("|"));
 }
-await page.locator("select").nth(0).selectOption("XAUUSD");
+await page.getByRole("combobox", { name: "Symbol" }).selectOption("XAUUSD");
 await settle(page, 3000);
 expectingFailure = false;
 check("recovering from a provider error clears the banner",
@@ -125,9 +149,20 @@ check("recovering from a provider error clears the banner",
 
 // ==================================================================== bars
 for (const n of ["200", "500", "1000"]) {
-  await page.locator("select").nth(2).selectOption(n);
+  await page.getByRole("combobox", { name: "Bars" }).selectOption(n);
   await settle(page, 3500);
-  const shown = await page.locator("text=/\\d+ bars/").first().textContent();
+  // THE READOUT, by its role, not by a free-text regex. `text=/\d+ bars/` also
+  // matches PROSE: the structure layer's evidence says "3000 bars of XAUUSD 15m",
+  // and once the sweep has opened every explanation that string is in the DOM -
+  // `.first()` then returned an essay about sweep counts, and the assertion
+  // failed on three bar counts in a row for a reason that had nothing to do with
+  // bars. The readout carries `role="status"` and `aria-live`, so it is
+  // addressable exactly.
+  const shown = await page
+    .getByRole("status")
+    .filter({ hasText: /\d+ bars/ })
+    .first()
+    .textContent();
   // N, or N-1 at the vendor's page limit. Binance caps a klines page at 1000
   // and the newest of those is the bar still forming, which is now dropped
   // before the detector sees it - so only 999 CLOSED bars exist in one page.
@@ -136,37 +171,160 @@ for (const n of ["200", "500", "1000"]) {
   const got = Number(shown.match(/(\d+)/)[1]);
   check(`bars ${n} honoured`, got === Number(n) || got === Number(n) - 1, shown);
 }
-await page.locator("select").nth(2).selectOption("500");
+await page.getByRole("combobox", { name: "Bars" }).selectOption("500");
 await settle(page, 3000);
+
+// ==================================================================== layers
+// The whole menu is built from `/api/config`'s `layers`, so everything below
+// asks the registry what to expect instead of holding its own copy of the
+// thirteen ids. That is the property the refactor was for: a layer added to the
+// backend must appear here with no edit to the frontend OR to this file.
+const registry = await page.evaluate(async () =>
+  (await (await fetch("http://127.0.0.1:8100/api/config")).json()).layers);
+// EXACT names. Substring is Playwright's default and "Show mitigated" is a
+// prefix of "Show mitigated boxes", so a loose match goes ambiguous the moment
+// both a supply-demand and an imbalance layer are on.
+const switchNamed = (name) => page.getByRole("switch", { name, exact: true });
+const layerSwitch = (id) =>
+  switchNamed(registry.find((l) => l.id === id).label);
+const setLayer = async (id, want) => {
+  const sw = layerSwitch(id);
+  if ((await sw.getAttribute("aria-checked")) !== String(want)) await sw.click();
+};
+
+check("the API advertises a layer registry", registry.length > 0, `${registry.length}`);
+
+// Every row offered, in the ORDER THE SERVER SENT, which is the draw order and
+// is load-bearing: supply and demand runs first because it owns two passes
+// nothing else has. A menu that sorted alphabetically would look identical and
+// would be lying about what paints over what.
+const registryLabels = registry.map((l) => l.label);
+// Every switch on the page in DOM order, then narrowed to the layer rows. A
+// live layer nests its own knobs - which include switches of their own - INSIDE
+// its row, so the raw list interleaves them and only this filter compares like
+// with like.
+const allSwitchLabels = () =>
+  page.getByRole("switch").evaluateAll((els) =>
+    els.map((e) => e.getAttribute("aria-label")));
+const menuLabels = (await allSwitchLabels()).filter((l) =>
+  registryLabels.includes(l));
+check(
+  "every layer the API advertises is offered, in draw order",
+  menuLabels.length === registryLabels.length &&
+    registryLabels.every((l, i) => menuLabels[i] === l),
+  `menu [${menuLabels}] registry [${registryLabels}]`,
+);
+
+// Every row can be asked what is known about it. Several of these have measured
+// NEGATIVE results and most have none at all, so a switch with no reachable
+// evidence would present all thirteen as equally endorsed.
+const evidenceFolds = await page.locator('summary:text-is("Bukti")').count();
+check("every layer exposes its evidence", evidenceFolds === registry.length,
+      `${evidenceFolds} folds, ${registry.length} layers`);
+
+// Only supply and demand on load. Chart ink is a measured quantity here: five
+// detectors alone paint 31.6% of the chart, and past about a third the boxes
+// stop annotating price and become its background.
+const onByDefault = (
+  await page.getByRole("switch").evaluateAll((els) =>
+    els.filter((e) => e.getAttribute("aria-checked") === "true")
+       .map((e) => e.getAttribute("aria-label")))
+).filter((l) => registryLabels.includes(l));
+check("only supply and demand ships on",
+      onByDefault.length === 1 && onByDefault[0] === registryLabels[0],
+      onByDefault.join(","));
 
 // ================================================= every slider at both ends
 // The exact set, not a count. A count says "twelve things exist" and passes
 // happily when one of them is renamed or swapped for another, which is the same
 // blindness that let an assertion here drive the wrong slider for weeks.
-const EXPECTED_SLIDERS = [
+//
+// It is now asserted TWICE, because a layer's knobs exist only while the layer
+// is on: once on the default chart, and once with every layer switched on. The
+// second census is what stops a parameter drifting unchecked behind a switch,
+// and it covers four blocks - imbalance, pools, liquidity and the checklist -
+// that no census reached at all while each overlay carried its own `enabled`.
+const SD_SLIDERS = [
   "ATR period", "Impulse body", "Impulse size", "Max base bars",
   "Max base height", "Max base drift", "Departure gate", "Profit margin",
   "Road ahead", "Mitigation depth", "Zones per side", "Merge overlap",
 ];
+const REVEALED_SLIDERS = [
+  // The imbalance block, shared by the fair value gap, the order block and the
+  // two inverted kinds, and rendered ONCE under the first of them that is on.
+  // Four copies would read as four independent thresholds writing one value.
+  "Min gap size", "Displacement size", "Displacement window",
+  "Gap mitigation depth", "Boxes per side",
+  // The structure overlay. It draws no boxes and cannot be capped per side.
+  "Major fractal", "Minor fractal", "Sweep reversal", "MSS window", "Events kept",
+  // The cycle grid's only slider. Its two degree pickers are chips rather than
+  // sliders, deliberately: the degrees are a nested scale (year contains month
+  // contains week) and reading them in order left to right is how the method
+  // talks about them, which a stack of switches would lose.
+  "Quarters kept",
+  // Two gap sliders, not one, and they answer different questions: "Gaps kept"
+  // is a display cap on the bands, while "Gaps per tier" is the retention the
+  // tier zone is DEFINED by - three per kind, which is the owner's own number.
+  "Gaps kept", "Gaps per tier",
+  "Shortest run", "Interruptions absorbed", "Events drawn",
+  // The defining range's only slider, and the cap it sets MULTIPLIES: every
+  // band also draws its projection levels, so two multiples on both sides is
+  // five objects per band. Its degrees and its extension multiples are not
+  // sliders - the degrees for the same reason the cycle grid's are chips, and
+  // the multiples because they are the source's own two numbers and inventing a
+  // third is exactly what this layer is not allowed to do.
+  "Bands drawn",
+  "Pools drawn",
+];
 const sliders = page.locator('input[type="range"]');
-const sliderCount = await sliders.count();
-const labels = [];
-for (let i = 0; i < sliderCount; i++) {
-  labels.push(
-    await sliders.nth(i).evaluate((el) => el.closest("label")?.innerText.split("\n")[0] ?? "?"),
-  );
-}
-const missing = EXPECTED_SLIDERS.filter((l) => !labels.includes(l));
-const extra = labels.filter((l) => !EXPECTED_SLIDERS.includes(l));
+const sliderLabels = async () =>
+  sliders.evaluateAll((els) =>
+    els.map((el) => el.closest("label")?.innerText.split("\n")[0] ?? "?"));
+
+const census = (labels, expected) => {
+  const missing = expected.filter((l) => !labels.includes(l));
+  const extra = labels.filter((l) => !expected.includes(l));
+  return { ok: missing.length === 0 && extra.length === 0, missing, extra };
+};
+
+const defaultCensus = census(await sliderLabels(), SD_SLIDERS);
 check(
-  "every parameter is exposed, and only those",
-  missing.length === 0 && extra.length === 0,
-  `missing [${missing}] extra [${extra}]`,
+  "the default chart exposes the supply and demand parameters, and only those",
+  defaultCensus.ok,
+  `missing [${defaultCensus.missing}] extra [${defaultCensus.extra}]`,
 );
 
-for (let i = 0; i < sliderCount; i++) {
-  const s = sliders.nth(i);
-  const label = labels[i];
+for (const layer of registry) await setLayer(layer.id, true);
+await settle(page, 4000);
+const allCensus = census(await sliderLabels(), [...SD_SLIDERS, ...REVEALED_SLIDERS]);
+check(
+  "with every layer on, every parameter is exposed, and only those",
+  allCensus.ok,
+  `missing [${allCensus.missing}] extra [${allCensus.extra}]`,
+);
+check("thirteen layers at once still renders", (await appAlert(page)).length === 0,
+      (await appAlert(page)).join("|"));
+
+// Drive them all while they are reachable. This is the one place every knob in
+// the app gets pushed to both of its ends.
+//
+// BY NAME, RE-RESOLVED EACH TIME, not by an index captured before the loop. The
+// index version drove 62 fill-and-settle cycles against positions it had read
+// once, so anything that re-rendered the panel mid-loop - a dev server reload,
+// or a knob whose value changes which blocks are shown - turned into a 30-second
+// `locator.fill` timeout naming an ordinal, which says nothing about what broke.
+// It happened. An index into this panel has misled this harness before, too:
+// inserting the Broker picker shifted `locator("select").nth(3)`.
+//
+// The names come from `aria-label` on each input, which is stable because the
+// wrapping label carries the live value and the input does not.
+const allLabels = await sliderLabels();
+for (const label of allLabels) {
+  const s = page.getByRole("slider", { name: label, exact: true });
+  if ((await s.count()) !== 1) {
+    check(`slider ${label} is addressable`, false, `${await s.count()} matches`);
+    continue;
+  }
   const min = await s.getAttribute("min");
   const max = await s.getAttribute("max");
   for (const v of [min, max]) {
@@ -176,13 +334,22 @@ for (let i = 0; i < sliderCount; i++) {
     check(`${label} at ${v} does not break`, alerts.length === 0, alerts.join("|"));
   }
 }
+
+for (const layer of registry.slice(1)) await setLayer(layer.id, false);
+await settle(page, 3000);
+check(
+  "switching them back off hides their parameters again",
+  census(await sliderLabels(), SD_SLIDERS).ok,
+  (await sliderLabels()).join(","),
+);
+
 await page.locator("text=Reset parameters").click();
 await settle(page, 3000);
 check("reset restores a drawable chart", (await zoneCount(page)) > 0);
 
 // ================================================================== toggles
 const beforeBroken = await zoneCount(page);
-await page.getByRole("switch", { name: "Show broken" }).click();
+await switchNamed("Show broken").click();
 await settle(page);
 check("show broken adds zones", (await zoneCount(page)) >= beforeBroken,
       `${beforeBroken} -> ${await zoneCount(page)}`);
@@ -204,7 +371,7 @@ await settle(page);
 // none.
 const mitigatedRows = () => page.locator("aside").last().locator("text=Mitigated").count();
 const hadMitigated = await mitigatedRows();
-await page.getByRole("switch", { name: "Show mitigated" }).click();
+await switchNamed("Show mitigated").click();
 await settle(page);
 check("hiding mitigated leaves no mitigated zones", (await mitigatedRows()) === 0,
       `${hadMitigated} before`);
@@ -220,7 +387,7 @@ await page.locator('button:text-is("Wick")').click();
 await settle(page);
 
 // ======================================================= higher timeframe
-const htfSelect = page.locator("select").nth(3);
+const htfSelect = page.getByRole("combobox", { name: "HTF" });
 const htfOptions = await htfSelect.locator("option").allTextContents();
 check("htf offers only higher timeframes", !htfOptions.slice(1).includes("15m"),
       htfOptions.join(","));
@@ -265,12 +432,12 @@ await page.screenshot({ path: `${SHOTS}/sweep-04-htf.png` });
 // a "higher" timeframe that is now lower than the chart.
 await page.locator('div[aria-label="Timeframe"] button:text-is("1d")').click();
 await settle(page, 3500);
-const afterSwitch = await page.locator("select").nth(3).locator("option").allTextContents();
+const afterSwitch = await page.getByRole("combobox", { name: "HTF" }).locator("option").allTextContents();
 check("htf options re-scope when the chart timeframe changes",
       !afterSwitch.includes("4h"), afterSwitch.join(","));
 await page.locator('div[aria-label="Timeframe"] button:text-is("15m")').click();
 await settle(page, 3500);
-await page.locator("select").nth(3).selectOption("off");
+await page.getByRole("combobox", { name: "HTF" }).selectOption("off");
 await settle(page, 3000);
 
 // ========================================================= zone inspection
@@ -297,6 +464,12 @@ check("the honest caveat is shown",
 // stale 84.6% for two days after the calibration was recomputed, because it
 // checked that a number was on screen rather than that the RIGHT one was, and a
 // shipped claim that no longer matches the evidence is worse than no claim.
+//
+// EXACTLY ONE, and the count is the point. The figures now reach the screen from
+// the engine's own layer registry; the departure-gate knob used to repeat them
+// as a string typed into the panel, so the same claim had two homes and only one
+// of them moved when the calibration did. Two matches here means the second home
+// is back.
 check("the validated gate finding is shown, with the numbers that are true now",
       (await page.locator("text=/85.8%/").count()) === 1
       && (await page.locator("text=/64.4%/").count()) === 1);
@@ -307,32 +480,37 @@ await page.keyboard.press("Escape");
 await page.waitForTimeout(400);
 check("escape clears the inspector", (await page.locator("text=Bars that formed it").count()) === 0);
 
-// ============================================================== detectors
-const detectorButtons = page.locator('div[aria-label="Detectors"] button');
-check("all three detectors are offered", (await detectorButtons.count()) === 3);
+// ============================================================== composition
+// The three box detectors that draw ordinary zones. Taken from the registry by
+// kind rather than by id, so this reads "the first three detectors" and not a
+// list of names copied out of the backend.
+const boxDetectors = registry.filter((l) => l.kind === "detector").slice(0, 3);
 
 const sdOnly = await zoneCount(page);
-await page.locator('div[aria-label="Detectors"] button:text-is("FVG")').click();
+await setLayer(boxDetectors[1].id, true);
 await settle(page, 3000);
-check("adding a detector adds drawings", (await zoneCount(page)) > sdOnly,
+check("adding a layer adds drawings", (await zoneCount(page)) > sdOnly,
       `${sdOnly} -> ${await zoneCount(page)}`);
-check("detectors compose, they do not replace",
-      (await appAlert(page)).length === 0);
+check("layers compose, they do not replace", (await appAlert(page)).length === 0);
 
-await page.locator('div[aria-label="Detectors"] button:text-is("OB")').click();
+await setLayer(boxDetectors[2].id, true);
 await settle(page, 3000);
 check("a third detector still renders", (await page.locator("canvas").count()) > 0);
 
-// Turning them all off would leave a chart that is empty for a reason no one
-// can see, which is the one failure mode this app exists to avoid.
-for (const label of ["S&D", "FVG", "OB"]) {
-  await page.locator(`div[aria-label="Detectors"] button:text-is("${label}")`).click();
-  await settle(page, 1600);
-}
-check("the last detector cannot be switched off", (await zoneCount(page)) > 0,
-      `${await zoneCount(page)} drawn`);
+// Everything off is now a LEGAL state and says so. It used to be unreachable -
+// the last detector refused to switch off, because an empty drawing was
+// indistinguishable from a broken one. In a menu that shows every switch, an
+// empty chart is legible: the panel says nothing is on rather than a control
+// silently ignoring a click, which is the worse of the two lies.
+for (const layer of boxDetectors) await setLayer(layer.id, false);
+await settle(page, 3000);
+check("everything off still renders candles",
+      (await page.locator("canvas").count()) > 0 && (await appAlert(page)).length === 0,
+      (await appAlert(page)).join("|"));
+check("everything off says so rather than looking broken",
+      (await page.locator("text=/chart is candles only/").count()) === 1);
 
-await page.locator('div[aria-label="Detectors"] button:text-is("S&D")').click();
+await setLayer(boxDetectors[0].id, true);
 await settle(page, 3000);
 
 // ================================================================ handbook

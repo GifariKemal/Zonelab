@@ -188,14 +188,17 @@ def gather(bars: int, reward_atr: float, horizon: int) -> list[Marked]:
     make the slices mean different dates per series and would quietly weight the
     longest one.
     """
-    series = [
-        ("PAXGUSDT", "15m"), ("PAXGUSDT", "1h"),
-        ("BTCUSDT", "15m"), ("BTCUSDT", "1h"), ("ETHUSDT", "1h"),
-    ]
+    # THE MODULE CONSTANT, not a local copy. It was a local copy, and that made
+    # `--series` a lie for every supply/demand row: `gather_detector` honoured
+    # the override and this function silently did not, so the MT5 gold run
+    # printed "Series overridden: [('mt5:XAUUSD', ...)]" and then measured
+    # PAXG, BTC and ETH anyway. Three rows of docs/WALKFORWARD-MT5.md carried
+    # the wrong instrument label until this line was deleted. A constant with
+    # two copies is not a constant.
     params = SupplyDemandParams(**POPULATION)
 
     out: list[Marked] = []
-    for symbol, interval in series:
+    for symbol, interval in SERIES:
         candles = history.load(symbol, interval, bars)
         data = evaluate(candles, params, reward_atr, horizon, symbol, interval)
         n = len(candles)
@@ -379,7 +382,30 @@ def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument("--bars", type=int, default=20000)
     parser.add_argument("--json", type=str, default="")
+    # A REPLACEMENT, never an addition, and the default is left exactly as it
+    # was on purpose: every walk-forward number in docs/ was measured on the
+    # five series above, so quietly appending a sixth would change what those
+    # figures mean without changing the sentence that reports them. Naming a
+    # series on the command line produces a SEPARATE measurement that has to be
+    # reported as one.
+    #
+    # `@` and not `:` as the separator, because a symbol may already carry a
+    # colon: `mt5:XAUUSD@15m` is the local terminal's spot gold, and
+    # `yahoo:XAUUSD@1h` the COMEX future, which is a different instrument.
+    parser.add_argument(
+        "--series", type=str, default="",
+        help="comma separated SYMBOL@INTERVAL, e.g. mt5:XAUUSD@15m,mt5:XAUUSD@1h",
+    )
     args = parser.parse_args()
+
+    if args.series:
+        global SERIES
+        SERIES = [
+            (part.rsplit("@", 1)[0], part.rsplit("@", 1)[1])
+            for part in args.series.split(",")
+            if part.strip()
+        ]
+        print(f"Series overridden: {SERIES}")
 
     print("Loading history (cached after the first run)")
     everything = {}

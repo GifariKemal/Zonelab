@@ -44,6 +44,7 @@ import asyncio
 import lzma
 import math
 import struct
+import time
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
 
@@ -57,6 +58,12 @@ from .sources import vendor_symbol
 
 FEED = "https://datafeed.dukascopy.com/datafeed"
 RECORD = struct.Struct(">3i2f")
+
+#: Reachability, and how long an answer about it is trusted. Short, because
+#: this network has already changed once: api.binance.com started answering
+#: again on 2026-08-19 after months of connect timeouts.
+PROBE_TTL_SECONDS = 120
+_probe: tuple[float, bool] | None = None
 
 # 10 ** priceScale, per the instrument table cited above. Only instruments this
 # has actually been checked against are listed: a wrong divisor is silent and
@@ -302,7 +309,54 @@ class DukascopyProvider:
     name = "dukascopy"
 
     def available(self) -> bool:
+        """Configured, which for a keyless provider is unconditional.
+
+        Not the same question as reachable - see `probe`.
+        """
         return True
+
+    async def probe(self) -> bool:
+        """Can this feed serve a request RIGHT NOW.
+
+        This provider is the reason `availability()` has the hook at all, and it
+        was the one provider not using it: `available()` returns True with no key
+        to check, so `/api/config` reported dukascopy usable while a fetch died
+        with a 502 after 18.35 seconds. The registry's own docstring calls that
+        "a lie the user only discovers by picking it and getting a 502", and it
+        was telling exactly that lie.
+
+        It matters beyond the label. The UI now moves the provider itself when the
+        chosen one does not carry a symbol, so a provider that claims to be up
+        gets picked and then fails.
+
+        HTTP 429 COUNTS AS UNAVAILABLE, and that is not a detail. The first
+        version of this asked the datafeed ROOT and accepted anything under 500,
+        which returned True while a real tick file answered 429 - a probe
+        agreeing with the old lie in a new place. The host throttles: after a
+        burst it answers 429 to everything for a while, and the fetch path turns
+        that into five retries with 1, 2, 4, 8 second backoff before failing, so
+        "throttled" costs 15 seconds and looks like a hang.
+
+        Asks for a REAL tick file rather than the root, because that is the path
+        the fetch uses. Two seconds, HEAD only, and cached - this runs on every
+        `/api/config` and a page load must not wait on a dead host.
+        """
+        global _probe
+        if _probe and time.monotonic() - _probe[0] < PROBE_TTL_SECONDS:
+            return _probe[1]
+        # Three hours back, so the hour is complete and its file exists. A
+        # weekend hour legitimately 404s, which still proves the route.
+        hour = datetime.now(UTC).replace(
+            minute=0, second=0, microsecond=0
+        ) - timedelta(hours=3)
+        try:
+            async with httpx.AsyncClient(timeout=2.0) as client:
+                response = await client.head(hour_url("XAUUSD", hour))
+            reachable = response.status_code != 429 and response.status_code < 500
+        except httpx.HTTPError:
+            reachable = False
+        _probe = (time.monotonic(), reachable)
+        return reachable
 
     async def fetch(self, symbol: str, interval: str, bars: int) -> list[Candle]:
         step = INTERVALS.get(interval)

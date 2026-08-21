@@ -531,8 +531,8 @@ def _forecast_probe(events: list[Event], out: dict) -> None:
     nested = [e for e in drawn if e.nested]
     alone = [e for e in drawn if not e.nested]
     if len(nested) >= 60 and len(alone) >= 60:
-        print(f"\n  higher-timeframe nesting, drawn zones only")
-        print(f"  {'':<18}{'n':>6}{'move@5':>11}{'move@10':>11}{'move@40':>11}")
+        print("\n  higher-timeframe nesting, drawn zones only")
+        print("  {'':<18}{'n':>6}{'move@5':>11}{'move@10':>11}{'move@40':>11}")
         for name, group in (("nested", nested), ("standing alone", alone)):
             flip = np.array([1.0 if e.side == "demand" else -1.0 for e in group])
             cells = [
@@ -600,8 +600,8 @@ def report(events: list[Event]) -> dict:
     # The shape is the evidence. A zone that works turns price AT the touch; a
     # number that is really drift slopes straight through tau = 0 without
     # noticing it happened.
-    print(f"\n  Average path, drawn zones, displacement from the touch price in ATR")
-    print(f"  {'tau':>6}{'demand':>10}{'supply':>10}{'DELTA':>10}")
+    print("\n  Average path, drawn zones, displacement from the touch price in ATR")
+    print("  {'tau':>6}{'demand':>10}{'supply':>10}{'DELTA':>10}")
     drawn = [e for e in events if e.cohort == "drawn"]
     profile = []
     if drawn:

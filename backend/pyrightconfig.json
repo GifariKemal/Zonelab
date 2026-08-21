@@ -1,0 +1,33 @@
+// WHY THIS FILE EXISTS. Without it the checker cannot find the virtual
+// environment, so every import of app.* and tools.* is reported unresolved. That
+// produced dozens of false errors on correct code, and a checker that is wrong
+// that often is one people stop reading. Run properly it found three real
+// problems in app/, all fixed: a plan.py guard whose non-None invariant was set
+// eighty lines away, and a quarter label typed as str on both sides of the API
+// boundary.
+//
+// SCOPE IS app/ ONLY, and the boundary is a measurement rather than a
+// preference. With the same settings app/ reports 0 errors, tools/ reports 105
+// and tests/ 194 - and every one of those 299 is the same untypeable pattern: a
+// fixture or a params preset held as a dict and splatted, as in
+// SupplyDemandParams(**POPULATION) where POPULATION infers dict[str, float] so
+// each int, bool and Literal field complains. There is no runtime defect in any
+// of them and no fix that does not damage the fixtures. Gating the shipped code
+// at zero is worth having; gating it at 299 known-false is worth nothing.
+//
+// COMMENTS ARE `//` LINES, not `"//"` KEYS. The two paragraphs above were string
+// values under the keys "//" and "//scope", which is the usual JSON
+// comment-smuggling trick - and pyright reads this file as JSONC, so it parsed
+// them as real settings and answered "Config contains unrecognized setting" for
+// each one on every run. Two warnings printed beside every clean result, which
+// is how a clean result stops being read.
+{
+  "venvPath": ".",
+  "venv": ".venv",
+  "include": ["app"],
+  "exclude": [".venv", "**/__pycache__", ".cache", ".pytest_cache"],
+  "typeCheckingMode": "standard",
+  "reportMissingImports": "error",
+  "pythonVersion": "3.13",
+  "pythonPlatform": "Windows"
+}

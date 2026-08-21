@@ -30,7 +30,13 @@ await page.waitForTimeout(6000);
 // wrong candles at a meaningless zoom. The arithmetic still passes, which is
 // what makes the failure mode dangerous.
 await page.locator(`div[aria-label="Timeframe"] button:text-is("${INTERVAL}")`).click();
-await page.locator("select").nth(2).selectOption(String(BARS));
+// BY NAME, NOT BY POSITION. `select").nth(3)` was the HTF picker until a
+// Broker picker landed beside it on 2026-08-20 and every index after Source
+// shifted by one - the sweep then timed out waiting for a combobox that had
+// moved, which reads as a broken app rather than as a moved control. Each
+// `<select>` carries an `aria-label`, so the accessible name is the stable
+// handle and a new picker cannot break this again.
+await page.getByRole("combobox", { name: "Bars" }).selectOption(String(BARS));
 await page.waitForTimeout(6000);
 
 // Same request the page made, so the zones framed are the zones on screen.
@@ -39,7 +45,7 @@ const drawn = await page.evaluate(
     const r = await fetch(`${api}/api/draw`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ symbol: "XAUUSD", interval, bars, detectors: ["supply_demand"] }),
+      body: JSON.stringify({ symbol: "XAUUSD", interval, bars, layers: ["supply_demand"] }),
     });
     return r.json();
   },
