@@ -416,6 +416,28 @@ def test_a_formation_score_only_moves_inside_its_own_volume_warm_up(series):
                 continue
             if a is not None and b is not None and abs(a - b) <= 1e-9:
                 continue
+            # AN UNCONFIRMED ZONE IS ALLOWED TO MOVE, and the warm-up boundary was
+            # the wrong guard for it.
+            #
+            # `confirmed` is False while the leg-out is still the NEWEST run, which
+            # the panel prints as ", forming" and the canvas draws dashed. Such a
+            # zone has been declared non-final by the engine itself, in a field the
+            # reader can see, so its score settling once the run ends is the engine
+            # working rather than a repaint.
+            #
+            # Measured on the zone that caught this: at 6000 bars it was
+            # confirmed and settled with score 0.7695; cut to 5400 bars its
+            # leg-out ran to the last bar, `confirmed` was False, and the score
+            # read 0.8049. Same zone, same left edge, one of the two readings
+            # explicitly labelled provisional.
+            #
+            # This surfaced months after the test was written because the synthetic
+            # fixture is generated relative to NOW, so which bar lands at the cut
+            # moves with the wall clock. The gate still forbids what it was written
+            # for: a CONFIRMED zone's score may not move, which is what a baseline
+            # reading the window rather than the bars before the leg would cause.
+            if not zone.confirmed or not done.confirmed:
+                continue
             if zone.time_from >= boundary:
                 outside.append(f"{how}: {zid} {a} vs {b}")
     assert not outside, (
