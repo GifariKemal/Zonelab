@@ -33,7 +33,7 @@ merusak dua hal.
 | 13 | [Equal high dan equal low](#13-equal-high-dan-equal-low-dibangun) | dibangun, plus cacat desain saya yang dibuktikan dulu |
 | 14 | [Label berimpit](#14-label-level-yang-berimpit-dibuang-bukan-ditumpuk) | digabung `PDL/PDH` alih-alih dibuang |
 | 15 | [Cleanup](#15-cleanup-dan-satu-repaint-yang-ditemukan-saat-merapikan) | apa yang dihapus, apa yang hampir dihapus padahal bukti |
-| 16 | [Peluncur sekali klik](#16-peluncur-sekali-klik-dan-insiden-desktop) | start.bat dan stop.bat, plus insiden desktop yang saya sebabkan |
+| 16 | [Launcher sekali klik](#16-launcher-sekali-klik-dan-insiden-desktop) | start.bat dan stop.bat, plus insiden desktop yang saya sebabkan |
 
 > [!TIP]
 > Setiap bagian berisi angka dan perintah yang menghasilkannya. Kalau sebuah klaim
@@ -357,7 +357,7 @@ tetap terhitung dari 1915 pasang bar.
 
 Blok SSMT di `main.py` menulis `>= 0.75` dan `<= 0.25` langsung di tempat -
 salinan ketiga dari ambang yang juga hidup di `deduce.py` dan sekarang digambar di
-kanvas oleh kerangka range. Jadi blok itu bisa melabeli sebuah divergensi
+kanvas oleh range frame. Jadi blok itu bisa melabeli sebuah divergensi
 "premium" sementara garis di sebelahnya berkata lain. Ketiganya sekarang mengimpor
 dari `app/dealing_range.py`.
 
@@ -580,7 +580,7 @@ pun implementasi open source yang menggambar tangga 0,25 / 0,5 / 0,75; satu char
 referensi menggambarnya, dan itulah dasar kita - satu chart praktisi, bukan
 standar.
 
-Karena itu kerangka range menggambar **kedua** batas yang mungkin dimaksud
+Karena itu range frame menggambar **kedua** batas yang mungkin dimaksud
 pembaca: `EQ 50` adalah garis buku teks, `PREM 75` adalah garis kita yang lebih
 ketat. Alasannya sekarang tertulis di `app/dealing_range.py` supaya pembaca yang
 membandingkan chart kita dengan chart LuxAlgo tahu kenapa pitanya di tempat
@@ -1173,7 +1173,7 @@ membalik penjaganya.
 > pernah terjadi - tanpa itu, saya cuma melemahkan gerbang supaya kegagalannya
 > hilang.
 
-## 16. Peluncur sekali klik, dan insiden desktop
+## 16. Launcher sekali klik, dan insiden desktop
 
 `start.ps1` diganti `start.bat` plus `stop.bat`, dobel-klik, tanpa PowerShell.
 
@@ -1189,9 +1189,9 @@ Sebuah `.ps1` **tidak bisa** dijalankan dengan dobel-klik; ia hanya membuka dial
 karena preferensi.
 
 PowerShell tetap **bahasa** yang lebih baik untuk pekerjaan ini:
-`Get-NetTCPConnection` memberi PID pemilik socket sebagai objek alih-alih teks
+`Get-NetTCPConnection` memberi PID socket owner sebagai objek alih-alih teks
 `netstat` yang harus diurai, dan penanganan errornya sungguhan. Tetapi ia bukan
-peluncur. Dan dokumentasi Microsoft menambah satu alasan lagi: kalau tidak ada
+launcher. Dan dokumentasi Microsoft menambah satu alasan lagi: kalau tidak ada
 execution policy yang diset di scope mana pun, policy efektif di klien Windows
 adalah **Restricted**, yang *"prevents running of all script files"*. Di mesin
 ini `CurrentUser` sudah `RemoteSigned` jadi tidak kena, tetapi mesin baru bisa.
@@ -1208,7 +1208,7 @@ tempat dalam urutan kejadiannya.
 
 Ini kesalahan saya, dan ia sampai ke pengguna.
 
-`stop.bat` menutup jendela peluncur dengan
+`stop.bat` menutup jendela launcher dengan
 `taskkill /F /FI "WINDOWTITLE eq Zonelab*"`. Sebuah jendela File Explorer mengambil
 judulnya dari **folder yang sedang ia tampilkan** - dan siapa pun yang menjalankan
 berkas ini, menurut definisi, sedang berada di folder Zonelab. Jadi ada jendela
@@ -1279,7 +1279,7 @@ sama buruknya dengan lolos palsu, karena pembaca belajar mengabaikan barisnya.
 ### Duplikasi antar-jalan: diukur, nol
 
 `start.bat` memanggil `stop.bat /q` lebih dulu, jadi ada **satu** implementasi
-sapuan yang dipakai keduanya - bukan dua salinan yang akan berpisah.
+sweep yang dipakai keduanya - bukan dua salinan yang akan berpisah.
 
 | Langkah | Proses server | Listener | API | Web |
 |---|---|---|---|---|
@@ -1291,7 +1291,7 @@ sapuan yang dipakai keduanya - bukan dua salinan yang akan berpisah.
 | stop | **0** | **0** | mati | mati |
 
 Empat kali start berturut tanpa stop di antaranya, dan angkanya identik setiap
-kali. Komposisinya stabil: dua python (peluncur uvicorn plus pemilik socket), satu
+kali. Komposisinya stabil: dua python (launcher uvicorn plus socket owner), satu
 shim npm, satu server Next.
 
 Audit sisa terakhir di seluruh mesin: **nol** proses python, nol proses menyebut
@@ -1315,7 +1315,7 @@ distinct cmd.exe seen in 20s: 15
 ```
 
 **Dua belas `start.bat` yatim**, satu per uji coba yang saya jalankan, semuanya
-terjebak di loop penahan jendela:
+terjebak di loop hold loop:
 
 ```bat
 :hold
@@ -1333,7 +1333,7 @@ Lalu tiga percobaan menutup celahnya, dan dua gagal dengan bentuk yang sama:
 
 1. **Sapuan wmic untuk `cmd.exe` yang menyebut `start.bat`.** `call` tidak
    memunculkan proses baru, jadi ketika `start.bat` memanggil `stop.bat /q`,
-   sapuan itu berjalan **di dalam** cmd.exe yang command line-nya memuat
+   sweep itu berjalan **di dalam** cmd.exe yang command line-nya memuat
    `start.bat`. Ia membunuh `start.bat` di tengah pembersihannya sendiri,
    sebelum satu server pun menyala.
 2. **Digerbangi `/q`.** Itu memperbaiki nomor 1 dan membuka nomor 2: proses
