@@ -71,10 +71,10 @@ Matikan semuanya dengan dobel-klik **`stop.bat`**.
 > dihapus, tidak disimpan berdampingan - dua peluncur akan masing-masing membawa
 > nomor port, path venv, dan logika kill-nya sendiri, lalu berpisah.
 
-**Satu jendela, kedua server.** Keduanya menulis log ke jendela yang sama dalam
+**Satu window, kedua server.** Keduanya menulis log ke window yang sama dalam
 urutan kejadiannya. Baris yang dimulai `INFO` adalah API, sisanya web app. Versi
 sebelumnya membuka satu console per server dan itu justru lebih sulit dibaca:
-dua jendela untuk dicari, dan begitu satu permintaan menyentuh keduanya, Anda
+dua window untuk dicari, dan begitu satu permintaan menyentuh keduanya, Anda
 membaca dua log berdampingan untuk mengikuti satu peristiwa.
 
 **`start.bat` memanggil `stop.bat /q` lebih dulu**, jadi menjalankannya dua kali
@@ -158,7 +158,7 @@ gaps=5  cisd=40  pools=12  liquidity=16  projections=2  news=8
 ```
 
 Bawaan kosong itu sengaja: overlay yang menyalakan dirinya sendiri akan
-membelanjakan anggaran tinta yang sudah diperhitungkan orang lain. Tetapi ketiganya
+membelanjakan anggaran ink yang sudah diperhitungkan orang lain. Tetapi ketiganya
 **mengatakan** kalau sedang menggambar nol, karena chart kosong dan mesin rusak
 tidak boleh terlihat sama. Terverifikasi di browser - Boxes 35 zona, tiga preset
 lainnya 23 sampai 29 objek kanvas. Preset tidak pernah menyentuh ambang yang sudah
@@ -201,7 +201,7 @@ satu bar penuh.
 premis tidak bisa disediakan engine: `DOL Direction`. `liquidity.dol_candidates`
 menolak menamainya, dan penolakan itu disengaja - likuiditas tegak selalu ada di
 atas **dan** di bawah harga, jadi memilih satu adalah keputusan, bukan
-pengukuran. Jadi pemanggil yang menominasikannya, dan setiap klausa di hasilnya
+pengukuran. Jadi caller yang menominasikannya, dan setiap klausa di hasilnya
 membawa `source` berupa `measured` atau `nominated`.
 
 > [!WARNING]
@@ -249,7 +249,7 @@ salah.
 
 ### Dua puluh instrumen, dan kenapa dua di antaranya cuma satu provider
 
-Pemilih simbol dibuat dari tabel `SYMBOLS` di `app/providers/sources.py`, jadi
+Picker simbol dibuat dari tabel `SYMBOLS` di `app/providers/sources.py`, jadi
 apa pun yang tidak ada di sana tidak terjangkau dari UI meski providernya
 melayaninya. Itu terjadi: `US30` dan `GBPJPY` mengembalikan bar MT5 nyata selama
 ini lewat jalur pass-through dan keduanya tidak ada di tabel, jadi hanya
@@ -269,7 +269,7 @@ dari fetch yang benar-benar mengembalikan bar.
 | `DE30` | `DE30` | tidak ada | Yahoo tidak menerbitkan future DAX |
 
 Future dipilih di atas indeks kas, dan itu keputusan sesi bukan selera: diukur di
-jendela 5 hari 1h yang sama, `YM=F` memberi 90 bar sementara `^DJI` hanya 31,
+window 5 hari 1h yang sama, `YM=F` memberi 90 bar sementara `^DJI` hanya 31,
 karena indeks kas hanya mencetak pada jam bursa reguler. Menyelaraskan indeks kas
 terhadap emas memotong grid ke sesi indeksnya dan membuang dua pertiga barnya.
 
@@ -346,7 +346,7 @@ Pemindaiannya satu lintasan. Bar dipartisi menjadi impuls atau base, dipadatkan
 menjadi run, lalu setiap triple `impuls -> base -> impuls` menjadi kandidat.
 Selebihnya adalah pengukuran, bukan pencarian.
 
-Dua keputusan yang menentukan apakah keluarannya layak dipercaya:
+Dua keputusan yang menentukan apakah output-nya layak dipercaya:
 
 1. **Semua ambang relatif terhadap ATR, tidak pernah absolut.** Candle 5 dolar
    adalah impuls pada sesi XAU yang sepi dan sekadar derau pada sesi yang liar.
@@ -354,7 +354,7 @@ Dua keputusan yang menentukan apakah keluarannya layak dipercaya:
    bar ke-i sudah memuat true range bar ke-i sendiri, sehingga membandingkan bar
    itu dengan ATR-nya sendiri membuat candle terbesar justru lebih sulit lolos
    sebagai impuls. Hal yang sama berlaku pada tinggi base: base yang tinggi ikut
-   menaikkan ATR, jadi mengukurnya terhadap ATR di dalam base membuat gerbang
+   menaikkan ATR, jadi mengukurnya terhadap ATR di dalam base membuat gate
    tinggi menelan sinyalnya sendiri.
 
 ### Siklus hidup zona
@@ -376,7 +376,7 @@ diukur, bukan dinyatakan.
 
 | Detektor | Yang digambar | Yang diukur tentangnya |
 |---|---|---|
-| `supply_demand` | Triple impuls, base, impuls | Gerbang `departure` tervalidasi, pada sentuhan pertama |
+| `supply_demand` | Triple impuls, base, impuls | Gate `departure` tervalidasi, pada sentuhan pertama |
 | `fvg` | Celah tiga lilin yang belum terisi | +10 sampai +25 poin persen lawan placebo, lolos walk-forward 8 dari 8 di dua geometri |
 | `order_block` | Lilin berlawanan **terakhir** sebelum impuls | Sama, lewat rig yang sama |
 | `ifvg` | FVG yang harganya sudah menutup melewatinya, dibaca dari sisi seberang | H8: **negatif signifikan** sebagai klaim arah |
@@ -384,23 +384,23 @@ diukur, bukan dinyatakan.
 
 `ifvg` dan `breaker` bukan geometri baru. Keduanya persegi induk yang sama,
 dimasuki dari sisi lain setelah harga menutup melewatinya, dan satu-satunya
-keputusan yang ditambahkan modulnya adalah siklus hidup kotak terbalik dimulai
-sesudah bar patahan. Karena kotak itu dibuat oleh sebuah penutupan dan bukan oleh
+keputusan yang ditambahkan modulnya adalah siklus hidup box terbalik dimulai
+sesudah bar patahan. Karena box itu dibuat oleh sebuah penutupan dan bukan oleh
 sebuah kaki, `departure_atr` di sana menggambarkan kaki yang membangun
 **induknya**, dan `displacement` sengaja dibiarkan None.
 
 > [!WARNING]
-> Doktrin kedua kotak itu adalah klaim arah, dan klaim itu sudah diukur. H8
+> Doktrin kedua box itu adalah klaim arah, dan klaim itu sudah diukur. H8
 > membandingkan sentuhan pasca-inversi dengan kontrol yang cuma tahu gerak 20 bar
-> terakhir dan tidak punya kotak di mana pun: kotaknya **menambah** -0,179,
+> terakhir dan tidak punya box di mana pun: box-nya **menambah** -0,179,
 > -0,165, dan -0,274, ketiganya signifikan negatif. Keduanya digambar, dan tidak
 > satu pun disajikan sebagai arah.
 
 ### Overlay struktur pasar
 
 `structure` diiklankan **terpisah** dari daftar detektor, dan itu bukan soal
-kerapian. Ia tidak menghasilkan satu kotak pun, jadi ia tidak bisa dibatasi per
-sisi dan tidak boleh masuk daftar yang dipakai UI untuk membangun tombol kotak.
+kerapian. Ia tidak menghasilkan satu box pun, jadi ia tidak bisa dibatasi per
+sisi dan tidak boleh masuk daftar yang dipakai UI untuk membangun tombol box.
 
 Yang digambar: swing berikut `confirmed_at`-nya, BOS, CHoCH, sweep dengan medan
 penolakan `reversed_within`, dan MSS. Dua skala fraktal berjalan berdampingan,
@@ -414,25 +414,25 @@ objek ini dan keduanya nol.
 | Medan | Arti |
 |---|---|
 | `dealing_range_pos` | Premium/discount ICT, dibaca **pada sentuhan pertama** di rentang swing-ke-swing. Berbeda dari `curve`, yang adalah bacaan Seiden dan dibekukan saat zona lahir |
-| `displacement` | Kaki yang melayakkan kotak, sebagai objek: ke mana ia lari, seberapa besar, apakah ia menembus struktur, apakah ia meninggalkan gap. Bukan ambang |
-| `inverted_at` | Kapan harga menutup melewati kotak induk. IFVG dan breaker saja |
+| `displacement` | Kaki yang melayakkan box, sebagai objek: ke mana ia lari, seberapa besar, apakah ia menembus struktur, apakah ia meninggalkan gap. Bukan ambang |
+| `inverted_at` | Kapan harga menutup melewati box induk. IFVG dan breaker saja |
 | `structure_break_time` | Break yang dihasilkan impuls order block, hanya ketika `require_structure_break` dinyalakan |
 
 > [!CAUTION]
 > Dengan kelima detektor menyala, chart-nya **terukur lebih sulit dibaca**: 198
-> kotak, 31,6% chart tercat rata-rata dan 42,3% pada deret terburuk, tumpukan
+> box, 31,6% chart tercat rata-rata dan 42,3% pada deret terburuk, tumpukan
 > terdalam 11. Baris proyek ini sendiri berlaku apa adanya: lewat kira-kira
-> sepertiga chart, kotak berhenti menganotasi harga dan menjadi latar
+> sepertiga chart, box berhenti menganotasi harga dan menjadi latar
 > belakangnya. Bawaan yang dikirim tetap supply dan demand saja, dan cap-nya 6 per
-> detektor per sisi, jadi lima detektor berarti sampai 60 kotak secara
+> detektor per sisi, jadi lima detektor berarti sampai 60 box secara
 > konstruksi.
 
 ### Empat overlay berbasis harga
 
 Terdaftar dengan `kind` berupa `overlay`, bukan `detector`, karena tidak satu pun
-menghasilkan kotak: tidak punya sisi, jadi tidak bisa dibatasi per sisi. Semuanya
+menghasilkan box: tidak punya sisi, jadi tidak bisa dibatasi per sisi. Semuanya
 mati secara bawaan, dan semuanya membaca bar yang sudah diambil, jadi **tidak ada
-yang menambah panggilan provider**. Yang mereka belanjakan cuma tinta.
+yang menambah panggilan provider**. Yang mereka belanjakan cuma ink.
 
 | Overlay | Yang digambar | Batas tampilannya |
 |---|---|---|
@@ -461,14 +461,14 @@ Angka pada 1200 bar emas 1h, supaya batas tampilan di atas punya konteks: 53 gap
 
 ## Grid siklus, dan checklist yang sengaja tanpa verdict
 
-Selain kotak dan struktur, engine ini menggambar **waktu**. Grid kuarter New York
+Selain box dan struktur, engine ini menggambar **waktu**. Grid kuarter New York
 berjalan di delapan derajat, dari siklus empat tahun sampai nano 337 detik, dan
-true open digambar sebagai ray bernama di tepi kanan. Derajat terkasarnya
+true open digambar sebagai ray bernama di edge kanan. Derajat terkasarnya
 `quadrennial`: empat tahun, satu tahun per kuartal, Q2 tahun Pilpres Amerika -
 jadi 2024 dan 2028 Q2, dan 2026 Q4. True open-nya butuh aturan approximate,
 karena Q2-nya dibuka 1 Januari dan pasar tutup 1 Januari setiap tahun. Semuanya sadar DST: tidak ada offset
 UTC yang dipatok mati di mana pun, dan `tools/session_accuracy.py` memaksa
-jendelanya memuat pergantian DST sebelum menyatakan apa pun tentang DST.
+window-nya memuat pergantian DST sebelum menyatakan apa pun tentang DST.
 
 | Derajat | Kuarternya | Catatan |
 |---|---|---|
@@ -520,53 +520,53 @@ Metode lengkap dan seluruh angkanya ada di [`docs/CALIBRATION.md`](docs/CALIBRAT
 jalankan ulang dengan `python -m tools.calibrate`.
 
 > [!TIP]
-> Direktori `docs/` berisi 6 dokumen prosa dan 21 berkas bukti mentah.
+> Direktori `docs/` berisi 6 dokumen prosa dan 21 file bukti mentah.
 > [`docs/README.md`](docs/README.md) memetakan mana membaca mana, dan tool mana
-> yang menghasilkan tiap berkas bukti - termasuk cara mereproduksi satu angka.
+> yang menghasilkan tiap file bukti - termasuk cara mereproduksi satu angka.
 
 | Klaim | Putusan |
 |---|---|
 | Zona yang digambar bertahan lebih sering daripada level di harga acak | **Terbukti**, +19 sampai +35 poin persen di tiga geometri |
-| Gerbang `departure` menyaring sesuatu yang nyata | **Terbukti**, zona lolos 85.8% lawan 64.4% untuk formasi yang ditolak, p < 0.0001, n = 2707 |
-| Gerbang itu bertahan di bar yang belum pernah dilihat | **Terbukti**, selisihnya menunjuk arah yang benar di 8 dari 8 potongan waktu, di ketiga geometri |
+| Gate `departure` menyaring sesuatu yang nyata | **Terbukti**, zona lolos 85.8% lawan 64.4% untuk formasi yang ditolak, p < 0.0001, n = 2707 |
+| Gate itu bertahan di bar yang belum pernah dilihat | **Terbukti**, selisihnya menunjuk arah yang benar di 8 dari 8 potongan waktu, di ketiga geometri |
 | `departure` di atas 2 ATR makin besar makin baik | **Terbantah**, held mendatar di atas bucket 2-3 ATR |
 | `formation_score` memeringkat zona yang akan bertahan | **Terbantah**, AUC 0.46 dan 0.48, yaitu memeringkat terbalik |
-| Tinggi kotaknya sendiri meramalkan hasil | **Terbukti, dan itu masalah**, 52.4% lawan 61.4% dari kuartil terpendek ke tertinggi. Stop yang jauh lebih jarang tersentuh, dan itu geometri bukan pasar |
+| Tinggi box-nya sendiri meramalkan hasil | **Terbukti, dan itu masalah**, 52.4% lawan 61.4% dari kuartil terpendek ke tertinggi. Stop yang jauh lebih jarang tersentuh, dan itu geometri bukan pasar |
 | `tightness` mengukur mutu base | **Terbantah**, ia runtuh ke 0.50 di dalam pita tinggi yang sama; yang diperingkatnya adalah jarak stop |
-| Odds enhancer doktrin memeringkat sesuatu | **Terbantah untuk hampir semuanya.** Kerapatan base, kepadatan, irisan antar bar, volume kaki keluar dan posisi kurva semuanya berbalik tanda ketika target diubah dari jarak ATR ke jarak setara-R, yang hanya bisa terjadi bila yang diukur adalah tinggi kotak |
+| Odds enhancer doktrin memeringkat sesuatu | **Terbantah untuk hampir semuanya.** Kerapatan base, kepadatan, irisan antar bar, volume kaki keluar dan posisi kurva semuanya berbalik tanda ketika target diubah dari jarak ATR ke jarak setara-R, yang hanya bisa terjadi bila yang diukur adalah tinggi box |
 | Zona yang lama menunggu lebih sering bertahan | **Terbantah setelah lolos walk-forward 8 dari 8.** Departure diukur sampai bar sentuhan, jadi umur dan departure terikat secara konstruksi; di dalam pita departure yang sama efeknya lenyap |
 | Panjang jalan ke zona lawan memeringkat | **Terbukti di dalam sampel**, AUC 0.565 sampai 0.584, bertahan di kedua sisi, dan **menguat** jadi 0.56 sampai 0.60 ketika tinggi zona disamakan |
-| ...dan layak dijadikan gerbang | **Tidak terbukti**, hanya 7 dari 8 potongan di luar sampel, jadi tetap mati |
-| Kotaknya digambar persis di ekstrem base-nya | **Terbukti**, galat terburuk 0.000 pada 28476 zona, nol pelanggaran aturan |
-| Harga berbalik di zona lebih sering daripada di kotak acak | **Terbantah**, pembalikannya nyata tetapi placebo melakukannya sama banyak, dan tetap begitu ketika besar lari masuk disamakan (0 dari 4 pita) |
+| ...dan layak dijadikan gate | **Tidak terbukti**, hanya 7 dari 8 potongan di luar sampel, jadi tetap mati |
+| Box-nya digambar persis di ekstrem base-nya | **Terbukti**, galat terburuk 0.000 pada 28476 zona, nol pelanggaran aturan |
+| Harga berbalik di zona lebih sering daripada di box acak | **Terbantah**, pembalikannya nyata tetapi placebo melakukannya sama banyak, dan tetap begitu ketika besar lari masuk disamakan (0 dari 4 pita) |
 | Zona meramalkan arah 40 bar ke depan | **Terbantah**, perpindahan bersihnya nol di semua kelompok |
 | Jalan di depan zona meramalkan arah | **Terbantah**, +0.053 ATR dengan p = 0.88. Faktor itu meramalkan ketahanan, bukan arah |
 | Zona yang sudah beberapa kali disentuh jadi lebih lemah | **Terbantah setelah tampak sangat kuat.** Mentahnya -27 poin persen dan bertahan ketika tautologi distalnya dibuang; runtuh jadi 77.2 / 77.2 / 77.1 persen di dalam pita umur yang sama |
 | Umur zona memisahkan hasil | **Terbukti**, 93.6% di bawah 10 bar lawan 77.2% di atas 59 bar, pada sentuhan pertama yang sama |
 | FVG dan Order Block menandai sesuatu yang nyata | **Terbukti**, +10 sampai +25 poin persen terhadap placebo di tiga geometri, dan keduanya kini lolos walk-forward 8 dari 8 di dua geometri |
-| Harga meneruskan arah yang membuat kotaknya | **Terbantah**, t = 0.13 sampai 1.01 di horizon utama yang ditetapkan di depan; kriterianya menuntut t di atas 3.0. Hipotesis arah keempat yang gagal |
+| Harga meneruskan arah yang membuat box-nya | **Terbantah**, t = 0.13 sampai 1.01 di horizon utama yang ditetapkan di depan; kriterianya menuntut t di atas 3.0. Hipotesis arah keempat yang gagal |
 | Struktur pasar (BOS, CHoCH) membawa bias arah | **Tidak dikonfirmasi.** Pada swing besar DELTA +0.549 ATR, t = 2.27, hasil arah terkuat yang pernah ada di sini. Paruhnya membunuhnya: +1.02 lalu +0.08. Tanda tangan window fit |
 | CHoCH lebih informatif daripada BOS | **Terbantah**, dan berlawanan dengan doktrinnya: CHoCH t = 0.26, BOS t = 1.09 pada swing kecil |
 | Menembus level membawa arah | **Terbantah, dan literatur sudah tahu.** Huddart dkk. (Management Science 2009) menemukan menembus batas bawah memberi return berikutnya sama positifnya dengan menembus batas atas: peristiwanya punya besaran, tidak punya tanda |
-| Kotak yang sudah ditembus bekerja terbalik (breaker block, inversion FVG) | **Terbantah, dan ini uji arah pertama yang mengganti POPULASINYA, bukan cuma variabel pengkondisinya.** DELTA -0,015 / -0,002 / -0,110. Yang menentukan: dibanding kontrol yang cuma tahu gerak 20 bar terakhir, kotaknya menambah **-0,179, -0,165, dan -0,274, ketiganya signifikan negatif**. Tahu kotaknya terbalik membuat tebakan arah lebih buruk daripada tidak tahu |
+| Box yang sudah ditembus bekerja terbalik (breaker block, inversion FVG) | **Terbantah, dan ini uji arah pertama yang mengganti POPULASINYA, bukan cuma variabel pengkondisinya.** DELTA -0,015 / -0,002 / -0,110. Yang menentukan: dibanding kontrol yang cuma tahu gerak 20 bar terakhir, box-nya menambah **-0,179, -0,165, dan -0,274, ketiganya signifikan negatif**. Tahu box-nya terbalik membuat tebakan arah lebih buruk daripada tidak tahu |
 | Sweep lalu MSS membawa arah, walau bagiannya sendiri tidak | **Terbantah.** H6 menguji BOS, CHoCH, dan SWEEP terpisah lalu memvonis strukturnya mati; itu celah logika, karena yang ICT klaim adalah konjungsinya. Diuji: t = -0,79 dan -0,12, tanda berbalik antar paruh, dan sweep-nya **menambah negatif** atas break biasa. Pada struktur besar konjungsinya cuma terjadi 7 dan 43 kali, terlalu langka untuk diuji |
-| Momentum membawa arah, walau gambarnya tidak | **Tidak dikonfirmasi, dan cara gagalnya mengoreksi angka lama.** Gerak sebelumnya adalah satu-satunya hal yang pernah memisahkan arah di sini, t=3,83 sebagai kontrol H8. Diukur ulang dengan sampel **tidak bertumpang tindih**: t turun jadi 2,17 / 2,00 / 0,18 untuk lookback 20 / 60 / 120, ketiganya meluruh antar paruh. Versi tumpang tindihnya memberi t = 5,46 / 13,54 / 10,26 pada efek yang hampir sama besar - **t digelembungkan hampir tujuh kali** semata oleh tumpang tindih jendela. Itu angka yang dilaporkan setiap kontrol sebelumnya di proyek ini |
-| Gambarnya masih bernilai setelah biaya dibebankan | **Terbukti pada satu instrumen, dan lolos semua ujiannya sendiri.** Pertama kalinya proyek ini membebankan apa pun, dan baru mungkin karena Dukascopy menerbitkan kedua sisi buku: XAUUSD 15m, spread **diukur per bar** (rata-rata 0,668). Setelah biaya, zona yang lolos gerbang departure memberi **+0,285 R** (t=4,87), yang di bawah gerbang **-0,252**, placebo acak -0,120, dan **placebo berjangkar -0,094** - yang terakhir itu menjawab keberatan bahwa keunggulannya cuma soal stop di ekstrem nyata. **Walk-forward 8 dari 8, p=0,0078**, uji paruh stabil. Batasnya tegas: kedelapan fold ada di dalam 2,5 bulan yang sama pada satu instrumen. Dan dua kesalahan saya sendiri ditemukan di sini, satu di antaranya menggeser jawaban 0,4R |
+| Momentum membawa arah, walau gambarnya tidak | **Tidak dikonfirmasi, dan cara gagalnya mengoreksi angka lama.** Gerak sebelumnya adalah satu-satunya hal yang pernah memisahkan arah di sini, t=3,83 sebagai kontrol H8. Diukur ulang dengan sampel **tidak bertumpang tindih**: t turun jadi 2,17 / 2,00 / 0,18 untuk lookback 20 / 60 / 120, ketiganya meluruh antar paruh. Versi tumpang tindihnya memberi t = 5,46 / 13,54 / 10,26 pada efek yang hampir sama besar - **t digelembungkan hampir tujuh kali** semata oleh tumpang tindih window. Itu angka yang dilaporkan setiap kontrol sebelumnya di proyek ini |
+| Gambarnya masih bernilai setelah biaya dibebankan | **Terbukti pada satu instrumen, dan lolos semua ujiannya sendiri.** Pertama kalinya proyek ini membebankan apa pun, dan baru mungkin karena Dukascopy menerbitkan kedua sisi buku: XAUUSD 15m, spread **diukur per bar** (rata-rata 0,668). Setelah biaya, zona yang lolos gate departure memberi **+0,285 R** (t=4,87), yang di bawah gate **-0,252**, placebo acak -0,120, dan **placebo berjangkar -0,094** - yang terakhir itu menjawab keberatan bahwa keunggulannya cuma soal stop di ekstrem nyata. **Walk-forward 8 dari 8, p=0,0078**, uji paruh stabil. Batasnya tegas: kedelapan fold ada di dalam 2,5 bulan yang sama pada satu instrumen. Dan dua kesalahan saya sendiri ditemukan di sini, satu di antaranya menggeser jawaban 0,4R |
 | Nilainya bertahan di luar emas | **Terpisah rapi jadi dua jawaban, dan keduanya penting.** Margin zona di atas placebo berjangkar positif di **enam dari enam deret** (+0,147 sampai +0,379), termasuk instrumen yang secara absolut rugi - jadi informasinya nyata dan kini terbukti lintas instrumen. Tetapi keuntungan absolutnya cuma bertahan di emas 15m, BTC 1j, dan ETH 1j. Sebabnya biaya, bukan gambar: komisi Binance 20 bp per putaran lawan emas 0,16 bp, **125 kali lipat**. Polanya konsisten, 15 menit rugi dan 1 jam menang, karena biaya adalah pecahan tetap dari harga sedangkan R adalah jarak stop, dan jarak stop mengecil di timeframe rendah |
 | Keunggulan emasnya bertahan pada biaya yang bisa diverifikasi | **Tidak.** Konstanta biayanya diriset ke sumber primer, dan dua salah: slippage 0,05 bp keliru sepuluh kali (tick terukur bergerak 0,17 bp dalam 250 ms), dan swap semalam hilang sama sekali padahal 80 bar 15 menit menyeberangi satu rollover. Setelah dikoreksi, emas tetap **+0,234** (t=4,18, walk-forward 8/8). Tetapi pada satu-satunya jadwal komisi yang benar-benar bisa diambil (IBKR, 3,0 bp per putaran, **19 kali** angka retail yang beredar tanpa jadwal), ia turun ke **+0,082** (t=1,67) dan walk-forward 4/8. Marginnya atas placebo tetap +0,313, jadi informasinya bertahan; yang hilang adalah kemampuannya melewati biaya |
 | Bertahan di broker yang benar-benar dipakai (Exness) | **Ya, +0,248 R (t=4,32), walk-forward 8 dari 8.** Terverifikasi dari Help Center Exness: Zero 5,50 USD/lot per sisi = 0,250 bp per putaran, dan swap benar-benar nol karena Indonesia ada di daftar swap-free Islami. Yang hampir mematikannya adalah biaya admin overnight 200 USD/lot = **4,545 bp per rollover** - lebih mahal dari tiga belas komisi putaran. Ternyata cuma **7,2%** trade menyeberanginya, bukan ~83% yang saya asumsikan. Dan aturan tutup-sebelum-rollover justru **merugikan** (+0,222), karena ia memotong semua trade demi menghindari biaya yang dibayar sepertiga belas di antaranya |
-| Gerbangnya bertahan lintas tahun dan lintas instrumen | **Ya, dan ini koroborasi terkuat di proyek ini.** Dua tahun emas 1 jam (13.725 bar) pada **futures COMEX**, bukan spot, tanpa satu parameter pun difit ulang: lolos gerbang **+0,299** (t=7,59), di bawah gerbang **-0,369**, placebo -0,135, **walk-forward 8 dari 8** dengan fold menanjak +0,184 ke +0,416. Keberatan roll kontrak diukur lalu gugur: cuma 2 bar dari 13.725 melompat di atas 5 ATR, dan **nol dari 831 zona gerbang** terbentuk melintasinya. Yang belum: ambang 2 ATR-nya dipilih dari data lebih awal, jadi ini uji ketahanan ambang, bukan uji independen atasnya |
+| Gate-nya bertahan lintas tahun dan lintas instrumen | **Ya, dan ini koroborasi terkuat di proyek ini.** Dua tahun emas 1 jam (13.725 bar) pada **futures COMEX**, bukan spot, tanpa satu parameter pun difit ulang: lolos gate **+0,299** (t=7,59), di bawah gate **-0,369**, placebo -0,135, **walk-forward 8 dari 8** dengan fold menanjak +0,184 ke +0,416. Keberatan roll kontrak diukur lalu gugur: cuma 2 bar dari 13.725 melompat di atas 5 ATR, dan **nol dari 831 zona gate** terbentuk melintasinya. Yang belum: ambang 2 ATR-nya dipilih dari data lebih awal, jadi ini uji ketahanan ambang, bukan uji independen atasnya |
 | Ambang 2,0 ATR itu terlalu konservatif | **Terbantah setelah diulang di enam deret.** Klaim ini pernah dilaporkan di sini berdasarkan satu deret yang memilih 1,0 ATR dengan pemisahan +0,878. Angka itu dihitung pada departure berlookahead. Diulang pada populasi jujur di enam deret, pilihan butanya **berhamburan dari 0,5 sampai 5,0 tanpa kesepakatan** - tanda tangan derau, karena ambang optimal yang nyata akan membuat enam deret independen berkumpul. Sementara **2,0 punya t tertinggi di lima dari enam** dan pemisahan positif di keenamnya |
-| Ambang gerbangnya bukan hasil fitting | **Terbukti, dan ini celah metodologis terakhir yang tersisa.** Ambang dipilih **buta** pada paruh pertama deret, paruh kedua tidak dibaca sama sekali, lalu dievaluasi sekali. Pilihan butanya **1,0 ATR** (bukan 2,0 yang dikirim), pemisahan +0,854 di dalam sampel dan **+0,878 di luar sampel** (t=12,57) - **melebihi** yang di dalam sampel, kebalikan dari tanda tangan overfitting. Setiap ambang 1,0 sampai 6,0 memberi pemisahan positif, jadi efeknya bukan pisau di satu nilai. Bacaan pentingnya: gerbang ini **membuang yang terburuk, bukan memilih yang terbaik**, dan 2,0 yang dikirim membuang lebih banyak daripada perlu |
-| Gerbang yang diukur adalah gerbang yang dikirim | **BUKAN, sampai 2026-08-17, dan ini koreksi terpenting di proyek ini.** `tools/calibrate.py` selalu memotong jendela departure di sentuhan pertama dan menyatakan alasannya di docstring-nya sendiri; detektor produknya tidak pernah memotong. Dua gerbang berbeda dengan satu nama, hidup berdampingan berbulan-bulan. Diukur di 24.000 bar: sentuhan pertama jatuh di dalam jendela lookahead pada **87%** zona tersentuh, dan **34%** zona yang digambar akan **gagal** gerbang yang diterapkan jujur - **0%** ke arah sebaliknya. Setelah dipotong, emas dua tahun turun dari +0,299 (t=7,59) ke **+0,235 (t=3,76)**, walk-forward tetap 8/8; emas 15 menit turun dari +0,248 ke **+0,205 (t=2,09)** dan tidak lagi melewati ambangnya. Pemisahan lolos-lawan-tidak runtuh dari 0,668 ke **0,291** |
-| Bar yang belum tutup tidak pernah dipakai menggambar | **BUKAN, sampai 2026-08-17.** Empat dari enam provider mengirim bar berjalan; Yahoo bahkan menempelkan kuotasi hidup sebagai bar semu di luar grid dengan rentang nol. Diukur pada 599 pembentukan bar 15 menit nyata: **42 status zona berubah lalu berbalik di dalam satu bar**, 15 zona hilang lalu muncul lagi, dan risiko per unit sebuah stop berayun **14% dalam 90 detik tanpa satu bar pun tutup**. Sekarang bar berjalan dibuang di satu titik yang dilewati semua pemanggil |
-| Kotaknya tidak saling bertabrakan | **Terbantah, lalu diperbaiki.** Belum pernah diukur: semua audit sebelumnya per-zona. Pada default lama, 201 kotak mengecat 39,6% chart rata-rata dan 52,4% di satu deret, dengan 258 redundansi di dalam satu detektor dan 31 kontradiksi berlawanan sisi. Setelah aturan "terakhir" order block ditegakkan dan cap diturunkan 12 ke 6: 131 kotak, 26,7% tinta, 80 redundansi, 20 kontradiksi |
+| Ambang gate-nya bukan hasil fitting | **Terbukti, dan ini celah metodologis terakhir yang tersisa.** Ambang dipilih **buta** pada paruh pertama deret, paruh kedua tidak dibaca sama sekali, lalu dievaluasi sekali. Pilihan butanya **1,0 ATR** (bukan 2,0 yang dikirim), pemisahan +0,854 di dalam sampel dan **+0,878 di luar sampel** (t=12,57) - **melebihi** yang di dalam sampel, kebalikan dari tanda tangan overfitting. Setiap ambang 1,0 sampai 6,0 memberi pemisahan positif, jadi efeknya bukan pisau di satu nilai. Bacaan pentingnya: gate ini **membuang yang terburuk, bukan memilih yang terbaik**, dan 2,0 yang dikirim membuang lebih banyak daripada perlu |
+| Gate yang diukur adalah gate yang dikirim | **BUKAN, sampai 2026-08-17, dan ini koreksi terpenting di proyek ini.** `tools/calibrate.py` selalu memotong window departure di sentuhan pertama dan menyatakan alasannya di docstring-nya sendiri; detektor produknya tidak pernah memotong. Dua gate berbeda dengan satu nama, hidup berdampingan berbulan-bulan. Diukur di 24.000 bar: sentuhan pertama jatuh di dalam window lookahead pada **87%** zona tersentuh, dan **34%** zona yang digambar akan **gagal** gate yang diterapkan jujur - **0%** ke arah sebaliknya. Setelah dipotong, emas dua tahun turun dari +0,299 (t=7,59) ke **+0,235 (t=3,76)**, walk-forward tetap 8/8; emas 15 menit turun dari +0,248 ke **+0,205 (t=2,09)** dan tidak lagi melewati ambangnya. Pemisahan lolos-lawan-tidak runtuh dari 0,668 ke **0,291** |
+| Bar yang belum tutup tidak pernah dipakai menggambar | **BUKAN, sampai 2026-08-17.** Empat dari enam provider mengirim bar berjalan; Yahoo bahkan menempelkan kuotasi hidup sebagai bar semu di luar grid dengan rentang nol. Diukur pada 599 pembentukan bar 15 menit nyata: **42 status zona berubah lalu berbalik di dalam satu bar**, 15 zona hilang lalu muncul lagi, dan risiko per unit sebuah stop berayun **14% dalam 90 detik tanpa satu bar pun tutup**. Sekarang bar berjalan dibuang di satu titik yang dilewati semua caller |
+| Box-nya tidak saling bertabrakan | **Terbantah, lalu diperbaiki.** Belum pernah diukur: semua audit sebelumnya per-zona. Pada default lama, 201 box mengecat 39,6% chart rata-rata dan 52,4% di satu deret, dengan 258 redundansi di dalam satu detektor dan 31 kontradiksi berlawanan sisi. Setelah aturan "terakhir" order block ditegakkan dan cap diturunkan 12 ke 6: 131 box, 26,7% ink, 80 redundansi, 20 kontradiksi |
 | Order block adalah lilin berlawanan **terakhir** sebelum impuls | **Terbantah sampai 2026-08-16.** Kodenya menandai *setiap* lilin berlawanan, jadi tiga lilin turun beruntun sebelum satu reli menghasilkan tiga order block bertumpuk. n menggelembung ke 21.565 lawan 12.745 FVG di bar yang sama. Setelah diperbaiki, 6.915 kandidat ditolak dan n turun ke 16.194; **kesimpulan placebo-nya tidak berubah** |
-| Gerbang departure bekerja juga pada sentuhan kedua dan seterusnya | **Terbantah.** Pada sentuhan 2 ke atas selisihnya -0,2 / -2,5 / -4,3 poin persen di tiga geometri. Tandanya berbalik jadi +0,7 pada bracket setara-R, jadi yang negatif itu **tinggi zona**, bukan gerbang yang bekerja terbalik. Nilai gerbang ini adalah fenomena **sentuhan pertama** |
+| Gate departure bekerja juga pada sentuhan kedua dan seterusnya | **Terbantah.** Pada sentuhan 2 ke atas selisihnya -0,2 / -2,5 / -4,3 poin persen di tiga geometri. Tandanya berbalik jadi +0,7 pada bracket setara-R, jadi yang negatif itu **tinggi zona**, bukan gate yang bekerja terbalik. Nilai gate ini adalah fenomena **sentuhan pertama** |
 | Konjungsi sweep, displacement, lalu break membawa arah | **Terbantah (H11).** Gagal di keempat konfigurasi; dua di antaranya cuma 7 dan 39 peristiwa, terlalu langka untuk diuji. Kontrol yang hanya tahu gerak 20 bar terakhir masih mengalahkan setiap sel |
 | Refinement dua tingkat memperburuk zona di luar aritmetika bracket | **Terbantah.** Pada jarak stop yang sama, zona hasil refine dua kali bertahan sama atau lebih tinggi, tidak pernah lebih rendah |
-| Kotak hasil inversi digambar sejak zona induknya terbentuk | **Terbantah, lalu diperbaiki.** 9 dari 9 breaker digambar mulai sebelum inversinya terjadi; tepi kirinya sekarang `inverted_at` |
-| Zona searah bias struktur lebih baik daripada yang melawan | **Tidak dikonfirmasi, dan cara gagalnya yang penting.** FVG pada swing besar lolos ketiga kriteria yang ditetapkan di depan: demand +0.405 (t = 4.63), supply +0.266 (t = 3.06), kedua paruh positif, ketahanan +4.0 poin persen. Lalu kontrolnya jalan. Bar **acak** yang hanya membawa bias, tanpa kotak di mana pun, memisah +0.271 dan +0.184. Selisih-dari-selisih, yaitu apa yang benar-benar ditambahkan zonanya, cuma +0.134 (t = 1.25) dan +0.082 (t = 0.78), dan **negatif** untuk supply/demand maupun order block. Yang terukur adalah biasnya, dan biasnya adalah momentum |
+| Box hasil inversi digambar sejak zona induknya terbentuk | **Terbantah, lalu diperbaiki.** 9 dari 9 breaker digambar mulai sebelum inversinya terjadi; edge kirinya sekarang `inverted_at` |
+| Zona searah bias struktur lebih baik daripada yang melawan | **Tidak dikonfirmasi, dan cara gagalnya yang penting.** FVG pada swing besar lolos ketiga kriteria yang ditetapkan di depan: demand +0.405 (t = 4.63), supply +0.266 (t = 3.06), kedua paruh positif, ketahanan +4.0 poin persen. Lalu kontrolnya jalan. Bar **acak** yang hanya membawa bias, tanpa box di mana pun, memisah +0.271 dan +0.184. Selisih-dari-selisih, yaitu apa yang benar-benar ditambahkan zonanya, cuma +0.134 (t = 1.25) dan +0.082 (t = 0.78), dan **negatif** untuk supply/demand maupun order block. Yang terukur adalah biasnya, dan biasnya adalah momentum |
 
 > [!CAUTION]
 > Angka-angka di atas berubah pada 2026-08-13 karena **populasinya dulu salah**.
@@ -589,7 +589,7 @@ jalankan ulang dengan `python -m tools.calibrate`.
 > penolakannya lewat `reversed_within`; dan premium/discount ICT dilaporkan
 > sebagai `dealing_range_pos` di samping `curve` milik Seiden. Yang masih
 > menyimpang: order block tidak menuntut break of structure secara bawaan, dan
-> yang **melayakkan** sebuah kotak masih ukuran dalam ATR walaupun kakinya kini
+> yang **melayakkan** sebuah box masih ukuran dalam ATR walaupun kakinya kini
 > dilaporkan sebagai objek struktural. Rinciannya di
 > [docs/FIDELITY.md](docs/FIDELITY.md).
 
@@ -602,7 +602,7 @@ jalankan ulang dengan `python -m tools.calibrate`.
 
 Dua faktor dikeluarkan dari skor karena pengukuran, bukan karena kerapian kode.
 `departure` ternyata ambang, bukan gradien, dan sudah ditegakkan sebagai ambang
-oleh gerbangnya sendiri. `freshness` konstan tepat pada saat skor dibaca, karena
+oleh gate-nya sendiri. `freshness` konstan tepat pada saat skor dibaca, karena
 sebuah zona pasti masih segar pada sentuhan pertamanya. Keduanya dijaga oleh
 `test_formation_score_holds_only_formation_factors` agar tidak masuk kembali
 tanpa pengukuran baru.
@@ -615,14 +615,14 @@ memaskan sesuatu yang tandanya sendiri salah.
 ### Kesetiaan pada metode, diaudit terpisah
 
 Kalibrasi menjawab "apakah zona ini membedakan hasil". Pertanyaan lain yang sama
-pentingnya adalah "apakah kotaknya digambar di tempat yang benar menurut metodenya
+pentingnya adalah "apakah box-nya digambar di tempat yang benar menurut metodenya
 sendiri", dan itu diaudit terhadap materi Sam Seiden dan panduan resmi Online
 Trading Academy di [`docs/FIDELITY.md`](docs/FIDELITY.md).
 
 Audit itu menemukan satu cacat yang penting: **garis distal digambar salah.**
 Doktrinnya tidak ambigu, distal harus selalu ekstrem wick base, karena stop
 diletakkan di luarnya dan distal yang digambar di body menaruh stop **di dalam
-base yang seharusnya ia lindungi**. Parameter lama menggeser kedua tepi sekaligus,
+base yang seharusnya ia lindungi**. Parameter lama menggeser kedua edge sekaligus,
 sehingga mode "body" bukan varian konservatif maupun agresif. Sekarang hanya
 proximal yang berpindah, dan invarian distal diverifikasi pada 200 zona nyata di
 kedua varian, nol pelanggaran.
@@ -659,7 +659,7 @@ entrinya milik yang lebih rendah. Pilih HTF di header dan zona timeframe itu
 digambar di atas chart yang sedang tampil, bergaris lebih tebal dan berlabel
 timeframe asalnya.
 
-**Lima detektor kotak bisa dibaca di timeframe lebih tinggi**, bukan satu:
+**Lima detektor box bisa dibaca di timeframe lebih tinggi**, bukan satu:
 supply/demand, fair value gap, order block, inverted FVG, dan breaker. Sampai
 20 Agustus 2026 hanya supply/demand yang terhubung, jadi pembaca yang hanya
 menyalakan FVG bisa memilih HTF 4h dan mendapat chart yang identik dengan
@@ -670,7 +670,7 @@ tinggi untuk membacanya.
 
 Tiga aturan yang membuatnya benar, bukan sekadar masuk akal:
 
-1. **Bucket ditambatkan ke epoch, bukan ke bar pertama di jendela.** Kalau tidak,
+1. **Bucket ditambatkan ke epoch, bukan ke bar pertama di window.** Kalau tidak,
    setiap zona HTF bergeser saat pengguna mengubah jumlah bar, dan itu terlihat
    persis seperti bug detektor.
 2. **Bar HTF terakhir dibuang bila belum selesai.** High dan low bar yang masih
@@ -680,7 +680,7 @@ Tiga aturan yang membuatnya benar, bukan sekadar masuk akal:
    yang dicari detektor ini.
 
 > [!WARNING]
-> Jangkar epoch benar untuk 4h dan 1d dan **salah fasenya untuk 1w**. 1 Januari
+> Anchor epoch benar untuk 4h dan 1d dan **salah fasenya untuk 1w**. 1 Januari
 > 1970 hari Kamis, jadi `time // 604800` menaruh setiap batas mingguan di hari
 > Kamis, sementara seri W1 broker sendiri mulai Minggu. Sebelum `WEEK_PHASE`
 > ditambahkan, setiap zona mingguan salah empat hari. Sesudahnya, agregat kita
@@ -697,7 +697,7 @@ discount: kedua ekstrem range, ekuilibrium 50 persen, dan dua batas kuartil.
 
 Mesin sudah lama menghitung range ini dengan benar dan anti-lookahead - itu asal
 persentase di panel zona - tetapi rangenya sendiri tidak pernah sampai ke kanvas.
-Jadi kerangka yang dipakai untuk menilai setiap kotak pembaca adalah satu-satunya
+Jadi kerangka yang dipakai untuk menilai setiap box pembaca adalah satu-satunya
 hal yang tidak bisa ia lihat.
 
 | Label | Isi | Gaya |
@@ -729,9 +729,9 @@ pasangan tak bermakna adalah daftar tiga ticker yang di-hardcode.
 
 Sekarang panel SSMT melaporkan Pearson atas **log return** - bukan atas harga, dua
 deret yang sama-sama menanjak berkorelasi mendekati +1 tanpa alasan lain - di grid
-terselaraskan yang sama tempat divergensinya dihitung. Dua jendela: seluruh
-jendela dan kuartal terakhirnya, karena korelasi adalah sifat sebuah pasangan atas
-suatu periode dan bukan sifat pasangannya. Kalau kedua jendela berbeda tanda,
+terselaraskan yang sama tempat divergensinya dihitung. Dua window: seluruh
+window dan kuartal terakhirnya, karena korelasi adalah sifat sebuah pasangan atas
+suatu periode dan bukan sifat pasangannya. Kalau kedua window berbeda tanda,
 panel mengatakannya.
 
 Terukur pada XAUUSD 1h, 1067 pasang return: XAGUSD +0,856, DXY -0,588,
@@ -749,7 +749,7 @@ sah, ia pasangan yang divergensinya dibaca terbalik.
   sama dengan `formation_score`, ditampilkan sebagai batang di panel inspektur.
   Dulu lima; dua dikeluarkan oleh pengukuran, bukan oleh kerapian kode.
 - **Setiap penolakan dihitung.** Panel `Filter trace` melaporkan berapa formasi
-  ditemukan dan gerbang mana yang membuang masing-masing.
+  ditemukan dan gate mana yang membuang masing-masing.
 - **Zona yang belum final ditandai.** Selama run kaki keluar masih run terbaru,
   bar berikutnya masih bisa memperpanjangnya dan menggeser zona. Zona seperti itu
   digambar putus-putus dan diberi label `forming`, tidak disajikan sebagai final.
@@ -807,7 +807,7 @@ Zonelab/
         +-- app/page.tsx        Shell tiga panel
         +-- components/
         |   +-- chart.tsx       Pembungkus lightweight-charts v5
-        |   +-- zone-primitive.ts  ISeriesPrimitive kustom, penggambar kotak
+        |   +-- zone-primitive.ts  ISeriesPrimitive kustom, penggambar box
         |   +-- structure-primitive.ts  Swing, BOS, CHoCH, sweep, MSS
         |   +-- toolbox.tsx     Satu menu layer, dibangun dari registry backend
         |   +-- zone-panel.tsx  Daftar zona plus inspektur
@@ -830,7 +830,7 @@ ditampilkannya.
 ### Satu daftar layer, bukan dua mekanisme
 
 Dulu menyalakan sesuatu butuh dua cara berbeda tergantung jenisnya: detektor
-kotak disebut namanya di daftar `detectors`, sedangkan tujuh overlay
+box disebut namanya di daftar `detectors`, sedangkan tujuh overlay
 masing-masing membawa boolean `enabled` sendiri di dalam blok parameternya
 sendiri. Maksud yang sama, dua ejaan, dan UI harus tahu yang mana yang mana.
 
@@ -863,7 +863,7 @@ sebaliknya, karena keduanya adalah kegagalan senyap: 200 OK, tanpa zona, tanpa
 error.
 
 Overlay memakai jalur pendaftaran yang sama tetapi tidak masuk `DETECTORS`. Ia
-tidak menggambar kotak, jadi ia tidak bisa dibatasi per sisi, dan `kind` pada
+tidak menggambar box, jadi ia tidak bisa dibatasi per sisi, dan `kind` pada
 entri layernya yang menyatakan itu.
 
 ## Pengujian
@@ -881,10 +881,10 @@ cd backend
 .\.venv\Scripts\python.exe -m tools.walkforward  # apakah itu bertahan di luar sampel
 .\.venv\Scripts\python.exe -m tools.reaction     # apakah harganya benar-benar berbalik
 .\.venv\Scripts\python.exe -m tools.refinement   # apa yang dibeli penyempurnaan zona
-.\.venv\Scripts\python.exe -m tools.later_touches # apakah gerbangnya ikut ke sentuhan kedua
+.\.venv\Scripts\python.exe -m tools.later_touches # apakah gate-nya ikut ke sentuhan kedua
 .\.venv\Scripts\python.exe -m tools.costed       # apa yang tersisa setelah biaya dibebankan
 .\.venv\Scripts\python.exe -m tools.collisions   # seberapa penuh chart-nya dilihat pengguna
-.\.venv\Scripts\python.exe -m tools.drawing_accuracy  # apakah kotaknya di tempat yang benar, setiap kali
+.\.venv\Scripts\python.exe -m tools.drawing_accuracy  # apakah box-nya di tempat yang benar, setiap kali
 
 # 3. Kontrak API dan beban. Butuh API menyala.
 .\.venv\Scripts\python.exe -m tools.validate_api  # 120 asersi: tiap endpoint, tiap kegagalan
@@ -895,23 +895,23 @@ cd ..\frontend
 npm run check              # typecheck lalu lint, gagal keras kalau salah satunya gagal
 npm run e2e                # 148 asersi: setiap kontrol, kontras, mobile
 npm run e2e:clicks         # 194 asersi: setiap tombol, slider, tab, penjelasan
-npm run e2e:wiring         # matriks per layer: toggle, tinta, bukti, kontrol, gambar
+npm run e2e:wiring         # matriks per layer: toggle, ink, bukti, kontrol, gambar
 npm run e2e:labels         # peta tabrakan label sebagai aritmetika, plus persegi logo
 npm run e2e:viewports      # chart yang sama pada lima lebar, 1920 sampai 390
 npm run e2e:ribbon         # jalur kuarter lawan derajat yang dinamainya
 npm run e2e:clock          # 42 asersi: UTC, New York, WIB pada bar yang sama
-npm run e2e:zones          # tepi kotak lawan candle base yang membentuknya
+npm run e2e:zones          # edge box lawan candle base yang membentuknya
 npm run e2e:offscreen      # zona di luar rentang harga diumumkan, bukan hilang
-npm run e2e:visual         # tangkapan layar delapan timeframe
+npm run e2e:visual         # screenshot delapan timeframe
 npm run e2e:chart          # audit chart berbantuan LLM (di luar produk)
 npm run e2e:resilience     # 12 asersi: API mati, pulih, API key salah
-npm run e2e:pixels 15m     # baca ulang kanvas: tepi tercat lawan catatan zona
+npm run e2e:pixels 15m     # baca ulang kanvas: edge tercat lawan catatan zona
 ```
 
 > [!CAUTION]
-> **Jangan menilai sebuah gerbang dari ringkasan yang tersalur lewat `tail`, atau
-> lewat proxy yang memformat ulang keluarannya. Baca kode keluarnya.** Pada
-> 2026-08-20 `eslint` mati sebelum memeriksa satu berkas pun - `typescript-eslint`
+> **Jangan menilai sebuah gate dari ringkasan yang tersalur lewat `tail`, atau
+> lewat proxy yang memformat ulang output-nya. Baca kode keluarnya.** Pada
+> 2026-08-20 `eslint` mati sebelum memeriksa satu file pun - `typescript-eslint`
 > menolak TypeScript 7 - dan ringkasan yang terbaca berbunyi `No issues found`.
 > Itulah sebabnya `npm run check` ada: ia menjalankan keduanya dan meneruskan kode
 > keluarnya, dan dibuktikan keluar 2 pada cacat tipe serta 1 pada pelanggaran lint.
@@ -919,9 +919,9 @@ npm run e2e:pixels 15m     # baca ulang kanvas: tepi tercat lawan catatan zona
 > instrumennya sendiri, bukan kodenya.
 
 > [!TIP]
-> `start.bat` menjalankan kedua server dengan `start /b`, jadi keluarannya tampil
-> langsung di jendela itu. Kalau menjalankannya terlepas (detached) dengan
-> window tersembunyi, arahkan keluarannya ke file - `backend/api.out.log`,
+> `start.bat` menjalankan kedua server dengan `start /b`, jadi output-nya tampil
+> langsung di window itu. Kalau menjalankannya terlepas (detached) dengan
+> window tersembunyi, arahkan output-nya ke file - `backend/api.out.log`,
 > `backend/api.err.log`, `frontend/web.out.log`, `frontend/web.err.log`, semuanya
 > sudah tercakup `*.log` di `.gitignore`. Tanpa itu peringatan runtime server
 > tidak terbaca oleh siapa pun: build bisa bersih dan console browser bisa
@@ -942,7 +942,7 @@ npm run e2e:pixels 15m     # baca ulang kanvas: tepi tercat lawan catatan zona
 > Diuji dua arah: tumbuh ke kanan (chart hidup) dan **tumbuh ke kiri** (mengubah
 > picker Bars). Arah kedua yang biasa terlupakan, dan di situlah dua cacat nyata
 > ditemukan pada 20 Agustus 2026 - tujuh true open dan tiga defining range yang
-> bergeser saat jendelanya dipanjangkan ke belakang. Yang boleh berubah dinyatakan
+> bergeser saat window-nya dipanjangkan ke belakang. Yang boleh berubah dinyatakan
 > eksplisit: objek boleh MUNCUL, siklus hidup boleh MAJU (tidak pernah mundur),
 > dan field yang menyatakan dirinya belum terukur boleh menjadi terukur. Geometri
 > tidak boleh bergerak sama sekali. Setiap seri harga dibangun dengan tangan
@@ -953,7 +953,7 @@ perubahan perilaku dan pengujiannya harus mengatakan demikian.
 > [!TIP]
 > Sapuan browser itu ada karena dua cacat lolos dari semua asersi DOM: label zona
 > yang tertutup candle, dan chart yang kolaps setinggi nol di layar ponsel.
-> Keduanya hanya terlihat pada tangkapan layar. Asersi `chart is actually tall
+> Keduanya hanya terlihat pada screenshot. Asersi `chart is actually tall
 > enough to read` lahir dari kejadian kedua.
 
 > [!TIP]
@@ -961,7 +961,7 @@ perubahan perilaku dan pengujiannya harus mengatakan demikian.
 > benar-benar terwire. Registry yang jadi sumbernya, jadi layer yang ditambahkan
 > ke `app/layers.py` dan terlupakan di UI gagal di sini, bukan ditemukan pembaca
 > yang menyalakannya lalu tidak melihat apa pun. Enam hal per layer: toggle ada,
-> petak tintanya ada, buktinya satu klik, panel kontrolnya muncul, ia
+> petak ink-nya ada, buktinya satu klik, panel kontrolnya muncul, ia
 > **menggambar**, dan hitungannya dilaporkan. **63 dari 63 lulus** untuk keenam
 > belas layer. Yang kelima itu yang paling penting - `dfr` pernah terdaftar,
 > berpanel, dan punya primitive kanvas, lalu menggambar nol karena set dispatch
@@ -975,9 +975,9 @@ perubahan perilaku dan pengujiannya harus mengatakan demikian.
 > perpotongannya **nol**.
 >
 > Sejauh ini ia menangkap empat cacat yang tidak satu pun terlihat di tangkapan
-> layar: tag DFR yang 2,6 piksel melewati tepi pane, 25 label diklaim untuk level
-> di luar pane, label kotak kuarter yang tidak dijepit ke tepi kiri sehingga
-> kotak terlebar justru tergambar separuh nama, dan tag SSMT yang melewati tepi
+> layar: tag DFR yang 2,6 piksel melewati edge pane, 25 label diklaim untuk level
+> di luar pane, label box kuarter yang tidak dijepit ke edge kiri sehingga
+> box terlebar justru tergambar separuh nama, dan tag SSMT yang melewati edge
 > setelah huruf premium/discount memanjangkannya. `e2e:viewports` ada karena
 > setiap harness lain membuka 1680x1000 dan tidak ada yang lain; ia yang
 > menemukan pane hanya 374 piksel pada 1024x768.
@@ -986,8 +986,8 @@ perubahan perilaku dan pengujiannya harus mengatakan demikian.
 > Lapis kelima, `e2e:pixels`, ada karena keempat lapis di atas membandingkan
 > angka dengan angka. Ia membaca kembali kanvasnya, mencari garis batas yang
 > benar-benar tercat, lalu mengubahnya menjadi harga lewat skala chart. Itu yang
-> menemukan tepi kiri kotak tertambat ke titik tengah bar base pertama, bukan ke
-> tepinya, sehingga separuh bar itu berada di luar kotaknya sendiri dan garis
+> menemukan edge kiri box tertambat ke titik tengah bar base pertama, bukan ke
+> edge-nya, sehingga separuh bar itu berada di luar box-nya sendiri dan garis
 > batasnya terkubur di bawah candle. Rinciannya di
 > [`docs/FIDELITY.md`](docs/FIDELITY.md).
 
@@ -999,7 +999,7 @@ perubahan perilaku dan pengujiannya harus mengatakan demikian.
 - Kaki keluar yang lemah ditolak, dan penolakannya terhitung di `stats`
 - Base yang terlalu tinggi ditolak
 - Konsolidasi panjang dipotong ke bar tempat gerakan benar-benar berangkat
-- Zona berubah `tested` lalu `broken`, dan tepi kanannya berhenti di bar patahan
+- Zona berubah `tested` lalu `broken`, dan edge kanannya berhenti di bar patahan
 - Bar berurutan di dalam zona terhitung satu kunjungan
 - Zona tumpang tindih runtuh menjadi yang lebih kuat
 - Base doji ditumbuhkan ke tinggi minimum, karena zona setinggi nol tidak akan
@@ -1080,12 +1080,12 @@ perubahan perilaku dan pengujiannya harus mengatakan demikian.
   sekitar tiga sampai empat permintaan per dua menit.
 - `formation_score` tidak terbukti memeringkat apa pun. Ia dipakai untuk urutan
   tampilan dan penggabungan zona bertumpuk, bukan untuk menilai peluang.
-- Gerbang yang divalidasi adalah gerbang **sentuhan pertama**. Sentuhan kedua dan
+- Gate yang divalidasi adalah gate **sentuhan pertama**. Sentuhan kedua dan
   seterusnya sekarang sudah diukur, dan di sana selisihnya nol sampai negatif,
   jadi setiap zona yang sudah pernah disentuh melewati **tidak satu pun** filter
   yang pernah divalidasi proyek ini.
 - Kontrol placebo hanya menguji "level sembarangan". Klaim yang sah: zona
-  mengalahkan harga acak dan mengalahkan formasi yang ditolak gerbang. Bukan:
+  mengalahkan harga acak dan mengalahkan formasi yang ditolak gate. Bukan:
   zona mengalahkan semua metode penandaan level.
 - Tiga dari lima deret kalibrasi inti adalah kripto, dan emasnya diwakili PAXG.
   Ini bukan sampel XAU spot murni. Emas spot asli (tick Dukascopy) dan futures
