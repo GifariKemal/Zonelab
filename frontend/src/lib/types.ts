@@ -1513,3 +1513,76 @@ export interface AccountReading {
    *  current as this instant, and the UI says so rather than implying live. */
   read_at: number;
 }
+
+/** The auto-trade switch, and whether anything is running to honour it.
+ *
+ *  TWO FACTS, NEVER ONE. `enabled` is a human's request; `daemon_alive` is
+ *  whether `tools/autotrade.py` has stamped a heartbeat inside the last minute.
+ *  A UI that showed only the first would read ON over a dead daemon, which is
+ *  the same class of defect as an instrument reporting green over a crashed
+ *  process - and this project keeps a list of those.
+ *
+ *  `symbol`, `interval` and `risk_pct` are written by the DAEMON, not by the
+ *  switch, so they say what is actually being traded rather than what somebody
+ *  typed. A daemon started on 15m while the chart shows 1h becomes visible here. */
+export interface AutotradeState {
+  enabled: boolean;
+  /** Unix seconds the switch was last flipped. 0 means never. */
+  updated_at: number;
+  note: string;
+  symbol: string | null;
+  interval: string | null;
+  risk_pct: number | null;
+  /** Unix seconds of the last heartbeat, or null if a daemon has never run. */
+  last_seen: number | null;
+  /** Seconds since that heartbeat. Null when there has never been one. */
+  heartbeat_age_seconds: number | null;
+  daemon_pid: number | null;
+  daemon_alive: boolean;
+}
+
+/** The AI Agent's endpoint settings, as the UI may see them. `api_key` is
+ *  always empty on the way OUT (the backend masks it); an empty key on the
+ *  way IN means "keep the stored one", because the UI cannot hand back what
+ *  it was never shown. */
+export interface AgentConfig {
+  base_url: string;
+  model: string;
+  temperature: number;
+  api_key: string;
+  /** Last four characters of the stored key, so the operator can see WHICH
+ *  key is configured without seeing it. Empty when no key is stored. */
+  api_key_hint: string;
+  available: boolean;
+}
+
+/** The response to saving agent settings: what was stored, plus whether the
+ *  upstream actually answered when probed. A save with `reachable: false`
+ *  stands (the operator may be pre-configuring), but the UI must not paint
+ *  it green. */
+export interface AgentConfigSaveResponse extends AgentConfig {
+  reachable: boolean;
+  error: string | null;
+  models: number;
+}
+
+export type ChatRole = "user" | "assistant";
+
+export interface ChatMessage {
+  role: ChatRole;
+  content: string;
+  /** Assistant messages only: did every number in the reply come from the
+ *  drawing digest. Server-side verdict, not a client-side guess. */
+  grounded?: boolean;
+  reason?: string;
+  /** The specific invented numbers the grounding check caught, if any. */
+  unsupported?: number[];
+}
+
+export interface AgentChatResponse {
+  reply: string;
+  grounded: boolean;
+  reason: string;
+  unsupported: number[];
+  model: string;
+}

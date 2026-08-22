@@ -725,11 +725,13 @@ aritmetika kuadrennialnya juga benar. Yang tidak diadopsi adalah bingkai
 tidak satu pun angka itu diukur di mana pun, dan menuliskannya ke dalam UI
 proyek ini akan melanggar hal yang paling dijaga di sini.
 
-`REQH` dan `REQL` yang beliau sebut sebagai objek kelas satu masih **belum**
-dibangun, dan alasannya tetap seperti sebelumnya: dua aturan terbitan untuk
-equal highs/lows saling bertentangan dan tidak ada yang dominan. Pesan ini
-menambah bukti bahwa objeknya dipakai, bukan menyelesaikan aturan mana yang
-benar.
+`REQH` dan `REQL` yang beliau sebut sebagai objek kelas satu **sudah dibangun**
+pada 21 Agustus 2026. Dua aturan terbitan yang bertentangan itu tidak
+diselesaikan dengan jalan tengah karangan: yang memakai
+`0.01 x (tinggi - rendah seluruh data)` ditolak karena membuat toleransi jadi
+fungsi dari jumlah bar yang dimuat pembaca, dan penolakannya terukur lewat
+`test_an_equal_high_shelf_never_moves` yang gagal begitu aturan itu dipasang.
+Uraiannya di `docs/QA-PRODUKSI.md` bagian 13.
 
 ---
 

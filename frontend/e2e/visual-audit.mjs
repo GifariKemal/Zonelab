@@ -16,6 +16,15 @@ import { chromium } from "playwright";
 const OUT = process.argv[2];
 const TIMEFRAMES = ["1m", "5m", "15m", "30m", "1h", "4h", "1d", "1w"];
 const BARS = 500;
+
+// SEBUAH DIREKTORI BERNAMA "undefined" ADALAH APA YANG TERJADI TANPA BARIS INI.
+// Dijalankan tanpa argumen 22 Agustus 2026, script ini menulis 6,8 MB screenshot
+// ke `frontend/undefined/` dan keluar dengan kode 0, jadi ia terlihat berhasil.
+// `chart-audit.mjs` sudah mencetak usage-nya; dua script ini tidak.
+if (!OUT) {
+  console.error("usage: node e2e/visual-audit.mjs <out-dir> [...]");
+  process.exit(2);
+}
 const API = "http://127.0.0.1:8100";
 
 const browser = await chromium.launch({ args: ["--no-proxy-server"] });

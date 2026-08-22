@@ -5,6 +5,11 @@ import type {
   ServerConfig,
   SnapshotSummary,
   AccountReading,
+  AutotradeState,
+  AgentConfig,
+  AgentConfigSaveResponse,
+  AgentChatResponse,
+  ChatRole,
 } from "./types";
 
 const BASE = process.env.NEXT_PUBLIC_ZONELAB_API ?? "http://127.0.0.1:8100";
@@ -12,7 +17,11 @@ const BASE = process.env.NEXT_PUBLIC_ZONELAB_API ?? "http://127.0.0.1:8100";
 /** The backend answers provider failures with a 502 and the upstream's own
  *  wording. Surfacing that text is the whole point - "no data" tells the user
  *  nothing, "twelvedata error: API key is invalid" tells them what to fix. */
-async function call<T>(path: string, init?: RequestInit): Promise<T> {
+async function call<T>(
+  path: string,
+  init?: RequestInit,
+  timeoutMs = 25_000,
+): Promise<T> {
   let response: Response;
   try {
     response = await fetch(`${BASE}${path}`, {
@@ -21,13 +30,15 @@ async function call<T>(path: string, init?: RequestInit): Promise<T> {
       // A bare fetch waits forever. A local API that hangs would otherwise
       // leave the UI showing "loading" indefinitely, which is a lie.
       signal: init?.signal
-        ? AbortSignal.any([init.signal, AbortSignal.timeout(25_000)])
-        : AbortSignal.timeout(25_000),
+        ? AbortSignal.any([init.signal, AbortSignal.timeout(timeoutMs)])
+        : AbortSignal.timeout(timeoutMs),
     });
   } catch (cause) {
     if (cause instanceof DOMException && cause.name === "AbortError") throw cause;
     if (cause instanceof DOMException && cause.name === "TimeoutError") {
-      throw new Error(`The Zonelab API at ${BASE} did not answer within 25s.`);
+      throw new Error(
+        `The Zonelab API at ${BASE} did not answer within ${timeoutMs / 1000}s.`,
+      );
     }
     throw new Error(`Cannot reach the Zonelab API at ${BASE}. Is it running?`);
   }
@@ -136,4 +147,72 @@ export function fetchSnapshots(): Promise<{ snapshots: SnapshotSummary[] }> {
  *  this only where it can work. */
 export function fetchAccount(provider: string): Promise<AccountReading> {
   return call<AccountReading>(`/api/account?provider=${encodeURIComponent(provider)}`);
+}
+
+
+/** The auto-trade switch. THIS SETS A FLAG AND PLACES NO ORDER.
+ *
+ *  Order placement lives in `backend/tools/`, outside the API, so that no HTTP
+ *  request can reach it - `tests/test_autotrade.py` asserts that on the import
+ *  graph. What this arms is `tools/autotrade.py`, a daemon the operator starts
+ *  themselves.
+ *
+ *  TWO FACTS COME BACK AND THE UI MUST SHOW BOTH. `enabled` is what a human
+ *  asked for; `daemon_alive` is whether a process is there to honour it. Armed
+ *  with no daemon trades nothing, and a switch that read ON over a dead daemon
+ *  would be the same class of defect as a test suite reporting green after
+ *  crashing. */
+export function fetchAutotrade(): Promise<AutotradeState> {
+  return call<AutotradeState>("/api/autotrade");
+}
+
+export function setAutotrade(enabled: boolean, note = ""): Promise<AutotradeState> {
+  return call<AutotradeState>("/api/autotrade", {
+    method: "POST",
+    body: JSON.stringify({ enabled, note }),
+  });
+}
+
+/** The AI Agent: a language model seated above the engine's own output.
+ *
+ *  Every chat turn posts the drawing the operator is looking at, verbatim, so
+ *  the model can never be discussing a different chart. The reply comes back
+ *  with a server-side grounding verdict: every numeral in it must have come
+ *  from the drawing digest, and the ones that did not are listed by value. */
+export function fetchAgentConfig(): Promise<AgentConfig> {
+  return call<AgentConfig>("/api/agent/config");
+}
+
+export function saveAgentConfig(
+  settings: { base_url: string; api_key: string; model: string; temperature: number },
+): Promise<AgentConfigSaveResponse> {
+  return call<AgentConfigSaveResponse>("/api/agent/config", {
+    method: "POST",
+    body: JSON.stringify(settings),
+  });
+}
+
+export function fetchAgentModels(): Promise<{ models: string[] }> {
+  return call<{ models: string[] }>("/api/agent/models");
+}
+
+export function agentChat(
+  messages: { role: ChatRole; content: string }[],
+  context: DrawResponse | null,
+): Promise<AgentChatResponse> {
+  return call<AgentChatResponse>(
+    "/api/agent/chat",
+    {
+      method: "POST",
+      // A chat with no drawing attached is legitimate (asking what the agent
+      // can and cannot do); the backend then holds the reply to an empty
+      // payload, which is exactly the right leash for that conversation.
+      body: JSON.stringify({ messages, context }),
+    },
+    // A reasoning model drafting a real analysis is not a stuck API. The
+    // default 25s cap would abort every long reply mid-generation and read
+    // as "the endpoint is down"; this mirrors the backend's own 120s
+    // ceiling with a little headroom.
+    150_000,
+  );
 }

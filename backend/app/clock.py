@@ -58,3 +58,28 @@ def add_ny_days(epoch: int, days: int) -> int:
     """
     wall = to_ny(epoch).replace(tzinfo=None) + timedelta(days=days)
     return to_epoch(wall.replace(tzinfo=NY))
+
+
+def market_shut(epoch: int) -> bool:
+    """Is the market shut at this instant, on the CME futures week?
+
+    Shut from 17:00 New York Friday to 18:00 Sunday, and for the one-hour daily
+    maintenance break from 17:00 to 18:00 on the other weekdays. Those are the
+    same boundaries `app/gaps.py` reads its NDOG and NWOG off.
+
+    HERE RATHER THAN IN `providers/synthetic.py`, where it lived until
+    2026-08-21. Two tests needed the same predicate that night - one asking why
+    there was no forming bar, one asking why an MT5 bar was two hours old - and
+    the alternative to moving it was a second and a third copy of the CME week.
+    Both tests had already been written against a market that never closes, and
+    both failed on a Friday evening for that reason alone.
+    """
+    when = to_ny(epoch)
+    if when.hour == 17:
+        return True
+    weekday = when.weekday()  # Monday 0 .. Sunday 6
+    if weekday == 5:  # all Saturday
+        return True
+    if weekday == 4 and when.hour >= 17:  # Friday evening onward
+        return True
+    return weekday == 6 and when.hour < 18  # Sunday before the reopen

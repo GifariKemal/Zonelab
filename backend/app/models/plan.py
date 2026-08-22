@@ -236,8 +236,9 @@ class TradePlan(BaseModel):
     age_bars: int
     departure_held_rate: float = Field(
         description=(
-            "Measured survival of the cohort this zone belongs to, 0.858 above "
-            "the 2 ATR gate and 0.644 below it. A COHORT RATE, not this trade's "
+            "Measured survival of the cohort this zone belongs to, 0.430 above "
+            "the 2 ATR gate and 0.402 below it, diukur di bar 5 menit pada "
+            "instrumen yang ditradingkan. A COHORT RATE, not this trade's "
             "probability, and it excludes costs."
         )
     )

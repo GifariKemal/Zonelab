@@ -222,6 +222,26 @@ async def get_candles(
         raise ProviderError(
             f"unknown interval '{interval}'. Known: {', '.join(INTERVALS)}"
         )
+    # ONE SYMBOL CONVENTION, BOTH DOORS. `tools/history.load` has always taken
+    # `mt5:XAUUSD` and this path has always demanded `XAUUSD` with the provider in
+    # a separate field, so the same string meant two different things depending on
+    # which entry point you used. It cost a real debugging session on 2026-08-21:
+    # the API answered 502 with "the terminal carries no symbol 'mt5:XAUUSD'.
+    # Check the broker's naming", which reads like a naming problem at the broker
+    # and is not one.
+    #
+    # A conflicting pair is an ERROR rather than a precedence rule. `mt5:XAUUSD`
+    # with `provider=yahoo` is not a request anybody meant, and picking a winner
+    # silently would answer with the wrong feed's prices.
+    if ":" in symbol:
+        prefix, bare = symbol.split(":", 1)
+        if prefix in PROVIDERS:
+            if provider_name and provider_name != prefix:
+                raise ProviderError(
+                    f"symbol says provider '{prefix}' and the request says "
+                    f"'{provider_name}'. Send one or the other, not both"
+                )
+            symbol, provider_name = bare, prefix
     bars = max(50, min(bars, settings.max_bars))
 
     provider = resolve(provider_name)

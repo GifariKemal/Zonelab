@@ -245,7 +245,13 @@ def _finish(
         born + 1, params,
     )
     return Zone(
-        id=f"{kind.value}-{int(time[origin])}-{top:.5f}",
+        # No price in the identity - see the note at the matching line in
+        # `supply_demand.py`. The ORIGIN bar is what distinguishes the inversion
+        # families: fourteen breakers in one fixture share an `inverted_at` and a
+        # `time_from`, and only their parent's origin tells them apart, so that is
+        # the component that had to survive. Measured: zero collisions across
+        # 24,647 fvg, order block, ifvg and breaker boxes on 50,000 bars.
+        id=f"{kind.value}-{int(time[origin])}",
         kind=kind,
         side=side,
         state=life.state,

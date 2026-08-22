@@ -140,10 +140,84 @@ ANCHORS = ("parent_cycle", "parent_previous", "previous_quarter")
 
 # (open hour, close hour, calendar days from open date to close date). Asia's
 # third field is what carries it across midnight.
+#
+# `ny_am` and `london_close` were added 2026-08-21 and are ADDITIVE: every caller
+# that asks for `["asia", "london"]` gets exactly what it got before. They are
+# here because a pool is a session extreme and these two are sessions - the
+# missing NY AM high is a target the previous list simply could not name.
+#
+# `ny_pm` IS DELIBERATELY ABSENT FROM THIS DICT and that is a schema limit rather
+# than a judgement: the source puts it at 13:30, and this tuple holds whole
+# hours. Rounding it to 13:00 would move a window by thirty minutes and say
+# nothing about it, so it lives in `KILLZONES` below, which counts minutes.
 SESSIONS: dict[str, tuple[int, int, int]] = {
     "asia": (19, 0, 1),
     "london": (2, 5, 0),
+    "ny_am": (7, 10, 0),
+    "london_close": (10, 12, 0),
 }
+
+#: Kill zone windows in NEW YORK MINUTES from midnight, as (open, close). A
+#: window is half-open: `open <= now < close`.
+#:
+#: THE SOURCES DISAGREE AND THIS PICKS ONE, WHICH IS STATED RATHER THAN HIDDEN.
+#: Three readings were on this machine on 2026-08-21:
+#:
+#:   external_refs/reference.md:223-227  asia 19-22, london 02-05,
+#:                                       ny_am 07-10, ny_pm 13:30-16,
+#:                                       london_close 10-12
+#:   external_refs_analisis_lama:70      asia 19-23, london 02-05,
+#:                                       ny_am 08:30-11, ny_pm 13:30-16,
+#:                                       no london close at all
+#:   docs/BACKLOG.md:69-70               asia 19-22, london 02-05, ny 07-09,
+#:                                       london_close 10-12, and Silver Bullet
+#:                                       at 03-04, 10-11 and 14-15
+#:
+#: The first is used because it is the fuller glossary and the only one that
+#: names all five. Its own line 231 says the windows "vary slightly between ICT
+#: courses" and are "commonly-cited approximations, not a fixed rulebook", so
+#: this dict is a PARAMETER: `ict.Rules` takes the window set, and a reader who
+#: follows a different course changes it there rather than editing this file.
+#:
+#: `asia` here is 19-22 and `SESSIONS["asia"]` above is 19-00. That is not a
+#: contradiction to be tidied: the pool window comes from the owner's own
+#: transcript and the kill zone from the glossary, and they are answering
+#: different questions. A pool asks "what extreme did the session leave"; a kill
+#: zone asks "is now a time this method trades".
+KILLZONES: dict[str, tuple[int, int]] = {
+    "asia": (19 * 60, 22 * 60),
+    "london": (2 * 60, 5 * 60),
+    "ny_am": (7 * 60, 10 * 60),
+    "london_close": (10 * 60, 12 * 60),
+    "ny_pm": (13 * 60 + 30, 16 * 60),
+    # Named separately from `ny_am` because it is a window INSIDE it, and the
+    # source treats it as its own setup rather than as part of the morning.
+    "silver_bullet": (10 * 60, 11 * 60),
+}
+
+
+def killzones_at(epoch: int) -> tuple[str, ...]:
+    """Every kill zone containing this instant, by New York wall clock.
+
+    PLURAL ON PURPOSE. The windows overlap: 10:00 to 11:00 New York is inside
+    `london_close`, inside `ny_am` and is `silver_bullet` all at once. Returning
+    the first match would make the answer depend on dict order, and a reader
+    checking "was this a Silver Bullet entry" would get "london_close" instead.
+
+    Wall clock, never a fixed offset. New York runs UTC-5 in winter and UTC-4 in
+    summer, so a constant offset is right for half the year and silently an hour
+    wrong for the rest - the failure `app/clock.py` exists to prevent.
+    """
+    local = clock.to_ny(int(epoch))
+    minutes = local.hour * 60 + local.minute
+    out = []
+    for name, (start, end) in KILLZONES.items():
+        inside = start <= minutes < end if start < end else (
+            minutes >= start or minutes < end
+        )
+        if inside:
+            out.append(name)
+    return tuple(out)
 
 
 @dataclass(frozen=True)

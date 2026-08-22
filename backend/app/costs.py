@@ -143,9 +143,69 @@ BROKERS: dict[str, dict[str, dict[str, float]]] = {
     # discretionary, can be applied to already-open positions, and its stated
     # trigger is trading that is not "primarily within the trading day", which
     # describes this strategy exactly.
-    "exness_zero": {
+    # SEBELAS BARIS DI BAWAH DITAMBAHKAN 22 AGUSTUS 2026, dan sebelum itu
+    # kesebelas instrumen ini jatuh ke `_default`, yaitu jadwal fee spot Binance:
+    # 20bp komisi plus 2bp slippage. Dibebankan ke EURUSD itu 22bp round turn
+    # untuk pair yang sebenarnya membayar sekitar 1,1bp all-in.
+    #
+    # Biayanya nyata: matrix pertama melaporkan EURUSD 1 jam pada -0,422 R dengan
+    # t = -28,9 di 1.019 trade dan menyimpulkan aturan ini gagal di FX. Yang
+    # gagal adalah tabel ini. `row_for` di bawah ada justru untuk membuat
+    # fallback itu kelihatan, dan harness barunya tidak mencetaknya.
+    #
+    # Semuanya diturunkan dari terminal oleh `tools/broker_costs.py`, yang bisa
+    # dijalankan ulang dan punya mode `--check` untuk melaporkan drift. Yang
+    # DIUKUR: contract size, point, harga, currency_profit, swap_long dan
+    # swap_short dalam point, dan spread median dari 20.000 bar 1 jam. Yang
+    # DIASUMSIKAN: 7 USD per lot round turn, terukur di gold dari deal nyata
+    # (0,07 USD pada 0,01 lot di 4604,221 = 0,152bp) dan diasumsikan sama
+    # bentuknya untuk sisanya.
+    #
+    # `admin_bp` TIDAK dibawa ke baris baru. Exness memungut 200 USD per lot per
+    # malam pada XAUUSD yang ditahan lewat 21:00 UTC; tidak ada bukti itu
+    # berlaku untuk FX atau indeks. Kalau ternyata berlaku, EURUSD kena 17,1bp
+    # per malam dan setiap angka FX di QA-QUANT.md berubah tanda.
+    # NAMANYA `exness_raw` SEJAK 22 AGUSTUS 2026, DAN SEBELUMNYA `exness_zero`.
+    # Akun yang terhubung di mesin ini adalah Raw Spread, bukan Zero, dan itu
+    # terkonfirmasi tiga kali: `account_info().name` berbunyi 'Raw Spread',
+    # setiap `symbol_info().path` mulai dengan 'Raw\', dan komisi yang benar
+    # benar dipungut adalah 3,50 per sisi (0,152bp round turn di gold) yang
+    # merupakan tarif Raw Spread, bukan 5,50 per sisi milik Zero.
+    #
+    # Alasan lama memilih Zero adalah "hanya Zero yang all-in cost-nya bisa
+    # diketahui, karena Exness tidak menerbitkan spread XAUUSD untuk tipe akun
+    # mana pun". Alasan itu gugur di sini: bar dari terminal ini MEMBAWA spread
+    # per bar, jadi spread Raw Spread terukur, bukan tak diterbitkan. Median 0,135bp
+    # di 20.000 bar 1 jam.
+    "exness_raw": {
+        "XAGUSD": {"commission_bp": 0.203, "slippage_bp": 0.5,
+                   "spread_bp": 2.753, "swap_bp": 1.217, "swap_bp_short": 0.0},
+        "XPTUSD": {"commission_bp": 0.371, "slippage_bp": 0.5,
+                   "spread_bp": 17.705, "swap_bp": 0.562, "swap_bp_short": 0.0},
+        "EURUSD": {"commission_bp": 0.599, "slippage_bp": 0.5,
+                   "spread_bp": 0.0, "swap_bp": 0.488, "swap_bp_short": 0.0},
+        "GBPUSD": {"commission_bp": 0.513, "slippage_bp": 0.5,
+                   "spread_bp": 0.0, "swap_bp": 0.088, "swap_bp_short": 0.11},
+        "USDJPY": {"commission_bp": 0.7, "slippage_bp": 0.5,
+                   "spread_bp": 0.0, "swap_bp": 0.0, "swap_bp_short": 0.862},
+        "GBPJPY": {"commission_bp": 0.513, "slippage_bp": 0.5,
+                   "spread_bp": 0.184, "swap_bp": 0.0, "swap_bp_short": 1.258},
+        "AUDUSD": {"commission_bp": 0.976, "slippage_bp": 0.5,
+                   "spread_bp": 0.0, "swap_bp": 0.0, "swap_bp_short": 0.251},
+        "USDCAD": {"commission_bp": 0.7, "slippage_bp": 0.5,
+                   "spread_bp": 0.0, "swap_bp": 0.0, "swap_bp_short": 0.552},
+        "BTCUSD": {"commission_bp": 0.899, "slippage_bp": 0.5,
+                   "spread_bp": 1.258, "swap_bp": 1.728, "swap_bp_short": 0.0},
+        "US30": {"commission_bp": 1.314, "slippage_bp": 0.5,
+                 "spread_bp": 0.113, "swap_bp": 1.772, "swap_bp_short": 0.0},
+        "USOIL": {"commission_bp": 0.811, "slippage_bp": 0.5,
+                  "spread_bp": 0.579, "swap_bp": 0.0, "swap_bp_short": 11.418},
         "XAUUSD": {
-            "commission_bp": 0.25, "slippage_bp": 0.5,
+            # 0,25 SAMPAI 22 AGUSTUS 2026, DAN AKUN INI MEMUNGUT 0,152. Angka
+            # 0,25 berasal dari jadwal Exness Zero 5,50 per sisi; deal nyata di
+            # akun 434083797 memungut 0,07 USD pada 0,01 lot, yaitu 3,50 per
+            # sisi. Angka terukur menang atas angka yang dikutip.
+            "commission_bp": 0.152, "slippage_bp": 0.5,
             # NOT None. A measured spread from the feed still wins, but a
             # broker profile must never blank the fallback: on a feed that
             # ships one price per bar (Yahoo, and every gold source here except
@@ -153,11 +213,11 @@ BROKERS: dict[str, dict[str, dict[str, float]]] = {
             # silently becomes spread-free. 0.15bp is the top of the range
             # Exness's own zero-spread commitment implies for its top-30
             # instruments outside the 95% window.
-            "spread_bp": 0.15,
+            "spread_bp": 0.135,
             # Measured, not cited. `swap_bp` is the LONG side; `swap_bp_short`
             # is present, so `spec()` reads it as a side-aware row and a plan on
             # a supply zone stops being charged a swap it never pays.
-            "swap_bp": 1.20, "swap_bp_short": 0.0, "admin_bp": 4.545,
+            "swap_bp": 1.207, "swap_bp_short": 0.0, "admin_bp": 4.545,
         },
     },
 }
@@ -266,3 +326,56 @@ def spec(
         carry_asymmetric="swap_bp_short" in row,
         source=" + ".join(used),
     )
+
+#: Biaya maksimum, sebagai fraksi risiko trade itu sendiri, sebelum sebuah trade
+#: ditolak. DITURUNKAN DARI REGRESI LINTAS INSTRUMEN, bukan dipilih karena enak
+#: dilihat.
+#:
+#: Diukur 22 Agustus 2026 pada 24 sel (12 instrumen kali 1h dan 4h, seluruh
+#: riwayat terminal, prefix spacing salah dibuang, biaya Exness Zero):
+#:
+#:   korelasi cost_to_risk lawan exp R : -0,9879
+#:   regresi                            : exp R = +0,3348 - 1,3441 * cost_r
+#:   R kuadrat                          : 0,976
+#:   silang nol                         : cost_r = 0,2491
+#:   korelasi cost_to_risk lawan win rate: -0,9734
+#:
+#: Dua hal yang membuat ini bukan curve fit. Pertama ada MEKANISMENYA, dan win
+#: rate yang memperlihatkannya: biaya dibebankan ke fill, jadi ia menggeser entry
+#: mendekat ke stop dan mengubah calon pemenang menjadi stop-out. Itu sebabnya
+#: kemiringannya -1,34 dan bukan -1: satu unit biaya merugikan LEBIH dari
+#: besarnya sendiri. Kedua, edge kotornya +0,335 R adalah intersep regresi, jadi
+#: aritmetikanya sederhana: biaya di atas 0,335/1,344 memakan seluruh edge.
+#:
+#: Ambangnya 0,25 dan bukan 0,15. Di bawah 0,15 keempat sel positif, tapi
+#: memilih 0,15 berarti memilih ambang yang paling rapi di data yang sama, dan
+#: itu tepat cara `formation_score` dulu memeringkat terbalik. 0,2491 adalah
+#: tempat aritmetikanya sendiri menyentuh nol, dibulatkan ke 0,25.
+COST_TO_RISK_MAX = 0.25
+
+
+def cost_to_risk(
+    price: float, risk_per_unit: float, spread: float, fees: dict, nights: float,
+    swap_bp: float | None = None,
+) -> tuple[float, float]:
+    """Biaya sekali jalan sebagai fraksi risiko, plus friction absolutnya.
+
+    SATU RUMUS UNTUK GERBANG LIVE DAN UNTUK PENGUKURAN, dan itu seluruh alasan
+    fungsi ini ada di sini alih-alih dihitung di dua tempat. Gerbang yang
+    memakai definisi biaya yang berbeda dari harness yang mengukurnya adalah
+    gerbang yang menyaring populasi lain dari yang diklaimnya.
+
+    `nights` adalah malam yang mungkin dilewati, bukan yang pasti dilewati:
+    `costed.py` membebankan horizon penuh karena alternatifnya adalah memodelkan
+    jam exit, dan model biaya yang menyanjung diri soal timing adalah hal yang
+    justru dihindari tool itu.
+    """
+    if swap_bp is None:
+        swap_bp = fees.get("swap_bp", 0.0)
+    friction = price * (
+        fees["commission_bp"] + fees["slippage_bp"] + swap_bp * nights
+    ) / 10_000
+    risk = risk_per_unit + friction
+    if risk <= 0:
+        return float("inf"), friction
+    return (friction + spread) / risk, friction

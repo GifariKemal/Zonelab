@@ -21,11 +21,18 @@ STEP = 900  # 15-minute bars
 T0 = 1_700_000_000
 
 
-def build(rows: list[tuple[float, float, float, float]]) -> list[Candle]:
-    """rows are (open, close, high_pad, low_pad); pads extend beyond the body."""
+def build(rows: list[tuple[float, float, float, float]], t0: int = T0) -> list[Candle]:
+    """rows are (open, close, high_pad, low_pad); pads extend beyond the body.
+
+    `t0` exists for the resample tests alone. `T0` is 800 seconds PAST an hour
+    boundary, which is irrelevant to a detector reading bars in order and is the
+    whole question for an aggregate: a series that starts mid-hour has a partial
+    first bucket, and `resample` now drops it. Those tests pass an aligned base
+    so they measure aggregation instead of accidentally measuring that rule.
+    """
     return [
         Candle(
-            time=T0 + i * STEP,
+            time=t0 + i * STEP,
             open=o,
             high=max(o, c) + hp,
             low=min(o, c) - lp,
@@ -568,12 +575,17 @@ def test_dedupe_prefers_the_less_consumed_zone():
 # higher timeframe aggregation
 # --------------------------------------------------------------------------
 
+#: An hour boundary, because these tests are about buckets. See `build`.
+ALIGNED = T0 - (T0 % 3600)
+
 
 def test_resample_aggregates_ohlcv_correctly():
     from app.resample import resample
 
     # Four 15m bars make one complete hour, then four more make a second.
-    candles = build([(10, 12, 1, 1), (12, 11, 0, 2), (11, 15, 3, 0), (15, 14, 0, 0)] * 2)
+    candles = build(
+        [(10, 12, 1, 1), (12, 11, 0, 2), (11, 15, 3, 0), (15, 14, 0, 0)] * 2, ALIGNED
+    )
     hourly = resample(candles, target="1h", source="15m")
 
     assert len(hourly) == 2
@@ -590,8 +602,8 @@ def test_resample_drops_an_incomplete_final_bar():
     would shift under the user and would be look-ahead in any measurement."""
     from app.resample import resample
 
-    complete = build([(10, 11, 0, 0)] * 8)  # exactly two hours of 15m bars
-    partial = build([(10, 11, 0, 0)] * 9)  # two hours plus one bar
+    complete = build([(10, 11, 0, 0)] * 8, ALIGNED)  # exactly two hours of 15m
+    partial = build([(10, 11, 0, 0)] * 9, ALIGNED)  # two hours plus one bar
 
     assert len(resample(complete, "1h", "15m")) == 2
     assert len(resample(partial, "1h", "15m")) == 2, "the third hour is unfinished"
@@ -602,7 +614,7 @@ def test_resample_anchors_to_the_epoch_not_the_window():
     or every HTF zone shifts whenever the user changes the lookback."""
     from app.resample import resample
 
-    candles = build([(10, 11, 0, 0)] * 40)
+    candles = build([(10, 11, 0, 0)] * 40, ALIGNED)
     full = resample(candles, "1h", "15m")
     trimmed = resample(candles[7:], "1h", "15m")
 
@@ -611,8 +623,14 @@ def test_resample_anchors_to_the_epoch_not_the_window():
     for time in shared:
         a = next(c for c in full if c.time == time)
         b = next(c for c in trimmed if c.time == time)
-        assert (a.high, a.low) == (b.high, b.low) or time == min(shared), (
-            "a shared complete bucket must aggregate identically"
+        # No carve-out for the first shared bucket any more. There used to be
+        # one - `or time == min(shared)` - and it was licensing the defect this
+        # assertion exists to catch: the trimmed window's first bucket was
+        # partial, aggregated anyway, and allowed to disagree. `resample` drops
+        # it now, so every bucket the two windows share is complete in both and
+        # has to agree exactly.
+        assert (a.high, a.low) == (b.high, b.low), (
+            f"bucket {time} aggregates differently in a trimmed window"
         )
 
 
@@ -675,7 +693,7 @@ def test_resample_does_not_invent_bars_across_a_gap():
     manufacture exactly the consolidation this detector hunts for."""
     from app.resample import resample
 
-    before = build([(10, 11, 0, 0)] * 4)
+    before = build([(10, 11, 0, 0)] * 4, ALIGNED)
     after = [
         Candle(time=c.time + 86400 * 2, open=c.open, high=c.high, low=c.low, close=c.close)
         for c in before
@@ -684,6 +702,33 @@ def test_resample_does_not_invent_bars_across_a_gap():
 
     assert len(hourly) == 2, "two real hours, and nothing in the weekend gap"
     assert hourly[1].time - hourly[0].time == 86400 * 2
+
+
+def test_resample_drops_an_incomplete_FIRST_bar():
+    """The mirror of the final-bar rule, and it was missing until 2026-08-21.
+
+    A window that begins mid-bucket aggregates only the TAIL of that bucket, so
+    its low is the minimum of fewer bars and comes out too high, its high too
+    low, and its open is not the bucket's open. The old code emitted it anyway.
+
+    Worse than a forming bar rather than equal to it: a forming bar is honestly
+    incomplete and will finish, while this one looks finished and is simply
+    wrong. Measured on broker gold 1h: a day whose true low was 5136.606
+    reported 5145.939 when the window started halfway through it, 9.33 points
+    out, with nothing on the bar saying so.
+    """
+    from app.resample import resample
+
+    # Eight aligned 15m bars are two clean hours; dropping the first bar leaves
+    # the first hour three-quarters present.
+    aligned = build([(10, 11, 0, 0)] * 4 + [(20, 21, 0, 0)] * 4, ALIGNED)
+    assert len(resample(aligned, "1h", "15m")) == 2
+
+    cut = resample(aligned[1:], "1h", "15m")
+    assert [c.time for c in cut] == [aligned[4].time], (
+        "the partial first hour must be dropped, leaving only the complete one"
+    )
+    assert cut[0].open == 20, "and the surviving bucket is untouched"
 
 
 def test_resample_refuses_a_target_that_is_not_higher():

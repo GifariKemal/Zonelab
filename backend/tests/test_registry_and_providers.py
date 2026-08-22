@@ -9,13 +9,15 @@ from __future__ import annotations
 
 import asyncio
 import time
+from datetime import UTC, datetime
 
 import pytest
 
+from app.clock import market_shut
 from app.detect import DETECTORS
 from app.layers import DETECTOR_IDS, PARAMS_BY_ID
 from app.models import DrawRequest
-from app.providers import ProviderError
+from app.providers import ProviderError, resolve
 from app.providers.sources import BinanceProvider
 
 
@@ -249,7 +251,33 @@ def _fake_provider(monkeypatch, local: bool) -> _Fake:
     return provider
 
 
-def test_the_forming_bar_is_exactly_the_one_the_candles_do_not_carry():
+#: A Wednesday, 10:00 New York, chosen because `clock.market_shut` says the
+#: market is open then and the assertion below proves it rather than trusting the
+#: comment.
+MIDWEEK = int(datetime(2026, 8, 19, 14, 0, tzinfo=UTC).timestamp())
+#: Saturday, same clock. Shut all day on the CME week.
+WEEKEND = int(datetime(2026, 8, 22, 14, 0, tzinfo=UTC).timestamp())
+
+
+def _frozen_at(monkeypatch, epoch: int):
+    """Freeze the wall clock at `epoch` and empty both provider caches.
+
+    BOTH CACHES, and that is the part worth stating. They expire on
+    `time.monotonic`, which a frozen `time.time` does not touch, so the second of
+    two frozen-clock tests reads the first one's answer and passes or fails for a
+    reason that has nothing to do with the instant it asked about. Measured while
+    writing these two: the Saturday test was handed the Wednesday forming bar,
+    stamped 1787148000, a cache hit from 300ms earlier.
+    """
+    from app.providers import _cache, _forming, get_candles, get_forming
+
+    monkeypatch.setattr(time, "time", lambda: epoch + 300.0)
+    _cache.clear()
+    _forming.clear()
+    return get_candles, get_forming
+
+
+def test_the_forming_bar_is_exactly_the_one_the_candles_do_not_carry(monkeypatch):
     """The two halves have to agree on which bar is live.
 
     `get_candles` drops it and `get_forming` returns it, and if those ever
@@ -257,15 +285,49 @@ def test_the_forming_bar_is_exactly_the_one_the_candles_do_not_carry():
     timestamp, which lightweight-charts throws on - or leaves a hole. Both are
     derived from `drop_forming` for that reason, and this is the check that says
     so out loud.
+
+    THE CLOCK IS FROZEN, and that is the repair. This test read the real clock
+    and asserted a forming bar exists "because the synthetic series is anchored
+    to now" - which stopped being true when the synthetic feed learned to close.
+    It failed on a Friday at 23:06 UTC having caught nothing: the market had shut
+    two hours earlier and there was correctly no open bar. Conditioning the
+    assertion on the day would have gone quiet every weekend instead, which is
+    the same defect wearing a passing result.
     """
-    from app.providers import get_candles, get_forming
+    assert not market_shut(MIDWEEK), "the frozen instant must be a live session"
+    get_candles, get_forming = _frozen_at(monkeypatch, MIDWEEK)
 
     candles, _ = asyncio.run(get_candles("BTCUSDT", "15m", 120, "synthetic"))
     bar, _ = asyncio.run(get_forming("BTCUSDT", "15m", "synthetic"))
 
-    assert bar is not None, "the synthetic series is anchored to now, so one is open"
+    assert bar is not None, "mid-session, so one bar is open"
     assert bar.time == candles[-1].time + 900, "the forming bar is the NEXT slot"
     assert all(c.time != bar.time for c in candles), "it must not be in both"
+
+
+def test_a_shut_market_has_no_forming_bar_rather_than_a_stale_one(monkeypatch):
+    """The other half of the pair above, and the reason it needs stating.
+
+    A chart whose last candle keeps ticking through a closed weekend is inventing
+    price. `get_forming` returning None here is what makes the frontend draw
+    nothing instead of animating the Friday close for two days.
+    """
+    assert market_shut(WEEKEND), "the frozen instant must be a shut market"
+    get_candles, get_forming = _frozen_at(monkeypatch, WEEKEND)
+
+    candles, _ = asyncio.run(get_candles("BTCUSDT", "15m", 120, "synthetic"))
+    bar, _ = asyncio.run(get_forming("BTCUSDT", "15m", "synthetic"))
+
+    assert bar is None, "the market is shut, so no bar is forming"
+    assert candles, "the closed history is still served"
+
+    # AND NOT BECAUSE THE FETCH CAME BACK EMPTY. `get_forming` asks for exactly
+    # two bars, and an empty answer reads as "nothing is forming" - the right
+    # verdict reached by the wrong route. This is the assertion that separates
+    # them, and it is the one that fails against the old `bars * 8` walk: two
+    # bars requested on a Saturday found zero open slots and now raise instead.
+    rows = asyncio.run(resolve("synthetic").fetch("BTCUSDT", "15m", 2))
+    assert len(rows) == 2, "a two-bar request must still cross the weekend hole"
 
 
 def test_a_metered_source_is_not_polled_once_a_second(monkeypatch):
@@ -299,7 +361,7 @@ def test_an_unknown_broker_is_refused_rather_than_priced_generically():
 
     `broker="nope"` and `broker="EXNESS_ZERO"` both fell through to the generic
     per-instrument row and priced the overnight carry at 0.424 where
-    `exness_zero` prices it at 2.434 - a 5.7x understatement, returned as HTTP
+    `exness_raw` prices it at 2.434 - a 5.7x understatement, returned as HTTP
     200, with the advice text quoting the wrong figure and no hedge. Every other
     unknown identifier on this request already failed loudly.
 
@@ -405,3 +467,53 @@ def test_provider_probes_run_concurrently():
 
     assert len(result) == 5 and all(result.values())
     assert elapsed < 0.12 * 5 * 0.6, f"{elapsed:.3f}s looks serial for 5 x 0.12s probes"
+
+
+# --------------------------------------------------------------------------
+# one symbol convention, both doors
+# --------------------------------------------------------------------------
+
+
+def test_a_prefixed_symbol_reaches_the_provider_it_names():
+    """`tools/history.load` has always taken `mt5:XAUUSD` while this path
+    demanded `XAUUSD` plus a provider field, so one string meant two things
+    depending on the door. It cost a debugging session on 2026-08-21: the API
+    answered 502 with "the terminal carries no symbol 'mt5:XAUUSD'. Check the
+    broker's naming", which reads like a broker problem and is not one.
+
+    Synthetic, so the test needs no terminal and no network.
+    """
+    from app.providers import get_candles
+
+    rows, name = asyncio.run(get_candles("synthetic:XAUUSD", "1h", 200))
+    assert name == "synthetic"
+    assert len(rows) > 0
+
+
+def test_the_prefix_and_the_field_may_agree():
+    from app.providers import get_candles
+
+    rows, name = asyncio.run(get_candles("synthetic:XAUUSD", "1h", 200, "synthetic"))
+    assert name == "synthetic"
+    assert len(rows) > 0
+
+
+def test_a_prefix_that_contradicts_the_field_is_refused():
+    """Not a precedence rule. `mt5:XAUUSD` with `provider=yahoo` is not a request
+    anybody meant, and choosing a winner silently answers with the wrong feed's
+    prices - which is indistinguishable from a market that moved."""
+    from app.providers import get_candles
+
+    with pytest.raises(ProviderError, match="Send one or the other"):
+        asyncio.run(get_candles("synthetic:XAUUSD", "1h", 200, "yahoo"))
+
+
+def test_a_colon_that_is_not_a_provider_is_left_alone():
+    """A symbol may legitimately contain a colon. Only a KNOWN provider name in
+    front of one is a routing prefix."""
+    from app.providers import get_candles
+
+    with pytest.raises(ProviderError):
+        # `notaprovider` is not in PROVIDERS, so the whole string stays the
+        # symbol and the default provider is asked for it.
+        asyncio.run(get_candles("notaprovider:XAUUSD", "1h", 200, "yahoo"))

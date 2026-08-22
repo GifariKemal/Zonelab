@@ -47,6 +47,49 @@ def wilder_atr(
     return atr
 
 
+def flat_atr(
+    high: np.ndarray,
+    low: np.ndarray,
+    close: np.ndarray,
+    period: int,
+    at: int,
+) -> float | None:
+    """Mean true range over the `period` bars ending at `at`, or None.
+
+    A SECOND volatility figure in a file whose whole point is one definition, and
+    it exists for the one job `wilder_atr` cannot do: this value is a function of
+    `period` bars and nothing else, so it does not move when the window's left
+    edge does.
+
+    Wilder's is an RMA and therefore has infinite memory - its value at any bar
+    still carries the seed taken from the window's first `period` bars. For a
+    THRESHOLD that is harmless, which is why every gate in this project keeps
+    using it and must keep using it. For a PRICE it is not: `supply_demand` and
+    `refine` grow a too-short base up to `zone_min_atr * atr`, and a drawn edge
+    computed that way moves when the reader loads more history.
+
+    MEASURED, 2026-08-21. The same projected 1d supply zone reported a bottom of
+    3518.24852106 with 312 daily buckets behind it and 3518.24600835 with 165,
+    because Wilder read 17.71318025 against 17.75984495 at the same bar. At
+    bucket 34 the seed still carries (13/14)^20 = 0.23 of the weight. For a
+    supply zone the bottom is the PROXIMAL, which is where an order goes.
+
+    Returns None when the bars are not all present. The caller must then grow
+    nothing: no floor is stable at the very left edge of a window, and a raw bar
+    extreme always is.
+
+    Reads one bar EARLIER than `period` on purpose. `true_range` has to invent a
+    previous close for its first element, so that element is a function of where
+    the slice starts; taking one extra bar and dropping it leaves every remaining
+    true range computed from two real bars.
+    """
+    lo = at - period + 1
+    if period <= 0 or lo < 1 or at >= len(close) or at < 0:
+        return None
+    tr = true_range(high[lo - 1 : at + 1], low[lo - 1 : at + 1], close[lo - 1 : at + 1])
+    return float(tr[1:].mean())
+
+
 def classify_candles(
     open_: np.ndarray,
     high: np.ndarray,

@@ -20,6 +20,7 @@ import types
 
 import pytest
 
+from app.clock import market_shut
 from app.providers import mt5 as mt5mod
 from app.providers.base import INTERVALS
 
@@ -90,11 +91,24 @@ def test_live_bars_are_utc_and_on_the_interval_grid(interval):
     # The newest bar is the forming one, so its open is within one interval of
     # now. A whole-hour timezone error puts it hours away and this is what says
     # so. Two intervals of slack covers a market that just closed for the day.
-    age = time.time() - candles[-1].time
-    assert -60 <= age <= 2 * step or age > 8 * 3600, (
-        f"newest {interval} bar opened {age:.0f}s ago, which is neither live "
-        "nor a closed market - the server clock is probably not UTC"
-    )
+    #
+    # THE ALLOWANCE COMES FROM THE SESSION, NOT FROM A CONSTANT. The first
+    # version read `age > 8 * 3600` as "the market must be closed", which leaves
+    # a hole every Friday between two intervals after the 17:00 New York close
+    # and eight hours later. Measured on 2026-08-21 at 23:06 UTC: the newest 15m
+    # bar was 8472s old, the market had been shut for two hours, and the test
+    # failed reporting a timezone error that did not exist. `clock.market_shut`
+    # is the same predicate the synthetic feed closes on, so there is one
+    # definition of the CME week rather than a magic number per test.
+    now = time.time()
+    age = now - candles[-1].time
+    if market_shut(int(now)):
+        assert age > 0, f"newest {interval} bar is stamped in the future by {-age:.0f}s"
+    else:
+        assert -60 <= age <= 2 * step, (
+            f"newest {interval} bar opened {age:.0f}s ago inside a live session - "
+            "the server clock is probably not UTC"
+        )
 
     assert all(c.low <= c.open <= c.high and c.low <= c.close <= c.high for c in candles)
     assert all(c.spread is None or c.spread > 0 for c in candles)

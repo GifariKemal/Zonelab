@@ -31,7 +31,7 @@ from typing import Protocol
 
 import numpy as np
 
-from ..indicators import EPS, classify_candles, runs, wilder_atr
+from ..indicators import EPS, classify_candles, flat_atr, runs, wilder_atr
 from ..profit_zone import mark_crowding, mark_profit_zones
 from ..models import (
     Anatomy,
@@ -377,7 +377,15 @@ def detect(
         # from the PROXIMAL side only: the distal is a wick extreme the stop
         # sits beyond, and widening it symmetrically would quietly move the
         # stop into the base.
-        floor = params.zone_min_atr * atr_base
+        # NOT `atr_base`, and the difference is a repainting price rather than a
+        # rounding taste. `atr_base` is Wilder's, whose seed never fully leaves
+        # it, so a floor derived from it makes the grown edge a function of where
+        # the window starts - see `flat_atr` for the two readings that proved it.
+        # None means the flat window is not fully present, and then nothing is
+        # grown: the raw bar extremes are already stable, and a box that is
+        # merely thin is better than a box that moves.
+        floor_scale = flat_atr(high, low, close, params.atr_period, base_from)
+        floor = params.zone_min_atr * floor_scale if floor_scale is not None else 0.0
         height = top - bottom
         if height < floor:
             if side is ZoneSide.DEMAND:
@@ -549,7 +557,23 @@ def detect(
 
         found.append(
             Zone(
-                id=f"{kind.value}-{int(time[base_from])}-{top:.5f}",
+                # IDENTITY MAY NOT BE A PRICE. Until 2026-08-21 this ended in
+                # `-{top:.5f}`, so a zone whose top moved by a hundredth became a
+                # DIFFERENT zone to anything keying on the id - and boxes do
+                # move: `test_a_projected_higher_timeframe_box_never_moves`
+                # caught a projected 1d box shifting its bottom by 0.009. For a
+                # reader that is invisible; for anything that has to say "I have
+                # already acted on this zone" it is a new key and a second
+                # action.
+                #
+                # Kind plus the base bar's OPEN TIME is enough, and that is
+                # measured rather than assumed: on 50,000 bars of broker gold the
+                # five detectors draw 25,134 zones and the price-free key
+                # collides ZERO times. The time is an epoch from the feed, so it
+                # does not shift when the window grows the way a bar index would.
+                # Prices stay on the object as `top` and `bottom`, which is where
+                # a price belongs.
+                id=f"{kind.value}-{int(time[base_from])}",
                 kind=kind,
                 side=side,
                 state=state,

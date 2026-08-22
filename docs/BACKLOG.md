@@ -10,6 +10,14 @@ dan riset sumber ICT, Quarterly Theory serta SMC.
 > saling bertentangan, itu dinyatakan sebagai bertentangan, bukan dipilihkan
 > salah satu.
 
+> [!NOTE]
+> **Kolom status disegarkan 21 Agustus 2026.** Empat butir sudah tidak sesuai
+> kode. Tiga karena `d63b813` mengirimkannya pada hari yang sama, yaitu Bagian 3
+> nomor 1, Bagian 4 nomor 1, dan Bagian 6 nomor 5. Satu karena klaimnya salah
+> sejak ditulis, yaitu Bagian 4 nomor 7. Audit ulang yang membaca halaman ini
+> tanpa memeriksa kode akan menemukan kembali gap yang sudah tertutup, dan itu
+> sudah terjadi sekali.
+
 ## Ringkasan status
 
 ```mermaid
@@ -62,7 +70,7 @@ atas primitif yang sudah ada.
 
 | # | Objek | Aturan menurut sumber | Status di repo |
 |---|---|---|---|
-| 1 | Equal highs / equal lows | Dasar dari turtle soup; kutipan MSS di repo sendiri menyebut "above this old, relative equal high" | Tidak ada. `docs/FIDELITY.md` sudah mengakui ini salah dilabeli terhalang, padahal murni OHLC di atas `swings()` |
+| 1 | Equal highs / equal lows | Dasar dari turtle soup; kutipan MSS di repo sendiri menyebut "above this old, relative equal high" | **Dibangun 21 Agustus 2026**, `liquidity.equal_levels` menggambar `REQH`/`REQL` dengan hitungan sentuhannya. Toleransi `0.1 x ATR(200)`, dijaga `test_an_equal_high_shelf_never_moves`. Aturannya dipilih dengan pengukuran, bukan dikarang: `docs/QA-PRODUKSI.md` bagian 13 |
 | 2 | Optimal Trade Entry | Retracement 0.5, 0.62, 0.705, 0.79, invalidasi di 1.0 | Tidak satu pun angka itu ada. `dealing_range.py` sudah membangun input yang persis dibutuhkan |
 | 3 | Balanced Price Range | FVG bullish dan bearish tumpang tindih di harga yang sama. Tingkat S di hierarki modern | Tidak ada. `detect_fvg` sudah mengeluarkan kedua polaritas |
 | 4 | Mitigation block | Pembeda dari breaker adalah **tidak ada** sweep sebelumnya | Tidak ada. `walk_breaks` sudah membedakan SWEEP dari BOS |
@@ -87,13 +95,13 @@ Frekuensi dihitung dari 51 gambar di folder tersebut.
 
 | # | Objek | Frekuensi | Status |
 |---|---|---|---|
-| 1 | Divergensi lintas instrumen digambar **di chart** | ~33 dari 51 | `ssmt.py` menghitungnya dengan benar, tapi **tidak ada entri `ssmt` di registry layer** dan tidak ada primitif yang menggambarnya |
+| 1 | Divergensi lintas instrumen digambar **di chart** | ~33 dari 51 | **Tergambar 21 Agustus 2026.** Entri `ssmt` ada di `layers.py:196`, memakai blok param `checklist` daripada menyalinnya, dan primitifnya `frontend/src/components/ssmt-primitive.ts`. Yang tetap tidak ada: apa pun yang menghubungkan satu divergensi ke outcome |
 | 2 | Notasi transisi rantai `A => B` | ~23 dari 51 | `sequence.chain` sudah menghasilkan kedua ujungnya. Transisinya, digit `0` untuk rantai belum selesai, dan rantai lebih dari tiga digit belum ada |
 | 3 | Kotak sesi dan kotak hari bernama, dengan garis tengah | 18 dari 51 | `pools.py` menghasilkan **ray**, bukan kotak. Tidak ada kotak hari, tidak ada jendela NY AM/PM |
 | 4 | `tCISD` | 13 dari 51 | Dinyatakan di luar lingkup di `cisd.py`. Ini objek konfirmasi paling sering digambar di folder, dan yang dikirim justru varian yang lebih jarang |
 | 5 | Ray gap bernama timeframe (`H4 Gap`, `Gap/D`) | ~9 | Tidak ada label timeframe pada gap |
 | 6 | Tabel header `EV / Top / Bot / Dist` | 7 | Aritmetikanya sudah dipecahkan, tabelnya belum dibuat |
-| 7 | Derajat `quarter` tiga bulan, penghasil `TQO` | 6 | `quarters.DEGREES` tidak punya derajat kuartal sama sekali |
+| 7 | Derajat `quarter` tiga bulan, penghasil `TQO` | 6 | **Butir ini salah, dikoreksi 21 Agustus 2026.** Derajat `year` ADALAH kuartal tiga bulan: `quarters("year")` memotong di 1 Jan, 1 Apr, 1 Jul, 1 Okt, dan true open tiap kuartal itu sudah tergambar. Yang berbeda cuma namanya, `TYO` lawan `TQO` di gambar, dan `TQO` sudah dipakai derajat quadrennial (`session-primitive.ts:121`). Jadi ini keputusan label, bukan derajat yang hilang |
 | 8 | Template NY Judas Swing | 1 gambar, tapi spesifikasi 2x2 lengkap | Ditolak sebagai diskresioner. Gambarnya justru deterministik dan semua primitifnya sudah ada |
 
 > [!NOTE]
@@ -183,7 +191,7 @@ terlupakan, dan di situlah kedua cacat berada.
 | opening gap dan gap stack | 0 | 0 | bersih |
 | geometri zona | 0 | 0 | bersih |
 | state zona | 5 maju | 5 maju, **0 mundur** | siklus hidup, benar |
-| `range_pos` SSMT | geometri 0 | geometri 0, nilai→nilai **0** | warm-up, benar |
+| `range_pos` SSMT | geometri 0 | geometri 0, nilai ke nilai **0** | warm-up, benar |
 | `formation_score` | dalam warm-up saja | dalam warm-up saja, **0 di luar** | batas terukur |
 
 **Cacat 1, tujuh true open.** Batas yang jatuh sebelum bar pertama jendela tidak
@@ -258,13 +266,15 @@ Dinyatakan eksplisit karena hasil negatif juga hasil.
    pane pada 1024x768 naik dari 374x322 ke 474x380. Tetap belum ada breakpoint
    yang benar-benar **melipat** salah satu panel, jadi pada 390px pane hanya
    316x170. Itu keputusan desain, bukan tambalan.
-5. **`REQH` dan `REQL` masih belum dibangun.** Bang Nas ICT menyebutnya sebagai
-   objek kelas satu yang harus berada di premium/discount, sederet dengan FVG,
-   OB, dan CISD - jadi pemakaiannya sudah terkonfirmasi dari praktisi. Yang
-   belum selesai tetap aturannya: dua aturan terbitan untuk equal highs/lows
-   saling bertentangan dan tidak ada yang dominan, dan proyek ini tidak
-   mengirimkan objek yang aturannya dikarang. Bukti pemakaian bukan penyelesaian
-   aturan.
+5. **Toleransi `REQH`/`REQL` diadopsi, bukan diukur.** Objeknya sendiri sudah
+   dibangun pada 21 Agustus 2026, dan aturan yang bertentangan itu tidak
+   diselesaikan dengan mengarang jalan tengah: dari dua aturan terbitan, yang
+   memakai `0.01 x (tinggi - rendah seluruh data)` ditolak karena toleransinya
+   jadi fungsi dari berapa bar yang kebetulan dimuat pembaca, dan penolakan itu
+   terukur, `test_an_equal_high_shelf_never_moves` gagal saat aturan itu
+   dipasang. Bahaya yang tersisa ada di angka yang menang: `0.1 x ATR(200)`
+   dipakai karena itu yang beredar di sumber terbuka, dan belum ada apa pun yang
+   mengukur apakah 0,1 lebih baik dari 0,05 atau 0,2 di sini.
 6. **Bagian "continuation ke arah DOL" dari koreksi 20 Agustus sengaja tidak
    dibangun.** Aturannya jelas dan bisa dikode - kalau DOL di premium dan SSMT
    terjadi di discount, harapkan SSMT itu gagal dan harga lanjut ke DOL - tetapi

@@ -17,6 +17,7 @@ import {
   POOL_SESSIONS,
   TIER_REDUCTIONS,
 } from "@/lib/types";
+import { AutoTradePanel } from "./autotrade-panel";
 import { ink } from "./ink";
 import {
   PRESETS,
@@ -1449,6 +1450,13 @@ export const Toolbox = memo(function Toolbox({
           everything below describes that bar rather than the price now.
         </p>
       ) : null}
+
+      {/* FIRST IN THE RAIL, above every drawing knob, because it is the only
+          control here that spends money. Everything below it changes what is
+          drawn; this one changes whether a daemon acts on it. It owns its own
+          polling rather than taking props, so the Toolbox's contract stays about
+          layers and this stays about the account. */}
+      <AutoTradePanel />
 
       {menu.length === 0 ? (
         <Group title="Layers">

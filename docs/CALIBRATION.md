@@ -1,5 +1,16 @@
 # Kalibrasi
 
+> [!CAUTION]
+> **Setiap ekspektasi R di dokumen ini diukur dengan konvensi yang, per 22
+> Agustus 2026, diketahui melebihkan.** Target yang tersentuh di bar entry
+> sendiri dihitung sebagai kemenangan, dan itu mengasumsikan urutan di dalam bar
+> yang OHLC tidak bisa membuktikan. Diadili dengan bar 5 menit dan 15 menit pada
+> 1.569 trade di 7 sel: ekspektasi sebenarnya +0,0214 R dengan CI95
+> [-0,024, +0,067], bukan +0,20 R. Lihat [QA-QUANT.md](QA-QUANT.md) bagian 6.
+>
+> Yang bertahan: gerbang departure tetap memisahkan, +0,124 R dengan Welch
+> t = +4,82 di 7 dari 7 sel. Yang tidak bertahan: tingkat absolutnya.
+
 Diukur ulang 2026-08-13 dengan `python -m tools.calibrate --bars 20000`,
 `python -m tools.walkforward`, dan `python -m tools.reaction`. Angka mentahnya ada
 di [`calibration.json`](calibration.json), [`walkforward.json`](walkforward.json),

@@ -852,7 +852,10 @@ salah, dan salahnya empat kali.**
 1. **Tiga konstruk yang dilabeli terhalang oleh file ini sendiri ternyata tidak
    terhalang apa pun.** Equal highs/lows, mitigation block, dan OTE seluruhnya
    OHLCV murni di atas `swings()` yang sudah ada. Tidak butuh instrumen kedua,
-   tidak butuh jam.
+   tidak butuh jam. Yang pertama dibangun pada 21 Agustus 2026 sebagai
+   `REQH`/`REQL`, yang menyelesaikan perdebatannya dengan cara paling murah:
+   labelnya salah, dan dua sisanya masih belum dibangun dengan alasan yang sama
+   salahnya.
 2. **Alasan "kripto tidak punya sesi" tidak berlaku di repo ini.** Sudah ada
    Dukascopy XAUUSD dan EURUSD, waktu candle sudah epoch UTC, `resample.py` sudah
    punya `session_offset_hours`, dan `tools/costed.py` sudah mengerjakan
@@ -1064,8 +1067,10 @@ adalah gambar yang tidak bisa dibaca balik ke masukannya sendiri.
   Unicorn, turtle soup, SFP, IPDA data ranges, CRT, Model 2022, BPR, propulsion
   block, rejection block, implied FVG, immediate rebalance, SCOB, standard
   deviation projections, STH/ITH/LTH, IRL/ERL, quasimodo, weekly profiles.
-  Ditambah tiga yang salah dilabeli terhalang, yaitu equal highs/lows, mitigation
-  block, dan OTE, yang sebenarnya OHLCV murni di atas `swings()`.
+  Ditambah dua yang salah dilabeli terhalang, yaitu mitigation block dan OTE,
+  yang sebenarnya OHLCV murni di atas `swings()`. Yang ketiga, equal highs/lows,
+  sudah dibangun pada 21 Agustus 2026 sebagai `REQH`/`REQL` dan pindah ke
+  kategori di bawah ini: ada kodenya, ada properti yang menjaganya, belum diukur.
 - **Dibangun, diuji sebagai properti, tetap tidak diukur.** Quarterly theory dan
   CISD keluar dari daftar "tidak pernah dienumerasi" di atas, bersama NDOG, NWOG,
   Event Horizon, liquidity pool, dan premium/discount berbasis waktu: sekarang ada

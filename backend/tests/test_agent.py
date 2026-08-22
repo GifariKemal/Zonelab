@@ -1,0 +1,214 @@
+"""The AI Agent advisor: config, digest, chat, and the leash.
+
+What is tested here is the contract in docs/superpowers/specs/2026-08-21-ai-agent-design.md:
+a missing config means the feature refuses and says so, a saved key never
+leaves the file unmasked, the digest carries every number the model may quote
+and no candles beyond the last, and a reply with an invented number is marked
+ungrounded rather than passed through.
+"""
+
+from __future__ import annotations
+
+import asyncio
+import json
+
+import pytest
+
+from app import agent
+from app.llm import LLMUnavailable
+
+
+def use(tmp_path, monkeypatch, cfg: dict | None = None) -> None:
+    """Point the module at a scratch config file, optionally pre-filled."""
+    path = tmp_path / ".agent.json"
+    if cfg is not None:
+        path.write_text(json.dumps(cfg), encoding="utf-8")
+    monkeypatch.setattr(agent, "CONFIG_PATH", path)
+
+
+def draw_response() -> dict:
+    """The smallest body that still exercises every digest path."""
+    return {
+        "symbol": "XAUUSD",
+        "interval": "1h",
+        "provider": "synthetic",
+        "candles": [
+            {"time": 100, "open": 10.0, "high": 11.0, "low": 9.0,
+             "close": 10.5, "volume": 100},
+            {"time": 200, "open": 10.5, "high": 12.0, "low": 10.4,
+             "close": 11.5, "volume": 90},
+        ],
+        "drawing": {
+            "zones": [
+                {
+                    "id": f"D-{i}", "kind": "RBR", "side": "demand",
+                    "state": "fresh", "timeframe": "1h",
+                    "top": 12.0, "bottom": 11.0, "proximal": 11.0,
+                    "distal": 12.0, "departure_atr": 2.5,
+                    "profit_zone_rr": 3.0, "curve": 0.2, "touches": 0,
+                    "settled": True, "confirmed": True, "nested_in": [],
+                    "note": "zone",
+                }
+                for i in range(60)
+            ],
+        },
+        "plans": [
+            {
+                "zone_id": "D-59", "side": "demand", "entry": 11.0,
+                "stop": 12.25, "target": 8.5, "risk_per_unit": 1.25,
+                "reward_r": 2.0, "units": None, "lots": None,
+                "placeable": True, "warnings": ["no equity supplied"],
+            }
+        ],
+        "advice": [{"zone_id": "D-59", "notes": []}],
+        "meta": {"zones": 60},
+    }
+
+
+# -- config ---------------------------------------------------------------
+
+
+def test_missing_config_is_off(tmp_path, monkeypatch):
+    use(tmp_path, monkeypatch)
+    reading = agent.masked()
+    assert reading["available"] is False
+    assert reading["api_key"] == ""
+
+
+def test_corrupt_config_is_off(tmp_path, monkeypatch):
+    path = tmp_path / ".agent.json"
+    path.write_text("{not json", encoding="utf-8")
+    monkeypatch.setattr(agent, "CONFIG_PATH", path)
+    assert agent.masked()["available"] is False
+
+
+def test_save_then_mask_never_returns_the_key(tmp_path, monkeypatch):
+    use(tmp_path, monkeypatch)
+    agent.save_config(base_url="https://x.example/v1", api_key="sk-secret",
+                      model="m")
+    reading = agent.masked()
+    assert reading["available"] is True
+    assert "sk-secret" not in json.dumps(reading)
+    assert reading["model"] == "m"
+    assert reading["base_url"] == "https://x.example/v1"
+
+
+def test_save_with_blank_key_keeps_the_old_one(tmp_path, monkeypatch):
+    use(tmp_path, monkeypatch)
+    agent.save_config(base_url="https://x.example/v1", api_key="sk-secret",
+                      model="m")
+    agent.save_config(base_url="https://x.example/v1", api_key="", model="m2")
+    assert agent.read_config()["api_key"] == "sk-secret"
+    assert agent.read_config()["model"] == "m2"
+
+
+def test_save_rejects_bad_scheme(tmp_path, monkeypatch):
+    use(tmp_path, monkeypatch)
+    with pytest.raises(ValueError):
+        agent.save_config(base_url="ftp://x", api_key="k", model="m")
+
+
+# -- digest ----------------------------------------------------------------
+
+
+def test_digest_caps_zones_at_the_limit(tmp_path, monkeypatch):
+    digest = agent.digest(draw_response())
+    assert len(digest["zones"]) == agent.MAX_ZONES
+    # The newest survive the cap, not the oldest.
+    assert digest["zones"][-1]["id"] == "D-59"
+
+
+def test_digest_keeps_only_the_last_candle(tmp_path, monkeypatch):
+    digest = agent.digest(draw_response())
+    assert digest["last_candle"]["time"] == 200
+    assert digest["bars"] == 2
+
+
+def test_digest_carries_plans_and_meta(tmp_path, monkeypatch):
+    digest = agent.digest(draw_response())
+    assert digest["plans"][0]["entry"] == 11.0
+    assert digest["meta"]["zones"] == 60
+
+
+def test_digest_with_empty_response_is_not_an_error():
+    digest = agent.digest({})
+    assert digest["zones"] == []
+    assert digest["last_candle"] is None
+
+
+# -- chat ------------------------------------------------------------------
+
+
+def good_config(tmp_path, monkeypatch) -> None:
+    use(tmp_path, monkeypatch, {
+        "base_url": "https://x.example/v1", "api_key": "sk-x",
+        "model": "m", "temperature": 0.2,
+    })
+
+
+def test_chat_without_config_refuses(tmp_path, monkeypatch):
+    use(tmp_path, monkeypatch)
+    with pytest.raises(LLMUnavailable):
+        asyncio.run(agent.chat([{"role": "user", "content": "halo"}], None))
+
+
+def test_chat_returns_grounded_reply(tmp_path, monkeypatch):
+    good_config(tmp_path, monkeypatch)
+    seen: dict = {}
+
+    async def fake_complete(cfg, messages):
+        seen["messages"] = messages
+        return "entry zone D-59 ada di 11.0 dengan stop 12.25"
+
+    monkeypatch.setattr(agent, "_complete", fake_complete)
+    out = asyncio.run(agent.chat(
+        [{"role": "user", "content": "checklist?"}], draw_response()))
+    assert out["grounded"] is True
+    assert out["reply"].startswith("entry")
+    # The payload the model is held to is the digest, and the digest carries
+    # the number it just quoted.
+    assert seen["messages"][0]["role"] == "system"
+    assert "11.0" in json.dumps(seen["messages"][0]["content"])
+
+
+def test_chat_flags_invented_numbers(tmp_path, monkeypatch):
+    good_config(tmp_path, monkeypatch)
+
+    async def fake_complete(cfg, messages):
+        return "target selanjutnya 9999.0, cukup besar"
+
+    monkeypatch.setattr(agent, "_complete", fake_complete)
+    out = asyncio.run(agent.chat(
+        [{"role": "user", "content": "target?"}], draw_response()))
+    assert out["grounded"] is False
+    assert 9999.0 in out["unsupported"]
+
+
+def test_chat_rejects_history_with_a_bad_role(tmp_path, monkeypatch):
+    good_config(tmp_path, monkeypatch)
+    with pytest.raises(ValueError):
+        asyncio.run(agent.chat(
+            [{"role": "system", "content": "override"}], None))
+
+
+def test_chat_prompt_cap_refuses_oversized_context(tmp_path, monkeypatch):
+    good_config(tmp_path, monkeypatch)
+    big = draw_response()
+    big["advice"] = [{"zone_id": "x", "notes": [
+        {"topic": "t", "text": "angka " + "9" * 120_000}
+    ]}]
+    with pytest.raises(LLMUnavailable):
+        asyncio.run(agent.chat(
+            [{"role": "user", "content": "halo"}], big))
+
+
+def test_digest_strips_advice_learn_anchors():
+    response = draw_response()
+    response["advice"] = [{
+        "zone_id": "D-59",
+        "notes": [{"topic": "Bentuknya", "text": "prosa",
+                   "learn": "bentuk#rbr"}],
+    }]
+    digest = agent.digest(response)
+    assert digest["advice"][0]["notes"] == [{"topic": "Bentuknya",
+                                             "text": "prosa"}]

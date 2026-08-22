@@ -94,10 +94,25 @@ def test_direction_is_never_claimed():
 
 
 def test_a_zone_below_the_departure_gate_says_so_with_both_rates():
+    """Angkanya 0,644 sampai 22 Agustus 2026, dan itu milik pasar lain.
+
+    0,858 dan 0,644 diukur pada PAXGUSDT, BTCUSDT dan ETHUSDT dari Binance,
+    sementara eksekutor mencetaknya sebagai alasan order gold Exness. Diukur
+    ulang di bar 5 menit pada instrumen yang benar-benar ditradingkan: 0,430 di
+    atas gerbang dan 0,402 di bawahnya. Test ini mengikat konstanta ke
+    `HELD_BELOW_GATE` alih-alih ke angka yang diketik ulang, supaya pengukuran
+    berikutnya tidak perlu menyunting dua tempat.
+    """
+    from app.plan import HELD_BELOW_GATE
+
     plan = build(zone(departure_atr=1.0), atr=1.0, now=T0,
                  interval_seconds=STEP)
     assert plan is not None
-    assert plan.departure_held_rate == 0.644
+    assert plan.departure_held_rate == HELD_BELOW_GATE
+    assert plan.departure_held_rate < 0.5, (
+        "sebuah kohort yang bertahan lebih dari separuh waktu pada reward 2 ATR "
+        "akan berarti edge yang tidak ditemukan pengukuran mana pun di sini"
+    )
     assert any("di BAWAH gerbang 2.0 ATR" in w for w in plan.warnings)
 
 
@@ -329,16 +344,24 @@ def test_the_exness_night_fee_is_carried_rather_than_dropped():
     short for a cost it never pays - an error that leans the same way the
     drawing does, because a demand zone is a long.
     """
-    exness = spec("XAUUSD", broker="exness_zero")
+    exness = spec("XAUUSD", broker="exness_raw")
     assert exness is not None
-    assert exness.carry_bp_per_night == pytest.approx(5.745), "long: admin + swap"
+    # 4,545 admin plus 1,207 swap. Swap-nya 1,20 sampai 22 Agustus 2026, ketika
+    # `tools/broker_costs.py` menurunkannya ulang dari terminal: 555,7 point kali
+    # point 0,001 dibagi harga 4604 memberi 1,207bp. Selisihnya kecil, dan yang
+    # penting angkanya sekarang bisa dihasilkan ulang alih-alih dikutip.
+    assert exness.carry_bp_per_night == pytest.approx(5.752), "long: admin + swap"
     assert exness.carry_asymmetric is True
 
-    short = spec("XAUUSD", broker="exness_zero", long_side=False)
+    short = spec("XAUUSD", broker="exness_raw", long_side=False)
     assert short is not None
     assert short.carry_bp_per_night == pytest.approx(4.545), "short: admin only"
-    assert exness.commission_bp == 0.25
-    assert "BROKERS[exness_zero]" in exness.source
+    # 0,25 SAMPAI 22 AGUSTUS 2026, DAN AKUN INI MEMUNGUT 0,152. Angka 0,25
+    # berasal dari jadwal Exness Zero 5,50 per sisi. Deal nyata di akun
+    # 434083797 memungut 0,07 USD pada 0,01 lot di harga 4604,221, yaitu 3,50
+    # per sisi dan 0,152bp round turn. Angka terukur menang atas angka terkutip.
+    assert exness.commission_bp == 0.152
+    assert "BROKERS[exness_raw]" in exness.source
 
     # A row nobody has read side by side must behave exactly as it did before:
     # one figure, both sides, and `carry_asymmetric` False so nothing downstream

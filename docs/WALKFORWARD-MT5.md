@@ -1,5 +1,16 @@
 # Walk-forward di emas broker sungguhan, 19 Agustus 2026, diukur ulang 20 Agustus 2026
 
+> [!CAUTION]
+> **Setiap ekspektasi R di dokumen ini diukur dengan konvensi yang, per 22
+> Agustus 2026, diketahui melebihkan.** Target yang tersentuh di bar entry
+> sendiri dihitung sebagai kemenangan, dan itu mengasumsikan urutan di dalam bar
+> yang OHLC tidak bisa membuktikan. Diadili dengan bar 5 menit dan 15 menit pada
+> 1.569 trade di 7 sel: ekspektasi sebenarnya +0,0214 R dengan CI95
+> [-0,024, +0,067], bukan +0,20 R. Lihat [QA-QUANT.md](QA-QUANT.md) bagian 6.
+>
+> Yang bertahan: gerbang departure tetap memisahkan, +0,124 R dengan Welch
+> t = +4,82 di 7 dari 7 sel. Yang tidak bertahan: tingkat absolutnya.
+
 Pengukuran terpisah, bukan pembaruan angka yang sudah terbit di
 `docs/CALIBRATION.md`. Deret bawaan `tools/walkforward.py` tidak diubah.
 
@@ -117,7 +128,7 @@ ditolak, artinya gerbangnya hampir tidak menyaring apa pun pada deret ini.
 
 ```
 python -m tools.costed --symbol "mt5:XAUUSD" --interval 15m --bars 50000
-python -m tools.costed --symbol "mt5:XAUUSD" --interval 15m --bars 50000 --broker exness_zero
+python -m tools.costed --symbol "mt5:XAUUSD" --interval 15m --bars 50000 --broker exness_raw
 ```
 
 Ini pertama kalinya biaya emas di proyek ini dihitung dengan **spread yang
@@ -145,7 +156,7 @@ pada kedua profil biaya.
 > [!IMPORTANT]
 > Hasilnya **kokoh terhadap pilihan profil biaya**, dan itu yang membuatnya
 > layak dipercaya. Baris generik memakai komisi yang komentarnya sendiri sebut
-> belum terverifikasi; `exness_zero` memakai komisi terbitan Exness plus biaya
+> belum terverifikasi; `exness_raw` memakai komisi terbitan Exness plus biaya
 > administrasi 4,545 bp per malam yang lebih besar dari seluruh biaya lain
 > digabung. Keduanya menghasilkan angka yang praktis sama, +0.198 lawan +0.199.
 
@@ -167,7 +178,7 @@ yang tidak pernah dibayarnya. Kesalahannya condong ke arah yang sama dengan
 gambarnya: zona demand itu long.
 
 > [!WARNING]
-> **Belum tuntas dan butuh konfirmasi pemilik.** Profil `exness_zero` semula
+> **Belum tuntas dan butuh konfirmasi pemilik.** Profil `exness_raw` semula
 > menulis `swap_bp: 0.0` dengan alasan Indonesia masuk daftar swap-free Islamic
 > Exness. Terminal yang tersambung menagih long 1,20 bp per malam. Keduanya
 > tidak bisa sama-sama benar tentang akun ini, dan terminal adalah pihak yang
@@ -178,6 +189,40 @@ gambarnya: zona demand itu long.
 Arah asimetrinya milik venue, bukan milik emas: IBKR, yang benar-benar
 meminjamkan, menagih 1,29 bp per hari untuk short dan 0,028 bp untuk long, yaitu
 kebalikannya.
+
+## Koreksi 21 Agustus 2026: 1.338 bar tertua bukan bar satu jam
+
+Permintaan 50.000 bar 1 jam dijawab terminal dengan **35.192** bar, kembali
+sampai 9 Agustus 2016. Yang tidak terlihat sampai hari ini: **1.338 bar tertua
+berjarak satu hari, bukan satu jam**, karena terminal tidak punya riwayat
+intraday sedalam itu dan mengirim apa yang ada. Detektor membaca bar berurutan
+sebagai bersebelahan, jadi ATR, swing, dan setiap zona di rentang itu dihitung
+melintasi langkah yang salah.
+
+Ditemukan lewat gejala yang tampak tidak berhubungan: satu trade melaporkan
+**42 malam** ditahan pada horizon 80 bar. Mustahil pada satu bar per jam, biasa
+pada satu bar per hari.
+
+**Arah dampaknya penting, dan ini keberuntungan bukan desain:**
+
+| Wilayah | n | exp R | t |
+|---|---|---|---|
+| 1.338 bar tertua, spasi harian | 43 | **-0,192** | -1,15 |
+| 33.854 bar sisanya, spasi jam | 910 | **+0,216** | +5,44 |
+| Digabung, angka yang terbit | 953 | +0,198 | +5,10 |
+
+Wilayah kotor itu **mengencerkan** hasilnya, jadi +0,198 R yang sudah terbit
+konservatif dan bukan tersanjung. Instrumen berikutnya belum tentu seberuntung
+itu.
+
+Deret **15 menit tidak terpengaruh**: 50.000 bar diminta, 50.000 diterima, nol
+prefix tidak beraturan. Jadi +0,201 R di 15 menit bersih sejak awal.
+
+`tools/history.irregular_prefix` sekarang menghitungnya dan `tools/costed.py`
+mencetak peringatan saat prefix itu bukan nol. Tidak dipangkas otomatis: tool
+yang butuh window bersih bisa memotong sendiri, sementara tool yang diam-diam
+membuang sepersepuluh deret akan menjawab pertanyaan yang tidak ditanyakan
+siapa pun.
 
 ---
 

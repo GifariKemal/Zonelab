@@ -18,9 +18,11 @@ import numpy as np
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
 
-from . import snapshots
+from . import autotrade, journal, snapshots
+from . import agent as agent_mod
 from .advisor import explain
 from .deduce import deduce
+from .llm import LLMUnavailable
 from .aligned import load_aligned
 from .checklist import build as checklist_for
 from .config import settings
@@ -221,6 +223,115 @@ async def deduce_only(body: dict) -> dict:
             status_code=422, detail="draw must be higher, lower or unnominated"
         )
     return deduce(response, draw)
+
+
+@app.get("/api/autotrade")
+async def autotrade_state() -> dict:
+    """The auto-trade switch, and whether anything is actually running.
+
+    TWO FACTS, NEVER ONE. `enabled` is what a human asked for; `daemon_alive` is
+    whether a process is there to honour it. A UI that showed only the first would
+    display ON over a dead daemon, which is the exact failure this project keeps a
+    list of - an instrument reporting green while the thing it measures has
+    crashed.
+    """
+    return autotrade.read()
+
+
+@app.post("/api/autotrade")
+async def autotrade_arm(body: dict) -> dict:
+    """Flip the switch. THIS ENDPOINT PLACES NO ORDER AND CANNOT.
+
+    All it does is write a flag that `tools/autotrade.py` reads. Order placement
+    lives outside `app/` so that no HTTP request can reach it, and this endpoint
+    exists precisely so a button does not have to break that.
+
+    Arming while no daemon runs is ALLOWED and is not an error: the operator may
+    arm first and start the daemon second. The response says `daemon_alive` either
+    way, and saying so is the UI's job.
+    """
+    if "enabled" not in body or not isinstance(body["enabled"], bool):
+        raise HTTPException(
+            status_code=422, detail="send {\"enabled\": true} or {\"enabled\": false}"
+        )
+    note = str(body.get("note") or "")
+    state = autotrade.arm(body["enabled"], note)
+    # Journalled, because this is the moment a human decided the engine could
+    # trade unattended. A review that sees the orders but not the arming is
+    # reading half the story.
+    journal.record(
+        "armed" if state["enabled"] else "disarmed",
+        why=[f"switch set to {state['enabled']} at {state['updated_at']}"
+             + (f", note: {note}" if note else "")],
+        rule={"surface": "POST /api/autotrade", "places_orders": False},
+        extra={"daemon_alive": state["daemon_alive"],
+               "heartbeat_age_seconds": state["heartbeat_age_seconds"]},
+    )
+    return state
+
+
+@app.get("/api/agent/config")
+async def agent_config() -> dict:
+    """The AI Agent endpoint settings, key masked, plus availability.
+
+    `available` is computed from the same three fields a chat needs, so a UI
+    that shows a green dot over an empty key is impossible by construction -
+    the same two-facts rule the autotrade switch follows.
+    """
+    return agent_mod.masked()
+
+
+@app.post("/api/agent/config")
+async def agent_config_save(body: dict) -> dict:
+    """Save endpoint settings, then PROBE the upstream before answering.
+
+    Saving without probing would report success for a typo, and the typo
+    would surface minutes later in the middle of a chat. The save stands
+    either way - the operator may be pre-configuring an endpoint that is
+    briefly down - but the response says whether it answered.
+    """
+    try:
+        agent_mod.save_config(
+            base_url=str(body.get("base_url") or ""),
+            api_key=str(body.get("api_key") or ""),
+            model=str(body.get("model") or ""),
+            temperature=(None if body.get("temperature") is None
+                         else float(body["temperature"])),
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
+    reachable, why, offered = await agent_mod.probe()
+    return {**agent_mod.masked(), "reachable": reachable, "error": why,
+            "models": offered}
+
+
+@app.get("/api/agent/models")
+async def agent_models() -> dict:
+    """Model ids from the configured endpoint, for the picker."""
+    try:
+        return {"models": await agent_mod.models()}
+    except LLMUnavailable as exc:
+        raise HTTPException(status_code=503, detail=str(exc)) from exc
+
+
+@app.post("/api/agent/chat")
+async def agent_chat(body: dict) -> dict:
+    """One assistant turn over the drawing the client is looking at.
+
+    The client posts its history plus the `/api/draw` response it holds, so
+    the server stays stateless and the model can never be discussing a
+    drawing other than the one on screen. Refusals surface as 503 with the
+    module's own wording, for the same reason provider errors do: "no data"
+    tells the reader nothing.
+    """
+    messages = body.get("messages")
+    context = body.get("context")
+    try:
+        return await agent_mod.chat(messages, context)
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
+    except LLMUnavailable as exc:
+        raise HTTPException(status_code=503, detail=str(exc)) from exc
 
 
 @app.get("/api/forming")

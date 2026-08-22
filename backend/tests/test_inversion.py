@@ -74,7 +74,7 @@ def the_ifvg(rows: list[Candle], **overrides):
     # band was demand. The assertions here were always about the seam; only the
     # lookup was wrong. `inverted_at` is not enough to select on either - this
     # fixture has two gaps that die on the same bar.
-    boxes = [z for z in zones if z.id.startswith(f"IFVG-{T}-")]
+    boxes = [z for z in zones if z.id == f"IFVG-{T}"]
     assert len(boxes) == 1, f"expected one inversion of the gap at {T}, got {boxes}"
     return boxes[0], stats
 
@@ -213,7 +213,7 @@ def test_a_breaker_is_the_order_block_read_from_underneath():
     zones, stats = detect_breaker(block_that_breaks(), imb())
     # By the parent block the id names, for the same reason as `the_ifvg`: the
     # box's own left edge is now the inversion bar, not the block at B.
-    boxes = [z for z in zones if z.id.startswith(f"BRK-{B}-")]
+    boxes = [z for z in zones if z.id == f"BRK-{B}"]
 
     assert len(boxes) == 1
     box = boxes[0]

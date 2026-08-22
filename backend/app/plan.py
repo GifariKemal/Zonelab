@@ -41,11 +41,35 @@ import math
 
 from .models import CostSpec, LotSpec, TradePlan, Zone, ZoneSide
 
-# Measured cohort survival at reward 2.0 ATR, from docs/CALIBRATION.md. Held as
-# named constants so a doc edit and a code edit cannot silently disagree.
+# Measured cohort survival at reward 2.0 ATR. Held as named constants so a doc
+# edit and a code edit cannot silently disagree.
+#
+# DIUKUR ULANG 22 AGUSTUS 2026, DAN ANGKA LAMANYA MILIK PASAR LAIN. 0,858 dan
+# 0,644 berasal dari `docs/CALIBRATION.md` tabel reliabilitas, yang diukur pada
+# PAXGUSDT, BTCUSDT dan ETHUSDT dari Binance. Eksekutor mencetak keduanya sebagai
+# alasan setiap order gold Exness, jadi selama ini ia mengutip survival pasar
+# crypto untuk membenarkan trade CFD logam. Itu ketidakcocokan POPULASI, bukan
+# soal konvensi.
+#
+# Angka di bawah diukur pada instrumen yang benar-benar ditradingkan, di bar 5
+# menit, bracket yang sama (target 2,0 ATR dari proximal, gagal kalau sebuah bar
+# CLOSE melewati distal), 5 instrumen 1 jam, n=1196 di atas gerbang dan 3428 di
+# bawahnya. Dekomposisinya, supaya jelas apa yang menyebabkan apa:
+#
+#     kasar, mulai di bar touch (definisi calibrate)   54,3%  lawan  46,0%
+#     kasar, mulai setelah bar touch                   49,2%  lawan  45,8%
+#     halus 5m, mulai di bar fill                      43,0%  lawan  40,2%
+#
+# Jadi konvensi intrabar memakan 5,1 poin dan resolusi halus 6,2 poin lagi;
+# sisanya, dari 85,8% ke 54,3%, adalah pasar yang berbeda.
+#
+# SELISIHNYA TIDAK SIGNIFIKAN pada sampel ini: +2,8 poin dengan t = +1,69. Yang
+# masih signifikan adalah selisih EKSPEKTASI-nya, +0,124 R dengan Welch t =
+# +4,82 di `docs/QA-QUANT.md` bagian 6, dan itulah angka yang layak dikutip
+# sebagai alasan sebuah order.
 DEPARTURE_GATE_ATR = 2.0
-HELD_CLEARED_GATE = 0.858
-HELD_BELOW_GATE = 0.644
+HELD_CLEARED_GATE = 0.430
+HELD_BELOW_GATE = 0.402
 AGE_BANDS = ((10, 0.936), (59, 0.772))  # (upper bound in bars, held rate)
 
 # No published source gives a stop buffer. Seiden and the ICT material both say

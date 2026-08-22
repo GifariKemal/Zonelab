@@ -54,6 +54,15 @@ from .providers.base import INTERVALS
 #: invented no bucket the broker does not have.
 WEEK_PHASE = 3 * 86400
 
+#: One degree up, for callers that want "the higher timeframe" without choosing.
+#:
+#: 4x, which sits in the middle of the 3x to 12x band practitioners actually use,
+#: and it matters only that it is the SAME everywhere or the cohorts stop being
+#: comparable. `tools/calibrate.py` carried this as a literal and
+#: `tools/execute.py` needed the same answer; a second copy would let a
+#: measurement and a live decision disagree about what "higher" means.
+STEP_UP: dict[str, str] = {"15m": "1h", "1h": "4h", "4h": "1d"}
+
 
 def resample(
     candles: list[Candle], target: str, source: str, session_offset_hours: float = 0.0
@@ -106,5 +115,31 @@ def resample(
     # while a live bar can be full-length and still be forming.
     if out and candles[-1].time + INTERVALS[source] < out[-1].time + step:
         out.pop()
+
+    # AND THE FIRST ONE, for the mirror reason. This was missing until
+    # 2026-08-21 and it repainted: a window that begins mid-bucket aggregates
+    # only the TAIL of that day, so the bucket's `low` is the minimum of fewer
+    # bars and comes out too high, its `high` too low, and its `open` is not the
+    # day's open. Grow the window leftwards and the same bucket gains its
+    # missing bars and every one of those numbers moves.
+    #
+    # Measured: `test_a_projected_higher_timeframe_box_never_moves` caught a 1d
+    # supply zone whose bottom read 3632.57633403 in one window and
+    # 3632.58514704 in a longer one, and 10 of 24 wall-clock anchors reproduced
+    # it. Small - a hundredth of a point - and for a supply zone the bottom is
+    # the PROXIMAL, which is where an order goes.
+    #
+    # Worse than a forming bar rather than merely equal to it: a forming bar is
+    # honestly incomplete and will finish, while this one looks finished and is
+    # simply wrong.
+    #
+    # THE COST, STATED. A market that opens late after a holiday leaves a first
+    # bar past its bucket's start, and this rule cannot tell that apart from a
+    # window cut mid-day, so it drops that bucket too. One HTF bar at the far
+    # left of the window, against a high and a low that silently move: the
+    # trade is worth it, and callers already handle a shorter list because
+    # `resample` may return nothing at all.
+    if out and candles[0].time > out[0].time:
+        out.pop(0)
 
     return out

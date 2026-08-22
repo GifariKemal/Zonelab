@@ -66,7 +66,7 @@ from __future__ import annotations
 import numpy as np
 
 from .detect.supply_demand import replay_lifecycle
-from .indicators import EPS, classify_candles, runs, wilder_atr
+from .indicators import EPS, classify_candles, flat_atr, runs, wilder_atr
 from .models import Candle, Refinement, SupplyDemandParams, Zone, ZoneSide
 from .providers.base import INTERVALS
 
@@ -144,7 +144,13 @@ def refine_zones(
             lt_open[start : end + 1], lt_high[start : end + 1],
             lt_low[start : end + 1], lt_close[start : end + 1],
             zone.side is ZoneSide.DEMAND, params,
-            float(lt_atr[max(0, start - 1)]),
+            # The FLAT window, not `lt_atr[start - 1]`. The only thing `_box`
+            # uses this for is the minimum-height floor, and a floor built from
+            # Wilder's ATR makes the refined proximal a function of where the
+            # lower-timeframe window begins - the same defect measured in
+            # `supply_demand`, arriving through the refinement door. 0.0 when the
+            # flat window is incomplete, which grows nothing.
+            flat_atr(lt_high, lt_low, lt_close, params.atr_period, start - 1) or 0.0,
         )
         if box is None:
             stats["refine_no_inner_base"] += 1

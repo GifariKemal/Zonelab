@@ -45,7 +45,7 @@ from app.confluence import mark_nesting
 from app.detect.supply_demand import detect
 from app.indicators import wilder_atr
 from app.profit_zone import profit_zone_at
-from app.resample import resample
+from app.resample import STEP_UP, resample
 from app.models import Candle, SupplyDemandParams, Zone, ZoneSide
 from tools import history
 
@@ -160,7 +160,7 @@ def evaluate(
     # else. The step up is 4x, which sits in the middle of the 3x to 12x band
     # practitioners actually use, and matters only in that it must be the same
     # for every series or the cohorts are not comparable.
-    step_up = {"15m": "1h", "1h": "4h", "4h": "1d"}.get(interval)
+    step_up = STEP_UP.get(interval)
     if step_up:
         higher_bars = resample(candles, step_up, interval)
         if len(higher_bars) >= params.atr_period + 3:

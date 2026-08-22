@@ -47,7 +47,7 @@ import json
 
 import numpy as np
 
-from app.costs import BROKERS, row_for, schedule
+from app.costs import BROKERS, cost_to_risk, row_for, schedule
 from app.detect import DETECTORS
 from app.detect.structure import swings
 from app.indicators import wilder_atr
@@ -72,6 +72,25 @@ HORIZON = 80  # bars a trade is given before it is called a timeout
 # because charging at the earlier cutoff catches more trades, and this whole
 # line item is one a backtest must not flatter itself on.
 ROLLOVER_HOUR_UTC = 21
+
+
+def rollovers(t0: int, t1: int) -> int:
+    """How many rollover instants sit between two epochs.
+
+    Off the CLOCK, never off a bar. Looking for a bar stamped 21:00 finds
+    nothing: gold has no 21:00 bar at all, because that hour IS the daily session
+    break - measured on this series, every other hour has about 216 bars and
+    21:00 has zero. A bar-presence test therefore reports "never charged", which
+    is the flattering answer and the wrong one, since the rollover happens inside
+    exactly that gap.
+
+    At module scope rather than nested inside `trades`, because `tools/flatten.py`
+    has to ask the same question about a LIVE position and two copies of this
+    arithmetic would be two definitions of what a night is - one charging the
+    backtest and one closing the real trade.
+    """
+    shift = ROLLOVER_HOUR_UTC * 3600
+    return (t1 - shift) // 86_400 - (t0 - shift) // 86_400
 # Every figure above is ROUND TURN except swap, which is per rollover crossed.
 # Charged once per trade, because that is how the sources quote them.
 #
@@ -91,11 +110,29 @@ def _params(name: str):
     return ImbalanceParams(**base)
 
 
+#: DEFAULT DIBALIK 22 AGUSTUS 2026, DAN INI MENGUBAH SETIAP ANGKA YANG PERNAH
+#: DITERBITKAN DARI FILE INI. Sampai hari itu, target yang tersentuh di bar entry
+#: sendiri dihitung sebagai kemenangan. Diukur: 62% sampai 68% PEMENANG selesai
+#: di bar entry lawan hanya 20% sampai 40% yang KALAH, dan asimetri itu adalah
+#: asumsi urutan intrabar, bukan sifat pasar.
+#:
+#: Diadili dengan bar yang lebih halus di `tools/intrabar.py`, pada 1.569 trade
+#: di 7 sel yang punya riwayat 5 menit atau 15 menit:
+#:
+#:     izinkan bar entry   +0,20 R   (yang lama)
+#:     tunda bar entry     -0,06 R   (yang baru, default sekarang)
+#:     resolusi halus      +0,02 R   (kebenarannya, t=0,92, CI95 -0,024..+0,067)
+#:
+#: Jadi keduanya salah dan yang lama salah jauh lebih besar. Default sekarang
+#: yang konservatif, dan `tools/intrabar.py` yang dipakai kalau riwayat halusnya
+#: ada. Membiarkan default yang sudah diketahui melebihkan lebih buruk daripada
+#: memutus kesinambungan angka.
 def trades(
     name: str, candles, interval: str, costs: bool, rng=None,
     anchored: bool = False, symbol: str = "XAUUSD",
     conservative: bool = False, broker: str = "",
     flat_by_rollover: bool = False,
+    same_bar_target: bool = False,
 ) -> list[dict]:
     """Every zone's first touch, resolved to an R multiple.
 
@@ -227,7 +264,8 @@ def trades(
         if plan is None:
             continue
         if plan.target is None:
-            out.append({"skipped": True, "cleared": zone.departure_atr >= 2.0})
+            out.append({"skipped": True, "cleared": zone.departure_atr >= 2.0,
+                        "zone_id": zone.id})
             continue
 
         long_side = zone.side is ZoneSide.DEMAND
@@ -252,11 +290,17 @@ def trades(
         # with nothing to show for it.
         if plan.side is ZoneSide.SUPPLY and "swap_bp_short" in fees:
             swap_bp = fees["swap_bp_short"]
-        friction = (
-            float(close[touch])
-            * (fees["commission_bp"] + fees["slippage_bp"] + swap_bp * nights)
-            / 10_000
-        ) if costs else 0.0
+        # SATU RUMUS, di `app/costs.cost_to_risk`, dipakai bersama gerbang live
+        # di `tools/execute.py`. Sebelumnya aritmetika ini hidup di sini saja,
+        # dan gerbang biaya yang ditambahkan 22 Agustus 2026 akan menjadi
+        # salinan kedua yang bisa menyimpang dari yang mengukurnya.
+        if costs:
+            ratio, friction = cost_to_risk(
+                float(close[touch]), plan.risk_per_unit, spread or 0.0, fees,
+                nights, swap_bp=swap_bp,
+            )
+        else:
+            ratio, friction = 0.0, 0.0
         risk = plan.risk_per_unit + friction
         if risk <= 0:
             continue
@@ -278,7 +322,17 @@ def trades(
 
         result = None
         exit_index = last
+        # MAE DAN MFE, dalam satuan R yang sama dengan hasilnya, direkam SELAMA
+        # walk dan bukan dihitung ulang sesudahnya. Keduanya menjawab pertanyaan
+        # yang tidak bisa dijawab hasil akhir: apakah stop-nya terlalu rapat
+        # (MAE pemenang mendekati -1) dan apakah target-nya terlalu jauh (MFE
+        # yang kalah pernah jauh di atas nol sebelum berbalik).
+        worst = best = 0.0
         for i in range(touch, last + 1):
+            up = (high[i] - plan.entry) if long_side else (plan.entry - low[i])
+            down = (low[i] - plan.entry) if long_side else (plan.entry - high[i])
+            best = max(best, up / risk)
+            worst = min(worst, down / risk)
             hit_stop = low[i] <= plan.stop if long_side else high[i] >= plan.stop
             hit_target = (
                 high[i] >= plan.target if long_side else low[i] <= plan.target
@@ -289,6 +343,17 @@ def trades(
             if hit_stop:
                 result, exit_index = -1.0, i
                 break
+            # BAR ENTRY BOLEH MENGHENTIKAN, TIDAK BOLEH MEMBAYAR, kalau
+            # `same_bar_target` dimatikan. Sebabnya bukan kehati-hatian umum:
+            # diukur 22 Agustus 2026, 62% sampai 68% pemenang diselesaikan di bar
+            # entry sendiri lawan hanya 20% sampai 40% yang kalah, dan asimetri
+            # sebesar itu adalah tanda tangan urutan intrabar yang diasumsikan
+            # menguntungkan. Harga jatuh MASUK ke demand zone, jadi high bar itu
+            # sering terjadi SEBELUM low-nya, yaitu sebelum entry terisi.
+            # OHLC tidak bisa memberi urutannya, jadi satu-satunya pembacaan
+            # yang tidak mengarang adalah menunggu bar berikutnya.
+            if i == touch and not same_bar_target:
+                continue
             if hit_target:
                 result = (abs(plan.target - plan.entry) - friction) / risk
                 exit_index = i
@@ -309,11 +374,7 @@ def trades(
         #
         # Counted from the actual exit rather than the horizon, because a trade
         # stopped out in ten bars never paid for the other seventy.
-        def _rollovers(t0: int, t1: int) -> int:
-            shift = ROLLOVER_HOUR_UTC * 3600
-            return (t1 - shift) // 86_400 - (t0 - shift) // 86_400
-
-        nights_held = int(_rollovers(int(time[touch]), int(time[exit_index])))
+        nights_held = int(rollovers(int(time[touch]), int(time[exit_index])))
         admin = float(close[touch]) * fees.get("admin_bp", 0.0) / 10_000
         if costs and admin and nights_held:
             result -= admin * nights_held / risk
@@ -321,6 +382,17 @@ def trades(
         out.append({
             "skipped": False,
             "at": touch,
+            # The bar the walk actually left on, which is what purging needs: a
+            # trade still resolving when the next fold starts carries that
+            # fold's bars inside this fold's number. `at` alone cannot say that.
+            "exit": exit_index,
+            # Identity, so a row can be joined back to the drawing it came from.
+            # On the placebo arms this is the id of the zone the control was
+            # DERIVED from - the copy keeps it - which is the right answer for
+            # "which real zone does this control belong to".
+            "zone_id": zone.id,
+            "kind": zone.kind.value,
+            "side": zone.side.value,
             "r": result,
             # Cost as a fraction of the trade's own risk. This is the number
             # that makes two instruments comparable at all: a bp constant is NOT
@@ -329,8 +401,12 @@ def trades(
             # on PAXG, which is why the crypto arms lose on cost alone with no
             # change in the signal.
             "nights": nights_held,
-            "cost_r": (friction + (spread or 0.0)) / risk if risk > 0 else 0.0,
+            "cost_r": ratio,
             "won": result > 0,
+            # Excursion terburuk dan terbaik dalam R, dari entry sampai exit.
+            "mae": worst,
+            "mfe": best,
+            "bars_held": exit_index - touch,
             "cleared": zone.departure_atr >= 2.0,
             # The RAW value, not just which side of the shipped gate it
             # fell. tools/blind_gate.py needs it to choose a threshold on
@@ -338,6 +414,27 @@ def trades(
             "departure": zone.departure_atr,
         })
     return out
+
+
+def purged_fold(rows: list[dict], lo: int, hi: int) -> tuple[list[dict], int]:
+    """Trades that both OPEN and RESOLVE inside `[lo, hi)`, and how many were not.
+
+    PURGING, the same rule `tools/walkforward.py` applies. A trade that opens
+    inside a fold but is still resolving when the next one begins carries the
+    NEXT fold's bars inside this fold's number, so the folds stop being the
+    independent slices a sign test assumes them to be. Dropped rather than
+    truncated: a half-resolved outcome is not an outcome.
+
+    Split out of `main` so the rule is testable without running the tool. Before
+    2026-08-21 there was no rule: every trade whose touch fell in the slice was
+    counted, including the ones the next slice decided.
+
+    Half-open on purpose. `hi` is the first bar of the NEXT fold, so a trade
+    exiting exactly on it was decided by that fold and belongs to neither.
+    """
+    opened = [r for r in rows if lo <= r["at"] < hi]
+    kept = [r for r in opened if r["exit"] < hi]
+    return kept, len(opened) - len(kept)
 
 
 def report(rows: list[dict], title: str, out: dict) -> None:
@@ -379,6 +476,16 @@ def main() -> None:
     candles = history.load(args.symbol, args.interval, args.bars)
     spreads = [c.spread for c in candles if c.spread is not None]
     print(f"  {len(candles)} bars, {len(spreads)} carrying a measured spread")
+    # SAID OUT LOUD, because it was invisible for as long as it existed. The
+    # terminal has no deep intraday history and serves whatever it has, so the
+    # oldest stretch of a long hourly request can be spaced a DAY apart while
+    # still labelled 1h. See `history.irregular_prefix` for what that cost.
+    irregular = history.irregular_prefix(candles, args.interval)
+    if irregular:
+        print(f"  WARNING: the oldest {irregular} bars "
+              f"({irregular / len(candles):.1%}) are not spaced at {args.interval}. "
+              "Detectors read consecutive bars as adjacent, so everything in that "
+              "stretch is computed across the wrong step")
     if spreads:
         print(f"  spread min {min(spreads):.3f} mean "
               f"{sum(spreads) / len(spreads):.3f} max {max(spreads):.3f}")
@@ -468,22 +575,42 @@ def main() -> None:
             if not r["skipped"] and r["cleared"]]
     edges = np.linspace(0, len(candles), FOLDS + 1).astype(int)
     signs = []
+    purged_total = 0
     for k in range(FOLDS):
-        fold = [r for r in rows if edges[k] <= r["at"] < edges[k + 1]]
+        # PURGED, the same rule `tools/walkforward.py` applies and for the same
+        # reason. A trade that opens inside this fold but is still resolving when
+        # the next one begins carries the NEXT fold's bars inside this fold's
+        # number, so the folds stop being the independent slices the sign test
+        # below assumes them to be. Dropped rather than truncated: a
+        # half-resolved outcome is not an outcome.
+        #
+        # This was missing until 2026-08-21 while `walkforward.py` had it, so
+        # every fold count this tool has ever printed - including the 8/8 that
+        # put the departure gate into `app/plan.py` - was read off unpurged
+        # slices. The pooled expectancy above never depended on it; the sign
+        # test did. MEASURED on re-run: 0 of the 8 graded folds lost a trade at
+        # 50,000 bars, because the median trade is held ONE bar and only 1.2%
+        # reach the 80-bar horizon. So the 8/8 stands, and now it stands for a
+        # reason instead of by luck.
+        fold, dropped = purged_fold(rows, int(edges[k]), int(edges[k + 1]))
+        purged_total += dropped
         if len(fold) < 20:
             print(f"  fold {k + 1}: {len(fold)} trades, too few to read")
             continue
         exp = float(np.mean([r["r"] for r in fold]))
         signs.append(exp > 0)
-        print(f"  fold {k + 1}: n={len(fold):>4}  exp R {exp:>+7.3f}")
+        print(f"  fold {k + 1}: n={len(fold):>4}  exp R {exp:>+7.3f}"
+              f"   purged {dropped}")
     if signs:
         # Sign test. With k readable folds the floor a coin can reach is
         # 2 / 2^k, so a clean sweep of 8 is p=0.0078 - the same threshold every
         # other walk-forward here was read against.
         p = 2 / 2 ** len(signs) if all(signs) or not any(signs) else float("nan")
         print(f"\n  {sum(signs)} of {len(signs)} folds positive"
-              + (f", sign test p={p:.4f}" if not np.isnan(p) else ""))
-        out["walk_forward"] = {"folds": len(signs), "positive": sum(signs)}
+              + (f", sign test p={p:.4f}" if not np.isnan(p) else "")
+              + f", {purged_total} trades purged at fold boundaries")
+        out["walk_forward"] = {"folds": len(signs), "positive": sum(signs),
+                               "purged": purged_total}
 
     print(
         "\n  Read the two blocks against each other, not on their own. The gap"

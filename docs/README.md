@@ -1,7 +1,7 @@
 # Peta direktori docs
 
-Direktori ini berisi 6 dokumen prosa dan 21 file bukti mentah. Tanpa peta,
-pembaca yang membukanya melihat 27 file dan tidak bisa tahu prosa mana membaca
+Direktori ini berisi 8 dokumen prosa dan 21 file bukti mentah. Tanpa peta,
+pembaca yang membukanya melihat 29 file dan tidak bisa tahu prosa mana membaca
 data mana. Itu satu-satunya alasan file ini ada.
 
 > [!NOTE]
@@ -18,6 +18,10 @@ data mana. Itu satu-satunya alasan file ini ada.
 | [BACKLOG.md](BACKLOG.md) | Apa yang belum dikerjakan, dan apa yang sudah ditolak supaya tidak diusulkan lagi |
 | [WALKFORWARD-MT5.md](WALKFORWARD-MT5.md) | Apakah gate-nya bertahan di luar sampel, per fold, termasuk fold yang gagal |
 | [QA-PRODUKSI.md](QA-PRODUKSI.md) | Catatan QA/QC menuju produksi, 16 bagian, setiap angka dari perintah yang dijalankan |
+| [ALUR-ORDER.md](ALUR-ORDER.md) | Apa yang terjadi, urut, ketika Zonelab memasang order, dan gerbang mana yang menghentikan apa |
+| [PRAREGISTRASI-KONDISI.md](PRAREGISTRASI-KONDISI.md) | Kolom mana yang diuji sebagai pengkondisi ekspektasi, ditulis sebelum satu angka dihitung, plus hasilnya |
+| [QA-QUANT.md](QA-QUANT.md) | Apakah edge-nya nyata setelah biaya per instrumen dan urutan di dalam bar diselesaikan dengan benar. **Baca ini sebelum CALIBRATION.md** |
+| [PRAREGISTRASI-EKSEKUSI.md](PRAREGISTRASI-EKSEKUSI.md) | Dua aturan eksekusi yang diuji setelah sinyalnya habis, keduanya ditolak, dan satu ambang praregistrasi yang salah dirancang |
 
 ## File bukti, dan tool yang menghasilkannya
 

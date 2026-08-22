@@ -23,7 +23,7 @@ from zlib import crc32
 
 import numpy as np
 
-from .. import clock
+from ..clock import market_shut as _closed
 from ..models import Candle
 from .base import INTERVALS, ProviderError
 
@@ -43,26 +43,6 @@ class SyntheticProvider:
         return generate(bars, step, seed=crc32(symbol.encode()))
 
 
-def _closed(epoch: int) -> bool:
-    """Is the market shut at this instant, on the CME futures week?
-
-    Shut from 17:00 New York Friday to 18:00 Sunday, and for the one-hour daily
-    maintenance break from 17:00 to 18:00 on the other weekdays. Those are the
-    same boundaries `app/gaps.py` reads its NDOG and NWOG off, which is the
-    point: a fake market that never closes cannot exercise a single line of the
-    session code, and this repo has a whole module about session boundaries.
-    """
-    when = clock.to_ny(epoch)
-    if when.hour == 17:
-        return True
-    weekday = when.weekday()  # Monday 0 .. Sunday 6
-    if weekday == 5:  # all Saturday
-        return True
-    if weekday == 4 and when.hour >= 17:  # Friday evening onward
-        return True
-    return weekday == 6 and when.hour < 18  # Sunday before the reopen
-
-
 def _session_grid(now: int, step: int, bars: int) -> list[int]:
     """`bars` open times ending at `now`, skipping the hours the market is shut.
 
@@ -79,8 +59,24 @@ def _session_grid(now: int, step: int, bars: int) -> list[int]:
     t = now
     # Bounded rather than `while True`: a step longer than a week would
     # otherwise spin forever looking for an open slot that the coarse grid keeps
-    # landing outside of. 8 slots per bar is far more than any real ratio needs.
-    for _ in range(bars * 8):
+    # landing outside of.
+    #
+    # THE BOUND IS A TIME SPAN, NOT A MULTIPLE OF `bars`, and that repair is
+    # measured. `bars * 8` reads as generous and shrinks with the request, while
+    # the shutdown it has to cross is a FIXED 49 hours - 17:00 New York Friday to
+    # 18:00 Sunday. A 2-bar request made on a Saturday therefore walked back 16
+    # slots of 15m, found every one shut, and returned an EMPTY grid, which
+    # `generate` indexed and raised IndexError from. `get_forming` asks for
+    # exactly that few bars, so `/api/forming` answered 500 for the synthetic
+    # provider from Friday evening to Sunday. Caught 2026-08-22 by the first test
+    # ever written against a frozen weekend clock.
+    #
+    # Doubled and then padded: roughly 31% of the CME week is shut (49 weekend
+    # hours plus four daily maintenance breaks out of 168), so a span of twice
+    # the requested history clears the ratio and the 72 hours clears the hole
+    # itself for requests too small for the ratio to matter.
+    span = bars * step * 2 + 72 * 3600
+    for _ in range(span // step + 1):
         if len(out) == bars:
             break
         if not _closed(t):
@@ -100,6 +96,17 @@ def generate(bars: int, step: int, seed: int = 7, start_price: float = 3400.0) -
     """
     rng = np.random.default_rng(seed)
     grid = _session_grid(int(_time.time()) // step * step, step, bars)
+    # LOUD RATHER THAN SHORT. A grid the session walk could not fill used to be
+    # indexed anyway and raised IndexError from inside the price loop, which
+    # named a line rather than a cause. Returning the short series instead would
+    # be worse: the caller asked for 2 bars, would receive 0, and `get_forming`
+    # reads an empty list as "no bar is forming" - the correct answer for a shut
+    # market and a silent lie for a walk that simply gave up.
+    if len(grid) < bars:
+        raise ProviderError(
+            f"synthetic: only {len(grid)} open {step}s slots found for a request "
+            f"of {bars}; the session walk did not reach far enough back"
+        )
     price = start_price
     out: list[Candle] = []
 

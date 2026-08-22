@@ -53,8 +53,17 @@ def split(rows: list[dict], gate: float) -> tuple[np.ndarray, np.ndarray]:
     return above, below
 
 
-def choose(rows: list[dict]) -> tuple[float, float]:
-    """The threshold with the widest separation on this half alone."""
+def choose(rows: list[dict], objective: str = "separation") -> tuple[float, float]:
+    """The best threshold on this half alone, by `objective`.
+
+    TWO OBJECTIVES, DAN KEDUANYA MENJAWAB PERTANYAAN BERBEDA. `separation`
+    memaksimalkan selisih antara kohort yang lolos dan yang tidak, yang menjawab
+    "apakah gerbangnya menyortir". `expectancy` memaksimalkan ekspektasi kohort
+    yang LOLOS, yang menjawab "apakah ada ambang yang menghasilkan uang".
+    Separasi bisa melebar sementara kohort atasnya tetap negatif, dan itu persis
+    keadaan yang terukur di resolusi halus: gerbangnya menyortir, +0,124 R dengan
+    t = +4,82, dan sisi atasnya cuma break-even.
+    """
     best, best_gap = float("nan"), -float("inf")
     print(f"  {'gate':>6}{'n above':>9}{'n below':>9}{'above':>9}{'below':>9}"
           f"{'separation':>12}")
@@ -65,11 +74,12 @@ def choose(rows: list[dict]) -> tuple[float, float]:
                   f"{'':>9}{'':>9}{'too few':>12}")
             continue
         gap = float(above.mean() - below.mean())
-        star = "  <-" if gap > best_gap else ""
+        score = float(above.mean()) if objective == "expectancy" else gap
+        star = "  <-" if score > best_gap else ""
         print(f"  {gate:>6.1f}{len(above):>9}{len(below):>9}"
               f"{above.mean():>9.3f}{below.mean():>9.3f}{gap:>12.3f}{star}")
-        if gap > best_gap:
-            best, best_gap = float(gate), gap
+        if score > best_gap:
+            best, best_gap = float(gate), score
     return best, best_gap
 
 
@@ -93,23 +103,59 @@ def main() -> None:
     parser.add_argument("--symbol", default="yahoo:XAUUSD")
     parser.add_argument("--interval", default="1h")
     parser.add_argument("--bars", type=int, default=20000)
-    parser.add_argument("--broker", default="exness_zero")
+    parser.add_argument("--broker", default="exness_raw")
+    parser.add_argument("--fine", default="",
+                        help="timeframe halus untuk penyelesaian, misal 5m")
+    parser.add_argument("--objective", default="separation",
+                        choices=("separation", "expectancy"))
+    parser.add_argument("--symbols", default="",
+                        help="daftar simbol, digabung jadi satu populasi")
     args = parser.parse_args()
 
-    candles = history.load(args.symbol, args.interval, args.bars)
-    rows = [r for r in trades("supply_demand", candles, args.interval, True,
-                              symbol=args.symbol, broker=args.broker)
-            if not r["skipped"]]
-    mid = int(np.median([r["at"] for r in rows]))
-    first = [r for r in rows if r["at"] <= mid]
-    second = [r for r in rows if r["at"] > mid]
+    names = [s.strip() for s in (args.symbols or args.symbol).split(",") if s.strip()]
+    rows: list[dict] = []
+    total_bars = 0
+    for name in names:
+        if args.fine:
+            # RESOLUSI HALUS. Sampai 22 Agustus 2026 tool ini menyelesaikan trade
+            # di bar besar, yang melebihkan ekspektasi karena target di bar entry
+            # dihitung menang. Ambang yang dipilih di angka yang melebihkan adalah
+            # ambang untuk pertanyaan yang salah.
+            from tools.intrabar import resolved
+            bare = name.split(":")[-1]
+            got = [r for r in resolved(bare, args.interval, args.fine)
+                   if not r["skipped"]]
+            total_bars += len(got)
+        else:
+            candles = history.load(name, args.interval, args.bars)
+            total_bars += len(candles)
+            got = [r for r in trades("supply_demand", candles, args.interval, True,
+                                     symbol=name.split(":")[-1], broker=args.broker)
+                   if not r["skipped"]]
+        # Waktu dinormalkan per simbol supaya paruh pertama satu simbol tidak
+        # bercampur dengan paruh kedua simbol lain saat digabung.
+        if got:
+            mid_at = float(np.median([r["at"] for r in got]))
+            for r in got:
+                r["half"] = 0 if r["at"] <= mid_at else 1
+            rows.extend(got)
+    if not rows:
+        print("tidak ada trade")
+        return
+    # PARUH PER SIMBOL, bukan paruh dari indeks bar yang digabung. Menggabung
+    # `at` lintas simbol membuat median-nya tidak berarti apa pun: indeks bar
+    # instrumen A dan B tidak menunjuk waktu yang sama.
+    first = [r for r in rows if r["half"] == 0]
+    second = [r for r in rows if r["half"] == 1]
 
     print(f"\n{'=' * 74}")
-    print(f"BLIND GATE   {args.symbol} {args.interval}   {len(candles)} bars")
+    print(f"BLIND GATE   {','.join(names)} {args.interval}"
+          + (f"   halus {args.fine}" if args.fine else "")
+          + f"   objective {args.objective}")
     print(f"{'=' * 74}")
     print(f"  {len(first)} trades in the first half, {len(second)} in the second")
     print("\n  Choosing on the FIRST HALF only. The second half is not read.")
-    gate, gap = choose(first)
+    gate, gap = choose(first, args.objective)
     if np.isnan(gate):
         print("\n  no threshold left both cohorts large enough; nothing to test")
         return

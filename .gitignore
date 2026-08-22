@@ -36,3 +36,23 @@ analisis lama/
 # snapshot yang terhapus adalah pengamatan yang hilang. Tidak pernah di-commit -
 # isinya keadaan akun dan keputusan pribadi.
 backend/.snapshots/
+
+# Journal keputusan: satu baris per order, penolakan, fill, dan penutupan,
+# lengkap dengan alasan dan ticket broker. Alasan yang sama dengan di atas, plus
+# satu lagi: ia memuat nomor ticket akun sungguhan.
+backend/.journal/
+
+# Saklar auto-trade dan heartbeat daemon-nya. Keadaan trading sebuah akun, dan
+# ia HARUS lokal: repo yang ter-commit dengan enabled=true akan menyalakan
+# auto-trade di mesin siapa pun yang melakukan clone.
+backend/.autotrade.json
+
+# Endpoint AI Agent (base_url, api_key, model). Kredensial, dan aturan
+# kredensial di grup ini mutlak sejak insiden 2026-05-28: tidak pernah
+# ter-track, tidak pernah di-hardcode.
+backend/.agent.json
+
+# Referensi luar yang diunduh untuk analisis. Bukan sumber, dan bukan milik
+# proyek ini - dua di antaranya PDF paper berhak cipta.
+external_refs/
+external_refs_analisis_lama/
