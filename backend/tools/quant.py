@@ -70,6 +70,9 @@ from datetime import datetime
 from app.clock import NY
 from app.ssmt import ssmt as ssmt_read
 from app.tcisd import find as tcisd_find
+from app.indicators import wilder_atr
+from app.regime import regime as regime_filter
+from app.zscore import zscore as zscore_compute
 
 #: Instrumen yang terminal ini benar-benar punya, diukur 22 Agustus 2026 lewat
 #: `symbol_info` plus `copy_rates_from_pos`. NAS100 TIDAK ada di broker ini dan
@@ -480,8 +483,93 @@ def tcisd_trades(
     return out
 
 
+def quant_filter(
+    symbol: str, candles, interval: str,
+    all_trades: list[dict],
+) -> list[dict]:
+    """Apply Z-Score, Volume, and Regime filters to zone-based trades.
+
+    Returns only trades that pass all three quantitative filters:
+    1. Z-Score: spread with partner must be > ±2.0 (correlation fracture)
+    2. Volume: trade bar volume must be above trailing 20-bar average
+    3. Regime: reject trades in chop (ATR bottom 20th percentile)
+    """
+    if not all_trades:
+        return []
+
+    # ---- Z-Score: pre-compute validity map by timestamp, O(1) lookup ----
+    z_by_time: dict[int, bool] = {}
+    partner_sym = TCISD_PARTNER.get(symbol, "XAGUSD")
+    try:
+        partner_rows = history.load(f"mt5:{partner_sym}", interval, len(candles))
+    except Exception:
+        partner_rows = []
+
+    if partner_rows:
+        my_times = {c.time for c in candles}
+        partner_times = {c.time for c in partner_rows}
+        common = sorted(my_times & partner_times)
+        if len(common) >= 100:
+            mine = [c for c in candles if c.time in common]
+            partner = [c for c in partner_rows if c.time in common]
+            prices_a = np.array([c.close for c in mine], dtype=np.float64)
+            prices_b = np.array([c.close for c in partner], dtype=np.float64)
+            z = zscore_compute(prices_a, prices_b, lookback=50)
+            for i, t in enumerate(common):
+                if not np.isnan(z[i]):
+                    z_by_time[t] = abs(z[i]) >= 2.0
+
+    # ---- Volume: pre-compute above-average flags per bar ----
+    vol_ok: dict[int, bool] = {}
+    for i in range(20, len(candles)):
+        trailing = [c.volume for c in candles[i - 20 : i]]
+        avg = sum(trailing) / len(trailing)
+        vol_ok[candles[i].time] = avg <= 0 or candles[i].volume >= avg
+
+    # ---- Regime: reject chop ----
+    high = np.array([c.high for c in candles], dtype=np.float64)
+    low = np.array([c.low for c in candles], dtype=np.float64)
+    close_arr = np.array([c.close for c in candles], dtype=np.float64)
+    atr_arr = wilder_atr(high, low, close_arr, 14)
+    reg = regime_filter(atr_arr[~np.isnan(atr_arr)]) if len(atr_arr) > 100 else "normal"
+
+    # ---- Apply filters ----
+    out = []
+    z_pass = z_skip = v_skip = r_skip = 0
+    for t in all_trades:
+        at = t.get("at", 0)
+        if at >= len(candles):
+            continue
+        bar_time = candles[at].time
+
+        # Z-Score: if we have Z-Score data and the bar is NOT a fracture, skip
+        if z_by_time and bar_time in z_by_time and not z_by_time[bar_time]:
+            z_skip += 1
+            continue
+        if z_by_time:
+            z_pass += 1
+
+        # Volume: trade bar must have above-average volume
+        if bar_time in vol_ok and not vol_ok[bar_time]:
+            v_skip += 1
+            continue
+
+        # Regime: reject trades in chop
+        if reg == "chop":
+            r_skip += 1
+            continue
+
+        out.append({**t, "regime": reg})
+
+    if z_skip or v_skip or r_skip:
+        print(f"  {symbol} {interval}: z-pass={z_pass} z-skip={z_skip} "
+              f"v-skip={v_skip} r-skip={r_skip} kept={len(out)}/{len(all_trades)}")
+    return out
+
+
 def cell(symbol: str, interval: str, flat: bool = True,
-         bars: int = MT5_MAX_BARS, tcistd: bool = False) -> dict:
+         bars: int = MT5_MAX_BARS, tcistd: bool = False,
+         quant: bool = False) -> dict:
     """Satu sel matrix: instrumen kali timeframe, semua angkanya."""
     candles, dropped, requested = clean(symbol, interval, bars)
     if len(candles) < 500:
@@ -495,6 +583,8 @@ def cell(symbol: str, interval: str, flat: bool = True,
                                   symbol=symbol, broker=BROKER,
                                   flat_by_rollover=flat)
                 if not x["skipped"]]
+    if quant and rows:
+        rows = quant_filter(symbol, candles, interval, rows)
     gated = [x for x in rows if x["cleared"]]
     out = {"symbol": symbol, "interval": interval, "bars": len(candles),
            "dropped_prefix": dropped, "requested": requested,
@@ -522,12 +612,15 @@ def main() -> int:
     parser.add_argument("--bars", type=int, default=MT5_MAX_BARS)
     parser.add_argument("--tcistd", action="store_true",
                         help="entry tCISD (SSMT-based), bukan proximal")
+    parser.add_argument("--quant", action="store_true",
+                        help="Z-Score + Volume + Regime quantitative filters")
     args = parser.parse_args()
     flat = not args.hold
 
     print(f"exit rule: {'flat di rollover' if flat else f'hold {HORIZON} bar'}, "
           f"broker {BROKER}, prefix spacing salah DIBUANG"
-          + (", entry: tCISD" if args.tcistd else ""))
+          + (", entry: tCISD" if args.tcistd else "")
+          + (", filters: Z-Score+Volume+Regime" if args.quant else ""))
 
     if args.matrix:
         print(f"\n{'symbol':8s} {'tf':4s} {'bar':>7s} {'buang':>6s} {'n':>5s} "
@@ -536,7 +629,7 @@ def main() -> int:
         cells = []
         for symbol in UNIVERSE:
             for interval in args.intervals.split(","):
-                c = cell(symbol, interval, flat, args.bars, tcistd=args.tcistd)
+                c = cell(symbol, interval, flat, args.bars, tcistd=args.tcistd, quant=args.quant)
                 cells.append(c)
                 if not c.get("n"):
                     print(f"{symbol:8s} {interval:4s} {c.get('note', 'tanpa trade')}")
