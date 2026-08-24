@@ -43,6 +43,7 @@ import { LevelsSeriesPrimitive } from "./levels-primitive";
 import { SessionSeriesPrimitive } from "./session-primitive";
 import { SSMTSeriesPrimitive } from "./ssmt-primitive";
 import { SMTSeriesPrimitive } from "./smt-primitive";
+import { FibonacciSeriesPrimitive } from "./fibonacci-primitive";
 import { claimedLabels, StructureSeriesPrimitive } from "./structure-primitive";
 import { ZoneSeriesPrimitive } from "./zone-primitive";
 
@@ -194,6 +195,7 @@ export function Chart({
   const breakPrimitive = useRef<BreakSeriesPrimitive | null>(null);
   const ssmtPrimitive = useRef<SSMTSeriesPrimitive | null>(null);
   const smtPrimitive = useRef<SMTSeriesPrimitive | null>(null);
+  const fibPrimitive = useRef<FibonacciSeriesPrimitive | null>(null);
   const dfrPrimitive = useRef<DFRSeriesPrimitive | null>(null);
   const levelsPrimitive = useRef<LevelsSeriesPrimitive | null>(null);
 
@@ -346,6 +348,8 @@ export function Chart({
     candleSeries.attachPrimitive(ssmtPrim);
     const smtPrim = new SMTSeriesPrimitive();
     candleSeries.attachPrimitive(smtPrim);
+    const fibPrim = new FibonacciSeriesPrimitive();
+    candleSeries.attachPrimitive(fibPrim);
     const structurePrim = new StructureSeriesPrimitive();
     candleSeries.attachPrimitive(structurePrim);
     const zonePrimitive = new ZoneSeriesPrimitive();
@@ -427,6 +431,7 @@ export function Chart({
     breakPrimitive.current = breakPrim;
     ssmtPrimitive.current = ssmtPrim;
     smtPrimitive.current = smtPrim;
+    fibPrimitive.current = fibPrim;
     dfrPrimitive.current = dfrPrim;
     levelsPrimitive.current = levelsPrim;
 
@@ -485,6 +490,7 @@ export function Chart({
       breakPrimitive.current = null;
       ssmtPrimitive.current = null;
       smtPrimitive.current = null;
+      fibPrimitive.current = null;
       dfrPrimitive.current = null;
       levelsPrimitive.current = null;
     };
@@ -604,6 +610,20 @@ export function Chart({
   useEffect(() => {
     structurePrimitive.current?.setStructure(swings, structure);
   }, [swings, structure]);
+
+  // Fibonacci anchors: the most recent CONFIRMED swing high and swing low.
+  // Drawn over that swing so the OTE band reads against the live structure.
+  useEffect(() => {
+    const highs = swings.filter((s) => s.high && s.scale === "swing");
+    const lows = swings.filter((s) => !s.high && s.scale === "swing");
+    const lastHigh = highs[highs.length - 1];
+    const lastLow = lows[lows.length - 1];
+    if (lastHigh && lastLow) {
+      fibPrimitive.current?.setSwing(lastLow.price, lastHigh.price);
+    } else {
+      fibPrimitive.current?.setSwing(null, null);
+    }
+  }, [swings]);
 
   useEffect(() => {
     sessionPrimitive.current?.setSession(quarters, trueOpens, news);
