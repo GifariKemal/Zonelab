@@ -30,11 +30,13 @@ the place to add a thirteenth.
 from __future__ import annotations
 
 import argparse
+from datetime import datetime
 
 import numpy as np
 
 from app import journal
 from app.actionable import blockers
+from app.clock import NY
 from app.conditions import at_bar
 from app.confluence import mark_nesting
 from app.costs import COST_TO_RISK_MAX, cost_to_risk, schedule, spec
@@ -237,9 +239,13 @@ def candidates(
         if (zone.departure_atr or 0.0) < DEPARTURE_GATE_ATR:
             continue
         long_side = zone.side is ZoneSide.DEMAND
+        # Monday risk multiplier: 0.5x risk on Monday (Q1 accumulation).
+        # The full conditions (2-stage, tCISD, manipulation) must still
+        # be met, and min_rr >= 2.0 still applies.
+        monday_mult = 0.5 if datetime.fromtimestamp(last.time, tz=NY).weekday() == 0 else 1.0
         plan = build(
             zone, atr, last.time, step, spread=last.spread,
-            equity=equity, risk_pct=risk_pct, lot=lot,
+            equity=equity, risk_pct=risk_pct * monday_mult, lot=lot,
             costs=spec(symbol.split(":")[-1], False, "exness_raw", long_side=long_side),
         )
         if plan is None or plan.target is None:

@@ -132,11 +132,15 @@ def evaluate(
     # Monday = Q1 (accumulation, off), Tuesday = Q2 (manipulation, high risk),
     # Wednesday = Q3 (distribution, highest probability), Thursday = Q4
     # (distribution/reversal), Friday = own profile. Weekend = no trading.
+    #
+    # MONDAY CONDITIONAL EXCEPTION: Monday trades are ALLOWED but only if
+    # ALL extreme conditions are met (2-stage SSMT, tCISD, manipulation
+    # after accumulation). When trading Monday, risk is multiplied by 0.5.
     ny_day = datetime.fromtimestamp(when, tz=NY).weekday()
     day_names = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday",
                  "Saturday", "Sunday"]
     day_quality = {
-        0: "Q1 accumulation — low probability, prefer no trade",
+        0: "Q1 accumulation — ALLOWED only if 2-stage, tCISD, and manipulation all confirmed. Risk × 0.5",
         1: "Q2 manipulation — high risk, wait for Q3",
         2: "Q3 distribution — highest probability",
         3: "Q4 distribution/reversal — high probability",
@@ -144,10 +148,12 @@ def evaluate(
         5: "weekend — no trading",
         6: "weekend — no trading",
     }
-    day_ok = ny_day in (2, 3)  # Wednesday or Thursday
+    day_ok = ny_day in (0, 1, 2, 3, 4)  # all weekdays
+    monday_risk = 0.5 if ny_day == 0 else 1.0
     out.append(Condition(
         "day_of_week", day_ok, "doctrine",
-        f"{day_names[ny_day]}: {day_quality[ny_day]}",
+        f"{day_names[ny_day]}: {day_quality[ny_day]}"
+        + (f" [risk × {monday_risk}]" if monday_risk < 1.0 else ""),
     ))
 
     # ------------------------------------------------------- price location
