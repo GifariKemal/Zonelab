@@ -92,8 +92,8 @@ class Rules:
 #: berubah dan diff-nya terbaca.
 DOCTRINE_CLAUSES: frozenset[str] = frozenset([
     "killzone", "day_of_week", "discount_or_premium", "manipulation_quarter",
-    "manipulation_seen", "poi_families", "poi_clean", "cisd_in_band",
-    "dfr_side",
+    "manipulation_seen", "manipulation_after_accumulation",
+    "poi_families", "poi_clean", "cisd_in_band", "dfr_side",
 ])
 
 
@@ -176,6 +176,40 @@ def evaluate(
         "quarter" if state.get("manipulation_done") else
         "conjunction incomplete: either the quarter has not arrived or no sweep "
         "took the level",
+    ))
+    # Structural rule from Quarterly Theory: after every 'A' (accumulation)
+    # in the profile, manipulation MUST happen before any entry. "Perhatiin
+    # sesudah A PASTI manipulation terdahulu." AMDX, XAMD, AAMD — all three
+    # profiles have A before M. If the profile has an A and manipulation
+    # hasn't been seen, the setup is a trap — the market hasn't completed
+    # its accumulation phase.
+    a_to_m = True
+    a_to_m_detail = ""
+    if profile and "A" in profile:
+        manip_done = state.get("manipulation_done")
+        if manip_done is True:
+            a_to_m = True
+            a_to_m_detail = f"profile {profile}, manipulation done"
+        elif manip_done is False:
+            a_to_m = False
+            a_to_m_detail = (
+                f"profile {profile} has accumulation but no manipulation "
+                f"yet — setup is a trap until the sweep happens"
+            )
+        else:
+            a_to_m = None
+            a_to_m_detail = (
+                f"profile {profile} has accumulation, manipulation not "
+                f"knowable yet"
+            )
+    else:
+        a_to_m = True
+        a_to_m_detail = (
+            f"profile {profile or 'unknown'}, no accumulation phase"
+        )
+    out.append(Condition(
+        "manipulation_after_accumulation", a_to_m, "doctrine",
+        a_to_m_detail,
     ))
 
     # ------------------------------------------------------------------ POI
