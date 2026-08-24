@@ -389,6 +389,11 @@ async def triad_read(
     correlation and consolidation scores are computed from bars that genuinely
     happened at the same instants. One unavailable partner is skipped; the
     base symbol failing is a 502.
+
+    The provider defaults to the chart's own, but the triad partners may not
+    be carried by it — Binance only serves three symbols. So when the
+    caller's provider is a limited feed, the triad silently falls back to
+    mt5 which carries all twenty instruments.
     """
     family = TRIAD_FAMILIES.get(triad)
     if family is None:
@@ -402,9 +407,16 @@ async def triad_read(
 
     base = symbol.split(":")[-1]
     symbols = [base, *[p for p in family[1:] if p != base]]
+    # Binance and Yahoo only carry a handful of the twenty instruments. The
+    # triad partners — DXY, EURUSD, WTI, NAS100, etc. — are not among them,
+    # so a triad read on those providers would always fail. MT5 carries all
+    # twenty and is the fallback.
+    triad_provider = provider
+    if provider in ("binance", "yahoo", None):
+        triad_provider = "mt5"
     try:
         series, load_stats = await load_aligned(
-            symbols, interval, bars, provider
+            symbols, interval, bars, triad_provider
         )
     except ProviderError as exc:
         raise HTTPException(status_code=502, detail=str(exc)) from exc
