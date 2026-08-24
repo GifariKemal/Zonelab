@@ -100,28 +100,46 @@ def find(
 
     # Step 4: Check for retest — price must come back to tCISD with a
     # rejection wick. The wick is the proof that the level is respected.
+    # A DEEP MOMENTUM THRUST through the level is NOT a retest — the
+    # close must stay on the correct side and the wick must be small
+    # relative to the candle's range (rejection, not continuation).
     for i in range(broken_at + 1, len(candles)):
         c = candles[i]
         if direction == "buy":
-            # Price dips to tCISD and rejects (low touches, close stays above)
             if c.low <= tcisd_level and c.close > tcisd_level:
-                return TCISDEntry(
-                    level=tcisd_level,
-                    candle_at=ssmt_candle_idx,
-                    broken_at=broken_at,
-                    stop=sweep_extreme,
-                    direction=direction,
-                )
+                # Wick validation: the rejection must be decisive.
+                # The candle must close in the upper half of its range
+                # (body above midpoint), and the wick below must be
+                # less than 50% of the total range — a small wick,
+                # not a deep thrust.
+                candle_range = c.high - c.low
+                if candle_range <= 0:
+                    continue
+                wick_below = tcisd_level - c.low
+                body_above = c.close - tcisd_level
+                if wick_below < candle_range * 0.5 and body_above > 0:
+                    return TCISDEntry(
+                        level=tcisd_level,
+                        candle_at=ssmt_candle_idx,
+                        broken_at=broken_at,
+                        stop=sweep_extreme,
+                        direction=direction,
+                    )
         else:
-            # Price rallies to tCISD and rejects (high touches, close stays below)
             if c.high >= tcisd_level and c.close < tcisd_level:
-                return TCISDEntry(
-                    level=tcisd_level,
-                    candle_at=ssmt_candle_idx,
-                    broken_at=broken_at,
-                    stop=sweep_extreme,
-                    direction=direction,
-                )
+                candle_range = c.high - c.low
+                if candle_range <= 0:
+                    continue
+                wick_above = c.high - tcisd_level
+                body_below = tcisd_level - c.close
+                if wick_above < candle_range * 0.5 and body_below > 0:
+                    return TCISDEntry(
+                        level=tcisd_level,
+                        candle_at=ssmt_candle_idx,
+                        broken_at=broken_at,
+                        stop=sweep_extreme,
+                        direction=direction,
+                    )
 
     return None  # no retest found
 
