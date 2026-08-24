@@ -187,12 +187,11 @@ SESSIONS: dict[str, tuple[int, int, int]] = {
 KILLZONES: dict[str, tuple[int, int]] = {
     "asia": (19 * 60, 22 * 60),
     "london": (2 * 60, 5 * 60),
+    "london_sb": (3 * 60, 4 * 60),
     "ny_am": (7 * 60, 10 * 60),
     "london_close": (10 * 60, 12 * 60),
-    "ny_pm": (13 * 60 + 30, 16 * 60),
-    # Named separately from `ny_am` because it is a window INSIDE it, and the
-    # source treats it as its own setup rather than as part of the morning.
     "silver_bullet": (10 * 60, 11 * 60),
+    "ny_pm": (13 * 60 + 30, 16 * 60),
 }
 
 

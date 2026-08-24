@@ -47,7 +47,9 @@ from app.portfolio import Book, Held, admits, aligned
 from app.poi import confluence, other_boxes
 from app.providers.base import INTERVALS
 from app.resample import STEP_UP, resample
+from app.ssmt import divergences_for as ssmt_divergences_for
 from app.ssmt import ssmt as ssmt_read
+from app.ssmt import two_stage
 from tools import history
 from tools.costed import HORIZON
 
@@ -57,6 +59,19 @@ from tools.costed import HORIZON
 #: structure break by one more. Not fitted - measured against nothing, and stated
 #: so a reader who disagrees has one number to change.
 POI_SLACK_BARS = 3
+
+#: Two-stage SSMT degrees per interval. The practitioner's rule: "Minim harus
+#: ada dua SSMT stage." Stage 1 is the higher degree, stage 2 is the lower.
+#: Source: Bang Nas ICT, POSKO 618 reference material.
+STAGE_PAIRS: dict[str, tuple[str, str]] = {
+    "1w": ("month", "week"),
+    "1d": ("month", "week"),
+    "4h": ("week", "day"),
+    "1h": ("day", "90m"),
+    "15m": ("90m", "micro"),
+    "5m": ("micro", "nano"),
+    "1m": ("micro", "nano"),
+}
 
 #: MetaTrader truncates silently past this and `order_check` answers
 #: `Invalid "comment" argument` without saying which argument or why. Measured on
@@ -187,6 +202,20 @@ def candidates(
                     "low" if newest.side == "high" else "high"
                 )
 
+    # 2-stage SSMT: the practitioner's rule requires two consecutive
+    # degrees both showing SSMT in the same direction.
+    two_stage_confirmed = False
+    if partners and len(partners) > 1 and interval in STAGE_PAIRS:
+        hi_deg, lo_deg = STAGE_PAIRS[interval]
+        try:
+            hi_events, _ = ssmt_read(grid, hi_deg)
+            lo_events, _ = ssmt_read(grid, lo_deg)
+            hi_div = ssmt_divergences_for(hi_events, bare)
+            lo_div = ssmt_divergences_for(lo_events, bare)
+            two_stage_confirmed = len(two_stage(hi_div, lo_div, bare)) > 0
+        except ValueError:
+            pass
+
     # The minimal shape `actionable.blockers` reads. `app/drawing.py` builds the
     # API's copy of these four fields; this is the same four for a path that
     # never goes through HTTP.
@@ -247,7 +276,9 @@ def candidates(
         born_to = times[min(len(times) - 1, anatomy.leg_out_to + POI_SLACK_BARS)]
         stack = confluence(zone, others, last.time, born_from, born_to)
         out.append((zone, plan, ict_setup(zone, state, stack, rules,
-                                          ssmt_side=ssmt_side)))
+                                          ssmt_side=ssmt_side,
+                                          two_stage_confirmed=two_stage_confirmed,
+                                          reward_r=plan.reward_r)))
 
     # CHECKLIST FIRST, distance second. Two candidates that satisfy the method
     # equally are then ordered by which price reaches first, which is what the

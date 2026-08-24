@@ -76,7 +76,7 @@ class Rules:
     #: Which kill zones count as "in a kill zone". All of them by default; a
     #: reader who only trades the New York morning passes `("ny_am",)`.
     killzones: tuple[str, ...] = (
-        "asia", "london", "ny_am", "london_close", "ny_pm", "silver_bullet",
+        "asia", "london", "london_sb", "ny_am", "london_close", "ny_pm", "silver_bullet",
     )
     #: Distinct PD array families that must stack for `poi_families` to pass.
     #: Two, because the doctrine's own example names an FVG and an order block.
@@ -94,6 +94,7 @@ DOCTRINE_CLAUSES: frozenset[str] = frozenset([
     "killzone", "day_of_week", "discount_or_premium", "manipulation_quarter",
     "manipulation_seen", "manipulation_after_accumulation",
     "poi_families", "poi_clean", "cisd_in_band", "dfr_side",
+    "two_stage_confirmed", "min_rr",
 ])
 
 
@@ -105,6 +106,8 @@ def evaluate(
     at: int | None = None,
     ssmt_side: str | None = None,
     draw: Literal["higher", "lower", "unnominated"] = "unnominated",
+    two_stage_confirmed: bool = False,
+    reward_r: float | None = None,
 ) -> list[Condition]:
     """The checklist for one candidate, in a fixed order.
 
@@ -287,6 +290,31 @@ def evaluate(
             "ssmt", ssmt_side == want_side, "measured",
             f"newest knowable divergence on the {ssmt_side} side, wanted "
             f"{want_side}. Nothing connects a divergence to an outcome",
+        ))
+
+    # 2-stage SSMT: the practitioner's rule requires two consecutive
+    # degrees both showing SSMT in the same direction. "Minim harus ada
+    # dua SSMT stage." Stage 1 is the higher degree, stage 2 is the lower.
+    out.append(Condition(
+        "two_stage_confirmed", two_stage_confirmed, "doctrine",
+        "two consecutive degrees both show SSMT in the same direction"
+        if two_stage_confirmed else
+        "no 2-stage SSMT confirmation on this timeframe",
+    ))
+
+    # Minimum RR: the practitioner's rule requires at least 2:1 reward to
+    # risk before entry. Measured from the plan's own geometry.
+    if reward_r is not None:
+        out.append(Condition(
+            "min_rr", reward_r >= 2.0, "doctrine",
+            f"reward {reward_r:.1f}R against the stop, wanted >= 2.0"
+            if reward_r >= 2.0 else
+            f"reward {reward_r:.1f}R against the stop, below 2.0 minimum",
+        ))
+    else:
+        out.append(Condition(
+            "min_rr", None, "doctrine",
+            "no target zone, reward cannot be computed",
         ))
 
     # ------------------------------------------------- draw on liquidity
