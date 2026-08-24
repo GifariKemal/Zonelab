@@ -734,6 +734,7 @@ export default function Page() {
                 quarters={data?.drawing.quarters ?? []}
                 trueOpens={data?.drawing.true_opens ?? []}
                 ssmt={data?.drawing.ssmt ?? []}
+                smt={data?.drawing.smt ?? []}
                 dfr={data?.drawing.dfr ?? []}
                 dfrEquilibrium={params.dfr.equilibrium}
                 gaps={data?.drawing.gaps ?? []}

@@ -121,6 +121,19 @@ export interface SSMTDivergence {
   session: string | null;
 }
 
+/** Regular SMT: non-sequential, running-extreme comparison. Liquidity reading. */
+export interface SMTDivergence {
+  degree: string;
+  side: "high" | "low";
+  partner: string;
+  self_took: boolean;
+  time_at: number;
+  price_at: number;
+  partner_price: number;
+  knowable_at: number;
+  session: string | null;
+}
+
 export interface SwingPoint {
   time: number;
   price: number;
@@ -1043,6 +1056,7 @@ export interface DrawResponse {
     /** Empty unless the ssmt layer was requested. The only overlay that costs a
      *  provider call, because a divergence needs a second instrument. */
     ssmt: SSMTDivergence[];
+    smt: SMTDivergence[];
     /** Empty unless the dfr layer was requested. Read off the bars already
      *  fetched, so it costs no provider call. */
     dfr: DefiningRangeBand[];

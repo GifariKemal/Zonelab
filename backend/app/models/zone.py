@@ -8,7 +8,7 @@ from .primitives import Anatomy, Displacement, Refinement, ZoneKind, ZoneSide, Z
 from .structure import SessionQuarter, StructureEvent, SwingPoint, TrueOpenLevel
 from .gaps import EventHorizonLevel, GapStack, NewsEvent, OpeningGap, TierHorizon
 from .liquidity import LiquidityPool, NamedLevel, RangeProjection
-from .cycle import CISDEvent, DefiningRangeBand, SSMTDivergence
+from .cycle import CISDEvent, DefiningRangeBand, SMTDivergence, SSMTDivergence
 
 
 class Zone(BaseModel):
@@ -279,6 +279,15 @@ class Drawing(BaseModel):
             "empty unless the ssmt layer was requested. The same events also "
             "appear in the checklist as `SSMTHit`, which is the reading; "
             "these are the shape. Costs one provider call per partner."
+        ),
+    )
+    smt: list[SMTDivergence] = Field(
+        default_factory=list,
+        description=(
+            "Regular (non-sequential) SMT divergences on this symbol's price. "
+            "Liquidity readings rather than trend confirmations: one instrument "
+            "took the running extreme, the other failed. Drawn as markers, not "
+            "segments. Empty unless the ssmt layer was requested."
         ),
     )
     gaps: list[OpeningGap] = Field(

@@ -104,7 +104,7 @@ from itertools import combinations
 from typing import Literal
 
 from .dealing_range import position_at, range_at
-from .models import Candle, SSMTDivergence
+from .models import Candle, SMTDivergence, SSMTDivergence
 from .pools import killzones_at
 from .quarters import Quarter, quarters
 
@@ -669,3 +669,42 @@ def smt(
 
     stats["events"] = float(len(events))
     return events, stats
+
+
+def smt_positions_for(
+    events: list[SMTEvent],
+    symbol: str,
+) -> list[SMTDivergence]:
+    """The regular SMT events that involve `symbol`, positioned on its own price.
+
+    Regular SMT draws a single marker at the quarter where the divergence
+    occurred, not a segment between two quarters. The marker sits at the
+    chart symbol's extreme in that quarter.
+    """
+    out: list[SMTDivergence] = []
+    for event in events:
+        if symbol == event.took:
+            partner, took = event.failed, True
+            at, price = event.took_at, event.took_price
+            other_price = event.failed_price
+        elif symbol == event.failed:
+            partner, took = event.took, False
+            at, price = event.failed_at, event.failed_price
+            other_price = event.took_price
+        else:
+            continue
+        zones = killzones_at(event.knowable_at)
+        out.append(
+            SMTDivergence(
+                degree=event.degree,
+                side=event.side,
+                partner=partner,
+                self_took=took,
+                time_at=at,
+                price_at=price,
+                partner_price=other_price,
+                knowable_at=event.knowable_at,
+                session=zones[0] if zones else None,
+            )
+        )
+    return out

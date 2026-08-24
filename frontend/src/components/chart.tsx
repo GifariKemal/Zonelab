@@ -18,6 +18,7 @@ import type {
   Candle,
   DefiningRangeBand,
   SSMTDivergence,
+  SMTDivergence,
   CISDEvent,
   EventHorizonLevel,
   GapStack,
@@ -41,6 +42,7 @@ import { DFRSeriesPrimitive } from "./dfr-primitive";
 import { LevelsSeriesPrimitive } from "./levels-primitive";
 import { SessionSeriesPrimitive } from "./session-primitive";
 import { SSMTSeriesPrimitive } from "./ssmt-primitive";
+import { SMTSeriesPrimitive } from "./smt-primitive";
 import { claimedLabels, StructureSeriesPrimitive } from "./structure-primitive";
 import { ZoneSeriesPrimitive } from "./zone-primitive";
 
@@ -63,6 +65,7 @@ interface Props {
    *  Empty unless the ssmt layer is on - the only overlay that costs a provider
    *  call, because a divergence needs a second instrument. */
   ssmt: SSMTDivergence[];
+  smt: SMTDivergence[];
   /** Defining ranges with their equilibrium and projections. Empty unless the
    *  dfr layer is on. Single-sourced and unverified, and drawn fainter for it. */
   dfr: DefiningRangeBand[];
@@ -163,6 +166,7 @@ export function Chart({
   quarters,
   trueOpens,
   ssmt,
+  smt,
   dfr,
   dfrEquilibrium,
   gaps,
@@ -189,6 +193,7 @@ export function Chart({
   const sessionPrimitive = useRef<SessionSeriesPrimitive | null>(null);
   const breakPrimitive = useRef<BreakSeriesPrimitive | null>(null);
   const ssmtPrimitive = useRef<SSMTSeriesPrimitive | null>(null);
+  const smtPrimitive = useRef<SMTSeriesPrimitive | null>(null);
   const dfrPrimitive = useRef<DFRSeriesPrimitive | null>(null);
   const levelsPrimitive = useRef<LevelsSeriesPrimitive | null>(null);
 
@@ -339,6 +344,8 @@ export function Chart({
     // compare candles against, like a level, and a zone border still wins.
     const ssmtPrim = new SSMTSeriesPrimitive();
     candleSeries.attachPrimitive(ssmtPrim);
+    const smtPrim = new SMTSeriesPrimitive();
+    candleSeries.attachPrimitive(smtPrim);
     const structurePrim = new StructureSeriesPrimitive();
     candleSeries.attachPrimitive(structurePrim);
     const zonePrimitive = new ZoneSeriesPrimitive();
@@ -419,6 +426,7 @@ export function Chart({
     sessionPrimitive.current = sessionPrim;
     breakPrimitive.current = breakPrim;
     ssmtPrimitive.current = ssmtPrim;
+    smtPrimitive.current = smtPrim;
     dfrPrimitive.current = dfrPrim;
     levelsPrimitive.current = levelsPrim;
 
@@ -476,6 +484,7 @@ export function Chart({
       sessionPrimitive.current = null;
       breakPrimitive.current = null;
       ssmtPrimitive.current = null;
+      smtPrimitive.current = null;
       dfrPrimitive.current = null;
       levelsPrimitive.current = null;
     };
@@ -624,6 +633,10 @@ export function Chart({
   useEffect(() => {
     ssmtPrimitive.current?.setDivergences(ssmt);
   }, [ssmt]);
+
+  useEffect(() => {
+    smtPrimitive.current?.setDivergences(smt);
+  }, [smt]);
 
   useEffect(() => {
     dfrPrimitive.current?.setRanges(dfr, dfrEquilibrium);

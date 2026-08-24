@@ -335,6 +335,20 @@ class SSMTDivergence(BaseModel):
     )
 
 
+class SMTDivergence(BaseModel):
+    """One regular SMT positioned on the chart's own price, for drawing."""
+
+    degree: str
+    side: Literal["high", "low"]
+    partner: str = Field(description="The other instrument in the pair")
+    self_took: bool
+    time_at: int = Field(description="Bar of the chart symbol's extreme")
+    price_at: float
+    partner_price: float
+    knowable_at: int
+    session: str | None = None
+
+
 class DFRExtension(BaseModel):
     """One projected level off a defining range, and the multiple that made it.
 

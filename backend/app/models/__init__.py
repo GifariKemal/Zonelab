@@ -53,6 +53,7 @@ from .cycle import (
     CycleProfile,
     ManipulationEvent,
     SSMTDivergence,
+    SMTDivergence,
     SSMTHit,
 )
 from .zone import (
@@ -124,6 +125,7 @@ __all__ = [
     "CycleProfile",
     "ManipulationEvent",
     "SSMTDivergence",
+    "SMTDivergence",
     "SSMTHit",
     "Zone",
     "Drawing",

@@ -44,6 +44,7 @@ from .models import (
     DrawResponse,
     Drawing,
     RangeLiquidityReport,
+    SMTDivergence,
     SSMTDivergence,
     TradePlan,
     Zone,
@@ -53,6 +54,8 @@ from .overlays import liquidity_report, news_overlay
 from .plan import build as plan_for
 from .pools import killzones_at
 from .ssmt import divergences_for
+from .ssmt import smt as smt_read
+from .ssmt import smt_positions_for
 from .ssmt import ssmt as ssmt_read
 from .triad import TRIAD_FAMILIES, truth_asset
 from .providers import (
@@ -603,6 +606,19 @@ async def _draw_ssmt(
     # partner rather than an error.
     if source == "synthetic":
         stats["synthetic"] = True
+
+    # Regular SMT: non-sequential, running-extreme comparison. Liquidity
+    # readings rather than trend confirmations. Computed from the same
+    # aligned series, so it costs no extra provider call.
+    if params.ssmt_degrees:
+        smt_found: list[SMTDivergence] = []
+        for degree in dict.fromkeys(params.ssmt_degrees):
+            smt_events, _ = smt_read(series, degree)
+            smt_found.extend(smt_positions_for(smt_events, request.symbol))
+        smt_found.sort(key=lambda d: (d.time_at, d.degree, d.partner))
+        drawing.smt = smt_found
+        stats["smt_events"] = len(smt_found)
+
     return stats
 
 
