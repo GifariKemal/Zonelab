@@ -53,6 +53,8 @@ interface Segment {
   y2: number;
   tag: string;
   took: boolean;
+  /** False when the candle direction breaks the practitioner's rule. */
+  candleValid: boolean | null;
 }
 
 class SSMTRenderer implements IPrimitivePaneRenderer {
@@ -77,6 +79,13 @@ class SSMTRenderer implements IPrimitivePaneRenderer {
         const y2 = Math.round(s.y2 * ky);
 
         ctx.strokeStyle = s.took ? INK : INK_FAINT;
+        // Candle validation: if the practitioner's rule is explicitly
+        // contradicted, downgrade the line to faint even when the chart
+        // symbol took the extreme. The divergence exists, but the candle
+        // direction does not confirm it.
+        if (s.candleValid === false) {
+          ctx.strokeStyle = INK_FAINT;
+        }
         ctx.setLineDash(s.took ? [] : [4 * kx, 3 * kx]);
         ctx.beginPath();
         ctx.moveTo(x1, y1);
@@ -211,8 +220,28 @@ export class SSMTSeriesPrimitive implements ISeriesPrimitive<Time> {
               ? " P"
               : d.range_pos <= 0.25
                 ? " D"
-                : " EQ"),
+                : " EQ") +
+          // Session: one compact letter, so a reader can weigh it. Asia
+          // is weaker than London or NY per the practitioner. Absent
+          // when the session is unknown or the tag is already long.
+          // Lowercase = weaker, uppercase = stronger.
+          (d.session
+            ? d.session === "asia"
+              ? " a"
+              : d.session === "london"
+                ? " L"
+                : d.session === "ny_am"
+                  ? " N"
+                  : d.session === "london_close"
+                    ? " LC"
+                    : d.session === "ny_pm"
+                      ? " NP"
+                      : d.session === "silver_bullet"
+                        ? " SB"
+                        : ""
+            : ""),
         took: d.self_took,
+        candleValid: d.candle_valid,
       });
     }
 

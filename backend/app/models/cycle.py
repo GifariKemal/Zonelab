@@ -314,6 +314,25 @@ class SSMTDivergence(BaseModel):
             "verdict field beside this one and there must not be."
         ),
     )
+    candle_valid: bool | None = Field(
+        default=None,
+        description=(
+            "True when the candle that printed the new extreme follows the "
+            "practitioner's rule: bullish SSMT needs a bearish candle, bearish "
+            "SSMT needs a bullish one. False when it contradicts. None when the "
+            "candle could not be found.\n\n"
+            "Reported, never filtered - the same choice the module makes for "
+            "`range_pos`, so a reader can weigh it."
+        ),
+    )
+    session: str | None = Field(
+        default=None,
+        description=(
+            "The kill zone active at the quarter close that settled this reading. "
+            "Asia is weaker than London or NY per the practitioner. None when no "
+            "kill zone is active."
+        ),
+    )
 
 
 class DFRExtension(BaseModel):

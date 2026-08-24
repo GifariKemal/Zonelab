@@ -667,7 +667,7 @@ def _dedupe(
     kept: list[Zone] = []
     ranked = sorted(
         zones,
-        key=lambda z: (_STATE_PRIORITY[z.state], z.formation_score),
+        key=lambda z: (_STATE_PRIORITY[z.state], z.departure_atr or 0.0),
         reverse=True,
     )
     for zone in ranked:

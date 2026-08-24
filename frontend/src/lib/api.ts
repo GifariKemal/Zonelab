@@ -10,6 +10,7 @@ import type {
   AgentConfigSaveResponse,
   AgentChatResponse,
   ChatRole,
+  TriadResponse,
 } from "./types";
 
 const BASE = process.env.NEXT_PUBLIC_ZONELAB_API ?? "http://127.0.0.1:8100";
@@ -215,4 +216,16 @@ export function agentChat(
     // ceiling with a little headroom.
     150_000,
   );
+}
+
+export async function fetchTriad(
+  symbol: string,
+  interval: string,
+  bars: number,
+  triad: string,
+  provider?: string,
+): Promise<TriadResponse> {
+  const params = new URLSearchParams({ symbol, interval, bars: String(bars), triad });
+  if (provider) params.set("provider", provider);
+  return call<TriadResponse>(`/api/triad?${params}`, undefined, 60_000);
 }

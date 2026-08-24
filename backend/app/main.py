@@ -13,6 +13,8 @@ it fetches, dispatches, and assembles the response.
 from __future__ import annotations
 
 import asyncio
+from datetime import datetime, timezone
+from zoneinfo import ZoneInfo
 
 import numpy as np
 from fastapi import FastAPI, HTTPException, Request
@@ -49,8 +51,10 @@ from .models import (
 )
 from .overlays import liquidity_report, news_overlay
 from .plan import build as plan_for
+from .pools import killzones_at
 from .ssmt import divergences_for
 from .ssmt import ssmt as ssmt_read
+from .triad import TRIAD_FAMILIES, truth_asset
 from .providers import (
     INTERVALS,
     PROVIDERS,
@@ -361,6 +365,85 @@ async def forming(
         "interval": interval,
         "provider": used,
         "candle": candle,
+    }
+
+
+@app.get("/api/triad")
+async def triad_read(
+    symbol: str = "XAUUSD",
+    interval: str = "1h",
+    bars: int = 2000,
+    triad: str = "monetary",
+    provider: str | None = None,
+) -> dict:
+    """One triad, three symbols, and which of them is the Truth Asset.
+
+    A triad is three correlated instruments read together. The Truth Asset is
+    the one that is consolidating while the others are choppy — it shows the
+    real premium and discount.
+
+    Fetches all three symbols on a shared grid via `load_aligned`, so the
+    correlation and consolidation scores are computed from bars that genuinely
+    happened at the same instants. One unavailable partner is skipped; the
+    base symbol failing is a 502.
+    """
+    family = TRIAD_FAMILIES.get(triad)
+    if family is None:
+        raise HTTPException(
+            status_code=422,
+            detail=(
+                f"unknown triad {triad!r}, "
+                f"pick one of {sorted(TRIAD_FAMILIES)}"
+            ),
+        )
+
+    base = symbol.split(":")[-1]
+    symbols = [base, *[p for p in family[1:] if p != base]]
+    try:
+        series, load_stats = await load_aligned(
+            symbols, interval, bars, provider
+        )
+    except ProviderError as exc:
+        raise HTTPException(status_code=502, detail=str(exc)) from exc
+
+    found = truth_asset(series, base, triad)
+    corr = [
+        {
+            "symbol": c.symbol,
+            "full": None if c.full is None else round(c.full, 4),
+            "recent": None if c.recent is None else round(c.recent, 4),
+            "pairs": c.pairs,
+            "sign_changed": c.sign_changed,
+        }
+        for c in correlations(series, base)
+    ]
+
+    now_utc = datetime.now(timezone.utc)
+    ny = now_utc.astimezone(ZoneInfo("America/New_York"))
+    wib = now_utc.astimezone(ZoneInfo("Asia/Jakarta"))
+    ts = int(now_utc.timestamp())
+    zones_now = killzones_at(ts)
+
+    return {
+        "triad": triad,
+        "base": base,
+        "partners": [s for s in symbols if s != base],
+        "truth_asset": (
+            {"symbol": found.symbol, "scores": found.scores}
+            if found
+            else None
+        ),
+        "correlation": corr,
+        "time": {
+            "ny": ny.strftime("%H:%M"),
+            "wib": wib.strftime("%H:%M"),
+            "ny_day": ny.strftime("%a"),
+            "wib_day": wib.strftime("%a"),
+            "session": zones_now[0] if zones_now else None,
+            "all_sessions": zones_now,
+        },
+        "grid": load_stats.get("grid"),
+        "skipped": load_stats.get("skipped") or [],
     }
 
 

@@ -37,8 +37,10 @@ run this 953 times without 953 provider calls.
 from __future__ import annotations
 
 from dataclasses import dataclass, field
+from datetime import datetime
 from typing import Any, Literal
 
+from .clock import NY
 from .models import Zone, ZoneSide
 from .poi import Confluence
 from .pools import killzones_at
@@ -85,6 +87,16 @@ class Rules:
     bias_degree: str = "bias_4h"
 
 
+#: Klausa yang sumbernya `doctrine` -- belum diukur oleh proyek ini. Daftar ini
+#: sengaja eksplisit; kalau sebuah klausa pindah label, daftar ini harus ikut
+#: berubah dan diff-nya terbaca.
+DOCTRINE_CLAUSES: frozenset[str] = frozenset([
+    "killzone", "day_of_week", "discount_or_premium", "manipulation_quarter",
+    "manipulation_seen", "poi_families", "poi_clean", "cisd_in_band",
+    "dfr_side",
+])
+
+
 def evaluate(
     zone: Zone,
     state: dict[str, Any],
@@ -111,6 +123,28 @@ def evaluate(
     out.append(Condition(
         "killzone", bool(matched), "doctrine",
         f"in {matched}" if matched else f"outside; clock says {zones_now or 'none'}",
+    ))
+
+    # Day of week quality, per the practitioner's Quarterly Theory calendar.
+    # Monday = Q1 (accumulation, off), Tuesday = Q2 (manipulation, high risk),
+    # Wednesday = Q3 (distribution, highest probability), Thursday = Q4
+    # (distribution/reversal), Friday = own profile. Weekend = no trading.
+    ny_day = datetime.fromtimestamp(when, tz=NY).weekday()
+    day_names = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday",
+                 "Saturday", "Sunday"]
+    day_quality = {
+        0: "Q1 accumulation — low probability, prefer no trade",
+        1: "Q2 manipulation — high risk, wait for Q3",
+        2: "Q3 distribution — highest probability",
+        3: "Q4 distribution/reversal — high probability",
+        4: "Friday own profile — medium",
+        5: "weekend — no trading",
+        6: "weekend — no trading",
+    }
+    day_ok = ny_day in (2, 3)  # Wednesday or Thursday
+    out.append(Condition(
+        "day_of_week", day_ok, "doctrine",
+        f"{day_names[ny_day]}: {day_quality[ny_day]}",
     ))
 
     # ------------------------------------------------------- price location

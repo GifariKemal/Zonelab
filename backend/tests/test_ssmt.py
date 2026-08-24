@@ -21,7 +21,7 @@ import pytest
 from app.clock import NY
 from app.models import Candle
 from app.quarters import Quarter
-from app.ssmt import SSMTEvent, ssmt
+from app.ssmt import SMTEvent, SSMTEvent, divergences_for, smt, ssmt
 
 HOUR = 3600
 
@@ -427,3 +427,157 @@ def test_a_divergence_carries_where_it_sat_in_the_dealing_range():
     # of its own range, so the answer is 1.0 by construction.
     positions = [d.range_pos for d in stamped if d.range_pos is not None]
     assert positions == [1.0], positions
+
+
+# --------------------------------------------------------------------------
+# candle validation and session tag — POSKO 618 rules
+# --------------------------------------------------------------------------
+
+
+def test_bullish_ssmt_candle_must_be_bearish():
+    """The practitioner's rule: a valid bullish SSMT (side=high) requires the
+    candle that printed the new high to be bearish (close < open)."""
+    gold = series([(100, 90), (110, 95)], hours=6)
+    silver = series([(100, 90), (95, 85)], hours=6)
+    # Q2 extreme bar for gold is at index 9 (6 + 6//2).  Make it bearish.
+    old = gold[9]
+    gold[9] = Candle(
+        time=old.time, open=108, high=old.high, low=old.low,
+        close=106, volume=old.volume,
+    )
+    events, _ = ssmt({"GOLD": gold, "SILVER": silver}, "day")
+    high = [e for e in events if e.side == "high"]
+    assert high, "a bullish SSMT must exist"
+    assert high[0].candle_valid is True, (
+        "bearish candle (close={} < open={}) for bullish SSMT should be valid"
+        .format(high[0].failed_now, high[0].took_now)
+    )
+    # Also passes through to the wire model
+    divergences = divergences_for(events, "GOLD")
+    high_div = [d for d in divergences if d.side == "high"]
+    assert high_div
+    assert high_div[0].candle_valid is True
+
+
+def test_bullish_candle_for_bullish_ssmt_is_invalid():
+    """A bullish candle making a new high for a bullish SSMT is the WRONG
+    direction and should be flagged as invalid."""
+    gold = series([(100, 90), (110, 95)], hours=6)
+    silver = series([(100, 90), (95, 85)], hours=6)
+    old = gold[9]
+    gold[9] = Candle(
+        time=old.time, open=108, high=old.high, low=old.low,
+        close=112, volume=old.volume,
+    )
+    events, _ = ssmt({"GOLD": gold, "SILVER": silver}, "day")
+    high = [e for e in events if e.side == "high"]
+    assert high
+    assert high[0].candle_valid is False, (
+        "bullish candle (close > open) for bullish SSMT should be invalid"
+    )
+    (high_div,) = [d for d in divergences_for(events, "GOLD") if d.side == "high"]
+    assert high_div.candle_valid is False
+
+
+def test_bearish_ssmt_candle_must_be_bullish():
+    """A valid bearish SSMT (side=low) requires the candle that printed the
+    new low to be bullish (close > open)."""
+    gold = series([(100, 90), (105, 80)], hours=6)
+    silver = series([(100, 90), (105, 95)], hours=6)
+    old = gold[9]
+    gold[9] = Candle(
+        time=old.time, open=78, high=old.high, low=old.low,
+        close=82, volume=old.volume,
+    )
+    events, _ = ssmt({"GOLD": gold, "SILVER": silver}, "day")
+    low = [e for e in events if e.side == "low"]
+    assert low
+    assert low[0].candle_valid is True, (
+        "bullish candle (close > open) for bearish SSMT should be valid"
+    )
+    (low_div,) = [d for d in divergences_for(events, "GOLD") if d.side == "low"]
+    assert low_div.candle_valid is True
+
+
+def test_ssmt_events_are_tagged_with_their_session():
+    """Every SSMT event carries the kill zone active at its knowable_at,
+    so a reader can weigh session quality. Asia is weaker than London/NY."""
+    gold = series([(100, 90), (110, 95)], hours=6)
+    silver = series([(100, 90), (95, 85)], hours=6)
+    events, _ = ssmt({"GOLD": gold, "SILVER": silver}, "day")
+    assert events
+    for event in events:
+        # session is either a string (kill zone name) or None (no zone active)
+        assert event.session is None or isinstance(event.session, str)
+        # The knowable_at is the quarter end, which is 06:00 NY on Wednesday
+        # for the day degree starting Tuesday 18:00. That's outside any kill
+        # zone, so the session may be None — the point is the field IS there.
+        assert hasattr(event, "session")
+    # And passes through to the wire model
+    for event in events:
+        for d in divergences_for([event], event.took if event.took == "GOLD" else "SILVER"):
+            if d is not None:
+                assert d.session is None or isinstance(d.session, str)
+
+
+# --------------------------------------------------------------------------
+# regular SMT — non-sequential, running-extreme comparison
+# --------------------------------------------------------------------------
+
+
+def test_regular_smt_one_takes_the_running_high_and_the_other_fails():
+    """Regular SMT: one instrument makes a new all-time high in the current
+    quarter, the other fails. NO consecutive-quarter requirement."""
+    # Q1: both at 100, Q2: gold takes to 110 (new all-time high), silver stays
+    gold = series([(100, 90), (110, 95)], hours=6)
+    silver = series([(100, 90), (95, 85)], hours=6)
+
+    events, stats = smt({"GOLD": gold, "SILVER": silver}, "day")
+
+    high = [e for e in events if e.side == "high"]
+    assert high, "a regular SMT must exist on the high side"
+    assert high[0].took == "GOLD", "gold took the running high"
+    assert high[0].failed == "SILVER", "silver failed"
+    assert high[0].took_price == 110.0
+    assert stats["events"] >= 1.0
+
+
+def test_regular_smt_both_take_the_running_high_produces_nothing():
+    """When both instruments exceed the running high, no regular SMT exists."""
+    gold = series([(100, 90), (110, 95)], hours=6)
+    silver = series([(100, 90), (120, 95)], hours=6)  # both take
+
+    events, _ = smt({"GOLD": gold, "SILVER": silver}, "day")
+    high = [e for e in events if e.side == "high"]
+    assert not high, "both took the running high, no divergence"
+
+
+def test_regular_smt_on_the_low_side():
+    """Regular SMT works on the low side too: one takes the running low,
+    the other fails."""
+    gold = series([(100, 90), (105, 80)], hours=6)
+    silver = series([(100, 90), (105, 95)], hours=6)
+
+    events, _ = smt({"GOLD": gold, "SILVER": silver}, "day")
+    low = [e for e in events if e.side == "low"]
+    assert low
+    assert low[0].took == "GOLD", "gold took the running low (80 < 90)"
+    assert low[0].failed == "SILVER", "silver stayed above"
+
+
+def test_regular_smt_and_sequential_ssmt_are_different():
+    """Regular SMT and sequential SSMT detect different things. A series
+    that produces regular SMT may produce zero sequential SSMT."""
+    gold = series([(100, 90), (110, 95), (115, 100)], hours=6)
+    silver = series([(100, 90), (95, 85), (90, 80)], hours=6)
+
+    reg, _ = smt({"GOLD": gold, "SILVER": silver}, "day")
+    seq, _ = ssmt({"GOLD": gold, "SILVER": silver}, "day")
+
+    # Regular SMT: Q2 gold took running high, Q3 gold took again
+    assert len(reg) > 0, "regular SMT should fire"
+    # Sequential SSMT: Q2→Q3, gold took Q2 high again, silver didn't
+    assert len(seq) > 0, "sequential SSMT should also fire"
+    # They are different event types
+    assert isinstance(reg[0], SMTEvent)
+    assert isinstance(seq[0], SSMTEvent)

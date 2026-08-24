@@ -25,10 +25,18 @@ reported on its own and nothing here counts stages, waits for a second one, or
 withholds an event for being alone. A caller that wants the conjunction can take
 the intersection of two calls; this module will not decide that for it.
 
-WHAT IS DELIBERATELY ABSENT. "A valid bullish SSMT requires the candle itself to
-be bearish" is a rule about tCISD, a different object, and it reached the SSMT
-literature by misattribution. It is not implemented, and this paragraph exists so
-that its absence reads as a decision rather than an oversight.
+CANDLE VALIDATION. The practitioner's rule: a valid bullish SSMT (side=high)
+requires the candle that printed the new high to be BEARISH, and a valid
+bearish SSMT requires the candle to be BULLISH. The earlier docstring described
+this as "a rule about tCISD, a different object" and deliberately excluded it.
+The POSKO 618 reference material teaches it explicitly: "Valid SSMT bullish,
+candle-nya harus bearish." Now measured and stamped as `candle_valid` on every
+event rather than filtered, so a reader can weigh it.
+
+SESSION QUALITY. The practitioner also teaches that an SSMT occurring in the
+Asia session is weaker than one in London or New York. Each event is now
+stamped with the kill zone active at its `knowable_at` timestamp, reported
+rather than filtered.
 
 HOW OFTEN IT FIRES DEPENDS ENTIRELY ON THE PAIR, and that is the first thing a
 caller has to understand. Measured at the `day` degree on 2000 hourly bars each,
@@ -97,6 +105,7 @@ from typing import Literal
 
 from .dealing_range import position_at, range_at
 from .models import Candle, SSMTDivergence
+from .pools import killzones_at
 from .quarters import Quarter, quarters
 
 
@@ -129,6 +138,13 @@ class SSMTEvent:
     failed_prior_at: int
     failed_now_at: int
     knowable_at: int  # `quarter.end`: the close that settles the reading
+    #: True when the candle that printed the new extreme is the CORRECT direction
+    #: per the practitioner's rule: bullish SSMT needs a bearish candle, bearish
+    #: SSMT needs a bullish one. None when the candle cannot be found.
+    candle_valid: bool | None = None
+    #: The kill zone active at `knowable_at`, for session quality. None when no
+    #: zone is active. Asia is weaker than London or NY per the practitioner.
+    session: str | None = None
 
 
 def ssmt(
@@ -242,6 +258,13 @@ def ssmt(
                 ext[q.start, symbol, "high"] = (top.high, top.time)
                 ext[q.start, symbol, "low"] = (bottom.low, bottom.time)
 
+    # Candle lookup by symbol and timestamp, for the candle validation rule:
+    # "bullish SSMT needs a bearish candle, bearish SSMT needs a bullish one."
+    candlemap: dict[tuple[str, int], Candle] = {}
+    for symbol in symbols:
+        for c in series[symbol]:
+            candlemap[symbol, c.time] = c
+
     events: list[SSMTEvent] = []
     for (prior, p_lo, p_hi), (now, n_lo, n_hi) in zip(closed, closed[1:]):
         stats["pairs"] += 1.0
@@ -268,6 +291,20 @@ def ssmt(
                 if took_a == _took(after[b][0], before[b][0], side):
                     continue
                 took, failed = (a, b) if took_a else (b, a)
+                # Candle validation: the candle that printed the new
+                # extreme must be the OPPOSITE direction - bullish SSMT
+                # needs a bearish candle, bearish needs a bullish one.
+                took_candle = candlemap.get((took, after[took][1]))
+                if took_candle is not None and took_candle.open > 0:
+                    bearish = took_candle.close < took_candle.open
+                    cv = (
+                        (side == "high" and bearish)
+                        or (side == "low" and not bearish)
+                    )
+                else:
+                    cv = None
+                zones = killzones_at(now.end)
+                sess = zones[0] if zones else None
                 events.append(
                     SSMTEvent(
                         degree=degree,
@@ -285,6 +322,8 @@ def ssmt(
                         failed_prior_at=before[failed][1],
                         failed_now_at=after[failed][1],
                         knowable_at=now.end,
+                        candle_valid=cv,
+                        session=sess,
                     )
                 )
                 stats[f"side.{side}"] += 1.0
@@ -370,6 +409,263 @@ def divergences_for(
                 range_pos=(
                     position_at(price_to, at_to, times, knowable) if times else None
                 ),
+                candle_valid=event.candle_valid,
+                session=event.session,
             )
         )
     return out
+
+
+# --------------------------------------------------------------------------
+# POSKO 618 — fractal gap/SSMT mapping
+# --------------------------------------------------------------------------
+
+
+#: The practitioner's fractal rule: an HTF gap should be confirmed by an LTF
+#: SSMT at the corresponding degree. The key is the gap's timeframe — the chart
+#: the gap is drawn on — and the value is the SSMT degree that should confirm
+#: it. Source: Bang Nas ICT, POSKO 618 reference material.
+#:
+#:     Daily Gap = Monthly SSMT/Cycle
+#:     H4 Gap   = Weekly SSMT/Cycle
+#:     H1 Gap   = Daily SSMT/Cycle
+#:     M15 Gap  = 90m SSMT/Cycle
+#:     M5 Gap   = Micro SSMT/Cycle
+GAP_TO_SSMT: dict[str, str] = {
+    "1d": "month",
+    "4h": "week",
+    "1h": "day",
+    "15m": "90m",
+    "5m": "micro",
+}
+
+
+# --------------------------------------------------------------------------
+# POSKO 618 — 2-stage SSMT helper
+# --------------------------------------------------------------------------
+
+
+def two_stage(
+    stage1: list[SSMTDivergence],
+    stage2: list[SSMTDivergence],
+    symbol: str,
+) -> list[dict]:
+    """Find pairs where two consecutive degrees both show SSMT in the same
+    direction for `symbol`.
+
+    The practitioner's rule: "Minim harus ada dua SSMT stage." Stage 1 is the
+    higher degree (e.g. weekly), stage 2 is the lower degree (e.g. daily).
+    Both must be on the same side and in the same direction.
+
+    Returns a list of dicts, each with `stage1` and `stage2` keys pointing to
+    the matching divergences. Empty when no pair qualifies.
+    """
+    pairs: list[dict] = []
+    for s1 in stage1:
+        for s2 in stage2:
+            if s1.side != s2.side:
+                continue
+            # Same direction: both took or both failed.
+            if s1.self_took != s2.self_took:
+                continue
+            pairs.append({"stage1": s1, "stage2": s2})
+    return pairs
+
+
+# --------------------------------------------------------------------------
+# POSKO 618 — inter-market SSMT
+# --------------------------------------------------------------------------
+
+
+def intermarket(
+    group_a: list[SSMTDivergence],
+    group_b: list[SSMTDivergence],
+) -> list[dict]:
+    """Find divergences that agree across two asset classes.
+
+    The practitioner's rule: when precious metals AND FX both show SSMT in the
+    same direction, it is inter-market confirmation. "precious metals semua
+    ngesweep london low, FX semua failure swing" — both bearish.
+
+    Returns a list of dicts, each with `a` and `b` keys pointing to the
+    matching divergences from each group. The groups are compared by side and
+    direction (self_took). Empty when no inter-market agreement exists.
+    """
+    pairs: list[dict] = []
+    for a in group_a:
+        for b in group_b:
+            if a.side != b.side:
+                continue
+            if a.self_took != b.self_took:
+                continue
+            pairs.append({"a": a, "b": b})
+    return pairs
+
+
+# --------------------------------------------------------------------------
+# POSKO 618 — regular SMT (non-sequential)
+# --------------------------------------------------------------------------
+
+
+@dataclass(frozen=True)
+class SMTEvent:
+    """One regular SMT: two instruments disagreeing about the current quarter's
+    extreme, WITHOUT requiring consecutive quarters.
+
+    Regular SMT differs from sequential SSMT in one property: the comparison is
+    against the RUNNING extreme (all-time high/low within the window), not
+    against the immediately previous quarter. This makes it a liquidity
+    reading rather than a trend confirmation — "Regular SMT mengandungi
+    liquiditas yang sangat besar yang tinggi kemungkinan di akan di-purge."
+
+    The practitioner's rule: one asset makes a higher high (or lower low), the
+    other fails to. The quarters do not need to be consecutive. "Asalkan ada
+    satu asset HH dan lagi satu FS aja udah bisa."
+    """
+
+    degree: str
+    quarter: Quarter
+    side: Literal["high", "low"]
+    took: str   # the instrument that took the running extreme
+    failed: str  # the instrument that did not
+    took_price: float
+    failed_price: float
+    took_at: int
+    failed_at: int
+    running_extreme: float  # the level that was taken
+    knowable_at: int
+
+
+def smt(
+    series: dict[str, list[Candle]], degree: str
+) -> tuple[list[SMTEvent], dict[str, float]]:
+    """Every regular SMT at `degree` — non-sequential, per instrument pair.
+
+    Regular SMT compares the current quarter's extreme to the RUNNING extreme
+    (all-time high/low within the window), NOT to the previous quarter. One
+    instrument takes the running extreme, the other fails. The quarters do not
+    need to be consecutive, which is the defining difference from sequential
+    SSMT.
+
+    `series` must be ALIGNED: same bar times, same order, for every symbol.
+    That is what `aligned.load_aligned` returns.
+
+    Returns `(events, stats)`. Events are ordered by quarter, then by the
+    caller's symbol order, then high before low.
+
+    TAKING OUT IS STRICT. A new high must EXCEED the running high; an equal
+    high did not take it. Same for lows.
+    """
+    stats: dict[str, float] = {
+        "quarters": 0.0, "quarters.closed": 0.0, "events": 0.0,
+        "side.high": 0.0, "side.low": 0.0,
+    }  # fmt: skip
+    symbols = list(series)
+    if len(symbols) < 2:
+        raise ValueError(
+            f"smt is a cross-instrument read and needs at least two symbols, "
+            f"got {symbols}"
+        )
+
+    times = [c.time for c in series[symbols[0]]]
+    for symbol in symbols[1:]:
+        other = [c.time for c in series[symbol]]
+        if other != times:
+            raise ValueError(
+                f"{symbol} is not on the same grid as {symbols[0]}: "
+                f"{len(other)} bars against {len(times)}. Align them first."
+            )
+    if not times:
+        return [], stats
+
+    grid = quarters(degree, times[0], times[-1])
+    stats["quarters"] = float(len(grid))
+
+    spans = [
+        (q, bisect_left(times, q.start), bisect_left(times, q.end)) for q in grid
+    ]
+    closed = [(q, lo, hi) for q, lo, hi in spans if q.end <= times[-1]]
+    stats["quarters.closed"] = float(len(closed))
+
+    # Extremes per quarter, same as sequential SSMT.
+    ext: dict[tuple[int, str, str], tuple[float, int]] = {}
+    for q, lo, hi in closed:
+        for symbol in symbols:
+            rows = series[symbol][lo:hi]
+            if rows:
+                top = max(rows, key=lambda c: c.high)
+                bottom = min(rows, key=lambda c: c.low)
+                ext[q.start, symbol, "high"] = (top.high, top.time)
+                ext[q.start, symbol, "low"] = (bottom.low, bottom.time)
+
+    # Running extremes: all-time high/low up to and including the current
+    # quarter. A regular SMT fires when one instrument takes the running
+    # extreme and the other does not, in the SAME quarter.
+    running_high: dict[str, float] = {s: -float("inf") for s in symbols}
+    running_low: dict[str, float] = {s: float("inf") for s in symbols}
+
+    events: list[SMTEvent] = []
+    for q, lo, hi in closed:
+        if lo == hi:
+            continue
+        sides: tuple[Literal["high", "low"], ...] = ("high", "low")
+        for a, b in combinations(symbols, 2):
+            for side in sides:
+                if (q.start, a, side) not in ext or (q.start, b, side) not in ext:
+                    continue
+                price_a, at_a = ext[q.start, a, side]
+                price_b, at_b = ext[q.start, b, side]
+
+                if side == "high":
+                    took_a = price_a > running_high[a]
+                    took_b = price_b > running_high[b]
+                    running = max(running_high[a], running_high[b])
+                else:
+                    took_a = price_a < running_low[a]
+                    took_b = price_b < running_low[b]
+                    running = min(running_low[a], running_low[b])
+
+                # Both took it, or neither did: agreement, not a divergence.
+                if took_a == took_b:
+                    # Update running extremes regardless.
+                    if side == "high":
+                        running_high[a] = max(running_high[a], price_a)
+                        running_high[b] = max(running_high[b], price_b)
+                    else:
+                        running_low[a] = min(running_low[a], price_a)
+                        running_low[b] = min(running_low[b], price_b)
+                    continue
+
+                took, failed = (a, b) if took_a else (b, a)
+                took_price = price_a if took_a else price_b
+                failed_price = price_b if took_a else price_a
+                took_at = at_a if took_a else at_b
+                failed_at = at_b if took_a else at_a
+
+                events.append(
+                    SMTEvent(
+                        degree=degree,
+                        quarter=q,
+                        side=side,
+                        took=took,
+                        failed=failed,
+                        took_price=took_price,
+                        failed_price=failed_price,
+                        took_at=took_at,
+                        failed_at=failed_at,
+                        running_extreme=running,
+                        knowable_at=q.end,
+                    )
+                )
+                stats[f"side.{side}"] += 1.0
+
+            # Update running extremes AFTER comparison, so the current
+            # quarter's extreme becomes the new running level for the next.
+            if (q.start, a, "high") in ext:
+                running_high[a] = max(running_high[a], ext[q.start, a, "high"][0])
+                running_high[b] = max(running_high[b], ext[q.start, b, "high"][0])
+                running_low[a] = min(running_low[a], ext[q.start, a, "low"][0])
+                running_low[b] = min(running_low[b], ext[q.start, b, "low"][0])
+
+    stats["events"] = float(len(events))
+    return events, stats

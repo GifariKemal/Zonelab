@@ -7,6 +7,7 @@ import { Chart } from "@/components/chart";
 import { Toolbox } from "@/components/toolbox";
 import { ChecklistPanel } from "@/components/checklist-panel";
 import { LiquidityPanel } from "@/components/liquidity-panel";
+import { PoskoPanel } from "@/components/posko-panel";
 import { ZonePanel } from "@/components/zone-panel";
 import {
   fetchAccount,
@@ -776,6 +777,12 @@ export default function Page() {
           <LiquidityPanel
             range={data?.range_liquidity ?? null}
             draw={data?.draw_on_liquidity ?? null}
+          />
+          <PoskoPanel
+            symbol={symbol}
+            interval={interval}
+            bars={bars}
+            provider={provider}
           />
           <ZonePanel
                 clock={clock}

@@ -113,6 +113,12 @@ export interface SSMTDivergence {
    *  never scored - the raw range position looked like this project's strongest
    *  finding until it was split by side, and then it was upward drift. */
   range_pos: number | null;
+  /** True when the candle that printed the new extreme follows the practitioner's
+   *  rule: bullish SSMT needs a bearish candle, bearish needs a bullish one.
+   *  Null when the candle could not be found. */
+  candle_valid: boolean | null;
+  /** The kill zone active at the quarter close. Asia is weaker than London/NY. */
+  session: string | null;
 }
 
 export interface SwingPoint {
@@ -1585,4 +1591,29 @@ export interface AgentChatResponse {
   reason: string;
   unsupported: number[];
   model: string;
+}
+
+/** POSKO 618 — one triad, three symbols, and which is the Truth Asset. */
+export interface TriadResponse {
+  triad: string;
+  base: string;
+  partners: string[];
+  truth_asset: { symbol: string; scores: Record<string, number> } | null;
+  correlation: {
+    symbol: string;
+    full: number | null;
+    recent: number | null;
+    pairs: number;
+    sign_changed: boolean;
+  }[];
+  time: {
+    ny: string;
+    wib: string;
+    ny_day: string;
+    wib_day: string;
+    session: string | null;
+    all_sessions: string[];
+  };
+  grid: number;
+  skipped: string[];
 }

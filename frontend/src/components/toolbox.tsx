@@ -1123,6 +1123,29 @@ export const Toolbox = memo(function Toolbox({
                 })
               }
             />
+            {/* TRIAD PRESETS — one click fills the two partner symbols. The
+                base is the chart's own symbol, which is always excluded from
+                the partner list, so the triad works with any instrument. */}
+            <Chips
+              label="Triad"
+              options={["monetary", "commodity", "risk", "fx"]}
+              selected={[]}
+              onChange={(v) => {
+                const partners: Record<string, string[]> = {
+                  monetary: ["DXY", "EURUSD"],
+                  commodity: ["WTI", "XAGUSD"],
+                  risk: ["NAS100", "US30"],
+                  fx: ["USDJPY", "XPTUSD"],
+                };
+                const picked = v[v.length - 1];
+                if (!picked || !partners[picked]) return;
+                onParams("checklist", {
+                  ssmt_symbols: partners[picked].filter(
+                    (p) => p !== symbol,
+                  ),
+                });
+              }}
+            />
             {/* Instruments FIRST, because stages alone do nothing: the backend
                 needs both, and a stage picker on its own was a control that
                 looked like it worked and silently did not. */}

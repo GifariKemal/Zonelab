@@ -39,10 +39,10 @@ from app.conditions import at_bar
 from app.confluence import mark_nesting
 from app.costs import COST_TO_RISK_MAX, cost_to_risk, schedule, spec
 from app.detect import DETECTORS
-from app.ict import Rules, setup as ict_setup
+from app.ict import DOCTRINE_CLAUSES, Rules, setup as ict_setup
 from app.indicators import wilder_atr
 from app.models import LotSpec, SupplyDemandParams, ZoneSide
-from app.plan import DEPARTURE_GATE_ATR, HELD_BELOW_GATE, HELD_CLEARED_GATE, build
+from app.plan import DEPARTURE_GATE_ATR, build
 from app.portfolio import Book, Held, admits, aligned
 from app.poi import confluence, other_boxes
 from app.providers.base import INTERVALS
@@ -85,8 +85,8 @@ def grounds(zone, plan) -> list[str]:
     """
     return [
         f"departure {zone.departure_atr} ATR clears the {DEPARTURE_GATE_ATR} gate",
-        f"cohort above the gate held {HELD_CLEARED_GATE:.1%} against "
-        f"{HELD_BELOW_GATE:.1%} below it, and that gate is 8/8 on walk-forward",
+        "gate margin +0.124 R, Welch t=+4.82 on 14,813 trades across 18 cells, "
+        "positive in 17 of 18, walk-forward 8/8",
         f"age {plan.age_bars} bars, cohort held {plan.age_held_rate:.1%}",
         f"target is the nearest live opposing zone at {plan.target}, "
         f"{plan.reward_r}R from the entry",
@@ -419,6 +419,12 @@ def cycle(
     five trades at three percent is fifteen percent nobody chose.
     """
     rules = rules or Rules()
+    doctrine_required = [c for c in rules.required if c in DOCTRINE_CLAUSES]
+    if doctrine_required:
+        print(f"PERINGATAN: --require mencantumkan klausa doctrine "
+              f"(belum diukur): {', '.join(doctrine_required)}. "
+              f"Klausa ini diterapkan karena metode mensyaratkannya, "
+              f"bukan karena proyek ini punya angka untuknya.")
     if isinstance(symbols, str):
         symbols = [symbols]
     if isinstance(intervals, str):
@@ -623,6 +629,13 @@ def main() -> None:
                                if x.strip())} if args.killzones else {}),
     )
     rule = {**RULE, "risk_pct": args.risk_pct}
+
+    doctrine_required = [c for c in rules.required if c in DOCTRINE_CLAUSES]
+    if doctrine_required:
+        print(f"PERINGATAN: --require mencantumkan klausa doctrine "
+              f"(belum diukur): {', '.join(doctrine_required)}. "
+              f"Klausa ini diterapkan karena metode mensyaratkannya, "
+              f"bukan karena proyek ini punya angka untuknya.")
 
     mt5 = None
     equity = args.equity
