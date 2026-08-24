@@ -101,19 +101,26 @@ def ote_bounds(swing_low: float, swing_high: float) -> tuple[float, float]:
 
 
 def in_ote(position: float | None) -> bool:
-    """Whether the retracement ratio sits inside the OTE sweet spot."""
-    if position is None:
-        return False
-    return OTE_LOW <= position <= OTE_HIGH
+    """Whether the price sits inside the OTE sweet spot.
 
-
-def in_no_mans_land(position: float | None) -> bool:
-    """Whether the retracement is at or above equilibrium (shallow).
-
-    For a bullish pullback, a position at or above 0.5 means price has not
-    retraced deep enough — it is in the "no man's land" between the high and
-    the OTE, where the entry risk is not compensated.
+    `position` is (price - swing_low) / height, so 0.0 is the swing low and
+    1.0 is the swing high. The OTE retracement band (0.618-0.786 measured
+    DOWN from the high) maps to position [1-0.786, 1-0.618] = [0.214, 0.382]:
+    price near the swing low, deep in the discount.
     """
     if position is None:
         return False
-    return position >= EQUILIBRIUM
+    return (1.0 - OTE_HIGH) <= position <= (1.0 - OTE_LOW)
+
+
+def in_no_mans_land(position: float | None) -> bool:
+    """Whether the price sits in the shallow zone around equilibrium.
+
+    `position` near 0.5 (retracement 0.5) is equilibrium — neither deep
+    discount nor deep premium. A shallow pullback that has not travelled
+    into the OTE band is the no-man's-land where the entry risk is not
+    compensated by depth.
+    """
+    if position is None:
+        return False
+    return abs(position - EQUILIBRIUM) <= 0.12
