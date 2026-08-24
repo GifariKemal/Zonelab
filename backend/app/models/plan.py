@@ -199,6 +199,20 @@ class TradePlan(BaseModel):
     )
     risk_per_unit: float
     reward_r: float | None
+    partial_2r: float | None = Field(
+        default=None,
+        description=(
+            "The price where 2R is reached. Auto-partial exit target: close a "
+            "portion of the position exactly at this level."
+        ),
+    )
+    breakeven_stop: float | None = Field(
+        default=None,
+        description=(
+            "The entry price. Stop loss is moved here immediately after the "
+            "partial at +2R is filled. The runner works towards the final DOL."
+        ),
+    )
     units: float | None = Field(
         description="Position size, only when an account equity was supplied"
     )

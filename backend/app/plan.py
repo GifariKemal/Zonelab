@@ -338,5 +338,15 @@ def build(
             round(carry_per_night, 6) if carry_per_night is not None else None
         ),
         direction_evidence=None,
+        partial_2r=(
+            round(entry_filled + way * 2 * risk, 6)
+            if entry_filled is not None and risk > 0
+            else None
+        ),
+        breakeven_stop=(
+            round(entry_filled, 6)
+            if entry_filled is not None
+            else None
+        ),
         warnings=warnings,
     )
