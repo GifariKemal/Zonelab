@@ -65,6 +65,11 @@ from tools.stats import (
     min_trl,
     psr,
 )
+from datetime import datetime
+
+from app.clock import NY
+from app.ssmt import ssmt as ssmt_read
+from app.tcisd import find as tcisd_find
 
 #: Instrumen yang terminal ini benar-benar punya, diukur 22 Agustus 2026 lewat
 #: `symbol_info` plus `copy_rates_from_pos`. NAS100 TIDAK ada di broker ini dan
@@ -383,17 +388,113 @@ def null_ruin(rows: list[dict], risk_pct: float, **kw) -> dict:
     return ruin(centred, risk_pct, **kw)
 
 
+#: Partner for SSMT detection per instrument. The partner must be correlated
+#: and available on the same provider. Metals use each other; FX uses EURUSD
+#: as the most liquid pair; indices use US30; crypto uses BTCUSD.
+TCISD_PARTNER: dict[str, str] = {
+    "XAUUSD": "XAGUSD", "XAGUSD": "XAUUSD", "XPTUSD": "XAUUSD",
+    "EURUSD": "GBPUSD", "GBPUSD": "EURUSD", "USDJPY": "EURUSD",
+    "GBPJPY": "EURUSD", "AUDUSD": "EURUSD", "USDCAD": "EURUSD",
+    "BTCUSD": "ETHUSD", "US30": "XAUUSD", "USOIL": "XAUUSD",
+}
+
+
+def tcisd_trades(
+    symbol: str, candles, interval: str,
+    broker: str = "", flat_by_rollover: bool = False,
+) -> list[dict]:
+    """Zone-based trades filtered by tCISD directional confirmation.
+
+    tCISD is a FILTER, not a replacement for the zone entry. The zone
+    geometry (proximal/distal) defines the risk; tCISD confirms the
+    direction. Only trades where tCISD agrees with the zone's side
+    survive the filter.
+
+    Pipeline:
+    1. Generate all zone-based trade candidates (proximal entry, distal stop)
+    2. Detect SSMT events and tCISD confirmations
+    3. Filter: only keep zone trades with matching tCISD confirmation
+    4. Return filtered trade rows
+    """
+    # Step 1: zone-based trade candidates from the existing engine
+    all_trades = [
+        x for x in trades("supply_demand", candles, interval, True,
+                          symbol=symbol, broker=broker,
+                          flat_by_rollover=flat_by_rollover)
+        if not x["skipped"]
+    ]
+    if not all_trades:
+        return []
+
+    # Step 2: SSMT events and tCISD confirmations
+    rows = history.load(f"mt5:{symbol}", interval, len(candles))
+    partner_sym = TCISD_PARTNER.get(symbol, "XAGUSD")
+    partner_rows = history.load(f"mt5:{partner_sym}", interval, len(candles))
+    if not rows or not partner_rows:
+        return all_trades  # no filter possible, return all
+
+    my_times = {c.time for c in rows}
+    partner_times = {c.time for c in partner_rows}
+    common = sorted(my_times & partner_times)
+    if len(common) < 50:
+        return all_trades
+
+    aligned_mine = [c for c in rows if c.time in common]
+    aligned_partner = [c for c in partner_rows if c.time in common]
+    series = {symbol: aligned_mine, partner_sym: aligned_partner}
+    events, _ = ssmt_read(series, "day")
+
+    # Build a set of confirmed directions with tCISD validation
+    confirmed_directions: set[str] = set()
+    index_of = {int(t): i for i, t in enumerate(common)}
+    for event in events:
+        if symbol not in (event.took, event.failed):
+            continue
+        if symbol == event.took:
+            ssmt_at = index_of.get(event.took_now_at)
+            sweep = event.failed_now if event.side == "high" else event.took_now
+        else:
+            ssmt_at = index_of.get(event.failed_now_at)
+            sweep = event.took_now if event.side == "high" else event.failed_now
+        if ssmt_at is None:
+            continue
+        # M4 time filter
+        ny_dt = datetime.fromtimestamp(common[ssmt_at], tz=NY)
+        in_m4 = (ny_dt.hour == 9 and ny_dt.minute >= 30) or \
+                (ny_dt.hour == 10 and ny_dt.minute <= 30)
+        if not in_m4:
+            continue
+        # tCISD confirmation
+        entry = tcisd_find(aligned_mine, ssmt_at, event.side, sweep)
+        if entry is None:
+            continue
+        confirmed_directions.add(entry.direction)
+
+    # Step 3: filter zone trades by tCISD directional confirmation.
+    # If tCISD confirms bullish, only trade demand zones. If bearish,
+    # only supply zones. If both confirmed, no filter (trade both).
+    if not confirmed_directions or len(confirmed_directions) == 2:
+        return all_trades  # no filter or both directions confirmed
+    want = "demand" if "buy" in confirmed_directions else "supply"
+    out = [t for t in all_trades if t.get("side") == want]
+    return out
+
+
 def cell(symbol: str, interval: str, flat: bool = True,
-         bars: int = MT5_MAX_BARS) -> dict:
+         bars: int = MT5_MAX_BARS, tcistd: bool = False) -> dict:
     """Satu sel matrix: instrumen kali timeframe, semua angkanya."""
     candles, dropped, requested = clean(symbol, interval, bars)
     if len(candles) < 500:
         return {"symbol": symbol, "interval": interval, "n": 0,
                 "note": f"hanya {len(candles)} bar bersih"}
-    rows = [x for x in trades("supply_demand", candles, interval, True,
-                              symbol=symbol, broker=BROKER,
-                              flat_by_rollover=flat)
-            if not x["skipped"]]
+    if tcistd:
+        rows = tcisd_trades(symbol, candles, interval, broker=BROKER,
+                            flat_by_rollover=flat)
+    else:
+        rows = [x for x in trades("supply_demand", candles, interval, True,
+                                  symbol=symbol, broker=BROKER,
+                                  flat_by_rollover=flat)
+                if not x["skipped"]]
     gated = [x for x in rows if x["cleared"]]
     out = {"symbol": symbol, "interval": interval, "bars": len(candles),
            "dropped_prefix": dropped, "requested": requested,
@@ -419,11 +520,14 @@ def main() -> int:
     parser.add_argument("--hold", action="store_true",
                         help="aturan exit hold sampai horizon, bukan flat di rollover")
     parser.add_argument("--bars", type=int, default=MT5_MAX_BARS)
+    parser.add_argument("--tcistd", action="store_true",
+                        help="entry tCISD (SSMT-based), bukan proximal")
     args = parser.parse_args()
     flat = not args.hold
 
     print(f"exit rule: {'flat di rollover' if flat else f'hold {HORIZON} bar'}, "
-          f"broker {BROKER}, prefix spacing salah DIBUANG")
+          f"broker {BROKER}, prefix spacing salah DIBUANG"
+          + (", entry: tCISD" if args.tcistd else ""))
 
     if args.matrix:
         print(f"\n{'symbol':8s} {'tf':4s} {'bar':>7s} {'buang':>6s} {'n':>5s} "
@@ -432,7 +536,7 @@ def main() -> int:
         cells = []
         for symbol in UNIVERSE:
             for interval in args.intervals.split(","):
-                c = cell(symbol, interval, flat, args.bars)
+                c = cell(symbol, interval, flat, args.bars, tcistd=args.tcistd)
                 cells.append(c)
                 if not c.get("n"):
                     print(f"{symbol:8s} {interval:4s} {c.get('note', 'tanpa trade')}")
