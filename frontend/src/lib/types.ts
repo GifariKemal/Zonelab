@@ -1614,6 +1614,13 @@ export interface AgentChatResponse {
   model: string;
 }
 
+/** The chat context: the drawing the agent discusses, plus the POSKO triad
+ *  readings (correlation and Truth Asset) so it can answer "korelasi emas". */
+export interface AgentContext {
+  draw: DrawResponse;
+  triads: TriadResponse[];
+}
+
 /** POSKO 618 — one triad, three symbols, and which is the Truth Asset. */
 export interface TriadResponse {
   triad: string;

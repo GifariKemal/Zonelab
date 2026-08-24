@@ -9,6 +9,7 @@ import type {
   AgentConfig,
   AgentConfigSaveResponse,
   AgentChatResponse,
+  AgentContext,
   ChatRole,
   TriadResponse,
 } from "./types";
@@ -199,7 +200,7 @@ export function fetchAgentModels(): Promise<{ models: string[] }> {
 
 export function agentChat(
   messages: { role: ChatRole; content: string }[],
-  context: DrawResponse | null,
+  context: AgentContext | null,
 ): Promise<AgentChatResponse> {
   return call<AgentChatResponse>(
     "/api/agent/chat",

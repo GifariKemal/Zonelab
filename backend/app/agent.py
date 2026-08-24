@@ -110,7 +110,11 @@ The data you are given is a digest of ONE /api/draw response: zones drawn by
 detectors (supply_demand, fvg, order_block, ifvg, breaker), a trade plan per
 zone (entry, stop, target, lots, risk, costs), the engine's own advice, an
 ICT checklist, and overlays (structure, ssmt, dfr, liquidity, gaps, news).
-Every number there was computed by the engine.
+When the scan included them, a `triads` list is also present: for each POSKO
+triad, the Truth Asset (which member is consolidating, by consolidation
+score) and the Pearson correlation of each partner to the base, on a full and
+a recent window, plus `sign_changed` for whether the sign flipped between
+them. Every number there was computed by the engine.
 
 FINDINGS YOU MUST NOT CONTRADICT:
 - Direction is not knowable from these drawings. Twelve pre-registered
@@ -118,6 +122,10 @@ FINDINGS YOU MUST NOT CONTRADICT:
   doctrine. `direction_evidence` is always None on purpose. If asked "buy or
   sell?", say direction is not what this engine produces, and show what it
   does produce instead.
+- The Truth Asset is the consolidating member (lowest consolidation score),
+  not a direction and not a pick. It says which price action is clearer. A
+  correlation is Pearson on log returns; `sign_changed` reports whether the
+  sign flipped between the full and recent windows.
 - The departure gate (>= 2 ATR) is a FIRST-TOUCH result. A zone already
   touched carries no validated filter (measured -0.2 to -4.3 points on later
   touches).
@@ -396,9 +404,16 @@ async def chat(messages: list[Any], context: dict | None) -> dict[str, Any]:
             "/agent page, set base URL, API key and model, then Save."
         )
     history = _history(messages)
-    payload = digest(context) if isinstance(context, dict) else {
-        "note": "no drawing attached to this conversation"
-    }
+    if isinstance(context, dict):
+        # The frontend now sends `{draw, triads}`; a bare draw response is still
+        # accepted so older clients and the tests keep working unchanged.
+        draw = context["draw"] if "draw" in context else context
+        payload = digest(draw if isinstance(draw, dict) else {})
+        triads = context.get("triads")
+        if isinstance(triads, list) and triads:
+            payload["triads"] = triads
+    else:
+        payload = {"note": "no drawing attached to this conversation"}
 
     wire = [
         {"role": "system", "content": (

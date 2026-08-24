@@ -212,3 +212,59 @@ def test_digest_strips_advice_learn_anchors():
     digest = agent.digest(response)
     assert digest["advice"][0]["notes"] == [{"topic": "Bentuknya",
                                              "text": "prosa"}]
+
+
+def triad_response() -> dict:
+    """One triad reading, the shape `/api/triad` returns."""
+    return {
+        "triad": "commodity", "base": "XAUUSD",
+        "partners": ["WTI", "XAGUSD"],
+        "truth_asset": {
+            "symbol": "WTI",
+            "scores": {"XAUUSD": 3.14, "WTI": 3.124, "XAGUSD": 3.78},
+        },
+        "correlation": [
+            {"symbol": "XAGUSD", "full": 0.8308, "recent": 0.8454,
+             "pairs": 1458, "sign_changed": False},
+        ],
+        "time": {"ny": "18:43", "wib": "05:43", "ny_day": "Mon",
+                 "wib_day": "Tue", "session": None, "all_sessions": []},
+        "grid": 1459.0, "skipped": [],
+    }
+
+
+def test_chat_carries_triads_and_grounds_a_correlation(tmp_path, monkeypatch):
+    """The triad numbers ride into the payload, so a correlation quote is
+    grounded rather than flagged as invented."""
+    good_config(tmp_path, monkeypatch)
+    seen: dict = {}
+
+    async def fake_complete(cfg, messages):
+        seen["messages"] = messages
+        return "korelasi XAUUSD terhadap XAGUSD 0.83, truth asset WTI"
+
+    monkeypatch.setattr(agent, "_complete", fake_complete)
+    out = asyncio.run(agent.chat(
+        [{"role": "user", "content": "korelasi emas?"}],
+        {"draw": draw_response(), "triads": [triad_response()]},
+    ))
+    assert out["grounded"] is True, out["unsupported"]
+    # The payload handed to the model carries the triad correlation, so the
+    # number it quoted was the engine's own, not the model's invention.
+    wire = json.dumps(seen["messages"][0]["content"])
+    assert "0.8308" in wire
+    assert "truth_asset" in wire
+
+
+def test_chat_with_a_bare_draw_response_still_works(tmp_path, monkeypatch):
+    """Older clients and the existing tests send the draw response verbatim;
+    the wrapper must not be required."""
+    good_config(tmp_path, monkeypatch)
+
+    async def fake_complete(cfg, messages):
+        return "entry zone D-59 ada di 11.0"
+
+    monkeypatch.setattr(agent, "_complete", fake_complete)
+    out = asyncio.run(agent.chat(
+        [{"role": "user", "content": "entry?"}], draw_response()))
+    assert out["grounded"] is True

@@ -35,6 +35,7 @@ import {
   fetchAgentModels,
   fetchConfig,
   fetchDrawing,
+  fetchTriad,
   saveAgentConfig,
 } from "@/lib/api";
 import {
@@ -43,6 +44,7 @@ import {
   type ChatMessage,
   type DrawResponse,
   type ServerConfig,
+  type TriadResponse,
 } from "@/lib/types";
 
 /** What the agent asks the engine for on a scan. Supply and demand is the
@@ -52,6 +54,11 @@ import {
  *  dashboard's toolbox here, which is a second place for the same knobs to
  *  drift. */
 const SCAN_LAYERS = ["supply_demand", "structure", "liquidity", "checklist"];
+
+/** The four POSKO triads, fetched alongside the draw so the agent can answer
+ *  "korelasi emas" and "mana truth asset". A triad that fails to load is
+ *  dropped, not fatal: the draw alone still makes a grounded conversation. */
+const TRIAD_KEYS = ["monetary", "commodity", "risk", "fx"] as const;
 
 export default function AgentPage() {
   const [config, setConfig] = useState<ServerConfig | null>(null);
@@ -72,6 +79,7 @@ export default function AgentPage() {
   const [provider, setProvider] = useState("");
   const [bars, setBars] = useState(500);
   const [drawing, setDrawing] = useState<DrawResponse | null>(null);
+  const [triads, setTriads] = useState<TriadResponse[]>([]);
   const [scanning, setScanning] = useState(false);
   const [scanError, setScanError] = useState<string | null>(null);
 
@@ -140,8 +148,20 @@ export default function AgentPage() {
         session_offset_hours: 0,
       });
       setDrawing(response);
+      // The triads ride alongside the draw so the agent can discuss correlation
+      // and the Truth Asset. Tolerated, not awaited-to-death: a partner that
+      // will not load drops out and the draw alone still grounds the chat.
+      const results = await Promise.allSettled(
+        TRIAD_KEYS.map((t) =>
+          fetchTriad(symbol, interval, bars, t, provider || undefined),
+        ),
+      );
+      setTriads(
+        results.flatMap((r) => (r.status === "fulfilled" ? [r.value] : [])),
+      );
     } catch (cause) {
       setDrawing(null);
+      setTriads([]);
       setScanError(cause instanceof Error ? cause.message : String(cause));
     } finally {
       setScanning(false);
@@ -200,7 +220,7 @@ export default function AgentPage() {
     try {
       const reply: AgentChatResponse = await agentChat(
         history.map((m) => ({ role: m.role, content: m.content })),
-        drawing,
+        drawing ? { draw: drawing, triads } : null,
       );
       setMessages([
         ...history,
