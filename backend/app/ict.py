@@ -94,7 +94,7 @@ DOCTRINE_CLAUSES: frozenset[str] = frozenset([
     "killzone", "day_of_week", "discount_or_premium", "manipulation_quarter",
     "manipulation_seen", "manipulation_after_accumulation",
     "poi_families", "poi_clean", "cisd_in_band", "dfr_side",
-    "two_stage_confirmed", "min_rr",
+    "two_stage_confirmed", "min_rr", "ote",
 ])
 
 
@@ -170,6 +170,29 @@ def evaluate(
         out.append(Condition(
             "discount_or_premium", band in want, "doctrine",
             f"band {band}, wanted one of {want}",
+        ))
+
+    # ---------------------------------------------------------------- OTE
+    # Optimal Trade Entry: the entry must rest deep inside the Fibonacci
+    # OTE band (0.618-0.786 retracement) of the dealing range, not at
+    # equilibrium. `dealing_range_pos` is 0 at the range low, 1 at the
+    # high. For a demand (buy), the deep discount is near 0; for a supply
+    # (sell), the deep premium is near 1. The OTE retracement band maps
+    # to [0.214, 0.382] for buys and [0.618, 0.786] for sells.
+    drp = zone.dealing_range_pos
+    if drp is None:
+        out.append(Condition("ote", None, "doctrine",
+                             "no dealing range, no OTE reading"))
+    else:
+        # retracement = how far price pulled back from the extreme.
+        # demand wants deep discount (drp near 0.214-0.382); supply wants
+        # deep premium (drp near 0.618-0.786).
+        ote_ok = (0.214 <= drp <= 0.382) if demand else (0.618 <= drp <= 0.786)
+        out.append(Condition(
+            "ote", ote_ok, "doctrine",
+            f"entry at dealing-range {drp:.3f}, "
+            f"OTE band {'0.214-0.382' if demand else '0.618-0.786'}"
+            + ("" if ote_ok else ", in no man's land"),
         ))
 
     # ------------------------------------------------------------ quarterly
