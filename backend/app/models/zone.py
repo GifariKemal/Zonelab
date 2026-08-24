@@ -5,7 +5,7 @@ from __future__ import annotations
 from pydantic import BaseModel, Field
 
 from .primitives import Anatomy, Displacement, Refinement, ZoneKind, ZoneSide, ZoneState
-from .structure import SessionQuarter, StructureEvent, SwingPoint, TrueOpenLevel
+from .structure import FibonacciAnchor, SessionQuarter, StructureEvent, SwingPoint, TrueOpenLevel
 from .gaps import EventHorizonLevel, GapStack, NewsEvent, OpeningGap, TierHorizon
 from .liquidity import LiquidityPool, NamedLevel, RangeProjection
 from .cycle import CISDEvent, DefiningRangeBand, SMTDivergence, SSMTDivergence
@@ -253,6 +253,14 @@ class Drawing(BaseModel):
         description=(
             "Breaks, sweeps and shifts, empty unless structure was requested. "
             "Ordered by time. Carries no direction claim: see StructureEvent."
+        ),
+    )
+    fibonacci: FibonacciAnchor | None = Field(
+        default=None,
+        description=(
+            "The two structural swing anchors the Fibonacci/OTE grid is drawn "
+            "over: most recent confirmed swing low and high. None until the "
+            "structure layer has confirmed a swing on both sides."
         ),
     )
     quarters: list[SessionQuarter] = Field(

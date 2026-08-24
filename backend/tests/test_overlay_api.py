@@ -1010,3 +1010,40 @@ def test_an_exact_true_open_never_carries_the_approximate_flag_or_a_moved_bar():
         if not flag:
             assert all(o["approximate"] is False for o in levels)
             assert all(o["bar"] == o["time"] for o in levels)
+
+
+def test_fibonacci_is_absent_unless_structure_is_on():
+    """The OTE grid is a structure reading, so off means off.
+
+    A Fibonacci anchor off by default that quietly drew would change every
+    existing chart, the same way any opt-in layer that drew would. The anchor
+    rides on the structure layer and must stay null until that layer is asked
+    for.
+    """
+    body = draw()
+    assert body["drawing"]["fibonacci"] is None
+
+
+def test_fibonacci_matches_the_last_confirmed_swing_anchors():
+    """The two anchors are the backend's own reading, not a frontend re-derivation.
+
+    The chart used to compute these client-side from the returned swings. That
+    split the definition in two: the backend scored OTE against one pair of
+    anchors while the canvas drew another, and the two could drift. Now the
+    drawing carries the pair, and the wire has to hold them to exactly the last
+    confirmed swing high and low - same price, same time. The synthetic feed
+    produces confirmed swings on both sides over this window, so a null here is
+    a regression, not a quiet market.
+    """
+    body = draw(layers=["structure"])
+    swings = body["drawing"]["swings"]
+    highs = [s for s in swings if s["high"] and s["scale"] == "swing"]
+    lows = [s for s in swings if not s["high"] and s["scale"] == "swing"]
+    assert highs and lows, "the synthetic window has confirmed swings on both sides"
+
+    fib = body["drawing"]["fibonacci"]
+    assert fib is not None, "a chart with both anchors drawn must carry them"
+    assert fib["low"] == lows[-1]["price"]
+    assert fib["low_at"] == lows[-1]["time"]
+    assert fib["high"] == highs[-1]["price"]
+    assert fib["high_at"] == highs[-1]["time"]

@@ -22,6 +22,7 @@ from .structure import (
     StructureEvent,
     SessionQuarter,
     TrueOpenLevel,
+    FibonacciAnchor,
 )
 from .gaps import (
     OpeningGap,
@@ -99,6 +100,7 @@ __all__ = [
     "StructureEvent",
     "SessionQuarter",
     "TrueOpenLevel",
+    "FibonacciAnchor",
     "OpeningGap",
     "NewsEvent",
     "GapStack",

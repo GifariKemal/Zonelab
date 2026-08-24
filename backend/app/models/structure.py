@@ -136,3 +136,19 @@ class TrueOpenLevel(BaseModel):
             "returned that degree's level zero times."
         ),
     )
+
+
+class FibonacciAnchor(BaseModel):
+    """The two structural swing anchors the Fibonacci/OTE grid is drawn over.
+
+    `low` is the most recent confirmed swing low (Anchor 0); `high` is the
+    most recent confirmed swing high (Anchor 1). Both carry the price and the
+    bar it became knowable on, so the grid can be drawn at the exact pip and
+    re-anchored without repainting. Empty (both None) until the structure
+    layer has confirmed a swing on both sides.
+    """
+
+    low: float | None = None
+    low_at: int | None = None
+    high: float | None = None
+    high_at: int | None = None

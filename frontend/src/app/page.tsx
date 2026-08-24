@@ -731,6 +731,7 @@ export default function Page() {
                 zones={zones}
                 swings={swings}
                 structure={events}
+                fibonacci={data?.drawing.fibonacci ?? null}
                 quarters={data?.drawing.quarters ?? []}
                 trueOpens={data?.drawing.true_opens ?? []}
                 ssmt={data?.drawing.ssmt ?? []}

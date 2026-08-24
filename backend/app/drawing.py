@@ -17,7 +17,7 @@ from .detect import DETECTORS
 from .detect.structure import overlay as structure_overlay
 from .detect.supply_demand import cap_per_side
 from .layers import LAYERS, PARAMS_BY_ID
-from .models import Candle, DrawRequest, Drawing, Zone, ZoneState
+from .models import Candle, DrawRequest, Drawing, FibonacciAnchor, Zone, ZoneState
 from .overlays import BAR_OVERLAYS, bar_overlays, session_grid
 from .profit_zone import mark_crowding, mark_profit_zones
 from .providers import INTERVALS
@@ -127,6 +127,17 @@ def _draw_structure(
     drawing.swings = swings
     drawing.structure = events
     meta["structure"] = stats
+
+    # Fibonacci anchors: the most recent CONFIRMED swing high and swing low,
+    # at the `swing` scale. None on either side until structure has confirmed
+    # both, so the grid re-anchors cleanly instead of drawing half an anchor.
+    highs = [s for s in swings if s.high and s.scale == "swing"]
+    lows = [s for s in swings if not s.high and s.scale == "swing"]
+    if highs and lows:
+        drawing.fibonacci = FibonacciAnchor(
+            low=lows[-1].price, low_at=lows[-1].time,
+            high=highs[-1].price, high_at=highs[-1].time,
+        )
 
 
 def _draw_session(

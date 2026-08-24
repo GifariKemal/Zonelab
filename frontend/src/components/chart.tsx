@@ -59,6 +59,8 @@ interface Props {
   /** Structure overlay. Empty arrays when it is off, which is the default. */
   swings: SwingPoint[];
   structure: StructureEvent[];
+  /** The two swing anchors the Fibonacci/OTE grid is drawn over. */
+  fibonacci: { low: number | null; high: number | null } | null;
   /** The cycle grid. Empty arrays when no degree was requested, the default. */
   quarters: SessionQuarter[];
   trueOpens: TrueOpenLevel[];
@@ -164,6 +166,7 @@ export function Chart({
   zones,
   swings,
   structure,
+  fibonacci,
   quarters,
   trueOpens,
   ssmt,
@@ -611,19 +614,16 @@ export function Chart({
     structurePrimitive.current?.setStructure(swings, structure);
   }, [swings, structure]);
 
-  // Fibonacci anchors: the most recent CONFIRMED swing high and swing low.
-  // Drawn over that swing so the OTE band reads against the live structure.
+  // Fibonacci anchors: the most recent CONFIRMED swing high and swing low,
+  // computed by the backend so the chart draws the same anchors the engine
+  // scored. None until structure has confirmed a swing on both sides.
   useEffect(() => {
-    const highs = swings.filter((s) => s.high && s.scale === "swing");
-    const lows = swings.filter((s) => !s.high && s.scale === "swing");
-    const lastHigh = highs[highs.length - 1];
-    const lastLow = lows[lows.length - 1];
-    if (lastHigh && lastLow) {
-      fibPrimitive.current?.setSwing(lastLow.price, lastHigh.price);
+    if (fibonacci && fibonacci.low !== null && fibonacci.high !== null) {
+      fibPrimitive.current?.setSwing(fibonacci.low, fibonacci.high);
     } else {
       fibPrimitive.current?.setSwing(null, null);
     }
-  }, [swings]);
+  }, [fibonacci]);
 
   useEffect(() => {
     sessionPrimitive.current?.setSession(quarters, trueOpens, news);

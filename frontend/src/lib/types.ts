@@ -1050,6 +1050,13 @@ export interface DrawResponse {
     /** Empty unless structure was requested. */
     swings: SwingPoint[];
     structure: StructureEvent[];
+    /** The two swing anchors the Fibonacci/OTE grid is drawn over. */
+    fibonacci: {
+      low: number | null;
+      low_at: number | null;
+      high: number | null;
+      high_at: number | null;
+    } | null;
     /** Empty unless a degree was requested. */
     quarters: SessionQuarter[];
     true_opens: TrueOpenLevel[];
