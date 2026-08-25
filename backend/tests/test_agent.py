@@ -268,3 +268,31 @@ def test_chat_with_a_bare_draw_response_still_works(tmp_path, monkeypatch):
     out = asyncio.run(agent.chat(
         [{"role": "user", "content": "entry?"}], draw_response()))
     assert out["grounded"] is True
+
+
+def test_a_direction_lean_with_qualitative_confidence_is_grounded(tmp_path, monkeypatch):
+    """A direction lean is now allowed, but only as a labeled synthesis. A lean
+    phrased in words with a qualitative confidence carries no invented number,
+    so grounding holds - while a numeric probability is still the fabricated
+    win-rate the whole module exists to catch."""
+    good_config(tmp_path, monkeypatch)
+
+    async def fake_complete(cfg, messages):
+        return ("Lean saya condong bullish, confidence sedang. Sinyalnya: "
+                "zona demand di 11.0, departure 2.5 ATR. Ini judgment saya, "
+                "bukan pengukuran engine, dan dua belas hipotesis arah sudah gagal.")
+
+    monkeypatch.setattr(agent, "_complete", fake_complete)
+    out = asyncio.run(agent.chat(
+        [{"role": "user", "content": "arah ke mana?"}], draw_response()))
+    assert out["grounded"] is True, out["unsupported"]
+
+    # The same lean with a numeric probability is still caught.
+    async def fake_percent(cfg, messages):
+        return "Kemungkinan naik 70%."
+
+    monkeypatch.setattr(agent, "_complete", fake_percent)
+    out2 = asyncio.run(agent.chat(
+        [{"role": "user", "content": "arah ke mana?"}], draw_response()))
+    assert out2["grounded"] is False
+    assert 70.0 in out2["unsupported"]
