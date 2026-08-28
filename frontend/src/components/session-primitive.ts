@@ -517,11 +517,22 @@ export class SessionSeriesPrimitive implements ISeriesPrimitive<Time> {
     // a branded `Coordinate`, so a `b is QuarterBox` predicate over a nullable
     // union does not narrow - the branded type is not assignable back to the
     // plain `number` the interface declares, and the compiler is right about it.
+    // HALF A BAR EACH SIDE, the same correction `zone-primitive.ts` carries and
+    // for the same measured reason: `timeToCoordinate` answers a bar's CENTRE,
+    // so anchoring straight to it draws the box from the middle of its first bar
+    // to the middle of its last. Half of each end bar then sits outside the box
+    // that describes it, and the left border lands on that candle's own
+    // x-position where the candle - drawn on top - hides it. The news mark below
+    // has always corrected for this; the quarter box did not, and no pixel
+    // harness covered it because `pixel-truth.mjs` only reads box detectors.
+    const halfBar = timeScale.options().barSpacing / 2;
     this.boxes = [];
     for (const quarter of this.quarters) {
       const x1 = timeScale.timeToCoordinate(quarter.time_from as Time);
       const x2 = timeScale.timeToCoordinate(quarter.time_to as Time);
-      if (x1 !== null && x2 !== null) this.boxes.push({ quarter, x1, x2 });
+      if (x1 !== null && x2 !== null) {
+        this.boxes.push({ quarter, x1: x1 - halfBar, x2: x2 + halfBar });
+      }
     }
 
     this.marks = [];

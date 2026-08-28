@@ -290,6 +290,14 @@ function ZoneRow({
 }) {
   return (
     <button
+      // The harness selects zone rows by THIS, not by their position among the
+      // buttons in the right rail. It used to take `aside`.last() and click
+      // buttons 0..3, which worked until PoskoPanel was inserted above this
+      // panel in the same aside: the four clicks then landed on triad chips, no
+      // zone was ever selected, and two sweep assertions went dark for two days
+      // while the neighbouring "zone list is populated" check stayed green
+      // because it only counted buttons.
+      data-testid="zone-row"
       onClick={() => onSelect(selected ? null : zone.id)}
       className={`flex w-full items-center gap-2 border-b border-line px-3 py-2 text-left transition-colors ${
         selected ? "bg-panel-2" : "hover:bg-panel-2/60"

@@ -131,14 +131,14 @@ from app.detect.supply_demand import detect
 from app.indicators import wilder_atr
 from app.models import Candle, SupplyDemandParams, Zone
 from app.refine import refine_zones
-from app.resample import resample
+from app.resample import STEP_UP, resample
 from tools import history
 from tools.calibrate import POPULATION, first_touch, resolve
 
 # One step up, the same 4x the calibration harness uses for nesting. It sits in
 # the middle of the 3x to 12x band practitioners describe, and what matters is
 # that it is the same for every series or the arms are not comparable.
-STEP_UP = {"15m": "1h", "1h": "4h", "4h": "1d"}
+
 
 # The same three geometries for both tables, hoisted so they cannot drift apart.
 GEOMETRIES = [(0.5, 40), (1.0, 40), (2.0, 80)]

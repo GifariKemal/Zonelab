@@ -441,13 +441,17 @@ await page.getByRole("combobox", { name: "HTF" }).selectOption("off");
 await settle(page, 3000);
 
 // ========================================================= zone inspection
-const rail = page.locator("aside").last();
-const rows = await rail.locator("button").count();
-check("zone list is populated", rows > 0, `${rows} rows`);
+// BY TESTID, NOT BY POSITION. `aside`.last() plus button index 0..3 was correct
+// until PoskoPanel was inserted above ZonePanel in the same aside, and then the
+// four clicks landed on triad chips instead of zone rows. Both assertions below
+// went red and were read as "pre-existing unrelated"; they were neither.
+const zoneRows = page.locator('[data-testid="zone-row"]');
+const rows = await zoneRows.count();
+check("zone list is populated with ZONE rows", rows > 0, `${rows} rows`);
 
 let inspected = 0;
 for (let i = 0; i < Math.min(rows, 4); i++) {
-  await rail.locator("button").nth(i).click();
+  await zoneRows.nth(i).click();
   await page.waitForTimeout(400);
   const hasBreakdown = (await page.locator("text=Formation").count()) > 0;
   const hasBars = (await page.locator("text=Bars that formed it").count()) === 1;
@@ -470,9 +474,18 @@ check("the honest caveat is shown",
 // as a string typed into the panel, so the same claim had two homes and only one
 // of them moved when the calibration did. Two matches here means the second home
 // is back.
+// UPDATED 26 August 2026, and the reason matters more than the numbers. This
+// assertion pinned 85.8% and 64.4% and passed every run - while `app/plan.py`
+// had already replaced that pair with 0.430 and 0.402, stating in its own
+// comment that the old figures were measured on Binance crypto and were being
+// printed as the reason for gold orders. So the code had moved population and
+// the screen had not, and the guard held the screen to the population the code
+// abandoned. Exactly the failure this comment block was written about, one level
+// up: the assertion was right that A number must be on screen, and wrong about
+// which.
 check("the validated gate finding is shown, with the numbers that are true now",
-      (await page.locator("text=/85.8%/").count()) === 1
-      && (await page.locator("text=/64.4%/").count()) === 1);
+      (await page.locator("text=/43.0%/").count()) === 1
+      && (await page.locator("text=/40.2%/").count()) === 1);
 
 await page.screenshot({ path: `${SHOTS}/sweep-02-inspector.png` });
 

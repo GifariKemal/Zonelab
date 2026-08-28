@@ -43,6 +43,13 @@ class Book:
     equity: float
     cap_pct: float
     corr_max: float
+    #: Kerugian yang SUDAH TEREALISASI hari ini, dalam mata uang akun, sebagai
+    #: angka NEGATIF. Nol berarti belum ada yang ditutup hari ini; None berarti
+    #: tidak terbaca, dan itu bukan hal yang sama.
+    realised_today: float | None = 0.0
+    #: Berapa persen equity boleh hilang dalam satu hari sebelum tidak ada
+    #: order baru. Nol mematikan pengaman ini.
+    daily_loss_pct: float = 0.0
     held: list[Held] = field(default_factory=list)
     #: True when open broker positions could not be read, so `committed` is only
     #: what this run placed. Reported rather than hidden: a cap computed on half
@@ -90,9 +97,59 @@ def admits(
 
     The reason is empty when it is allowed, and carries the arithmetic when it is
     not. It goes into the journal verbatim.
+
+    THE SAME SYMBOL TWICE IS NOT REFUSED, and that is deliberate rather than an
+    oversight in the loop below (`correlations` skips `symbol == base`). It was
+    read as a defect on 2026-08-27 and the reading was wrong, so the arithmetic
+    is written down here:
+
+      - the cap sums every risk at face value, which for two positions on ONE
+        instrument is the correct sum. Nothing is discounted, so nothing is
+        fooled;
+      - the correlation guard is a SECOND, stricter layer whose job is the case
+        an operator cannot see: two different tickers that behave as one. Gold
+        against a second gold order is not that case;
+      - and refusing it would change the measured population. `docs/CALIBRATION.md`
+        counts the first touch of every gate-clearing zone; two zones at
+        different depths on one instrument are two members of that population,
+        and a tool that can only ever sample one per instrument per run is no
+        longer sampling what was measured.
+
+    So a demand ladder is bounded by `cap_pct` and by nothing else here. If that
+    ceiling is the wrong one, `cap_pct` is the knob.
     """
     if book.equity <= 0:
         return False, "equity is not known, so no portfolio cap can be applied"
+
+    # PENGAMAN KERUGIAN HARIAN, DAN KENAPA IA SEBUAH PENGAMAN DAN BUKAN SEBUAH
+    # SINYAL. Cap portofolio membatasi berapa yang SEDANG dipertaruhkan; ia buta
+    # terhadap apa yang sudah HILANG. Sebuah akun bisa kalah delapan kali
+    # berturut-turut dalam satu hari tanpa satu pun order melanggar cap, karena
+    # tiap kerugian mengosongkan kembali ruang yang dipakai kerugian sebelumnya.
+    # Itu bentuk kegagalan yang tidak akan pernah ditangkap `cap_pct`.
+    #
+    # TIDAK TERBACA BUKAN NOL. `realised_today=None` berarti riwayat harian
+    # tidak bisa dibaca, dan menganggapnya nol akan membuat pengaman ini
+    # melaporkan aman justru pada hari ia paling dibutuhkan. Aturan yang sama
+    # yang dipakai `Candle.spread` dan `partial` di atas.
+    #
+    # Ini penambahan pengaman, bukan filter sinyal, jadi ia tidak butuh
+    # pengukuran untuk berhak ada: ia tidak pernah MELOLOSKAN trade yang
+    # ditolak gerbang lain, ia hanya menolak.
+    if book.daily_loss_pct > 0:
+        if book.realised_today is None:
+            return False, (
+                "daily loss guard is armed but today's realised result could "
+                "not be read, and an unreadable guard must refuse rather than "
+                "assume zero"
+            )
+        lost = -min(0.0, book.realised_today)
+        if lost / book.equity >= book.daily_loss_pct:
+            return False, (
+                f"daily loss guard: {lost:,.2f} already lost today is "
+                f"{lost / book.equity:.2%} of {book.equity:,.2f}, at or over "
+                f"the {book.daily_loss_pct:.2%} limit. No new orders today"
+            )
 
     total = book.committed + risk
     if total / book.equity > book.cap_pct:

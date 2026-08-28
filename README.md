@@ -3,7 +3,7 @@
 
 <p align="center">
   <img alt="status" src="https://img.shields.io/badge/status-tahap%20awal-orange">
-  <img alt="tests" src="https://img.shields.io/badge/tests-476%20unit%20%2B%20119%20kontrak%20%2B%20380%20e2e-brightgreen">
+  <img alt="tests" src="https://img.shields.io/badge/tests-834%20unit%20%2B%20124%20kontrak-brightgreen">
   <img alt="calibrated" src="https://img.shields.io/badge/detection-validated%20p%3C0.0001-brightgreen">
   <img alt="license" src="https://img.shields.io/badge/license-proprietary-lightgrey">
 </p>
@@ -15,7 +15,7 @@
 > horizon, liquidity pool, CISD, level bernama (PDH/PWL dan seterusnya),
 > proyeksi deviasi, dan kalender ekonomi - sudah ada lewat titik ekstensi yang
 > sama, mati secara bawaan, dan tidak satu pun boleh dibaca sebagai arah. Rincian apa yang diadopsi
-> dari `analisis lama`, butir demi butir, ada di [`docs/ADOPSI.md`](docs/ADOPSI.md).
+> dari `Referensi grup dan Bg Nas`, butir demi butir, ada di [`docs/ADOPSI.md`](docs/ADOPSI.md).
 
 ## Daftar Isi
 
@@ -764,7 +764,7 @@ sah, ia pasangan yang divergensinya dibaca terbalik.
 Zonelab/
 +-- backend/                    FastAPI, Python 3.13
 |   +-- app/
-|   |   +-- main.py             4 endpoint. Fetch, dispatch, rakit respons
+|   |   +-- main.py             17 endpoint. Fetch, dispatch, rakit respons
 |   |   +-- fetching.py         Satu tempat kegagalan provider jadi status HTTP
 |   |   +-- drawing.py          Satu loop atas registry layer, sinkron, tanpa I/O
 |   |   +-- overlays.py         Layer yang membaca bar yang sudah diambil
@@ -800,7 +800,7 @@ Zonelab/
 |   |       +-- sources.py      Binance, Yahoo, Twelve Data, Polygon
 |   |       +-- dukascopy.py    Tick bid dan ask, satu-satunya spread terukur
 |   |       +-- synthetic.py    Data deterministik luring
-|   +-- tests/                  476 pengujian, seri harga dibangun dengan tangan
+|   +-- tests/                  834 pengujian, seri harga dibangun dengan tangan
 |
 +-- frontend/                   Next.js 16, React 19, Tailwind v4
     +-- src/
@@ -933,7 +933,7 @@ npm run e2e:pixels 15m     # baca ulang kanvas: edge tercat lawan catatan zona
 > menguji pemulihan, jadi harness apa pun yang berjalan bersamaan akan gagal
 > dengan alasan yang tidak ada hubungannya dengan dirinya.
 
-555 pengujian unit, semuanya lulus.
+834 pengujian unit, semuanya lulus, diukur 26 Agustus 2026.
 
 > [!IMPORTANT]
 > **Tidak ada yang boleh repaint**, dan itu ditegakkan oleh

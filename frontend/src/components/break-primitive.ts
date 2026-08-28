@@ -11,6 +11,7 @@ import type { CanvasRenderingTarget2D } from "fancy-canvas";
 
 import type { Candle } from "@/lib/types";
 import { ink } from "./ink";
+import { claimedLabels, labelFree } from "./structure-primitive";
 
 /**
  * WHERE THE MARKET WAS SHUT. A vertical mark between two bars that are
@@ -108,10 +109,26 @@ class BreakRenderer implements IPrimitivePaneRenderer {
           const text = label(mark);
           const pad = Math.round(3 * kx);
           const w = ctx.measureText(text).width;
-          ctx.fillStyle = "rgba(11, 13, 16, 0.82)";
-          ctx.fillRect(x + pad, Math.round(2 * ky), w + pad * 2, Math.round(12 * ky));
-          ctx.fillStyle = ink("grid", 0.95);
-          ctx.fillText(text, x + pad * 2, Math.round(4 * ky));
+          // CLAIMED LIKE EVERY OTHER LABEL, and it was the only one that was
+          // not. `e2e/labels.mjs` proves labels do not overlap by differencing
+          // the shared claim list, so a caption that never enters the list is a
+          // caption that harness is structurally unable to see: "intersections
+          // zero" only ever meant zero among those that registered. This
+          // primitive is attached FIRST and paints at `bottom`, so it claims
+          // before anyone else and a later pass now moves out of its way.
+          const rect = {
+            x: x + pad,
+            y: Math.round(2 * ky),
+            w: w + pad * 2,
+            h: Math.round(12 * ky),
+          };
+          if (labelFree(rect, claimedLabels)) {
+            claimedLabels.push(rect);
+            ctx.fillStyle = "rgba(11, 13, 16, 0.82)";
+            ctx.fillRect(rect.x, rect.y, rect.w, rect.h);
+            ctx.fillStyle = ink("grid", 0.95);
+            ctx.fillText(text, x + pad * 2, Math.round(4 * ky));
+          }
         }
       }
       ctx.restore();

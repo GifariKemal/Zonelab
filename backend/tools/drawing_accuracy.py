@@ -34,7 +34,7 @@ import json
 import numpy as np
 
 from app.detect.supply_demand import detect
-from app.indicators import wilder_atr
+from app.indicators import flat_atr
 from app.models import Candle, SupplyDemandParams, ZoneSide
 from tools import history
 from tools.calibrate import POPULATION
@@ -52,7 +52,6 @@ def audit(candles: list[Candle], params: SupplyDemandParams, label: str) -> dict
     low = np.array([c.low for c in candles])
     open_ = np.array([c.open for c in candles])
     close = np.array([c.close for c in candles])
-    atr = wilder_atr(high, low, close, params.atr_period)
 
     exact = 0
     grown = 0
@@ -87,7 +86,18 @@ def audit(candles: list[Candle], params: SupplyDemandParams, label: str) -> dict
         # A base thinner than the floor is deliberately grown, from the proximal
         # side only. Measured on the height AFTER the basis is applied, because
         # that is what the detector measures.
-        floor = params.zone_min_atr * float(atr[max(0, a.base_from - 1)])
+        #
+        # `flat_atr`, NOT the Wilder series, and this line is the reason this file
+        # spent four days inventing findings. The detector moved to `flat_atr` on
+        # 22 August because a Wilder reading contains the base's own true range,
+        # which makes the grown edge a function of where the window starts. This
+        # auditor kept reading `atr[base_from - 1]`, so every legitimately grown
+        # zone came back as a proximal violation: 473 of them, against the 0 this
+        # file's own published number claims. An auditor that does not reproduce
+        # the rule it audits invents findings - the sentence was already in this
+        # file, about an earlier version of this same mistake.
+        floor_scale = flat_atr(high, low, close, params.atr_period, a.base_from)
+        floor = params.zone_min_atr * floor_scale if floor_scale is not None else 0.0
         was_grown = want_top - want_bottom < floor - 1e-12
         if was_grown:
             if is_demand:

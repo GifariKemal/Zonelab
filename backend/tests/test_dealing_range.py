@@ -23,7 +23,7 @@ from __future__ import annotations
 
 import numpy as np
 
-from app.dealing_range import mark_dealing_range
+from app.dealing_range import mark_dealing_range, mark_dealing_range_now
 from app.detect.structure import swings
 from app.models import Anatomy, Candle, Zone, ZoneKind, ZoneSide, ZoneState
 
@@ -274,3 +274,155 @@ def test_a_previous_reading_is_cleared_when_it_can_no_longer_be_made():
     mark_dealing_range([stale], rows, swing_n=N)
 
     assert stale.dealing_range_pos is None
+
+
+# --------------------------------------------------------------------------
+# The second instant: the decision bar, for a zone that has no arrival yet
+# --------------------------------------------------------------------------
+
+
+def test_the_decision_bar_reading_exists_exactly_where_the_arrival_reading_cannot():
+    """Satu zona, satu deret, dua stamper, dua jawaban yang berbeda dan benar.
+
+    Ini pasangan dari test untouched di atas, dan alasannya operasional.
+    `tools/execute.py:candidates` menyimpan HANYA zona yang `first_test_time`-nya
+    None, karena populasi terukur adalah first touch. Jadi `mark_dealing_range`
+    menstempel None pada setiap kandidat order yang pernah dilewatkannya, dan
+    klausa `ote` menjawab "no dealing range" selamanya. Terukur 28 Agustus 2026
+    pada jalur order sungguhan: 23 dari 23 kandidat.
+
+    Yang dijaga di sini bukan sebuah angka melainkan sebuah keberadaan: jalur
+    order harus punya bacaan, dan jalur pengukuran harus tetap tidak punya.
+    """
+    rows = wave([100, 110, 100, 110])
+    fresh = zone(ZoneSide.DEMAND, 105.0, 2.0, touched_at=None)
+
+    at_touch = mark_dealing_range([fresh], rows, swing_n=N)
+    assert fresh.dealing_range_pos is None, "instan sentuhan tidak boleh berubah"
+    assert at_touch["untouched"] == 1.0
+
+    at_now = mark_dealing_range_now([fresh], rows, swing_n=N)
+    assert fresh.dealing_range_pos is not None, (
+        "tanpa bacaan di bar keputusan, klausa ote tidak pernah bisa lolos"
+    )
+    assert at_now["marked"] == 1.0
+    assert at_now["marked.demand"] == 1.0
+
+
+def test_the_decision_bar_reading_uses_the_range_confirmed_at_the_last_bar():
+    """Angkanya, bukan cuma keberadaannya, dan dihitung ulang di luar modulnya.
+
+    `confirmed_range` mengulang aritmetikanya dari `swings` secara independen,
+    jadi kalau stamper diam-diam memakai swing yang belum confirmed, atau
+    memakai distal alih-alih proximal, angka di bawah tidak akan cocok.
+    """
+    rows = wave([100, 110, 100, 110])
+    hi, lo = confirmed_range(rows, len(rows) - 1)
+    proximal = lo + (hi - lo) * 0.30
+    fresh = zone(ZoneSide.DEMAND, proximal, 1.0, touched_at=None)
+
+    mark_dealing_range_now([fresh], rows, swing_n=N)
+
+    assert fresh.dealing_range_pos == round((proximal - lo) / (hi - lo), 3)
+    assert 0.214 <= fresh.dealing_range_pos <= 0.382, (
+        "0.30 harus jatuh di dalam band OTE demand, atau test ini tidak menguji "
+        "apa pun tentang ote"
+    )
+
+
+def test_the_decision_bar_reading_never_uses_a_swing_confirmed_after_the_last_bar():
+    """Aturan knowability diwarisi dari `range_at`, dan diperiksa bukan dipercaya.
+
+    Ini satu-satunya hal yang berdiri antara bacaan ini dan hindsight, dan
+    project ini sudah pernah menangkap dirinya sendiri melakukannya. Deret yang
+    dipotong lebih pendek tidak boleh menghasilkan angka yang seolah tahu bar
+    yang dipotong itu.
+    """
+    rows = wave([100, 110, 100, 110, 100, 140, 100])
+    short = rows[: len(rows) - 2 * N]
+
+    hi_short, lo_short = confirmed_range(short, len(short) - 1)
+    hi_full, lo_full = confirmed_range(rows, len(rows) - 1)
+    # PRASYARAT FIXTURE, ditegaskan supaya test ini tidak lulus dengan sia-sia.
+    # Kalau kedua range kebetulan sama, assertion di bawah tidak menguji apa pun:
+    # versi pertama test ini memakai wave yang range-nya 100-110 di KEDUA
+    # potongan, jadi 105 terbaca 0,5 dua kali dan "berbeda" mustahil.
+    assert (hi_short, lo_short) != (hi_full, lo_full), (hi_short, hi_full)
+
+    a = zone(ZoneSide.DEMAND, 105.0, 2.0, touched_at=None)
+    b = zone(ZoneSide.DEMAND, 105.0, 2.0, touched_at=None)
+    mark_dealing_range_now([a], short, swing_n=N)
+    mark_dealing_range_now([b], rows, swing_n=N)
+
+    assert a.dealing_range_pos == round((105.0 - lo_short) / (hi_short - lo_short), 3)
+    assert b.dealing_range_pos == round((105.0 - lo_full) / (hi_full - lo_full), 3)
+    assert a.dealing_range_pos != b.dealing_range_pos, (
+        "deret pendek dan deret panjang memberi angka sama: stamper membaca "
+        "range yang belum knowable di bar terakhir deret pendek"
+    )
+
+
+def test_a_decision_bar_range_with_no_height_gets_no_reading_rather_than_a_midpoint():
+    """Aturan yang sama dengan instan sentuhan: 0.5 karangan dilarang.
+
+    Deret yang terlalu pendek untuk mengonfirmasi swing tidak punya range, dan
+    sebuah midpoint yang disubstitusikan tidak bisa dibedakan dari yang terukur.
+    """
+    rows = wave([100, 110], per=2)[: N]
+    fresh = zone(ZoneSide.DEMAND, 105.0, 2.0, touched_at=None)
+
+    stats = mark_dealing_range_now([fresh], rows, swing_n=N)
+
+    assert fresh.dealing_range_pos is None
+    assert stats["no_range"] == 1.0
+    assert stats["marked"] == 0.0
+
+
+def test_an_empty_series_clears_the_stamp_instead_of_raising():
+    """Nol bar adalah kondisi nyata di hari libur, dan ia harus jadi None."""
+    fresh = zone(ZoneSide.DEMAND, 105.0, 2.0, touched_at=None)
+    fresh.dealing_range_pos = 0.42
+
+    stats = mark_dealing_range_now([fresh], [], swing_n=N)
+
+    assert fresh.dealing_range_pos is None
+    assert stats["no_bars"] == 1.0
+
+
+def test_the_order_path_default_matches_the_structure_layer_default():
+    """Dua default `swing_n` di dua file, dan gridnya harus tetap satu.
+
+    Yang dilihat operator dan yang dinilai engine dibangun dari primitif yang
+    sama tapi lewat jalan berbeda. Chart memakai `StructureParams.swing_n` yang
+    bisa diubah dari UI; jalur order memanggil `mark_dealing_range_now(zones,
+    candles)` tanpa argumen, jadi ia selalu memakai default modul ini.
+
+    Diukur 28 Agustus 2026 pada XAUUSD 1h, 3000 bar, ketiganya cocok persis
+    selama nilainya sama:
+
+        swing_n=20  grid 4605.310 -> 4697.152   range 4605.310 -> 4697.152
+        swing_n=50  grid 4324.467 -> 4697.152   range 4324.467 -> 4697.152
+        swing_n=80  grid 4310.912 -> 4449.863   range 4310.912 -> 4449.863
+
+    Jadi satu-satunya cara keduanya berpisah adalah kedua DEFAULT itu bergeser
+    sendiri-sendiri. Kalau itu terjadi, operator menatap satu grid sementara
+    klausa `ote` memutuskan di grid lain, dan tidak ada apa pun yang akan
+    mengatakannya. Test ini yang mengatakannya.
+
+    Ia TIDAK menuntut UI dan daemon selalu memakai angka yang sama saat
+    dijalankan: daemon sengaja tidak membaca input UI, properti keamanan yang
+    sama dengan saklar auto-trade. Yang dijaga cuma default-nya.
+    """
+    import inspect
+
+    from app.models.params import StructureParams
+    from app.dealing_range import mark_dealing_range_now
+
+    ui = StructureParams().swing_n
+    order_path = inspect.signature(mark_dealing_range_now).parameters["swing_n"].default
+
+    assert order_path == ui, (
+        f"default berpisah: chart menggambar pada swing_n={ui}, klausa ote "
+        f"menilai pada swing_n={order_path}. Operator akan membaca satu grid "
+        f"dan engine memutuskan di grid lain."
+    )

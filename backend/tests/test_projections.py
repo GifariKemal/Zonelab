@@ -3,7 +3,7 @@
 Two tests here earn the file on their own.
 
 The first is the SIGN CONVENTION test. The anchor and the sign were both read off
-a picture - `analisis lama/27.jpeg`, whose Asia stack runs its negative labels
+a picture - `Referensi grup dan Bg Nas/Whatsapp/27.jpeg`, whose Asia stack runs its negative labels
 DOWNWARD off the box low while its London stack runs them UPWARD off the box high
 - and arithmetic that mirrors is arithmetic that fails silently. So the side each
 label falls on is asserted directly, in both directions, rather than being left

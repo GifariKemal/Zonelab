@@ -289,6 +289,7 @@ def detect(
     stats: dict[str, float] = {
         "bars": n,
         "candidates": 0,
+        "rejected_zero_height": 0,
         "rejected_base_too_tall": 0,
         "rejected_base_drifted": 0,
         "rejected_weak_departure": 0,
@@ -399,6 +400,16 @@ def detect(
         # exactly 0 and the drift ratio below divides by it. Same guard as
         # refine.py and imbalance.py, which both drop a zero-height box.
         if height <= EPS:
+            # COUNTED, NOT JUST DROPPED. This module promises that nothing is
+            # discarded silently and that every rejection lands in `stats`, and
+            # this branch broke that promise: `candidates` had already been
+            # incremented, so a candidate vanished with no bucket accounting for
+            # it. Reachable from the UI, not only from a harness - the field is
+            # `ge=0.0`, so the slider can reach the value that triggers it. The
+            # panel exists to tell a reader whether an empty chart means "no
+            # formation here" or "a filter ate it", and an unaccounted drop makes
+            # that distinction wrong.
+            stats["rejected_zero_height"] += 1
             continue
 
         if height > params.base_max_atr * atr_base:

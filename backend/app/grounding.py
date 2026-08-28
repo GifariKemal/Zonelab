@@ -24,6 +24,17 @@ Ordinal words ("higher", "stronger"), hedged prose, and a wrong reading of a
 right number. Those need a human or a second model, and pretending otherwise
 would be the same overclaiming this module exists to prevent.
 
+AND ONE MORE, WHICH USED TO BE MISSING FROM THIS LIST. The system prompt tells
+the model to NEVER calculate, and calls that the rule that fails most often.
+Nothing here enforces it. A computed value is caught only when the result happens
+not to be in the payload, so most arithmetic is caught by luck rather than by
+rule - and arithmetic whose answer lands in `_FREE` is never caught at all:
+given entry 102 and stop 100, "the distance is 2 points" passes, because 2 is a
+free numeral. Enforcing it properly needs the model to say WHICH field each
+numeral came from, which is a different contract than this one. Until then the
+gap is written down here rather than implied away, and pinned by
+`test_arithmetic_that_lands_in_the_free_set_is_a_known_hole`.
+
 TOLERANCE, AND WHY IT IS NOT A PERCENTAGE
 A model rounds: given 0.2483 it writes 0.25, and rejecting that would make the
 check useless within a day. The obvious implementation is a relative tolerance,
@@ -54,8 +65,20 @@ EPSILON = 1e-9  # float noise only; the precision rule does the real work
 
 
 def _decimals(token: str) -> int:
-    """How many decimal places the model chose to write."""
-    tail = re.split(r"[.,]", token.replace(" ", ""))[-1]
+    """How many decimal places the model chose to write.
+
+    NO SEPARATOR MEANS ZERO, and the guard is the whole fix. `re.split` on a
+    token with no `.` or `,` returns the token itself, so `_decimals("125")` used
+    to answer 3 - as though the model had written three decimal places. That made
+    the simplest case of this module's own promise fail: "the model may write
+    FEWER digits" was refused for the plainest form of fewer, an integer. Given a
+    payload value of 150.4, a reply saying 150 was flagged as an invented number
+    and the reader got a red badge on an honest answer.
+    """
+    flat = token.replace(" ", "")
+    if "." not in flat and "," not in flat:
+        return 0
+    tail = re.split(r"[.,]", flat)[-1]
     return len(tail) if tail.isdigit() and len(tail) <= 6 else 0
 
 

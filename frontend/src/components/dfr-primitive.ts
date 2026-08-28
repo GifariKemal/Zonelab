@@ -218,19 +218,26 @@ export class DFRSeriesPrimitive implements ISeriesPrimitive<Time> {
     }
     const scale = chart.timeScale();
 
+    // HALF A BAR EACH SIDE. Same correction as `zone-primitive.ts` and the
+    // quarter box in `session-primitive.ts`: `timeToCoordinate` returns a bar's
+    // CENTRE, so an uncorrected band starts and ends mid-bar, and its left
+    // border is painted under the candle that defines it.
+    const halfBar = scale.options().barSpacing / 2;
     const out: Band[] = [];
     for (const band of this.source) {
-      const x1 = scale.timeToCoordinate(band.time_from as Time);
+      const left = scale.timeToCoordinate(band.time_from as Time);
       const yHigh = series.priceToCoordinate(band.high);
       const yLow = series.priceToCoordinate(band.low);
-      if (x1 === null || yHigh === null || yLow === null) continue;
+      if (left === null || yHigh === null || yLow === null) continue;
+      const x1 = left - halfBar;
       // The right edge is the window's close, which is a real bar in almost
       // every case. When it is not - the newest cycle, or a hole in the feed -
       // the band is left OPEN to the pane edge rather than dropped: the window
       // it describes did close, and a rectangle with one unresolved corner is
       // still a readable rectangle. That is not true of an unresolved LEFT edge,
       // which is why the guard above drops those.
-      const x2 = scale.timeToCoordinate(band.time_to as Time) ?? x1 + MIN_BOX_PX;
+      const right = scale.timeToCoordinate(band.time_to as Time);
+      const x2 = right === null ? x1 + MIN_BOX_PX : right + halfBar;
 
       const levels: { y: number; tag: string }[] = [];
       for (const ext of band.extensions) {

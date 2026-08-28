@@ -351,8 +351,25 @@ def resolve(
     reward: float,
     horizon: int,
     mode: str = "atr",
+    same_bar_target: bool = False,
 ) -> bool | None:
     """Held or failed, from the touch bar forward.
+
+    THE TOUCH BAR MAY STOP, IT MAY NOT PAY, and `same_bar_target` is the switch.
+    Default False, matching `tools/costed.py` which was corrected on 22 August
+    2026 while this function was not - so for four days the harness that produces
+    `calibration.json`, `walkforward.json` and six other evidence files scored
+    wins the shipped resolver would not have paid. Measured then: 62 to 68 per
+    cent of WINNERS resolved inside their own entry bar against only 20 to 40 per
+    cent of losers, and an asymmetry that size is the signature of an intrabar
+    order assumed in the favourable direction. Price falls INTO a demand zone, so
+    that bar's high often prints BEFORE its low, which is before the entry filled.
+    OHLC cannot say which came first, so the only reading that invents nothing is
+    to wait for the next bar.
+
+    True is kept for the one legitimate use: reproducing a number published under
+    the old convention, so a before-and-after can be stated as a delta rather
+    than a silent replacement.
 
     Two ways to place the target, and they answer different questions.
 
@@ -393,6 +410,8 @@ def resolve(
         reached = high[i] >= target if demand else low[i] <= target
         if broke:
             return False
+        if i == touch and not same_bar_target:
+            continue
         if reached:
             return True
     return None

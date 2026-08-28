@@ -251,7 +251,7 @@ class RangeProjection(BaseModel):
 
     The stack of short labelled segments beside a session box is one of the most
     frequent objects on his charts. The geometry was recovered from image 27 in
-    `analisis lama` and checked against that chart's own price tags: it agrees to
+    `Referensi grup dan Bg Nas` and checked against that chart's own price tags: it agrees to
     within 0.4 USD, which is tighter than the boxes could be measured.
 
     `price = origin - direction * multiple * height`, where `origin` is the range

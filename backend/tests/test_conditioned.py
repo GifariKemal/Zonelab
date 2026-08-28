@@ -62,3 +62,74 @@ def test_the_dfr_bands_name_outside_the_range_as_outside():
     assert _dfr_band(1.01) == "above_range"
     assert _dfr_band(-0.01) == "below_range"
     assert _dfr_band(None) is None
+
+
+def test_the_ote_band_is_direction_aware_like_the_clause_it_reports_on():
+    """Demand mau discount, supply mau premium. Satu pita, dua arah.
+
+    `app/fibonacci.py` dulu membawa `in_ote` yang mengembalikan pita discount
+    untuk KEDUA sisi, dan file itu dihapus justru karena dua fungsi di dalamnya
+    tidak sepakat separuh mana OTE berada. Kolom ini membaca angka dari
+    `app/ict.py`, satu-satunya definisi yang tersisa, dan test ini yang menjaga
+    ia tidak kembali jadi salinan kedua yang menyimpang.
+    """
+    from tools.conditioned import _ote_band
+
+    assert _ote_band(0.30, "demand") == "ote"
+    assert _ote_band(0.30, "supply") == "discount"
+    assert _ote_band(0.70, "supply") == "ote"
+    assert _ote_band(0.70, "demand") == "premium"
+    # TIDAK ADA RANGE BUKAN EQUILIBRIUM. Menggabungkannya akan membuat zona yang
+    # tidak terbaca tampak seperti zona yang terbaca tepat di tengah.
+    assert _ote_band(None, "demand") == "none"
+    assert _ote_band(0.5, "demand") == "equilibrium"
+
+
+def test_the_london_bias_never_reads_a_bar_after_the_touch():
+    """Anti-lookahead, dan ini satu-satunya hal yang berdiri antara kolom Judas
+    dan sebuah hasil yang dibuat dari masa depan.
+
+    Bar sesudah `touch` diberi harga ekstrem. Kalau bias membacanya, template
+    akan berubah. Template harus tetap sama.
+    """
+    from datetime import datetime
+
+    from app.clock import NY
+    from app.models import Candle
+    from tools.conditioned import _london_bias
+
+    step = 3600
+    origin = int(datetime(2026, 1, 6, 1, 0, tzinfo=NY).timestamp())
+    rows = [Candle(time=origin + i * step, open=100.0 + i, high=101.0 + i,
+                   low=99.0 + i, close=100.5 + i, volume=1.0) for i in range(8)]
+    touch = 5
+    before = _london_bias(rows, touch)
+
+    rows[6] = rows[6].model_copy(update={"high": 9_000.0, "close": 8_999.0})
+    rows[7] = rows[7].model_copy(update={"low": 1.0, "close": 2.0})
+    assert _london_bias(rows, touch) == before, (
+        "bias London berubah setelah bar SESUDAH sentuhan diubah: kolom Judas "
+        "membaca dari masa depan"
+    )
+
+
+def test_the_orphan_columns_are_pre_registered_and_separate_from_the_others():
+    """Tiga daftar, tidak digabung, dan itu yang membuat urutannya terbaca.
+
+    `COLUMNS` (21 Agustus), `ICT_COLUMNS` (21 Agustus, praregistrasi kedua),
+    `ORPHAN_COLUMNS` (28 Agustus, ketiga). Menggabungkannya akan menyembunyikan
+    pertanyaan mana yang diajukan sebelum jawabannya ada, yang adalah
+    satu-satunya hal yang membuat ketiganya layak dipercaya.
+
+    `ladder` sengaja TIDAK di sana: ia tabel lookup tanpa input pasar, dan itu
+    dinyatakan di `docs/PRAREGISTRASI-YATIM.md` Bagian 2 sebelum angka apa pun.
+    """
+    from tools.conditioned import COLUMNS, ICT_COLUMNS, ORPHAN_COLUMNS
+
+    assert ORPHAN_COLUMNS == (
+        "in_judas_window", "judas_template", "psp_before_touch",
+        "true_opens_in_zone", "ote_band",
+    )
+    assert not set(ORPHAN_COLUMNS) & set(COLUMNS)
+    assert not set(ORPHAN_COLUMNS) & set(ICT_COLUMNS)
+    assert not any("ladder" in c for c in ORPHAN_COLUMNS)

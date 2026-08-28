@@ -53,9 +53,13 @@ class Zone(BaseModel):
     departure_atr: float = Field(
         description=(
             "Size of the leg-out move in ATR at the base. This one IS validated, "
-            "as a threshold rather than a gradient: formations clearing 2 ATR "
-            "held 85.8% against 64.4% for those that did not (p < 0.0001, "
-            "n=10198), while above 2 ATR more departure buys nothing. "
+            "as a threshold rather than a gradient, and as a SORTER rather than a "
+            "picker. On the instrument actually traded, on 5-minute bars, "
+            "formations clearing 2 ATR held 43.0% against 40.2% - a hold-rate "
+            "difference that is NOT significant. What is significant is the "
+            "expectancy gap, +0.124 R at t=+4.82. The 85.8 against 64.4 this "
+            "field used to quote was measured on Binance crypto, not on this "
+            "instrument. Above 2 ATR more departure buys nothing. "
             "Two limits on reading it. The validation is a FIRST-TOUCH result: "
             "measured at touch 2 and later the same gate separates outcomes by "
             "-0.2, -2.5 and -4.3 points across the three geometries, so a zone "

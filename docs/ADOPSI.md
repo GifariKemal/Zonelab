@@ -1,7 +1,10 @@
-# Apa yang diadopsi dari `analisis lama`
+# Apa yang diadopsi dari `Referensi grup dan Bg Nas`
 
-Buku besar per butir atas delapan area metodologi di folder `analisis lama` (53
-gambar plus `chat.txt`). Setiap butir punya satu dari lima status, dan tidak ada
+Buku besar per butir atas delapan area metodologi di folder
+`Referensi grup dan Bg Nas` (89 file: 82 gambar dan 7 file teks, tersebar di
+Whatsapp 63, Discord 18, Telegram 8). Folder ini menggantikan `analisis lama`
+pada 26 Agustus 2026; penomoran gambarnya bertahan, jadi sitasi lama tetap
+menunjuk gambar yang sama. Setiap butir punya satu dari lima status, dan tidak ada
 butir yang dibiarkan tanpa status.
 
 | Status | Artinya |
@@ -500,8 +503,10 @@ bar itu tidak pernah cakup.
 Ditanya langsung: apakah pola **Three Drives** sudah ada, dan kalau belum apakah
 harus dibangun. Jawabannya tidak, dan alasannya bukan selera.
 
-**Tidak ada jejaknya di metode ini.** Seluruh `analisis lama/` disisir: 2.442
-baris di `chat.md` dan `chat.txt`, dan 51 gambar dibaca satu per satu. Nol
+**Tidak ada jejaknya di metode ini.** Seluruh folder disisir, dan disisir ulang
+pada 26 Agustus 2026 setelah ia tumbuh: 3.261 baris di `Whatsapp/chat.md` dan
+`Whatsapp/chat.txt`, empat file teks Discord, `Telegram/chat.txt`, dan 82 gambar
+dibaca satu per satu. Nol
 kemunculan untuk three drive, harmonic, ABCD, Gartley, butterfly, crab, bat,
 Elliott, Wolfe, 0,618, 1,272, maupun 1,618. Tidak ada satu chart pun yang
 memasang alat retracement Fibonacci. Angka yang terlihat seperti rasio di sana

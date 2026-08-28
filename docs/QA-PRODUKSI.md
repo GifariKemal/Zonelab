@@ -831,7 +831,7 @@ tentang jalan sebelumnya.
 
 | Gate | Hasil |
 |---|---|
-| pytest | 584 lulus |
+| pytest | 834 lulus |
 | pyright, cakupan `app/` | 0 error, 0 warning |
 | pyflakes atas `app`, `tools`, `tests` | 0 |
 | `npm run check` | keluar 0 |
@@ -1367,3 +1367,100 @@ menampilkan `:freeport %API_PORT% "API"` tanpa `call`.
 > `start.bat` sendiri; dan sekali - lewat judul window - benar-benar menutup
 > desktop pengguna. **Sebelum mempercayai hitungan proses, kecualikan shell-nya
 > lebih dulu.**
+
+## 17. Jalur order nyata: empat gate yang tidak mengikat
+
+Ditemukan 27 Agustus 2026 saat menempatkan order di akun demo untuk memvalidasi
+analisis. Semuanya di `tools/execute.py`, semuanya di jalur yang benar-benar
+mengirim uang, dan semuanya sudah punya regression test yang dibuktikan gagal
+sebelum diperbaiki.
+
+### 17.1 Satu contract size untuk seluruh run, error 50x
+
+`sizing` dipanggil sekali dengan `args.symbol.split(":")[-1]`. Pada
+`--symbol mt5:XAUUSD,mt5:XAGUSD` ekspresi itu menghasilkan string
+`'XAUUSD,mt5:XAGUSD'`, dan satu `LotSpec` yang dikembalikannya di-broadcast ke
+setiap simbol.
+
+| Simbol | contract size terukur |
+|---|---|
+| XAUUSD | 100 |
+| XAGUSD | 5000 |
+| BTCUSD | 1 |
+
+Selisihnya 50x, dan di dry run ia jatuh ke arah yang berbahaya:
+
+| Kandidat | risiko dilaporkan | risiko sebenarnya |
+|---|---|---|
+| XAGUSD RBR, stop 0,651, 0,01 lot | 0,65 USD | 32,53 USD |
+| XAGUSD RBR, stop 0,691 | 0,69 USD | 34,55 USD |
+| XAGUSD RBR, stop 0,751 | 0,75 USD | 37,55 USD |
+
+Tiga kandidat silver lolos gate risiko dengan anggaran 12,25 USD sementara
+risiko sebenarnya 3,3x anggaran itu. Diperbaiki dengan `lot_specs()` yang
+membaca terminal per simbol, read-only, tanpa mengembalikan handle-nya, jadi
+dry run mendapat contract size benar tanpa mendapat kemampuan mengirim.
+
+> [!WARNING]
+> Default `LotSpec()` memegang angka XAUUSD. Ia TIDAK lagi dipakai sebagai
+> fallback multi-simbol: tanpa terminal, kandidat tampil tanpa ukuran.
+
+### 17.2 `order_send` retcode 10009 dibaca sebagai gagal
+
+`order_check` sukses pada retcode 0. `order_send` sukses pada 10009
+`TRADE_RETCODE_DONE`, atau 10008 `PLACED` untuk pending. Kode menguji
+`sent.retcode != 0` untuk keduanya.
+
+Akibatnya terukur, bukan hipotetis:
+
+```
+GAGAL: order_send retcode=10009 'ok'
+```
+
+dicetak dua kali, sementara ticket 4609944538 dan 4609944542 benar-benar hidup
+di broker. Journal menerima dua record `refused` untuk order yang ada.
+
+Jebakan ini sudah tercatat di memori sesi pada 22 Agustus, lima hari sebelumnya.
+Mencatat jebakan bukan memperbaiki kodenya.
+
+### 17.3 Satu cacat mematikan dua gate
+
+`book.held.append` hanya ada di jalur sukses. Karena 17.2 membuat setiap
+pengiriman yang berhasil masuk ke jalur gagal, cap portofolio tidak pernah
+melihat 21,61 USD risiko yang baru saja dikirim. Gate 6 mati tanpa suara.
+
+### 17.4 Cap tidak melihat order pending sendiri
+
+`book` hanya membaca `positions_get()`. Tool ini menempatkan LIMIT, jadi risiko
+yang baru saja ia kirim berbentuk pending, bukan posisi. Satu pending XAUUSD
+berisiko 43,91 USD dari run sebelumnya tak terlihat, dan setiap run berangkat
+dari book yang lebih ringan 4,5% dari kenyataan. Sekarang `orders_get()` ikut
+dihitung, dan run verifikasi membacanya:
+
+```
+ringkas: 7 kandidat, 0 dikirim, 3 dilewati, 4 ditolak, risiko terkomitmen 108.77
+```
+
+108,77 USD dari cap 58,86 USD, jadi tidak ada order baru yang dikirim.
+
+### 17.5 Zone id tidak membawa simbol
+
+`id` dibangun `f"{kind.value}-{int(time[base_from])}"`. Di window 400 bar 1h,
+XAUUSD dan XAGUSD berbagi EMPAT id, salah satunya `DBR-1787227200`. Gate
+idempotensi membunuh kandidat silver dan melaporkannya sebagai
+`SUDAH pernah diorder, ticket 4573230383`, ticket yang ada di gold.
+`journal.record` dan `journal.for_zone` sekarang membawa `symbol`; record lama
+tanpa simbol tetap match apa pun, supaya order yang sudah ada tidak
+terduplikasi.
+
+### 17.6 Yang TIDAK diubah, dan alasannya
+
+Guard korelasi tidak menolak simbol yang sama dua kali, dan itu dibaca sebagai
+cacat lalu ditolak. Cap menjumlahkan setiap risiko pada nilai penuh, jadi dua
+posisi pada satu instrumen dijumlahkan dengan benar; tidak ada yang didiskon,
+jadi tidak ada yang dikelabui. Guard korelasi adalah lapis kedua untuk kasus
+yang operator tidak bisa lihat, yaitu dua ticker berbeda yang bergerak sebagai
+satu. Menolaknya juga akan mengubah populasi terukur: `docs/CALIBRATION.md`
+menghitung first touch SETIAP zona yang lolos gate, dan dua zona di kedalaman
+berbeda pada satu instrumen adalah dua anggota populasi itu. Alasan lengkapnya
+ada di docstring `app/portfolio.py:admits`.

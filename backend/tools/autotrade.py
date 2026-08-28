@@ -38,7 +38,8 @@ import time
 
 from app import autotrade, journal
 from tools.costed import rollovers
-from tools.execute import RULE, _terminal, cycle, sizing
+from app.ict import Rules
+from tools.execute import RULE, _terminal, cycle, lot_specs, sizing
 from tools.flatten import close, why_closed
 
 #: Seconds between cycles. `app/autotrade.STALE_AFTER` is three of these, so one
@@ -99,6 +100,37 @@ def main() -> int:
     parser.add_argument("--send", action="store_true",
                         help="really place and close. Without it every cycle runs "
                              "the same decisions and sends nothing")
+    # PERMUKAAN TUNING CHECKLIST, SAMA SEPERTI `tools/execute.py`. Tanpa empat
+    # flag ini daemon adalah satu-satunya jalur order yang TIDAK BISA menegakkan
+    # satu pun klausa doctrine: `Rules.required` default kosong, jadi killzone,
+    # discount/premium, OTE, CISD, dan SSMT dua tahap semuanya dihitung dan
+    # dilaporkan sambil tidak menghalangi apa pun. Jalur manual punya pilihan
+    # itu sejak awal; jalur tak-ditunggui tidak, dan asimetri itu adalah kelas
+    # cacat yang sama dengan drift signature 27 Agustus.
+    parser.add_argument("--partners", default="",
+                        help="comma list simbol yang DIBACA sebagai partner SSMT "
+                             "dan korelasi tapi TIDAK ditradingkan, misal "
+                             "mt5:XAGUSD,mt5:XPTUSD")
+    parser.add_argument("--require", default="",
+                        help="comma list klausa checklist yang WAJIB lolos, "
+                             "misal killzone,discount_or_premium,poi_families. "
+                             "Kosong berarti checklist melaporkan tanpa memblokir")
+    parser.add_argument("--killzones", default="",
+                        help="comma list killzone yang dihitung, misal ny_am,london. "
+                             "Kosong berarti semuanya")
+    parser.add_argument("--min-families", type=int, default=2,
+                        help="famili PD array yang harus menumpuk untuk poi_families")
+    parser.add_argument("--max-conflicts", type=int, default=0,
+                        help="box sisi lawan yang ditoleransi di dalam band")
+    # PENGAMAN, BUKAN FILTER. Cap portofolio membatasi yang SEDANG
+    # dipertaruhkan dan buta terhadap yang sudah HILANG: delapan kekalahan
+    # berturut dalam satu hari tidak melanggar cap sama sekali, karena tiap
+    # kerugian mengosongkan kembali ruangnya. Default 0 mematikannya, jadi
+    # tidak ada perilaku yang berubah tanpa operator memintanya.
+    parser.add_argument("--daily-loss-pct", type=float, default=0.0,
+                        help="berhenti mengirim order kalau kerugian terealisasi "
+                             "hari ini sudah mencapai persen equity ini, misal "
+                             "0.02. Nol mematikan pengaman")
     args = parser.parse_args()
     # LINE BUFFERED, or this daemon's log does not exist until it dies. Python
     # block-buffers stdout whenever it is not a terminal, so redirected to a file -
@@ -108,11 +140,36 @@ def main() -> int:
     # 2026-08-21: 0 bytes after two full cycles.
     sys.stdout.reconfigure(line_buffering=True)
     rule = {**RULE, "risk_pct": args.risk_pct, "surface": "tools/autotrade.py"}
-    bare = args.symbol.split(":")[-1]
+    rules = Rules(
+        required=tuple(x.strip() for x in args.require.split(",") if x.strip()),
+        min_families=args.min_families,
+        max_conflicts=args.max_conflicts,
+        **({"killzones": tuple(x.strip() for x in args.killzones.split(",")
+                               if x.strip())} if args.killzones else {}),
+    )
+    # SATU BASKET, BUKAN SATU SIMBOL. `args.symbol.split(":")[-1]` pada
+    # `mt5:XAUUSD,mt5:XAGUSD` menghasilkan string 'XAUUSD,mt5:XAGUSD', yaitu
+    # cacat yang sama yang dicabut dari `execute.main` pada 27 Agustus 2026.
+    symbols = [s.strip() for s in args.symbol.split(",") if s.strip()]
+    intervals = [i.strip() for i in args.interval.split(",") if i.strip()]
+    bare = [s.split(":")[-1] for s in symbols]
+    partners = [s.strip() for s in args.partners.split(",") if s.strip()]
 
     print(f"daemon auto-trade: {args.symbol} {args.interval} risk "
           f"{args.risk_pct:.1%} cycle {args.cycle}s "
           f"{'SEND' if args.send else 'DRY RUN'}")
+    # DICETAK TIAP START, karena "klausa mana yang mengikat" adalah hal yang
+    # paling mudah dikira operator sudah menyala padahal tidak.
+    print(f"klausa wajib: {', '.join(rules.required) if rules.required else 'TIDAK ADA, checklist hanya melaporkan'}")
+    if partners:
+        print(f"partner (dibaca, TIDAK ditradingkan): {', '.join(partners)}")
+    if len(symbols) + len(partners) < 2:
+        # SSMT BUTUH PARTNER. `execute.candidates` menjaga dirinya dengan
+        # `len(partners) > 1`, jadi satu simbol berarti klausa ssmt dan
+        # two_stage_confirmed tidak pernah dievaluasi sama sekali.
+        print("CATATAN: satu deret saja, jadi klausa ssmt dan "
+              "two_stage_confirmed tidak dievaluasi. Beri partner, misal "
+              "--partners mt5:XAGUSD")
     print(f"saklar ada di {autotrade.STATE}; nyalakan dari UI atau "
           "POST /api/autotrade")
 
@@ -140,19 +197,21 @@ def main() -> int:
                                blockers=[why_not])
             else:
                 mt5, account = terminal
-                equity, lot, why_not = sizing(mt5, account, bare, args.risk_pct)
-                if equity is None:
-                    print(f"[{stamp}] BLOCKER: {why_not}")
-                    journal.record("refused", why=["daemon cycle attempted"],
-                                   rule=rule, blockers=[why_not])
-                else:
-                    cycle(mt5,
-                          [s.strip() for s in args.symbol.split(",") if s.strip()],
-                          [i.strip() for i in args.interval.split(",") if i.strip()],
-                          args.bars, args.risk_pct, args.max_orders, args.send,
-                          equity, lot, None, args.max_total_risk_pct,
-                          args.max_correlation)
-                    exits(mt5, bare, args.send, rule)
+                # SATU LotSpec PER SIMBOL, sama seperti `execute.main`. Satu spec
+                # yang di-broadcast adalah error 50x antara XAUUSD (100) dan
+                # XAGUSD (5000).
+                lot, missing = lot_specs(symbols)
+                if missing:
+                    print(f"[{stamp}] CATATAN: terminal tidak membawa "
+                          f"{', '.join(missing)}, kandidat pada simbol itu tidak "
+                          f"akan disizing dan tidak akan dikirim")
+                equity = sizing(account, lot or {}, args.risk_pct)
+                cycle(mt5, symbols, intervals,
+                      args.bars, args.risk_pct, args.max_orders, args.send,
+                      equity, lot, rules, args.max_total_risk_pct,
+                      args.max_correlation, partners, args.daily_loss_pct)
+                for name in bare:
+                    exits(mt5, name, args.send, rule)
 
         if args.once:
             return 0

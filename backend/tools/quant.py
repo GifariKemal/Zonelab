@@ -69,6 +69,7 @@ from datetime import datetime
 
 from app.clock import NY
 from app.ssmt import ssmt as ssmt_read
+from app.m4 import in_judas_window
 from app.tcisd import find as tcisd_find
 from app.indicators import wilder_atr
 from app.regime import regime as regime_filter
@@ -433,14 +434,31 @@ def tcisd_trades(
     rows = history.load(f"mt5:{symbol}", interval, len(candles))
     partner_sym = TCISD_PARTNER.get(symbol, "XAGUSD")
     partner_rows = history.load(f"mt5:{partner_sym}", interval, len(candles))
+    # DIAM TIDAK LOLOS SEBAGAI PERSETUJUAN, dan itu aturan project ini sendiri.
+    # `app/ict.py:Setup.failed_required` menuliskannya: "A required condition
+    # that is UNKNOWN counts as failed. Silence cannot pass as assent."
+    #
+    # Versi lama mengembalikan SELURUH trade tiap kali filternya tidak bisa
+    # dihitung, jadi `--tcistd` melaporkan "entry: tCISD" di header lalu
+    # mengukur populasi yang sama sekali tidak difilter. Terukur 28 Agustus
+    # 2026 pada XAUUSD 1h: 535 trade dengan flag dan 535 tanpa, exp R -0,0210
+    # pada keduanya, angka yang identik sampai digit terakhir.
+    #
+    # Sebuah filter yang tidak bisa berjalan menghasilkan NOL trade, bukan
+    # semuanya, dan alasannya dicetak supaya sel kosong bisa dibedakan dari
+    # sel yang memang tidak punya setup.
     if not rows or not partner_rows:
-        return all_trades  # no filter possible, return all
+        print(f"  {symbol} {interval}: tCISD tidak bisa dihitung, "
+              f"deret atau partner {partner_sym} kosong. 0 trade")
+        return []
 
     my_times = {c.time for c in rows}
     partner_times = {c.time for c in partner_rows}
     common = sorted(my_times & partner_times)
     if len(common) < 50:
-        return all_trades
+        print(f"  {symbol} {interval}: tCISD tidak bisa dihitung, cuma "
+              f"{len(common)} bar beririsan dengan {partner_sym}. 0 trade")
+        return []
 
     aligned_mine = [c for c in rows if c.time in common]
     aligned_partner = [c for c in partner_rows if c.time in common]
@@ -461,11 +479,12 @@ def tcisd_trades(
             sweep = event.took_now if event.side == "high" else event.failed_now
         if ssmt_at is None:
             continue
-        # M4 time filter
+        # M4 time filter, imported rather than retyped. The same two numbers used
+        # to live here AND in `app/m4.py`, in two files that did not import each
+        # other, so revising the window in one would have left this arm quietly
+        # measuring the old hours.
         ny_dt = datetime.fromtimestamp(common[ssmt_at], tz=NY)
-        in_m4 = (ny_dt.hour == 9 and ny_dt.minute >= 30) or \
-                (ny_dt.hour == 10 and ny_dt.minute <= 30)
-        if not in_m4:
+        if not in_judas_window(ny_dt):
             continue
         # tCISD confirmation
         entry = tcisd_find(aligned_mine, ssmt_at, event.side, sweep)
@@ -476,10 +495,23 @@ def tcisd_trades(
     # Step 3: filter zone trades by tCISD directional confirmation.
     # If tCISD confirms bullish, only trade demand zones. If bearish,
     # only supply zones. If both confirmed, no filter (trade both).
-    if not confirmed_directions or len(confirmed_directions) == 2:
-        return all_trades  # no filter or both directions confirmed
+    if not confirmed_directions:
+        # NOL KONFIRMASI BERARTI NOL TRADE. Ini yang dulu mengembalikan
+        # semuanya, dan itu membuat seluruh mode `--tcistd` mengukur baseline
+        # sambil melabelinya tCISD.
+        print(f"  {symbol} {interval}: tCISD nol konfirmasi arah, "
+              f"0 dari {len(all_trades)} trade")
+        return []
+    if len(confirmed_directions) == 2:
+        # DUA ARAH TERKONFIRMASI BUKAN KEDIAMAN. Ia sinyal nyata yang berarti
+        # tidak ada pembatasan arah, jadi di sini semuanya memang lolos.
+        print(f"  {symbol} {interval}: tCISD konfirmasi DUA arah, "
+              f"{len(all_trades)} trade lolos tanpa pembatasan arah")
+        return all_trades
     want = "demand" if "buy" in confirmed_directions else "supply"
     out = [t for t in all_trades if t.get("side") == want]
+    print(f"  {symbol} {interval}: tCISD konfirmasi {want}, "
+          f"{len(out)} dari {len(all_trades)} trade")
     return out
 
 
@@ -526,12 +558,33 @@ def quant_filter(
         avg = sum(trailing) / len(trailing)
         vol_ok[candles[i].time] = avg <= 0 or candles[i].volume >= avg
 
-    # ---- Regime: reject chop ----
+    # ---- Regime: PER BAR, dan hanya dari sejarah yang knowable di bar itu ----
+    #
+    # DUA CACAT DALAM SATU BARIS, dan keduanya diperbaiki di sini. Versi lama
+    # memanggil `regime_filter` SEKALI atas seluruh deret lalu memakai satu
+    # verdict itu untuk setiap trade. Filter seperti itu cuma bisa membunuh
+    # semuanya atau tidak sama sekali; ia tidak pernah bisa membedakan trade yang
+    # lahir di pasar sepi dari yang lahir di pasar bergerak, yang adalah
+    # satu-satunya alasan filter rezim ada.
+    #
+    # Dan persentilnya dihitung atas SELURUH array, termasuk bar yang belum
+    # terjadi saat trade itu diambil. Sebuah bar terbaca "chop" karena
+    # volatilitas enam bulan kemudian ternyata lebih tinggi adalah hindsight,
+    # dan project ini sudah pernah menangkap dirinya melakukan hal serupa.
+    #
+    # `regime` sendiri TIDAK diubah, dipanggil apa adanya atas potongan
+    # `[: at + 1]`. Satu definisi, dievaluasi di instan yang benar. Di-cache per
+    # indeks bar karena beberapa trade bisa lahir di bar yang sama.
     high = np.array([c.high for c in candles], dtype=np.float64)
     low = np.array([c.low for c in candles], dtype=np.float64)
     close_arr = np.array([c.close for c in candles], dtype=np.float64)
     atr_arr = wilder_atr(high, low, close_arr, 14)
-    reg = regime_filter(atr_arr[~np.isnan(atr_arr)]) if len(atr_arr) > 100 else "normal"
+    reg_cache: dict[int, str] = {}
+
+    def regime_at(bar: int) -> str:
+        if bar not in reg_cache:
+            reg_cache[bar] = regime_filter(atr_arr[: bar + 1])
+        return reg_cache[bar]
 
     # ---- Apply filters ----
     out = []
@@ -554,12 +607,12 @@ def quant_filter(
             v_skip += 1
             continue
 
-        # Regime: reject trades in chop
-        if reg == "chop":
+        # Regime: reject trades in chop, dinilai DI BAR TRADE ITU
+        if regime_at(at) == "chop":
             r_skip += 1
             continue
 
-        out.append({**t, "regime": reg})
+        out.append({**t, "regime": regime_at(at)})
 
     if z_skip or v_skip or r_skip:
         print(f"  {symbol} {interval}: z-pass={z_pass} z-skip={z_skip} "
@@ -627,9 +680,29 @@ def main() -> int:
               f"{'exp R':>7s} {'CI 95%':>17s} {'t':>6s} {'win':>6s} {'payoff':>7s} "
               f"{'Shrp':>6s} {'maxDD':>7s} {'fold+':>6s} {'signP':>6s} {'costR':>6s}")
         cells = []
+        failed: list[tuple[str, str, str]] = []
         for symbol in UNIVERSE:
             for interval in args.intervals.split(","):
-                c = cell(symbol, interval, flat, args.bars, tcistd=args.tcistd, quant=args.quant)
+                # SATU SEL YANG GAGAL MENGHENTIKAN SEL ITU DAN BUKAN MATRIX-NYA.
+                # Aturan yang sama sudah dipakai `execute.gather`: "A STALE FEED
+                # ON ONE PAIR STOPS THAT PAIR AND NOTHING ELSE." Matrix ini belum
+                # punya aturan itu, dan pada 28 Agustus 2026 satu `ProviderError`
+                # pada USOIL membatalkan seluruh run setelah 22 sel selesai,
+                # termasuk ringkasan DSR di bawahnya. Tabelnya tetap tercetak
+                # rapi dan exit code-nya 1, yaitu kombinasi yang paling mudah
+                # dibaca sebagai sukses.
+                #
+                # Kegagalannya sesaat, bukan permanen: USOIL terbaca 500 bar satu
+                # menit kemudian. Daemon auto-trade memanggil terminal yang sama
+                # tiap 20 detik, jadi rebutan adalah keadaan normal di mesin ini
+                # dan bukan alasan membuang 22 sel yang sudah dihitung.
+                try:
+                    c = cell(symbol, interval, flat, args.bars,
+                             tcistd=args.tcistd, quant=args.quant)
+                except Exception as exc:  # noqa: BLE001 - satu sel, bukan run
+                    print(f"{symbol:8s} {interval:4s} GAGAL: {exc}")
+                    failed.append((symbol, interval, str(exc)))
+                    continue
                 cells.append(c)
                 if not c.get("n"):
                     print(f"{symbol:8s} {interval:4s} {c.get('note', 'tanpa trade')}")
@@ -641,6 +714,14 @@ def main() -> int:
                       f"{c['sharpe_trade']:+6.3f} {c['max_dd']:7.1f} "
                       f"{c.get('folds_positive', 0)}/{c.get('folds_counted', 0):<4d} "
                       f"{c.get('sign_p', 1):6.3f} {c['cost_r']:6.3f}")
+        # DICETAK, TIDAK DISEMBUNYIKAN. Sebuah matrix yang kehilangan sel
+        # tanpa mengatakannya terbaca sebagai universe yang lebih kecil.
+        if failed:
+            print()
+            print(f"{len(failed)} sel GAGAL dan tidak masuk hitungan di bawah:")
+            for symbol, interval, why in failed:
+                print(f"  {symbol} {interval}: {why}")
+
         good = [c for c in cells if c.get("n", 0) >= 30]
         # SD LINTAS PERCOBAAN, DIUKUR DAN BUKAN DIASUMSIKAN. Deflated Sharpe
         # butuh sebaran Sharpe di antara percobaan, dan sel-sel di atas adalah
@@ -710,7 +791,16 @@ def main() -> int:
         return 0
 
     symbol = args.symbol or "XAUUSD"
-    c = cell(symbol, args.interval, flat, args.bars)
+    # FLAG YANG SAMA DENGAN JALUR MATRIX. Sampai 28 Agustus 2026 baris ini
+    # memanggil `cell` tanpa `tcistd` dan tanpa `quant`, jadi `--quant --symbol X`
+    # mencetak "filters: Z-Score+Volume+Regime" di header lalu menjalankan
+    # baseline. Dua run, satu dengan flag dan satu tanpa, keluar bit-identik:
+    # 535 trade, Kelly -0.0344, PSR 0.3210 pada keduanya. Itu bentuk kegagalan
+    # yang paling mahal di project ini, instrumen melaporkan hijau di atas
+    # sesuatu yang tidak berjalan, dan di sini ia membuat pilar Z-Score terbaca
+    # "sudah diukur, tidak berpengaruh" padahal belum pernah dijalankan.
+    c = cell(symbol, args.interval, flat, args.bars,
+             tcistd=args.tcistd, quant=args.quant)
     if not c.get("n"):
         print(c.get("note", "tanpa trade")); return 1
     print(f"\n{symbol} {args.interval}: {c['bars']} bar bersih dari "

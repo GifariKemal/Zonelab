@@ -90,13 +90,20 @@ def explain(zone: Zone, plan: TradePlan | None, interval: str) -> Advice:
         text=(
             f"Kaki keluarnya {zone.departure_atr:.2f} ATR. "
             + (
-                "Itu melewati gerbang 2 ATR, dan kelompok yang melewatinya "
-                "bertahan 85,8% saat diuji, lawan 64,4% yang tidak."
+                "Itu melewati gerbang 2 ATR. Diukur di instrumen yang "
+                "benar-benar ditradingkan, kelompok yang melewatinya bertahan "
+                "43,0% lawan 40,2%, dan selisih ketahanan itu TIDAK signifikan."
                 if cleared else
                 "Itu BELUM melewati gerbang 2 ATR. Kelompok yang tidak "
-                "melewatinya cuma bertahan 64,4%, lawan 85,8% yang melewatinya."
+                "melewatinya bertahan 40,2% lawan 43,0% yang melewatinya, dan "
+                "selisih ketahanan itu TIDAK signifikan."
             )
-            + " Angka itu lolos walk-forward 8 dari 8 potongan waktu."
+            + (
+                " Yang signifikan adalah selisih EKSPEKTANSI-nya, +0,124 R "
+                "dengan t=+4,82. Pasangan 85,8% lawan 64,4% yang dulu ada di "
+                "kalimat ini diukur pada PAXG, BTC dan ETH dari Binance, jadi "
+                "ia milik pasar lain."
+            )
         ),
         learn="panel",
     ))

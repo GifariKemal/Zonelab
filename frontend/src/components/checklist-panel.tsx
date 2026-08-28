@@ -135,6 +135,18 @@ export const ChecklistPanel = memo(function ChecklistPanel({
           The anchor is single-sourced, so none of these three outranks the others.
         </p>
       ) : null}
+      {/* WHY AN ANCHOR PRODUCED NOTHING, which is a different fact from an
+          anchor that disagreed. `absent` was on the wire from the day the field
+          was born, its own type comment calls it the honest answer for that
+          case, and no component ever read it - so a reading built on one anchor
+          out of three looked exactly like a reading built on all three. Same
+          class as `meta.truncated_by_provider`, which was invisible for weeks
+          and made a short history look like a quiet market. */}
+      {discount?.absent.length ? (
+        <p className="px-3 pb-1.5 text-[11px] leading-relaxed text-text-faint">
+          Tidak terbaca: {discount.absent.join("; ")}.
+        </p>
+      ) : null}
 
       {/* ONE ROW PER HIT, and it names both instruments and all four prices.
           This used to be one row per stage saying "3 divergences", which read

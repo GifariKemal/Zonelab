@@ -881,7 +881,14 @@ function Bukti() {
           ],
           [
             "Gerbang departure menyaring sesuatu yang nyata",
-            <span key="c"><Yes>Terbukti.</Yes> 85,8% lawan 64,4%, n=10198, p&lt;0,0001.</span>,
+            <span key="c">
+              <Yes>Terbukti, sebagai penyortir.</Yes> Di instrumen yang benar-benar
+              ditradingkan, di bar 5 menit: 43,0% lawan 40,2%, dan selisih
+              ketahanan itu <b>tidak</b> signifikan. Yang signifikan ekspektansinya,
+              +0,124 R dengan t=+4,82. Pasangan 85,8% lawan 64,4% yang dulu ada di
+              sini diukur pada PAXG, BTC dan ETH dari Binance, jadi ia milik pasar
+              lain.
+            </span>,
           ],
           [
             "Gerbang itu bertahan di bar yang belum pernah dilihat",

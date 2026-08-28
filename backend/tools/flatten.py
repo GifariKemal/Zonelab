@@ -32,6 +32,7 @@ import datetime
 
 from app import journal
 from tools.costed import ROLLOVER_HOUR_UTC, rollovers
+from tools.execute import send_ok
 from tools.execute import RULE, _terminal
 
 
@@ -66,11 +67,11 @@ def close(mt5, position, price_digits: int = 3) -> tuple[bool, str]:
         "type_filling": mt5.ORDER_FILLING_IOC,
         "comment": "zonelab flat rollover"[:31],
     }
-    sent = mt5.order_send(request)
-    if sent is None or sent.retcode != 0:
-        code = None if sent is None else sent.retcode
-        return False, f"order_send retcode={code} {getattr(sent, 'comment', '')!r}"
-    return True, ""
+    # SATU PREDIKAT, DIPAKAI BERSAMA `execute.place`. File ini dulu menguji
+    # `retcode != 0` juga, jadi ia akan menutup posisi dengan sukses lalu
+    # melaporkannya gagal, dan menulis record penolakan untuk posisi yang sudah
+    # tertutup. Alasan lengkapnya di docstring `execute.send_ok`.
+    return send_ok(mt5, mt5.order_send(request))
 
 
 def main() -> None:

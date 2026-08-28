@@ -383,7 +383,7 @@ def digest(response: dict[str, Any]) -> dict[str, Any]:
 # -- chat ------------------------------------------------------------------
 
 
-def _history(messages: list[Any]) -> list[dict[str, str]]:
+def _history(messages: object) -> list[dict[str, str]]:
     """Validate and normalise the client's history. Only user and assistant
     turns: a client-supplied system message would be a prompt injection
     surface, since it rides ABOVE the constitution rather than under it."""
@@ -406,7 +406,7 @@ def _history(messages: list[Any]) -> list[dict[str, str]]:
     return history
 
 
-async def chat(messages: list[Any], context: dict | None) -> dict[str, Any]:
+async def chat(messages: object, context: object) -> dict[str, Any]:
     """One assistant turn over the current drawing, checked before return."""
     cfg = read_config()
     if not (cfg["base_url"] and cfg["api_key"] and cfg["model"]):
@@ -433,9 +433,14 @@ async def chat(messages: list[Any], context: dict | None) -> dict[str, Any]:
         )},
         *history,
     ]
-    if len(json.dumps(wire)) > MAX_PROMPT_CHARS:
+    # SEKALI, BUKAN DUA KALI. `wire` bisa 100k karakter dan ini berjalan DI
+    # DALAM event loop, jadi meng-encode-nya ulang cuma untuk mencetak panjang
+    # yang sama membayar biaya CPU yang sama dua kali sementara `/api/health`
+    # menunggu giliran.
+    encoded = len(json.dumps(wire))
+    if encoded > MAX_PROMPT_CHARS:
         raise LLMUnavailable(
-            f"the conversation is {len(json.dumps(wire))} characters, over "
+            f"the conversation is {encoded} characters, over "
             f"the {MAX_PROMPT_CHARS} cap. Scan fewer layers or "
             f"start a new conversation."
         )

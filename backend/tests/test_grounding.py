@@ -111,3 +111,40 @@ def test_a_price_quoted_to_every_last_digit_is_grounded():
     # is the precision the panel and the price axis actually show, so this is
     # the shape an invented price really arrives in.
     assert not check("Tepi atasnya 4476.31.", {"top": exact}).grounded
+
+
+def test_an_integer_is_fewer_digits_and_not_different_digits():
+    """Bentuk paling sederhana dari jaminan modul ini, dan ia pernah gagal.
+
+    `_decimals` men-split token tanpa pemisah desimal dan mengembalikan panjang
+    seluruh token, jadi "125" terbaca sebagai tiga angka desimal. Akibatnya
+    pembulatan ke bilangan bulat, yaitu "digit lebih sedikit" dalam bentuk
+    paling dasar, ditandai sebagai angka karangan dan pembaca mendapat badge
+    merah pada jawaban yang jujur.
+    """
+    assert check("nilainya 150", {"value": 150.4}).grounded
+    assert check("harga 4378", {"entry": 4377.86}).grounded
+    # Dan yang tidak boleh ikut longgar: digit yang BERBEDA tetap ditolak.
+    assert not check("nilainya 151", {"value": 150.4}).grounded
+    assert not check("harga 4402", {"entry": 4377.86}).grounded
+
+
+def test_arithmetic_that_lands_in_the_free_set_is_a_known_hole():
+    """Batas yang diakui, dipaku supaya tidak dilupakan atau dibaca sebagai jaminan.
+
+    Prompt melarang model berhitung dan menyebut itu aturan yang paling sering
+    gagal. Tidak ada penegak mekanisnya. Aritmetika tertangkap hanya kalau
+    hasilnya kebetulan tidak ada di payload, dan yang hasilnya jatuh di `_FREE`
+    tidak pernah tertangkap.
+
+    Test ini SENGAJA mengasersi perilaku yang tidak diinginkan. Kalau suatu hari
+    ia gagal, itu berarti seseorang menutup celahnya, dan test inilah yang harus
+    dihapus - bukan penegaknya.
+    """
+    # 102 - 100 = 2, dan 2 ada di _FREE, jadi ia lolos.
+    assert check("jarak entry ke stop 2 poin", {"entry": 102.0, "stop": 100.0}).grounded
+    # Hasil yang sama sekali di luar payload tetap tertangkap, jadi celahnya
+    # sempit dan bukan lubang terbuka.
+    assert not check(
+        "jarak entry ke stop 27.3 poin", {"entry": 127.3, "stop": 100.0}
+    ).grounded

@@ -1,12 +1,18 @@
 """Zonelab API.
 
-Four endpoints. `/api/draw` is the one that matters: it returns the candles and
-the shapes drawn on them in a single response, so the chart can never render
-zones computed from bars it is not showing.
+Seventeen endpoints, and `/api/draw` is the one that matters: it returns the
+candles and the shapes drawn on them in a single response, so the chart can never
+render zones computed from bars it is not showing. The rest are the surfaces that
+grew around it - snapshots, deduce, account, autotrade, four agent routes,
+forming, triad - and the count is written down because it said "four" for weeks
+after it stopped being four.
 
 The shapes themselves live next door. `drawing.py` builds them synchronously off
-already-fetched bars, `overlays.py` holds the layers that read those same bars,
-and `checklist.py` holds the one block that may fetch more. This file is the wire:
+already-fetched bars and `overlays.py` holds the layers that read those same
+bars. THREE blocks may fetch more, not one: `gaps` when the window is too short
+to contain its own history, `checklist` per bias timeframe and per SSMT
+instrument, and `ssmt` through its aligned partner series. All three fetch here,
+in the async handler, never inside the synchronous build. This file is the wire:
 it fetches, dispatches, and assembles the response.
 """
 
@@ -147,7 +153,15 @@ async def account(provider: str | None = None) -> dict:
     naming itself rather than a generic failure, because "yahoo cannot tell you
     your equity" is a fact about yahoo and the caller should read it that way.
     """
-    resolved = resolve(provider)
+    # INSIDE the try, because `resolve` is what rejects an unknown provider name.
+    # It used to sit outside, so `?provider=nonsense` came back as a bare 500
+    # while every other route answers an unknown provider with a 502 carrying the
+    # vendor's own words. A 501 for a known feed without an account was already
+    # right; it was the unknown NAME that leaked.
+    try:
+        resolved = resolve(provider)
+    except ProviderError as exc:
+        raise HTTPException(status_code=502, detail=str(exc)) from exc
     reader = getattr(resolved, "account", None)
     if reader is None:
         raise HTTPException(
@@ -305,7 +319,11 @@ async def agent_config_save(body: dict) -> dict:
             temperature=(None if body.get("temperature") is None
                          else float(body["temperature"])),
         )
-    except ValueError as exc:
+    # TypeError beside ValueError, because `float()` raises different exceptions
+    # for different wrong types: "abc" is a ValueError and was already a 422,
+    # while a list or a dict is a TypeError and fell through as a bare 500 - on
+    # the endpoint that handles the model endpoint's credentials.
+    except (TypeError, ValueError) as exc:
         raise HTTPException(status_code=422, detail=str(exc)) from exc
     reachable, why, offered = await agent_mod.probe()
     return {**agent_mod.masked(), "reachable": reachable, "error": why,
@@ -721,8 +739,10 @@ async def draw(request: DrawRequest, http: Request) -> DrawResponse:
     if "news" in wanted:
         meta["news"] = await news_overlay(rows, request, drawing)
 
-    # The checklist last, because it is the only block that can make extra
-    # provider calls and everything above must already be correct without it.
+    # The checklist after the drawing, because everything above must already be
+    # correct without it. It is NOT the only block that fetches and it is not
+    # last: `_gap_history` fetches before `_build` even runs, and `_draw_ssmt`
+    # fetches its partner series after this.
     checklist = None
     if "checklist" in wanted and rows:
         checklist, checklist_stats = await checklist_for(rows, request, used)

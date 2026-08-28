@@ -142,7 +142,21 @@ def main() -> int:
     # vendor, never a 500 and never a silent empty chart.
     for provider in config.get("providers", []):
         pid = provider["id"]
-        r = draw(provider=pid, interval="1h", bars=200)
+        # A SLOW VENDOR IS ONE FAILED CHECK, NOT A DEAD RUN. This call used to
+        # let `httpx.ReadTimeout` propagate, and because results print only at
+        # the end, one vendor over the 60 second timeout killed the process and
+        # printed NOTHING - all 124 assertions lost, with output indistinguishable
+        # from a suite that never started. Dukascopy at about 61 seconds per 200
+        # bars sits right on that edge and did exactly this, twice in a row.
+        try:
+            r = draw(provider=pid, interval="1h", bars=200)
+        except httpx.HTTPError as exc:
+            check(
+                f"provider {pid} draws or says why",
+                False,
+                f"transport error rather than an HTTP answer: {type(exc).__name__}",
+            )
+            continue
         body = r.text[:140]
         if r.status_code == 200:
             ok = len(r.json()["candles"]) > 0
@@ -513,6 +527,20 @@ def main() -> int:
           draw(layers=["gaps", "not_an_overlay"]).status_code == 422)
     check("unknown provider is a 502 with a reason",
           draw(provider="nope").status_code == 502)
+    # BOTH OF THESE USED TO BE A BARE 500, and 120 assertions passed over them.
+    # `/api/account` resolved the provider outside its own try, and
+    # `/api/agent/config` caught only ValueError while `float()` raises TypeError
+    # for a list. The second one sits on the endpoint holding model credentials.
+    check("an unknown provider on /api/account is a 502, not a 500",
+          get("/api/account", provider="nope").status_code == 502)
+    check("a known feed without an account is still a 501",
+          get("/api/account", provider="yahoo").status_code == 501)
+    check("a non-scalar temperature is a 422, not a 500",
+          httpx.post(f"{BASE}/api/agent/config", json={"temperature": [1, 2]},
+                     timeout=45.0).status_code == 422)
+    check("a non-numeric temperature is a 422",
+          httpx.post(f"{BASE}/api/agent/config", json={"temperature": "abc"},
+                     timeout=45.0).status_code == 422)
     check("bars below the floor is a 422",
           draw(bars=1).status_code == 422)
     check("bars above the ceiling is a 422",

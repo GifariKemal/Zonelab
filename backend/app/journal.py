@@ -62,6 +62,7 @@ def record(
     rule: dict[str, Any],
     blockers: list[str] | None = None,
     zone_id: str | None = None,
+    symbol: str | None = None,
     ticket: int | None = None,
     plan: dict[str, Any] | None = None,
     snapshot_id: str | None = None,
@@ -89,6 +90,7 @@ def record(
         "at": int(time.time()) if at is None else at,
         "event": event,
         "zone_id": zone_id,
+        "symbol": symbol,
         "ticket": ticket,
         "plan": plan,
         "why": why,
@@ -129,14 +131,36 @@ def entries(day: str | None = None) -> list[dict[str, Any]]:
     return sorted(out, key=lambda e: e.get("at", 0))
 
 
-def for_zone(zone_id: str) -> list[dict[str, Any]]:
+def for_zone(zone_id: str, symbol: str | None = None) -> list[dict[str, Any]]:
     """Every event about one zone, which is what idempotency asks about.
 
     Keyed on the zone rather than on the ticket on purpose: before an order
     exists there is no ticket, and "have I already acted on this zone" is a
     question that has to be answerable at exactly that moment.
+
+    AND ON THE SYMBOL, because a zone id does not carry one. Ids are built as
+    `f"{kind}-{bar_time}"` in both detector modules, so two instruments that form
+    the same kind of zone on the same bar get the SAME id: measured on a 400-bar
+    1h window, gold and silver shared four. Without the symbol, gate 5 in
+    `tools/execute.py` suppressed a silver trade because gold already had an order
+    from its own zone, and reported it as "already ordered, ticket N" - a silent
+    skip wearing the words of correct behaviour, on the basket
+    `.autotrade.json` was actually configured for.
+
+    A RECORD WITH NO SYMBOL MATCHES ANY SYMBOL, and that is deliberate rather
+    than lazy. Entries written before this field existed cannot say which
+    instrument they were for, so treating them as ambiguous keeps the
+    conservative answer: an order that may already exist is not placed twice.
+    New records carry the symbol and are scoped exactly.
     """
-    return [e for e in entries() if e.get("zone_id") == zone_id]
+    out = []
+    for e in entries():
+        if e.get("zone_id") != zone_id:
+            continue
+        if symbol is not None and e.get("symbol") not in (None, symbol):
+            continue
+        out.append(e)
+    return out
 
 
 def for_ticket(ticket: int) -> list[dict[str, Any]]:

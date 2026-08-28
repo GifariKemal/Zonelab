@@ -187,6 +187,14 @@ def evaluate(
         # retracement = how far price pulled back from the extreme.
         # demand wants deep discount (drp near 0.214-0.382); supply wants
         # deep premium (drp near 0.618-0.786).
+        # THE ONLY DEFINITION OF THE OTE BAND IN THIS REPO, and it is direction
+        # aware, which the second copy was not. `app/fibonacci.py` carried its own
+        # `in_ote` that returned the discount band for BOTH sides, while
+        # `ote_bounds` in the same file read the ratios as positions and answered
+        # the premium side - two functions in one file disagreeing about which
+        # half of the range OTE sits in. Nothing imported it, so commit 4ab352a
+        # "fixed" a band no caller ever read. Deleted rather than reconciled: this
+        # line is six lines long, correct, and covered by tests/test_ict.py.
         ote_ok = (0.214 <= drp <= 0.382) if demand else (0.618 <= drp <= 0.786)
         out.append(Condition(
             "ote", ote_ok, "doctrine",

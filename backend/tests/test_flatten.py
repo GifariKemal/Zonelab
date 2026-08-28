@@ -59,7 +59,11 @@ class FakeTick:
 
 
 class FakeSend:
-    def __init__(self, retcode=0, comment="ok"):
+    """Default 10009, karena ITU yang dibalas terminal saat sukses. Fixture ini
+    dulu default 0 dan itu menyandi cacatnya: `order_check` sukses pada 0,
+    `order_send` TIDAK. Lihat `execute.send_ok`."""
+
+    def __init__(self, retcode=10009, comment="ok"):
         self.retcode, self.comment = retcode, comment
 
 
@@ -70,6 +74,8 @@ class FakeMT5:
     POSITION_TYPE_BUY = 0
     ORDER_TIME_GTC = 0
     ORDER_FILLING_IOC = 1
+    TRADE_RETCODE_DONE = 10009
+    TRADE_RETCODE_PLACED = 10008
 
     def __init__(self, send=None, tick: FakeTick | None = FakeTick()):
         self.sent: list[dict] = []
@@ -146,3 +152,20 @@ def test_a_position_the_journal_never_placed_is_not_ours(tmp_path, monkeypatch):
         "a ticket with no journal line must come back empty, which is what "
         "tools/flatten reads to decide not to touch it"
     )
+
+
+def test_a_close_that_answers_10009_is_closed_and_not_reported_as_failed():
+    """Cacat yang sama dengan `execute.place`, dan konsekuensinya lebih buruk:
+    posisi benar-benar tertutup lalu ditulis sebagai penolakan, sehingga journal
+    menyatakan masih terbuka sesuatu yang sudah tidak ada."""
+    mt5 = FakeMT5(send=FakeSend(retcode=10009))
+    closed, why = flatten.close(mt5, Position(kind=FakeMT5.POSITION_TYPE_BUY))
+    assert closed, why
+    assert why == ""
+
+
+def test_retcode_zero_from_a_close_is_not_success():
+    mt5 = FakeMT5(send=FakeSend(retcode=0))
+    closed, why = flatten.close(mt5, Position(kind=FakeMT5.POSITION_TYPE_BUY))
+    assert not closed
+    assert "retcode=0" in why

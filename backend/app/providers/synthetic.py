@@ -86,16 +86,32 @@ def _session_grid(now: int, step: int, bars: int) -> list[int]:
     return out
 
 
-def generate(bars: int, step: int, seed: int = 7, start_price: float = 3400.0) -> list[Candle]:
+def generate(
+    bars: int,
+    step: int,
+    seed: int = 7,
+    start_price: float = 3400.0,
+    now: float | None = None,
+) -> list[Candle]:
     """Random walk with deliberate impulse/consolidation alternation.
 
     A pure Gaussian walk almost never produces a clean base-then-departure, so
     the detector would have nothing to find. This alternates calm and trending
     stretches, which is what the real series does and what makes the offline
     mode a useful preview rather than a blank chart.
+
+    `now` EXISTS SO A TEST CAN STOP THE CLOCK. The grid is anchored to the wall
+    clock, and `_session_grid` skips the hours the market is shut - so which bar
+    lands where moves with the calendar day the test happens to run on. That is
+    not hypothetical: one test in this repo passed for months and then began
+    failing stably for exactly this reason, and its fixture had not changed. A
+    caller that asserts a count, or asserts anything about a particular bar,
+    passes a fixed `now` and gets the same series every day. Live callers pass
+    nothing and still track the clock, which is what the offline chart wants.
     """
     rng = np.random.default_rng(seed)
-    grid = _session_grid(int(_time.time()) // step * step, step, bars)
+    anchor = _time.time() if now is None else now
+    grid = _session_grid(int(anchor) // step * step, step, bars)
     # LOUD RATHER THAN SHORT. A grid the session walk could not fill used to be
     # indexed anyway and raised IndexError from inside the price loop, which
     # named a line rather than a cause. Returning the short series instead would

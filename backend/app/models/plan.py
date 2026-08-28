@@ -202,15 +202,20 @@ class TradePlan(BaseModel):
     partial_2r: float | None = Field(
         default=None,
         description=(
-            "The price where 2R is reached. Auto-partial exit target: close a "
-            "portion of the position exactly at this level."
+            "The price 2R from entry. A LEVEL, not an instruction: nothing in "
+            "this repo closes part of a position there. The daemon's only exit "
+            "is flat at the rollover."
         ),
     )
     breakeven_stop: float | None = Field(
         default=None,
         description=(
-            "The entry price. Stop loss is moved here immediately after the "
-            "partial at +2R is filled. The runner works towards the final DOL."
+            "The entry price, so a reader can see where breakeven sits. NOT a "
+            "rule the engine applies. The nearest measured version was "
+            "pre-registered and REJECTED: moving the stop to breakeven after "
+            "+1R scored t = -1.15, turning 12 losers into scratches against 8 "
+            "winners. docs/QA-QUANT.md section 11 still lists partial and "
+            "breakeven as unmeasured."
         ),
     )
     units: float | None = Field(

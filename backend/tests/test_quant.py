@@ -248,3 +248,166 @@ def test_a_total_loss_bet_size_does_not_produce_nan():
     got = ruin(rows([-1.0, 1.0]), 1.0, paths=500, trades_ahead=50)
     assert math.isfinite(got["equity_p50"])
     assert got["p_ruin"] == pytest.approx(1.0)
+
+
+def test_the_single_cell_path_passes_the_same_flags_as_the_matrix_path(monkeypatch):
+    """`--quant` dan `--tcistd` harus SAMPAI ke `cell`, bukan cuma ke header.
+
+    Sampai 28 Agustus 2026 jalur satu simbol memanggil
+    `cell(symbol, interval, flat, bars)` tanpa kedua flag, sementara header di
+    atasnya tetap mencetak "filters: Z-Score+Volume+Regime". Dua run pada
+    XAUUSD 1h, satu dengan `--quant` dan satu tanpa, keluar bit-identik: 535
+    trade, Kelly -0.0344, PSR 0.3210 pada keduanya.
+
+    Konsekuensinya bukan sekadar flag yang tidak jalan. Ia membuat pilar
+    Z-Score terbaca "sudah diukur dan tidak berpengaruh" oleh siapa pun yang
+    menjalankan mode satu simbol, padahal filternya tidak pernah dijalankan
+    sekali pun. Sebuah instrumen yang melaporkan hijau di atas sesuatu yang
+    tidak berjalan adalah kegagalan yang paling sering memakan waktu di project
+    ini, dan ini bentuknya yang paling mahal: ia menghasilkan angka yang salah
+    label, bukan error.
+    """
+    import sys
+
+    from tools import quant
+
+    seen: dict = {}
+
+    def fake_cell(symbol, interval, flat=True, bars=0, tcistd=False, quant_=False,
+                  **kwargs):
+        seen.update(symbol=symbol, interval=interval, tcistd=tcistd,
+                    quant=kwargs.get("quant", quant_))
+        return {"symbol": symbol, "interval": interval, "n": 0, "note": "stub"}
+
+    monkeypatch.setattr(quant, "cell", fake_cell)
+    monkeypatch.setattr(sys, "argv", [
+        "quant", "--symbol", "XAUUSD", "--interval", "1h", "--quant", "--tcistd",
+    ])
+
+    quant.main()
+
+    assert seen.get("symbol") == "XAUUSD", "cell tidak pernah dipanggil"
+    assert seen["quant"] is True, (
+        "--quant tidak sampai ke cell: header mencetak filter menyala sementara "
+        "baseline yang dijalankan"
+    )
+    assert seen["tcistd"] is True, "--tcistd tidak sampai ke cell"
+
+
+def quant_candle(t: int, price: float, width: float):
+    """Satu bar dengan tinggi yang dikendalikan, untuk menggerakkan ATR."""
+    from app.models import Candle
+
+    return Candle(time=t, open=price, high=price + width, low=price - width,
+                  close=price, volume=100.0)
+
+
+def test_the_regime_is_judged_at_the_trade_bar_and_never_from_later_bars(monkeypatch):
+    """Rezim per trade, dan dari sejarah yang knowable di bar itu saja.
+
+    Versi lama memanggil `regime` SEKALI atas seluruh deret, jadi verdict-nya
+    sama untuk setiap trade: filternya cuma bisa membunuh semuanya atau tidak
+    sama sekali. Dan persentilnya menghitung bar yang belum terjadi saat trade
+    diambil, yang membuat sebuah bar terbaca chop gara-gara volatilitas enam
+    bulan kemudian.
+
+    Deret di bawah tenang dulu lalu meledak. Trade yang lahir di bagian tenang
+    HARUS dinilai dari bagian tenang saja, jadi ia tidak boleh terbaca chop
+    hanya karena ledakan yang menyusul.
+    """
+    from tools import quant
+
+    seen: list[int] = []
+    real_regime = quant.regime_filter
+
+    def spy(atr_slice):
+        seen.append(len(atr_slice))
+        return real_regime(atr_slice)
+
+    monkeypatch.setattr(quant, "regime_filter", spy)
+    monkeypatch.setattr(quant.history, "load", lambda *a, **k: [])
+
+    step = 3600
+    rows = []
+    for i in range(400):
+        # 300 bar rentang sempit, lalu 100 bar rentang lebar.
+        width = 0.5 if i < 300 else 20.0
+        price = 100.0 + (i % 3)
+        rows.append(quant_candle(1_700_000_000 + i * step, price, width))
+
+    trades_in = [{"at": 120, "side": "demand"}, {"at": 380, "side": "supply"}]
+    quant.quant_filter("XAUUSD", rows, "1h", trades_in)
+
+    assert seen, "regime tidak pernah dipanggil"
+    # SATU PANGGILAN PER BAR TRADE, dengan panjang potongan = bar + 1. Kalau
+    # filternya kembali menilai sekali untuk seluruh deret, panjangnya akan
+    # 400 pada kedua trade.
+    assert sorted(seen) == [121, 381], seen
+
+
+def test_tcisd_that_cannot_be_computed_returns_no_trades_rather_than_all(
+    monkeypatch, capsys,
+):
+    """Diam tidak lolos sebagai persetujuan, aturan `Setup.failed_required`.
+
+    Versi lama mengembalikan SELURUH trade tiap kali filter tCISD tidak bisa
+    dihitung, jadi `--tcistd` mencetak "entry: tCISD" lalu mengukur populasi
+    yang tidak difilter sama sekali. Terukur 28 Agustus 2026 pada XAUUSD 1h:
+    535 trade dengan flag dan 535 tanpa, exp R -0,0210 pada keduanya, identik
+    sampai digit terakhir. Angka yang salah label lebih mahal daripada error.
+    """
+    from tools import quant
+
+    monkeypatch.setattr(quant.history, "load", lambda *a, **k: [])
+    monkeypatch.setattr(quant, "trades",
+                        lambda *a, **k: [{"at": 1, "side": "demand",
+                                          "skipped": False}])
+
+    out = quant.tcisd_trades("XAUUSD", [], "1h")
+
+    assert out == [], "filter yang tidak bisa dihitung meloloskan semuanya"
+    assert "0 trade" in capsys.readouterr().out
+
+
+def test_one_failing_cell_stops_that_cell_and_not_the_whole_matrix(
+    monkeypatch, capsys,
+):
+    """Aturan `execute.gather`, dibawa ke matrix: satu deret gagal, satu deret.
+
+    28 Agustus 2026 satu `ProviderError` pada USOIL membatalkan seluruh
+    `--matrix` setelah 22 sel selesai dihitung, termasuk ringkasan DSR di
+    bawahnya. Yang membuatnya mahal adalah bentuk keluarannya: tabel 22 baris
+    tercetak rapi, traceback-nya mendarat di ATAS file karena stderr tidak
+    dibuffer sementara stdout dibuffer, dan exit code-nya 1. Pembaca yang
+    menilai dari tabel akan menyimpulkan run itu sukses dengan universe yang
+    lebih kecil.
+
+    Kegagalannya juga sesaat, bukan permanen: simbol yang sama terbaca 500 bar
+    satu menit kemudian. Daemon auto-trade memanggil terminal yang sama tiap 20
+    detik, jadi rebutan adalah keadaan normal di mesin ini.
+    """
+    import sys
+
+    from tools import quant
+
+    calls: list[str] = []
+
+    def flaky_cell(symbol, interval, flat=True, bars=0, **kwargs):
+        calls.append(symbol)
+        if symbol == "XAGUSD":
+            raise RuntimeError("mt5 returned no bars for XAGUSD")
+        return {"symbol": symbol, "interval": interval, "n": 0, "note": "stub"}
+
+    monkeypatch.setattr(quant, "cell", flaky_cell)
+    monkeypatch.setattr(quant, "UNIVERSE", ("XAUUSD", "XAGUSD", "EURUSD"))
+    monkeypatch.setattr(sys, "argv",
+                        ["quant", "--matrix", "--intervals", "1h"])
+
+    quant.main()
+    out = capsys.readouterr().out
+
+    assert calls == ["XAUUSD", "XAGUSD", "EURUSD"], (
+        f"matrix berhenti di sel yang gagal: {calls}"
+    )
+    assert "GAGAL" in out
+    assert "1 sel GAGAL" in out, "sel yang hilang tidak dilaporkan"

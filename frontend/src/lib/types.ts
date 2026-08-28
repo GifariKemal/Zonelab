@@ -779,7 +779,7 @@ interface ProjectionLevel {
  *
  *  `price = origin - direction * multiple * height`, with `origin` the range
  *  edge in the direction of travel. The geometry was recovered from image 27 in
- *  `analisis lama` and agrees with that chart's own price tags to 0.4 USD.
+ *  `Referensi grup dan Bg Nas` and agrees with that chart's own price tags to 0.4 USD.
  *
  *  DIRECTION IS NEVER INFERRED. On his charts it is read from where price went
  *  after the range, which is hindsight, so the engine draws both ways unless

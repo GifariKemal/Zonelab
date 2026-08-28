@@ -106,3 +106,40 @@ def test_the_fine_arm_reports_a_cost_ratio_for_every_trade(arms):
     ratios = [r["cost_r"] for r in arms["fine"]]
     assert all(x > 0 for x in ratios), "ada trade tanpa biaya"
     assert max(ratios) < 1.0, max(ratios)
+
+
+def test_the_touch_bar_may_stop_but_may_not_pay():
+    """Aturan yang sama seperti `costed.py`, sekarang dipaku untuk `calibrate`.
+
+    Tanpa terminal, karena ini aritmetika: satu zona demand, satu bar sentuh yang
+    high-nya sudah melewati target. OHLC tidak bisa mengatakan high-nya tercetak
+    sebelum atau sesudah low yang mengisi entry, jadi bacaan yang tidak mengarang
+    adalah menunggu bar berikutnya.
+
+    `calibrate.resolve` memakai konvensi lama sampai 26 Agustus 2026 sementara
+    `costed.py` sudah dibalik pada 22 Agustus, dan tujuh tool mewarisi yang lama.
+    """
+    from types import SimpleNamespace
+
+    from app.models import ZoneSide
+    from tools.calibrate import resolve
+
+    # proximal 100, distal 99, target 100 + 2 * 1 ATR = 102.
+    zone = SimpleNamespace(side=ZoneSide.DEMAND, proximal=100.0, distal=99.0)
+    # Bar sentuh (indeks 1) sendiri sudah menyentuh 102. Bar sesudahnya datar.
+    high = np.array([100.0, 102.5, 100.2, 100.2])
+    low = np.array([100.0, 99.5, 100.0, 100.0])
+    close = np.array([100.0, 100.1, 100.1, 100.1])
+    atr = np.array([1.0, 1.0, 1.0, 1.0])
+
+    optimistic = resolve(zone, high, low, close, atr, 1, 2.0, 3, same_bar_target=True)
+    honest = resolve(zone, high, low, close, atr, 1, 2.0, 3, same_bar_target=False)
+
+    assert optimistic is True, "bar sentuh membayar: batas optimis"
+    assert honest is not True, "bar sentuh TIDAK boleh membayar secara bawaan"
+
+    # Dan yang tidak boleh ikut berubah: bar sentuh tetap boleh MENGHENTIKAN.
+    stopped_close = np.array([100.0, 98.5, 100.1, 100.1])
+    assert resolve(
+        zone, high, low, stopped_close, atr, 1, 2.0, 3, same_bar_target=False
+    ) is False, "bar sentuh yang menutup melewati distal tetap gagal, bukan None"

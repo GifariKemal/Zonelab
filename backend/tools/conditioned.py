@@ -22,17 +22,25 @@ earn a place in `app/plan.py`.
 from __future__ import annotations
 
 import argparse
+from datetime import datetime
 from math import erfc, sqrt
 
 import numpy as np
 
 from app.cisd import cisds
+from app.clock import NY
 from app.conditions import at_bar
 from app.confluence import mark_nesting
+from app.dealing_range import mark_dealing_range
 from app.detect import DETECTORS
 from app.ict import Rules, evaluate
 from app.models import SupplyDemandParams
+from app.judas import classify as judas_classify
+from app.m4 import in_judas_window
 from app.poi import confluence, other_boxes
+from app.psp import detect as psp_detect
+from app.detect.structure import swings
+from app.quarters import ALL_DEGREES, true_opens
 from app.resample import STEP_UP, resample
 from tools import history
 from tools.costed import POPULATION, trades
@@ -53,6 +61,23 @@ COLUMNS = (
     "bias_4h",
     "bias_1h",
 )
+
+#: Kolom modul yatim, praregistrasi KETIGA pada 28 Agustus 2026. Daftarnya ada
+#: di `docs/PRAREGISTRASI-YATIM.md` dan ditulis sebelum satu angka pun dihitung.
+#: Terpisah dari dua daftar lain untuk alasan yang sama: menggabungkannya akan
+#: menyembunyikan pertanyaan mana yang diajukan sebelum jawabannya ada.
+#:
+#: `app/ladder.py` SENGAJA TIDAK DI SINI. `for_cycle` adalah tabel lookup tanpa
+#: satu pun input pasar, jadi ia tidak punya apa pun untuk dikorelasikan dengan
+#: hasil. Itu dinyatakan di praregistrasi, bukan disimpulkan dari nol efek.
+ORPHAN_COLUMNS = (
+    "in_judas_window",
+    "judas_template",
+    "psp_before_touch",
+    "true_opens_in_zone",
+    "ote_band",
+)
+
 
 #: The ICT checklist's own clauses, added as a SECOND pre-registration on
 #: 2026-08-21. They are listed separately from `COLUMNS` because they were
@@ -168,6 +193,23 @@ def rows_with_state(symbol: str, interval: str, bars: int, flat: bool) -> list[d
     events, _ = cisds(candles)
     cisd_by_time = sorted((int(e.time), float(e.level)) for e in events)
 
+    # KOLOM MODUL YATIM, praregistrasi 28 Agustus 2026. Semua dihitung sekali
+    # untuk deret, bukan sekali per trade, karena semuanya properti bar.
+    #
+    # `mark_dealing_range` MEMBACA DI SENTUHAN PERTAMA, dan di sini itu instan
+    # yang benar: populasi ini memang first touch. Jalur order memakai
+    # `mark_dealing_range_now` karena di sana belum ada sentuhan sama sekali.
+    mark_dealing_range(zones, candles)
+    open_by_time = sorted((int(lv.time), float(lv.price))
+                          for lv in true_opens(candles, ALL_DEGREES))
+    # Level untuk PSP: ekstrem swing yang sudah confirmed, sama seperti yang
+    # dipakai `dealing_range`. PSP menuntut sapuan atas level kunci, dan swing
+    # confirmed adalah level kunci yang repo ini sudah punya definisinya.
+    high_arr = np.array([c.high for c in candles], dtype=np.float64)
+    low_arr = np.array([c.low for c in candles], dtype=np.float64)
+    psp_levels = [(s.confirmed_at, float(s.price))
+                  for s in swings(high_arr, low_arr, 50, 50)]
+
     out = []
     for row in base:
         touch = int(row["at"])
@@ -185,6 +227,25 @@ def rows_with_state(symbol: str, interval: str, bars: int, flat: bool) -> list[d
             for condition in checklist:
                 state[condition.name] = condition.met
             state["poi_family_count"] = stack.families
+
+            # ---- kolom praregistrasi 28 Agustus 2026 ----
+            when = datetime.fromtimestamp(times[touch], NY)
+            state["in_judas_window"] = in_judas_window(when)
+            # Bias London hari itu, dibaca dari bar 01:30-07:30 NY yang SUDAH
+            # lewat pada bar sentuhan. Tidak ada bar sesudah sentuhan yang
+            # ikut, jadi tidak ada hindsight.
+            state["judas_template"] = judas_classify(
+                *_london_bias(candles, touch)).template
+            near = [lv for at, lv in psp_levels if at <= touch]
+            state["psp_before_touch"] = bool(near) and psp_detect(
+                candles, max(0, touch - 10), near, lookback=10) is not None
+            inside = sum(1 for at, price in open_by_time
+                         if at <= times[touch] and zone.bottom <= price <= zone.top)
+            state["true_opens_in_zone"] = (
+                "0" if inside == 0 else "1-3" if inside <= 3
+                else "4-9" if inside <= 9 else "10+")
+            state["ote_band"] = _ote_band(zone.dealing_range_pos,
+                                          zone.side.value)
             # Bucketed, because "how much of the method was satisfied" is the
             # question a reader asks, and 11 separate counts would each be too
             # thin to judge.
@@ -192,6 +253,50 @@ def rows_with_state(symbol: str, interval: str, bars: int, flat: bool) -> list[d
             state["ict_met"] = f"{met // 2 * 2}-{met // 2 * 2 + 1}"
         out.append({**row, "state": state})
     return out
+
+
+def _ote_band(pos: float | None, side: str) -> str:
+    """Pita OTE arah-sadar, definisi yang sama dengan klausa `ote` di `app/ict.py`.
+
+    Demand mau discount dalam 0,214-0,382; supply mau premium dalam 0,618-0,786.
+    Satu-satunya definisi OTE di repo ini ada di `app/ict.py`, dan angka di sini
+    diambil dari sana apa adanya. `None` berarti tidak ada dealing range, dan ia
+    kelompok tersendiri, bukan digabung ke equilibrium.
+    """
+    if pos is None:
+        return "none"
+    lo, hi = (0.214, 0.382) if side == "demand" else (0.618, 0.786)
+    if lo <= pos <= hi:
+        return "ote"
+    if pos < 0.5:
+        return "discount"
+    if pos > 0.5:
+        return "premium"
+    return "equilibrium"
+
+
+def _london_bias(candles, touch: int) -> tuple[str, float]:
+    """Bias sesi London hari itu dan lebar range-nya, dibaca sebelum `touch`.
+
+    London 01:30-07:30 NY menurut `Buku=Pegangan.txt`. Bar sesudah `touch`
+    tidak pernah ikut, jadi tidak ada bar dari masa depan yang menentukan
+    template Judas.
+    """
+    day = datetime.fromtimestamp(candles[touch].time, NY).date()
+    session = [c for c in candles[max(0, touch - 200):touch + 1]
+               if datetime.fromtimestamp(c.time, NY).date() == day
+               and 1 <= datetime.fromtimestamp(c.time, NY).hour < 8]
+    if len(session) < 2:
+        return "neutral", 0.0
+    span = max(c.high for c in session) - min(c.low for c in session)
+    move = session[-1].close - session[0].open
+    if span <= 0:
+        return "neutral", 0.0
+    if move > span * 0.25:
+        return "bullish", span
+    if move < -span * 0.25:
+        return "bearish", span
+    return "neutral", span
 
 
 def main() -> None:
@@ -218,7 +323,7 @@ def main() -> None:
     # groups are judged, so the count has to happen in a first pass or the
     # threshold becomes a function of what the reader has already seen.
     judged = 0
-    for column in COLUMNS + ICT_COLUMNS:
+    for column in COLUMNS + ICT_COLUMNS + ORPHAN_COLUMNS:
         seen: dict[object, int] = {}
         for row in rows:
             key = row["state"].get(column)
@@ -228,7 +333,7 @@ def main() -> None:
     print(f"{judged} grup layak dinilai, alpha {ALPHA}/{judged} = "
           f"{ALPHA / judged:.5f}, |t| kritis {critical:.2f}\n")
 
-    for column in COLUMNS + ICT_COLUMNS:
+    for column in COLUMNS + ICT_COLUMNS + ORPHAN_COLUMNS:
         buckets: dict[object, list[dict]] = {}
         for row in rows:
             buckets.setdefault(row["state"].get(column), []).append(row)

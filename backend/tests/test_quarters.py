@@ -32,6 +32,13 @@ from app.quarters import (
     true_opens,
 )
 
+#: Jam dinding dibekukan untuk fixture sintetik: Kamis 2026-05-28 16:26 NY, hari
+#: kerja di tengah sesi. `generate` menambatkan grid-nya ke waktu nyata dan
+#: `_session_grid` melompati jam pasar tutup, jadi bar mana yang jatuh di mana
+#: bergerak dengan hari kalender saat test dijalankan. Satu test di repo ini lolos
+#: berbulan-bulan lalu mulai gagal stabil karena itu, tanpa fixture-nya berubah.
+FROZEN_NOW = 1780000000
+
 HOUR = 3600
 
 
@@ -427,7 +434,7 @@ def test_a_true_open_exactly_at_the_price_is_on_neither_side_of_it():
 
 
 def test_every_true_open_on_a_generated_series_comes_from_a_bar_that_exists():
-    candles = generate(bars=300, step=HOUR)
+    candles = generate(bars=300, step=HOUR, now=FROZEN_NOW)
     times = {c.time for c in candles}
 
     opens = true_opens(candles, ("day", "week"))

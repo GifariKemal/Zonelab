@@ -1,7 +1,7 @@
 # Peta direktori docs
 
-Direktori ini berisi 8 dokumen prosa dan 21 file bukti mentah. Tanpa peta,
-pembaca yang membukanya melihat 29 file dan tidak bisa tahu prosa mana membaca
+Direktori ini berisi 11 dokumen prosa dan 22 file bukti mentah. Tanpa peta,
+pembaca yang membukanya melihat 30 file dan tidak bisa tahu prosa mana membaca
 data mana. Itu satu-satunya alasan file ini ada.
 
 > [!NOTE]
@@ -21,6 +21,7 @@ data mana. Itu satu-satunya alasan file ini ada.
 | [ALUR-ORDER.md](ALUR-ORDER.md) | Apa yang terjadi, urut, ketika Zonelab memasang order, dan gerbang mana yang menghentikan apa |
 | [PRAREGISTRASI-KONDISI.md](PRAREGISTRASI-KONDISI.md) | Kolom mana yang diuji sebagai pengkondisi ekspektasi, ditulis sebelum satu angka dihitung, plus hasilnya |
 | [QA-QUANT.md](QA-QUANT.md) | Apakah edge-nya nyata setelah biaya per instrumen dan urutan di dalam bar diselesaikan dengan benar. **Baca ini sebelum CALIBRATION.md** |
+| [PRAREGISTRASI-YATIM.md](PRAREGISTRASI-YATIM.md) | Apakah enam modul yang tidak tersambung ke jalur keputusan memisahkan hasil, ditulis sebelum angkanya ada, plus hasilnya |
 | [PRAREGISTRASI-EKSEKUSI.md](PRAREGISTRASI-EKSEKUSI.md) | Dua aturan eksekusi yang diuji setelah sinyalnya habis, keduanya ditolak, dan satu ambang praregistrasi yang salah dirancang |
 
 ## File bukti, dan tool yang menghasilkannya
@@ -28,8 +29,9 @@ data mana. Itu satu-satunya alasan file ini ada.
 Konvensinya nama, bukan mekanisme: setiap tool mencetak ke stdout dan hasilnya
 dialihkan ke `docs/<nama>.json`. Jadi `docs/mss.json` datang dari
 `python -m tools.mss`, dan **tidak ada apa pun yang menegakkan itu** selain
-konvensi ini. Diperiksa 21 Agustus 2026: ke-21 file punya tool yang cocok, tidak
-ada yang orphan.
+konvensi ini. Diperiksa 21 Agustus 2026 pada 21 file, dan diperiksa ulang
+27 Agustus 2026 setelah `quarter_placement.json` masuk: ke-22 file punya tool
+yang cocok, tidak ada yang orphan.
 
 Tanda hubung lawan garis bawah adalah artefak sejarah dan bukan makna:
 `smt-volatility.json` datang dari `tools/smt_volatility.py`.
@@ -57,6 +59,7 @@ Tanda hubung lawan garis bawah adalah artefak sejarah dan bukan makna:
 | `true_day_open.json` | `tools.true_day_open` | - | 4 kunci |
 | `walkforward.json` | `tools.walkforward` | CALIBRATION.md | 15 kunci, 44 KB |
 | `walkforward-mt5.json` | `tools.walkforward` | WALKFORWARD-MT5.md | 15 kunci, sumber MT5 |
+| `quarter_placement.json` | `tools.quarter_placement` | - | 9 deret, penempatan kuarter |
 
 > [!IMPORTANT]
 > Kolom "dibaca prosa" kosong **bukan** berarti file-nya mati. Ia output mentah

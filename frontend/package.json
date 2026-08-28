@@ -26,7 +26,9 @@
     "e2e:chart": "node e2e/chart-audit.mjs .playwright-shots",
     "e2e:viewports": "node e2e/viewports.mjs .playwright-shots/viewports",
     "e2e:wiring": "node e2e/wiring.mjs .playwright-shots",
-    "e2e:posko": "node e2e/posko-fibonacci.mjs .playwright-shots"
+    "e2e:posko": "node e2e/posko-fibonacci.mjs .playwright-shots",
+    "e2e:agent": "node e2e/agent.mjs .playwright-shots",
+    "e2e:autotrade": "node e2e/autotrade.mjs .playwright-shots"
   },
   "dependencies": {
     "lightweight-charts": "^5.2.1",

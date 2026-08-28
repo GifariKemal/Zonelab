@@ -581,3 +581,59 @@ def test_regular_smt_and_sequential_ssmt_are_different():
     # They are different event types
     assert isinstance(reg[0], SMTEvent)
     assert isinstance(seq[0], SSMTEvent)
+
+
+def test_three_identical_series_cannot_diverge():
+    """Divergence between identical series is impossible, and it used to happen.
+
+    The running-extreme update sat inside the `combinations(symbols, 2)` loop, so
+    with three symbols pair (A,B) lifted A's running high to this quarter's own
+    extreme before pair (A,C) was compared. A could then no longer take it while
+    C still could, and the engine emitted an event whose two prices were the
+    SAME - which taking cannot produce, since it requires a strict >.
+
+    Both halves are asserted. Pairwise had always been correct, so a fix that
+    broke the pairwise case while silencing the triple would pass a test that
+    only looked at three.
+    """
+    bars = series([(100.0, 90.0), (110.0, 100.0)])
+    a, b, c = list(bars), list(bars), list(bars)
+
+    for pair in ({"A": a, "B": b}, {"A": a, "C": c}, {"B": b, "C": c}):
+        events, _ = smt(pair, "day")
+        assert events == [], f"identical pair {sorted(pair)} diverged"
+
+    events, stats = smt({"A": a, "B": b, "C": c}, "day")
+    assert events == [], [
+        (e.quarter.label, e.side, e.took, e.failed, e.took_price, e.failed_price)
+        for e in events
+    ]
+    assert stats["events"] == 0.0
+    # The quarters were read: a null that comes from reading nothing is not a null.
+    assert stats["quarters.closed"] >= 2.0
+
+
+def test_a_reported_divergence_never_carries_two_equal_prices():
+    """The invariant behind the bug, stated on real diverging series.
+
+    `took` means one instrument passed its running extreme and the other did not,
+    so the two prices cannot be equal. Asserting the geometry rather than a count
+    keeps this true whatever the fixture happens to produce.
+    """
+    # Q1 identical, so all three carry running high 100 and running low 90.
+    # In Q2 only LEAD clears 100, so the high side diverges and the low side
+    # agrees - which is what makes the price comparison below meaningful.
+    lead = series([(100.0, 90.0), (120.0, 92.0)])
+    lag = series([(100.0, 90.0), (98.0, 92.0)])
+    third = series([(100.0, 90.0), (99.0, 92.0)])
+
+    events, _ = smt({"LEAD": lead, "LAG": lag, "THIRD": third}, "day")
+    assert events, "fixture must actually diverge or this test proves nothing"
+    for e in events:
+        assert e.took_price != e.failed_price, (
+            f"{e.took} vs {e.failed} on {e.side}: both {e.took_price}"
+        )
+        if e.side == "high":
+            assert e.took_price > e.failed_price
+        else:
+            assert e.took_price < e.failed_price

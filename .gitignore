@@ -19,18 +19,25 @@ out/
 backend/.cache/
 frontend/.playwright-shots/
 
-# The owner's own reference material: 53 files, 9,2 MB, a WhatsApp export plus 51
-# annotated TradingView screenshots. NOT tracked and deliberately so - it is his
-# journal, not source - but it was not ignored either, so it sat in `git status`
-# forever as 53 untracked paths. Ignored here for two reasons, and the second is
-# the load-bearing one:
+# The owner's own reference material: 89 files, 12,8 MB across three sources -
+# Whatsapp 63, Discord 18, Telegram 8 - being 82 annotated TradingView
+# screenshots and 7 text files, of which two chat logs and `Discord/Buku=Pegangan.txt`
+# carry the method in words. NOT tracked and deliberately so - it is his journal,
+# not source - but it was not ignored either, so it sat in `git status` forever as
+# untracked paths. Ignored here for two reasons, and the second is the
+# load-bearing one:
 #
 #   1. `git status` becomes readable again.
-#   2. `git clean -fd` cannot take it. It is cited by name in twelve tracked
+#   2. `git clean -fd` cannot take it. It is cited by name in thirteen tracked
 #      places - `app/projections.py` and `tests/test_projections.py` name
-#      `27.jpeg` as the provenance of a shipped sign convention - and because it
-#      is not in git, deleting it is unrecoverable.
-analisis lama/
+#      `Whatsapp/27.jpeg` as the provenance of a shipped sign convention - and
+#      because it is not in git, deleting it is unrecoverable.
+#
+# RENAMED 26 AUGUST 2026, and the numbering survived the move: `27.jpeg` is still
+# the Gold 15m chart of 2026-08-11 carrying two deviation stacks with the same six
+# labels, verified by opening it rather than by trusting the name. The folder it
+# used to live in, `analisis lama`, no longer exists on disk.
+Referensi grup dan Bg Nas/
 
 # Snapshot pengamatan lokal. Bukan cache: cache boleh dihapus kapan saja,
 # snapshot yang terhapus adalah pengamatan yang hilang. Tidak pernah di-commit -
@@ -56,3 +63,16 @@ backend/.agent.json
 # proyek ini - dua di antaranya PDF paper berhak cipta.
 external_refs/
 external_refs_analisis_lama/
+
+# Stderr daemon auto-trade. `*.log` di atas sudah menutup stdout-nya; ini
+# pasangannya, dan ia sama-sama keadaan runtime satu mesin.
+backend/.autotrade.err
+
+# Watermark monitor: sampai detik dan byte offset mana laporan terakhir sudah
+# membaca. Keadaan lokal sebuah proses pengamat, bukan sumber. Ter-commit, ia
+# akan membuat clone pertama melewatkan seluruh riwayat sebelum watermark itu.
+backend/.monitor.json
+
+# Artefak Playwright. Dihasilkan ulang tiap run, dan sebagian berisi screenshot
+# chart akun sungguhan.
+frontend/test-results/

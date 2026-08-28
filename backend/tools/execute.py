@@ -36,10 +36,12 @@ import numpy as np
 
 from app import journal
 from app.actionable import blockers
+from app.cisd import cisds
 from app.clock import NY
 from app.conditions import at_bar
 from app.confluence import mark_nesting
 from app.costs import COST_TO_RISK_MAX, cost_to_risk, schedule, spec
+from app.dealing_range import mark_dealing_range_now
 from app.detect import DETECTORS
 from app.ict import DOCTRINE_CLAUSES, Rules, setup as ict_setup
 from app.indicators import wilder_atr
@@ -48,6 +50,7 @@ from app.plan import DEPARTURE_GATE_ATR, build
 from app.portfolio import Book, Held, admits, aligned
 from app.poi import confluence, other_boxes
 from app.providers.base import INTERVALS
+from app.quarters import ALL_DEGREES, true_opens
 from app.resample import STEP_UP, resample
 from app.ssmt import divergences_for as ssmt_divergences_for
 from app.ssmt import ssmt as ssmt_read
@@ -157,6 +160,33 @@ def candidates(
     state = at_bar(candles, len(candles) - 1, interval)
     others = other_boxes(candles)
     rules = rules or Rules()
+
+    # OTE, DAN KENAPA INSTANNYA BUKAN SENTUHAN PERTAMA. `mark_dealing_range`
+    # membaca di `first_test_time`, sementara loop di bawah membuang setiap zona
+    # yang PUNYA `first_test_time`. Dua aturan itu tidak pernah bisa bertemu:
+    # jalur order menstempel None pada setiap kandidat, dan klausa `ote` menjawab
+    # "no dealing range" selamanya. Terukur 28 Agustus 2026: 23 dari 23.
+    # `mark_dealing_range_now` membaca range yang knowable di bar keputusan,
+    # dengan swing, lebar, dan clip yang sama persis.
+    mark_dealing_range_now(zones, candles)
+
+    # CISD LEVELS, DAN CACAT YANG SAMA PERSIS SUDAH PERNAH DITEMUKAN DI SINI.
+    # `tools/conditioned.py` mencatatnya: run pertamanya lupa mengoper level dan
+    # kolomnya kembali False untuk 953 trade, yang terbaca sebagai fakta pasar
+    # padahal fakta harness. `confluence` menghitung apa yang diberikan, dan
+    # jalur order tidak memberi apa-apa, jadi `cisd_in_band` False pada 23 dari
+    # 23 kandidat. Difilter ke `last.time` supaya potongan anti-lookahead-nya
+    # nyata dan bukan formalitas, walau di sini semuanya memang sudah lampau.
+    cisd_events, _ = cisds(candles)
+    cisd_levels = [float(e.level) for e in cisd_events if int(e.time) <= last.time]
+
+    # TRUE OPEN, DAN KENAPA IA IKUT SEKARANG. `poi.confluence` menerima
+    # `true_open_prices` sejak lama dan `tools/execute.py` tidak pernah
+    # mengopernya, jadi `stack.true_opens` selalu 0. Cacat yang sama persis
+    # dengan `cisd_levels` di atas, dan `Buku=Pegangan.txt` menempatkan True
+    # Open di pusat metodenya: delapan baris tabel PAPAN WAKTU semuanya True
+    # Open.
+    open_levels = true_open_levels(symbol, interval, candles)
     # Sekali per bar, bukan sekali per zona: keduanya adalah properti instrumen
     # dan horizon, bukan properti kandidat.
     fees = schedule(symbol, False, "exness_raw")
@@ -240,8 +270,17 @@ def candidates(
             continue
         long_side = zone.side is ZoneSide.DEMAND
         # Monday risk multiplier: 0.5x risk on Monday (Q1 accumulation).
-        # The full conditions (2-stage, tCISD, manipulation) must still
-        # be met, and min_rr >= 2.0 still applies.
+        #
+        # UNMEASURED AND UNCONDITIONAL, stated plainly because the comment here
+        # used to promise otherwise. It read "the full conditions (2-stage,
+        # tCISD, manipulation) must still be met, and min_rr >= 2.0 still
+        # applies", and none of that is enforced by this line or anywhere near
+        # it: those are checklist clauses, they bind only when the operator names
+        # them in `--require`, and `Rules.required` defaults to empty on purpose
+        # so nothing unmeasured switches itself on. This multiplier is the one
+        # exception to that rule, and it gets to stay only because it moves in
+        # the safe direction - it halves the size, it cannot admit a trade the
+        # gates rejected. It has no measurement behind it.
         monday_mult = 0.5 if datetime.fromtimestamp(last.time, tz=NY).weekday() == 0 else 1.0
         plan = build(
             zone, atr, last.time, step, spread=last.spread,
@@ -280,7 +319,9 @@ def candidates(
         anatomy = zone.anatomy
         born_from = times[max(0, anatomy.leg_in_from - POI_SLACK_BARS)]
         born_to = times[min(len(times) - 1, anatomy.leg_out_to + POI_SLACK_BARS)]
-        stack = confluence(zone, others, last.time, born_from, born_to)
+        stack = confluence(zone, others, last.time, born_from, born_to,
+                           cisd_levels=cisd_levels,
+                           true_open_prices=open_levels)
         out.append((zone, plan, ict_setup(zone, state, stack, rules,
                                           ssmt_side=ssmt_side,
                                           two_stage_confirmed=two_stage_confirmed,
@@ -298,6 +339,72 @@ def candidates(
               f"pada {worst[0]}")
     out.sort(key=lambda t: (-t[2].met, abs(t[1].entry - float(close[-1]))))
     return out, response, float(close[-1])
+
+
+#: Timeframe yang dipinjam untuk True Open berskala session. Batas session
+#: jatuh di menit :30 (Asia 19:30, London 01:30, NY AM 07:30, NY PM 13:30 NY),
+#: sementara bar 1 jam membuka di menit :00, jadi `true_opens` yang menolak
+#: menginterpolasi mengembalikan NOL level session pada deret 1 jam. Terukur 28
+#: Agustus 2026 pada XAUUSD: 0 level di 1h, 871 level di 15m, tepat di keempat
+#: jam itu. Empat dari delapan baris tabel PAPAN WAKTU POSKO 618 karena itu
+#: tidak pernah sampai ke jalur order.
+SESSION_BARS = "15m"
+
+
+def true_open_levels(symbol: str, interval: str, candles) -> list[float]:
+    """Harga True Open yang knowable di bar terakhir, semua derajat.
+
+    DUA SUMBER, SATU DEFINISI. Derajat yang batasnya jatuh pada bar deret ini
+    dibaca dari deret ini. Derajat session tidak pernah jatuh di sana pada 1
+    jam atau lebih kasar, jadi ia dibaca dari `SESSION_BARS`. Fungsi
+    `true_opens` yang sama dipakai untuk keduanya; yang berbeda cuma bar yang
+    diberikan padanya, dan tidak ada level yang dikarang.
+
+    Deret halusnya di-cache di disk oleh `history.load`, jadi ia satu fetch
+    pertama kali dan nol sesudahnya. Kegagalan memuatnya BUKAN alasan
+    menggagalkan cycle: level session hilang, sisanya tetap ada, dan itu
+    dicetak.
+    """
+    cutoff = candles[-1].time
+    levels = [lv.price for lv in true_opens(candles, ALL_DEGREES)
+              if lv.time <= cutoff]
+    if INTERVALS[interval] >= INTERVALS[SESSION_BARS] and interval != SESSION_BARS:
+        try:
+            fine = history.load(symbol, SESSION_BARS, 20_000)
+        except Exception as exc:  # noqa: BLE001 - satu derajat, bukan cycle
+            print(f"  CATATAN: True Open session tidak terbaca dari "
+                  f"{SESSION_BARS}: {exc}")
+            return levels
+        levels += [lv.price for lv in true_opens(fine, ("session",))
+                   if lv.time <= cutoff]
+    return levels
+
+
+def realised_today(mt5) -> float | None:
+    """Hasil yang SUDAH terealisasi hari ini di akun, atau None kalau tak terbaca.
+
+    Dibaca dari `history_deals_get` sejak tengah malam waktu NY, bukan dari
+    journal: journal cuma tahu order yang tool ini kirim, sementara pengaman
+    kerugian harian harus melihat SELURUH akun. Sebuah posisi yang dibuka
+    dengan tangan lalu kena stop tetap mengosongkan equity yang sama.
+
+    None, bukan nol, ketika terminal tidak menjawab. `Book.admits` menolak pada
+    None: sebuah pengaman yang tidak bisa membaca harus berhenti, bukan
+    menganggap hari ini bersih.
+    """
+    if mt5 is None:
+        return None
+    midnight = datetime.now(NY).replace(hour=0, minute=0, second=0, microsecond=0)
+    try:
+        deals = mt5.history_deals_get(midnight, datetime.now(NY))
+    except Exception:  # noqa: BLE001 - terminal apa pun kesalahannya, jawabannya None
+        return None
+    if deals is None:
+        return None
+    # Profit sudah bersih dari commission dan swap pada deal penutup, dan
+    # keduanya dijumlahkan terpisah karena deal pembuka membawa commission-nya
+    # sendiri dengan profit nol.
+    return float(sum(d.profit + d.commission + d.swap for d in deals))
 
 
 def _terminal():
@@ -323,6 +430,36 @@ def _terminal():
     return (mt5, account), ""
 
 
+def send_ok(mt5, sent) -> tuple[bool, str]:
+    """Apakah `order_send` berhasil. SATU tempat, karena dua tool salah sama.
+
+    RETCODE 0 BERARTI DUA HAL BERLAWANAN DI DUA CALL BERBEDA:
+
+      `order_check` sukses pada retcode 0 (TRADE_RETCODE_OK).
+      `order_send`  sukses pada 10009 TRADE_RETCODE_DONE, atau 10008 PLACED
+                    untuk pending. Retcode 0 dari `order_send` BUKAN sukses.
+
+    Sampai 27 Agustus 2026 `execute.place` DAN `flatten.close` sama-sama menguji
+    `sent.retcode != 0`. Akibatnya diukur, bukan dibayangkan: run 27 Agustus
+    mengirim dua pending XAUUSD yang BERHASIL (ticket 4609944538 dan
+    4609944542, keduanya ada di broker), mencetak
+    `GAGAL: order_send retcode=10009 'ok'`, dan menulis dua record `refused`
+    untuk order yang hidup. Yang lebih buruk, `book.held.append` cuma ada di
+    jalur sukses, jadi cap portofolio tidak pernah melihat 21,61 USD risiko yang
+    baru dikirim: satu cacat mematikan dua gate.
+
+    10010 DONE_PARTIAL sengaja BUKAN sukses. Untuk pending order ia tidak
+    seharusnya muncul, dan menghitungnya sukses akan menyembunyikan fill yang
+    lebih kecil dari yang disizing.
+    """
+    if sent is None:
+        return False, f"order_send answered nothing: {mt5.last_error()}"
+    if sent.retcode not in {mt5.TRADE_RETCODE_DONE, mt5.TRADE_RETCODE_PLACED}:
+        return False, (f"order_send retcode={sent.retcode} "
+                       f"{getattr(sent, 'comment', '')!r}")
+    return True, ""
+
+
 def place(mt5, zone, plan, symbol: str, volume: float) -> tuple[int | None, str]:
     """Send one pending order and return its ticket, or None and the reason."""
     long_side = plan.side is ZoneSide.DEMAND
@@ -341,35 +478,70 @@ def place(mt5, zone, plan, symbol: str, volume: float) -> tuple[int | None, str]
         # session per caller is one too many.
         "comment": f"zonelab {zone.id}"[:COMMENT_MAX],
     }
+    # `order_check` sukses pada 0, `order_send` TIDAK. Lihat `send_ok`.
     checked = mt5.order_check(request)
     if checked is None:
         return None, f"order_check refused to answer: {mt5.last_error()}"
     if checked.retcode != 0:
         return None, f"order_check retcode={checked.retcode} {checked.comment!r}"
     sent = mt5.order_send(request)
-    if sent is None or sent.retcode != 0:
-        code = None if sent is None else sent.retcode
-        return None, f"order_send retcode={code} {getattr(sent, 'comment', '')!r}"
+    ok, why_not = send_ok(mt5, sent)
+    if not ok:
+        return None, why_not
     return int(sent.order), ""
 
 
-def sizing(mt5, account, symbol: str, risk_pct: float):
-    """Equity and the symbol's real lot steps, from the terminal that owns them.
+def sizing(account, lots: dict[str, LotSpec], risk_pct: float) -> float:
+    """Equity dari terminal, dan cetak lot rules TIAP simbol apa adanya.
 
-    `LotSpec`'s defaults are this broker's published figures; the broker's own
-    answer beats a published figure the day it changes. Returns
-    `(equity, lot, "")` or `(None, None, reason)`.
+    Tidak lagi mengembalikan LotSpec. Itu tugas `lot_specs`, per simbol, karena
+    satu spec untuk seluruh run adalah error 50x - lihat docstring di sana.
     """
-    info = mt5.symbol_info(symbol)
-    if info is None:
-        return None, None, f"terminal carries no symbol {symbol!r}"
-    lot = LotSpec(contract_size=info.trade_contract_size, volume_min=info.volume_min,
-                  volume_max=info.volume_max, volume_step=info.volume_step)
     print(f"akun {account.login} {account.server} trade_mode={account.trade_mode} "
-          f"(0=DEMO) equity {account.equity} risk {risk_pct:.1%} "
-          f"lot min {info.volume_min} step {info.volume_step} "
-          f"contract {info.trade_contract_size}")
-    return float(account.equity), lot, ""
+          f"(0=DEMO) equity {account.equity} risk {risk_pct:.1%}")
+    for name, spec_ in sorted(lots.items()):
+        print(f"  {name}: contract {spec_.contract_size} "
+              f"min {spec_.volume_min} step {spec_.volume_step}")
+    return float(account.equity)
+
+
+def lot_specs(symbols: list[str]) -> tuple[dict[str, LotSpec], list[str]]:
+    """Lot rules PER SIMBOL dari terminal, dan simbol mana yang tak terbaca.
+
+    SATU CONTRACT SIZE UNTUK SELURUH RUN ADALAH ERROR 50x, dan itu hidup sampai
+    27 Agustus 2026. `sizing` dipanggil sekali dengan
+    `args.symbol.split(":")[-1]`, yang pada `mt5:XAUUSD,mt5:XAGUSD` menghasilkan
+    string 'XAUUSD,mt5:XAGUSD', lalu satu LotSpec-nya di-broadcast ke semua
+    simbol di baris 479. XAUUSD 100 unit per lot, XAGUSD 5000, jadi ke arah mana
+    pun broadcast-nya jatuh, salah satunya salah 50x.
+
+    Di dry run ia jatuh ke arah yang berbahaya. Silver dengan stop 0,651 dan
+    0,01 lot terbaca 0,65 USD; angka sebenarnya 32,53. Gate risiko meloloskan
+    tiga order silver yang, kalau terkirim, mempertaruhkan 3,3x anggarannya.
+
+    READ ONLY. Handle terminal-nya TIDAK dikembalikan, jadi dry run dapat
+    contract size yang benar tanpa ikut mendapat kemampuan mengirim apa pun.
+    """
+    bare = [s.split(":")[-1] for s in symbols]
+    try:
+        import MetaTrader5 as mt5
+    except ImportError:
+        return {}, bare
+    if not mt5.initialize():
+        return {}, bare
+    out: dict[str, LotSpec] = {}
+    missing: list[str] = []
+    for raw in symbols:
+        name = raw.split(":")[-1]
+        info = mt5.symbol_info(name)
+        if info is None:
+            missing.append(name)
+            continue
+        out[name] = LotSpec(contract_size=info.trade_contract_size,
+                            volume_min=info.volume_min,
+                            volume_max=info.volume_max,
+                            volume_step=info.volume_step)
+    return out, missing
 
 
 def gather(
@@ -380,6 +552,7 @@ def gather(
     risk_pct: float,
     lots: dict[str, LotSpec] | None,
     rules: Rules,
+    partners: list[str] | None = None,
 ) -> tuple[list[tuple], list[tuple[str, str, list[str]]], dict[str, list]]:
     """Candidates across every pair and timeframe, ranked once, globally.
 
@@ -403,7 +576,13 @@ def gather(
     # candidate is scored. One pass that scored as it loaded would give the first
     # pair no partners and the last pair all of them, which is a checklist whose
     # answer depends on argument order.
-    for symbol in symbols:
+    # DIBACA TAPI TIDAK DITRADINGKAN. SSMT butuh partner yang BERKORELASI - XAG
+    # terhadap XAU adalah r +0,851 - sementara cap portofolio menginginkan yang
+    # TIDAK berkorelasi. Satu daftar untuk dua tujuan yang berlawanan memaksa
+    # operator memilih antara mematikan SSMT atau melebarkan diam-diam universe
+    # yang bisa diorder. `partners` memutus ikatan itu: seriesnya dimuat, tapi
+    # loop kandidat di bawah tidak menyentuhnya.
+    for symbol in [*symbols, *(partners or [])]:
         series.setdefault(symbol.split(":")[-1],
                           history.load(symbol, intervals[0], bars))
     for symbol in symbols:
@@ -442,6 +621,8 @@ def cycle(
     rules: Rules | None = None,
     cap_pct: float = 0.06,
     corr_max: float = 0.70,
+    partners: list[str] | None = None,
+    daily_loss_pct: float = 0.0,
 ) -> dict:
     """ONE decision pass over every pair and timeframe. Returns a summary.
 
@@ -466,17 +647,25 @@ def cycle(
         symbols = [symbols]
     if isinstance(intervals, str):
         intervals = [intervals]
-    if isinstance(lots, LotSpec) or lots is None:
-        lots = {s.split(":")[-1]: lots for s in symbols} if lots else {}
+    # SATU LotSpec TIDAK DI-BROADCAST LAGI. Sebuah spec tunggal yang disebar ke
+    # setiap simbol adalah error 50x antara XAUUSD (100) dan XAGUSD (5000); ia
+    # masih diterima di sini untuk caller lama yang memang satu simbol, dan
+    # hanya untuk simbol itu.
+    if isinstance(lots, LotSpec):
+        lots = {symbols[0].split(":")[-1]: lots} if len(symbols) == 1 else {}
+    elif lots is None:
+        lots = {}
     rule = {**RULE, "risk_pct": risk_pct, "ict_required": list(rules.required),
             "ict_killzones": list(rules.killzones),
             "ict_min_families": rules.min_families,
             "ict_max_conflicts": rules.max_conflicts,
             "portfolio_cap_pct": cap_pct, "corr_max": corr_max,
-            "symbols": symbols, "intervals": intervals}
+            "daily_loss_pct": daily_loss_pct,
+            "symbols": symbols, "intervals": intervals,
+            "partners": list(partners or [])}
 
     ranked, blocked, series = gather(
-        symbols, intervals, bars, equity, risk_pct, lots, rules
+        symbols, intervals, bars, equity, risk_pct, lots, rules, partners
     )
     if equity is None:
         print("  CATATAN: tanpa equity, ukuran posisi dan batas portofolio TIDAK "
@@ -492,24 +681,57 @@ def cycle(
     # OPEN POSITIONS COUNT TOWARDS THE CAP, and when they cannot be read the book
     # says so. A cap computed on half the book is a cap that does not bind, and
     # `Book.partial` is what makes that visible in the refusal text.
-    book = Book(equity=equity or 0.0, cap_pct=cap_pct, corr_max=corr_max)
+    book = Book(equity=equity or 0.0, cap_pct=cap_pct, corr_max=corr_max,
+                daily_loss_pct=daily_loss_pct,
+                realised_today=realised_today(mt5) if daily_loss_pct > 0 else 0.0)
+    if daily_loss_pct > 0:
+        print(f"  pengaman kerugian harian {daily_loss_pct:.2%}, terealisasi "
+              f"hari ini {book.realised_today if book.realised_today is not None else 'TIDAK TERBACA'}")
     if mt5 is not None:
-        for position in (mt5.positions_get() or []):
-            if position.sl:
-                book.held.append(Held(
-                    position.symbol,
-                    abs(position.price_open - position.sl) * position.volume
-                    * getattr(mt5.symbol_info(position.symbol),
-                              "trade_contract_size", 1.0),
-                ))
+        # PENDING IKUT DIHITUNG, dan tanpa itu cap ini tidak pernah mengikat
+        # antar run. Tool ini menempatkan LIMIT, jadi risiko yang baru saja ia
+        # kirim adalah pending, bukan posisi. Sampai 27 Agustus 2026 book hanya
+        # membaca `positions_get`, sehingga satu pending XAUUSD berisiko 43.92
+        # dari run sebelumnya tidak terlihat dan run berikutnya berangkat dari
+        # book yang lebih ringan 4.5% dari kenyataan.
+        rows = [(p.symbol, p.price_open, p.sl, p.volume)
+                for p in (mt5.positions_get() or [])]
+        rows += [(o.symbol, o.price_open, o.sl, o.volume_current)
+                 for o in (mt5.orders_get() or [])]
+        for name, opened, stop, volume in rows:
+            if not stop:
+                continue
+            book.held.append(Held(
+                name,
+                abs(opened - stop) * volume
+                * getattr(mt5.symbol_info(name), "trade_contract_size", 1.0),
+            ))
     else:
         book.partial = True
+
+    # CETAK BOOK-NYA SEBELUM LOOP, dan ini bukan kosmetik. Dry run menyetel
+    # `mt5 = None`, jadi cap-nya dihitung lawan book KOSONG dan rencananya
+    # menjanjikan kapasitas yang `--send` tidak punya. Terukur 2026-08-27:
+    # dry run mengirim 2 order, sementara satu posisi BTCUSD yang tak terbaca
+    # sudah memakan 43.24 dari cap 58.89, jadi order kedua akan ditolak.
+    print(f"  book: {book.committed:,.2f} sudah berisiko dari cap "
+          f"{book.equity * book.cap_pct:,.2f}"
+          + (" (POSISI TERBUKA TIDAK TERBACA, jadi ini LANTAI dan `--send` "
+             "bisa menolak lebih banyak)" if book.partial else "")
+          + (f", pegang {', '.join(book.symbols)}" if book.held else ""))
 
     sent = skipped = refused = 0
     for symbol, interval, zone, plan, checklist in ranked:
         if sent >= max_orders:
             break
-        already = [e for e in journal.for_zone(zone.id) if e["event"] == "placed"]
+        # SIMBOL IKUT DALAM KUNCINYA. Zone id adalah `KIND-bartime` tanpa
+        # simbol, jadi tanpa ini sebuah zona silver dilewati karena gold
+        # sudah punya order dari zona sejenis di bar yang sama. Lihat
+        # `journal.for_zone` untuk angkanya.
+        already = [
+            e for e in journal.for_zone(zone.id, symbol)
+            if e["event"] == "placed"
+        ]
         head = (f"  {symbol} {interval} {zone.kind.value} {zone.side.value}  "
                 f"entry {plan.entry:.3f} stop {plan.stop:.3f} tp {plan.target:.3f}"
                 f"  checklist {checklist.met}/{len(checklist.conditions)}")
@@ -525,7 +747,7 @@ def cycle(
             print(f"{head}\n      CHECKLIST menolak: {', '.join(missing)}")
             if send:
                 journal.record("refused", why=grounds(zone, plan) + checklist.why(),
-                               rule=rule, zone_id=zone.id,
+                               rule=rule, zone_id=zone.id, symbol=symbol,
                                plan=plan.model_dump(mode="json"),
                                blockers=[f"required condition not met: {name}"
                                          for name in missing])
@@ -536,7 +758,7 @@ def cycle(
                   f"{plan.warnings[-1] if plan.warnings else 'no reason given'}")
             if send:
                 journal.record("refused", why=grounds(zone, plan) + checklist.why(),
-                               rule=rule, zone_id=zone.id,
+                               rule=rule, zone_id=zone.id, symbol=symbol,
                                plan=plan.model_dump(mode="json"),
                                blockers=list(plan.warnings))
             refused += 1
@@ -550,7 +772,7 @@ def cycle(
                        "equity, or do not send")
             print(f"{head}\n      DITOLAK: {why_not}")
             journal.record("refused", why=grounds(zone, plan) + checklist.why(),
-                           rule=rule, zone_id=zone.id,
+                           rule=rule, zone_id=zone.id, symbol=symbol,
                            plan=plan.model_dump(mode="json"), blockers=[why_not])
             refused += 1
             continue
@@ -565,7 +787,7 @@ def cycle(
                 if send:
                     journal.record("refused",
                                    why=grounds(zone, plan) + checklist.why(),
-                                   rule=rule, zone_id=zone.id,
+                                   rule=rule, zone_id=zone.id, symbol=symbol,
                                    plan=plan.model_dump(mode="json"),
                                    blockers=[why_not])
                 refused += 1
@@ -585,12 +807,12 @@ def cycle(
         if ticket is None:
             print(f"{head}\n      GAGAL: {why_not}")
             journal.record("refused", why=grounds(zone, plan) + checklist.why(),
-                           rule=rule, zone_id=zone.id,
+                           rule=rule, zone_id=zone.id, symbol=symbol,
                            plan=plan.model_dump(mode="json"), blockers=[why_not])
             refused += 1
             continue
         journal.record("placed", why=grounds(zone, plan) + checklist.why(),
-                       rule=rule, zone_id=zone.id,
+                       rule=rule, zone_id=zone.id, symbol=symbol,
                        ticket=ticket, plan=plan.model_dump(mode="json"),
                        extra={"volume": plan.lots, "symbol": symbol,
                               "equity_at_decision": equity,
@@ -626,6 +848,11 @@ def main() -> None:
                         help="refuse a second pair whose measured correlation "
                              "with one already held is at or past this. Gold "
                              "against silver reads 0.848 on this feed")
+    parser.add_argument(
+        "--partners", default="",
+        help="comma list simbol yang DIBACA sebagai partner SSMT dan korelasi "
+             "tapi TIDAK ditradingkan, misal mt5:XAGUSD,mt5:XPTUSD",
+    )
     parser.add_argument("--bars", type=int, default=3000)
     parser.add_argument("--max-orders", type=int, default=2)
     parser.add_argument("--risk-pct", type=float, default=0.01,
@@ -657,6 +884,15 @@ def main() -> None:
                         help="PD array families that must stack for poi_families")
     parser.add_argument("--max-conflicts", type=int, default=0,
                         help="opposite-side boxes tolerated in the band")
+    # PENGAMAN, BUKAN FILTER. Cap portofolio membatasi yang SEDANG
+    # dipertaruhkan dan buta terhadap yang sudah HILANG: delapan kekalahan
+    # berturut dalam satu hari tidak melanggar cap sama sekali, karena tiap
+    # kerugian mengosongkan kembali ruangnya. Default 0 mematikannya, jadi
+    # tidak ada perilaku yang berubah tanpa operator memintanya.
+    parser.add_argument("--daily-loss-pct", type=float, default=0.0,
+                        help="berhenti mengirim order kalau kerugian terealisasi "
+                             "hari ini sudah mencapai persen equity ini, misal "
+                             "0.02. Nol mematikan pengaman")
     args = parser.parse_args()
     rules = Rules(
         required=tuple(x.strip() for x in args.require.split(",") if x.strip()),
@@ -674,9 +910,27 @@ def main() -> None:
               f"Klausa ini diterapkan karena metode mensyaratkannya, "
               f"bukan karena proyek ini punya angka untuknya.")
 
+    symbols = [s.strip() for s in args.symbol.split(",") if s.strip()]
+
     mt5 = None
     equity = args.equity
-    lot = LotSpec() if equity is not None else None
+    # SATU DICT, SATU ENTRI PER SIMBOL. Dibaca lebih dulu supaya dry run memakai
+    # contract size yang benar juga; handle terminal-nya tidak dibawa keluar dari
+    # `lot_specs`, jadi dry run tetap tidak bisa mengirim apa pun.
+    lot: dict[str, LotSpec] | None = None
+    missing: list[str] = []
+    if equity is not None or args.send:
+        lot, missing = lot_specs(symbols)
+        if missing:
+            print(f"CATATAN: terminal tidak membawa {', '.join(missing)}, jadi "
+                  f"kandidat pada simbol itu tidak akan disizing dan tidak akan "
+                  f"dikirim.")
+        if not lot:
+            print("CATATAN: tidak ada terminal untuk dibaca, jadi tidak ada "
+                  "contract size. Default LotSpec TIDAK dipakai: ia memegang "
+                  "angka XAUUSD dan memakainya untuk simbol lain adalah error "
+                  "50x. Kandidat akan tampil tanpa ukuran.")
+
     if args.send:
         terminal, why_not = _terminal()
         if terminal is None:
@@ -685,20 +939,14 @@ def main() -> None:
                            blockers=[why_not])
             return
         mt5, account = terminal
-        equity, lot, why_not = sizing(
-            mt5, account, args.symbol.split(":")[-1], args.risk_pct
-        )
-        if equity is None:
-            print(f"BLOCKER: {why_not}")
-            journal.record("refused", why=["no order attempted"], rule=rule,
-                           blockers=[why_not])
-            return
+        equity = sizing(account, lot or {}, args.risk_pct)
 
-    cycle(mt5,
-          [s.strip() for s in args.symbol.split(",") if s.strip()],
+    cycle(mt5, symbols,
           [i.strip() for i in args.interval.split(",") if i.strip()],
           args.bars, args.risk_pct, args.max_orders, args.send, equity,
-          lot, rules, args.max_total_risk_pct, args.max_correlation)
+          lot, rules, args.max_total_risk_pct, args.max_correlation,
+          [s.strip() for s in args.partners.split(",") if s.strip()],
+          args.daily_loss_pct)
 
 
 if __name__ == "__main__":

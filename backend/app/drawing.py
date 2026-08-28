@@ -2,8 +2,8 @@
 
 One loop over the layer registry, in the registry's own order. Purely
 synchronous by design so `/api/draw` can hand it to a worker thread: it touches
-no network, because the bars arrive already fetched and the only block that can
-make a provider call stays in the async handler where it belongs.
+no network, because the bars arrive already fetched and every block that CAN
+fetch - gaps, checklist and ssmt - stays in the async handler where it belongs.
 """
 
 from __future__ import annotations
@@ -16,7 +16,7 @@ from .dealing_range import mark_dealing_range
 from .detect import DETECTORS
 from .detect.structure import overlay as structure_overlay
 from .detect.supply_demand import cap_per_side
-from .layers import LAYERS, PARAMS_BY_ID
+from .layers import DETECTOR_IDS, LAYERS, PARAMS_BY_ID
 from .models import Candle, DrawRequest, Drawing, FibonacciAnchor, Zone, ZoneState
 from .overlays import BAR_OVERLAYS, bar_overlays, session_grid
 from .profit_zone import mark_crowding, mark_profit_zones
@@ -274,11 +274,16 @@ def build(
 #: chart cannot show, and `ssmt`, `pools`, `liquidity`, `projections` and `news`
 #: are each anchored to something other than the chart's step.
 #:
-#: Kept beside the handlers that read it, for the reason `BAR_OVERLAYS` was moved
-#: next to its own `if` chain: a hand-written set of names in another file is how
-#: `dfr` came to be registered, panelled, given a canvas primitive, and draw
-#: nothing at all.
-HTF_LAYERS = frozenset({"supply_demand", "fvg", "order_block", "ifvg", "breaker"})
+#: DERIVED FROM THE REGISTRY, not written out again, and that is the whole point.
+#: This used to be a literal frozenset holding the same five names, which is the
+#: exact shape of the defect the note above warns about: a hand-written set of
+#: names in another file is how `dfr` came to be registered, panelled, given a
+#: canvas primitive, and draw nothing at all. Nothing asserted the two agreed, so
+#: a sixth box detector added to `LAYERS` would have been left out of HTF
+#: projection silently - and out of `test_no_repaint.py`'s parametrize list too,
+#: since that test reads THIS name, so its coverage would have shrunk in the same
+#: commit and with the same silence.
+HTF_LAYERS = DETECTOR_IDS
 
 
 def _htf_meta(meta: dict[str, object]) -> dict[str, object]:

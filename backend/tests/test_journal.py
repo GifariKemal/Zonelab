@@ -90,3 +90,37 @@ def test_records_are_one_line_each_and_machine_readable(isolated):
     assert len(lines) == 2
     for line in lines:
         json.loads(line)  # raises if a record spans lines or is not valid JSON
+
+
+# ----------------------------------------------------- idempotensi per simbol
+
+
+def test_the_same_zone_id_on_another_symbol_is_a_different_trade():
+    """Zone id adalah `KIND-bartime` DAN TIDAK MEMBAWA SIMBOL.
+
+    Terukur di window 400 bar 1h pada 2026-08-27: XAUUSD dan XAGUSD berbagi
+    EMPAT id, salah satunya `DBR-1787227200`. Tanpa simbol di kuncinya, gate
+    idempotensi di `tools/execute.py` membunuh trade silver dan melaporkannya
+    sebagai "SUDAH pernah diorder, ticket 4573230383" - ticket yang ada di gold.
+    """
+    journal.record("placed", why=WHY, rule=RULE, zone_id="DBR-1787227200",
+                   symbol="mt5:XAUUSD", ticket=4573230383, plan={"entry": 4489.624})
+
+    assert journal.for_zone("DBR-1787227200", "mt5:XAUUSD")[0]["ticket"] == 4573230383
+    assert journal.for_zone("DBR-1787227200", "mt5:XAGUSD") == []
+    # Dan tanpa simbol, jawabannya tetap semua entri untuk id itu.
+    assert len(journal.for_zone("DBR-1787227200")) == 1
+
+
+def test_a_record_written_before_symbols_existed_still_suppresses():
+    """Entri lama tidak punya field `symbol`, dan yang aman adalah menahan.
+
+    Ticket-nya sudah ada di broker. Kalau entri tanpa simbol dianggap tidak
+    match, run berikutnya akan mengirim duplikat ke zona yang sudah punya order.
+    Jadi None match apa pun, dan itu keputusan, bukan sisa.
+    """
+    journal.record("placed", why=WHY, rule=RULE, zone_id="DBR-9", ticket=1,
+                   plan={"entry": 1.0})  # tanpa symbol=
+
+    assert journal.for_zone("DBR-9", "mt5:XAUUSD")[0]["ticket"] == 1
+    assert journal.for_zone("DBR-9", "mt5:XAGUSD")[0]["ticket"] == 1

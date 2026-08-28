@@ -37,8 +37,8 @@ from .clock import NY
 class M4State(Enum):
     """The four states of the M4 Freedom Model."""
 
-    LOCKED = auto()       # Pre-09:00 — HTF narrative locked
-    JUDAS = auto()        # 09:00-10:30 — scan for Judas Swing
+    LOCKED = auto()       # Before 09:30 NY - HTF narrative locked
+    JUDAS = auto()        # 09:30-10:30 NY - scan for Judas Swing
     TRIGGER = auto()      # Scan for SSMT + tCISD
     EXECUTED = auto()     # Trade placed — engine disabled
 
@@ -66,6 +66,25 @@ JUDAS_CLOSE_MINUTE = 30
 #: NY time the engine is disabled for the day. After this, no new trades.
 SESSION_CLOSE_HOUR = 16
 SESSION_CLOSE_MINUTE = 0
+
+
+def in_judas_window(when: datetime) -> bool:
+    """Is `when` inside the Judas window, on ITS OWN clock.
+
+    Exists so the window has one definition. `tools/quant.py` carried the same
+    two numbers written out by hand, which is how a revision here would have left
+    the measurement arm silently scanning the old hours. Takes an aware datetime
+    already in New York rather than converting: the caller has the bar time and
+    the zone, and converting twice is how an off-by-an-hour appears at a DST edge.
+    """
+    hour, minute = when.hour, when.minute
+    after_open = hour > JUDAS_OPEN_HOUR or (
+        hour == JUDAS_OPEN_HOUR and minute >= JUDAS_OPEN_MINUTE
+    )
+    before_close = hour < JUDAS_CLOSE_HOUR or (
+        hour == JUDAS_CLOSE_HOUR and minute <= JUDAS_CLOSE_MINUTE
+    )
+    return after_open and before_close
 
 
 def current() -> M4Status:

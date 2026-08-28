@@ -1,4 +1,26 @@
-"""PSP — Precision Swing Point detector.
+"""Precision Swing Point - sweep plus rejection, timed against SSMT.
+
+> NOT WIRED, BUT NO LONGER GUESSING. `in_same_candle` used to test the base
+> symbol's absolute `psp.level` against another instrument's low, high and close,
+> and `app/correlation.py` in this same repo documents why that cannot be done:
+> one id is a different instrument per venue and the difference is not always
+> basis - COPPER closes at 13968.59 on one feed and 6.44 on another.
+>
+> RESOLVED 27 AUGUST 2026 from the source, which had not been read when that note
+> was written. `Referensi grup dan Bg Nas/Discord/Buku=Pegangan.txt` gives the
+> rule and then gives an example, and the example is what settles it:
+>
+>     Harus di candle yang sama
+>     Contoh ini menunjukkan ada PSP di antara tiga2 asset:
+>     XAU - Bullish Candle
+>     XAG - Bearish Candle
+>     Platinum - Bullish Candle
+>
+> "The same candle" is the same BAR, and what is compared across the triad is the
+> candle's SIGN, not its price - in his own example the three signs are not even
+> equal, which is the crack. So the predicate is scale-free after all, and the
+> price comparison was never what the doctrine asked for.
+
 
 A PSP is an anticipatory structural point that appears after SSMT divergence
 and purges liquidity. It is the "crack in correlation" — the exact moment
@@ -68,8 +90,18 @@ def detect(
     for i in range(ssmt_candle_idx + 1, end):
         c = candles[i]
         for level in levels:
-            # Buy PSP: price sweeps below level and closes back above
-            if c.low < level and c.close > level:
+            # PRICE MUST ARRIVE FROM THE OTHER SIDE, and this is the project's
+            # operationalisation of one word in the source rather than a quote.
+            # The source says "Harus purge liquidity" and does not give the
+            # geometry. A purge takes liquidity resting BEYOND a level, so the bar
+            # has to start on the near side: without the `open` guard below, the
+            # sell branch also fires on a bar that opened above the level and
+            # closed under it, which is a plain break down and has purged nothing.
+            # Found by a test whose fixture was written to be a non-event and was
+            # reported as a PSP.
+            #
+            # Buy PSP: approaches from above, sweeps below, closes back above.
+            if c.open >= level and c.low < level and c.close > level:
                 return PSPEvent(
                     at=i,
                     level=level,
@@ -77,8 +109,8 @@ def detect(
                     ssmt_at=ssmt_candle_idx,
                     bars_after_ssmt=i - ssmt_candle_idx,
                 )
-            # Sell PSP: price sweeps above level and closes back below
-            if c.high > level and c.close < level:
+            # Sell PSP: approaches from below, sweeps above, closes back below.
+            if c.open <= level and c.high > level and c.close < level:
                 return PSPEvent(
                     at=i,
                     level=level,
@@ -89,30 +121,53 @@ def detect(
     return None
 
 
+def polarity(candle: Candle) -> int:
+    """+1 bullish, -1 bearish, 0 for a candle with no side.
+
+    A doji is 0 rather than being forced into one camp: it is the one candle that
+    cannot disagree with anything, and counting it as agreement or as a crack
+    would both be inventions.
+    """
+    if candle.close > candle.open:
+        return 1
+    if candle.close < candle.open:
+        return -1
+    return 0
+
+
 def in_same_candle(
     psp: PSPEvent,
+    base_candles: list[Candle],
     partner_candles: list[list[Candle]],
-    level_tolerance: float = 0.001,
 ) -> bool:
-    """Check if the PSP occurs in the SAME candle across the triad.
+    """Does the triad crack on the PSP's own bar?
 
-    The practitioner's rule: "Harus di candle yang sama" — the PSP must
-    be visible across all three instruments at the same bar index.
+    True when at least one partner prints the OPPOSITE sign to the base symbol at
+    bar `psp.at`. That is the "crack in correlation" the source names: correlated
+    instruments are supposed to agree, so a bar where one of them does not is the
+    event.
 
-    `partner_candles` are the aligned candle lists for the other instruments
-    in the triad. All lists must have the same length (aligned grid).
+    NO PRICE IS COMPARED, and that is deliberate. Comparing `psp.level` against a
+    partner's low or close - which this function used to do - is meaningless
+    across instruments: the same id is a different contract per venue, and
+    `app/correlation.py` records a case two thousand times apart. Signs are
+    comparable, prices are not.
 
-    `level_tolerance` is the relative tolerance for price level matching.
+    THE BAR INDEX IS ONLY MEANINGFUL ON AN ALIGNED GRID, and that is the caller's
+    job, exactly as it is for `ssmt()`. Pass series from
+    `aligned.load_aligned`, which trims every symbol to the shared timestamps. A
+    partner shorter than the index is answered False rather than guessed at: a
+    missing bar is not a disagreement.
     """
-    idx = psp.at
+    i = psp.at
+    if i < 0 or i >= len(base_candles):
+        return False
+    base = polarity(base_candles[i])
+    if base == 0:
+        return False
     for partner in partner_candles:
-        if idx >= len(partner):
+        if i >= len(partner):
             return False
-        c = partner[idx]
-        if psp.direction == "buy":
-            if not (c.low < psp.level * (1 - level_tolerance) and c.close > psp.level * (1 + level_tolerance)):
-                return False
-        else:
-            if not (c.high > psp.level * (1 + level_tolerance) and c.close < psp.level * (1 - level_tolerance)):
-                return False
-    return True
+        if polarity(partner[i]) == -base:
+            return True
+    return False

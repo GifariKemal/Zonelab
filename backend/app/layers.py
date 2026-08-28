@@ -18,8 +18,14 @@ THE ORDER IS LOAD-BEARING and is the tuple's own order, not a sort:
   about that price, and collapsing them would hide one.
 - `structure` and everything after it draw no boxes, so they cannot be capped per
   side and must never be mistaken for detectors.
-- `checklist` is last and is not a drawing at all. It is the only entry that can
-  make extra provider calls, so it runs where the caller can see the cost.
+- `checklist` is not a drawing at all, and it is not the only entry that fetches.
+  THREE blocks make extra provider calls, and saying otherwise sent one reader
+  looking for a no-network guard in the wrong place: `gaps` when the window is
+  too short to hold its own history, `checklist` per bias timeframe and per
+  SSMT instrument, and `ssmt` through the aligned partner series. In `main.py`
+  the real order is news, then checklist, then SSMT - so checklist is not last
+  either. What IS true: every one of them fetches in the async handler, never
+  inside the synchronous `_build` loop.
 
 WHAT A LAYER IS NOT. It is not a claim that the thing works. `evidence` is a
 required field precisely so that the UI cannot show a toggle without showing what
@@ -62,10 +68,14 @@ LAYERS: tuple[Layer, ...] = (
         params="supply_demand",
         note="Impulse, base, impulse. The only detector shipped on by default.",
         evidence=(
-            "The departure gate is validated: 85.8% against 64.4%, p<0.0001, and "
-            "8 of 8 out-of-sample folds. The edge is a FIRST-TOUCH phenomenon - "
-            "on later touches it is -0.2 to -4.3 points - and the headline is an "
-            "interval of +15.1 to +21.3 points once cohort selection is counted."
+            "The departure gate SORTS, and that is the whole claim: 43.0% against "
+            "40.2% held on the instrument actually traded, measured on 5-minute "
+            "bars. The pair this line used to show, 85.8% against 64.4%, belongs "
+            "to another market - it was measured on PAXG, BTC and ETH from "
+            "Binance while the executor printed it as the reason for every gold "
+            "order. What still separates is the EXPECTANCY, +0.124 R at t=+4.82. "
+            "The edge is a FIRST-TOUCH phenomenon; on later touches it is -0.2 to "
+            "-4.3 points."
         ),
     ),
     Layer(
@@ -290,8 +300,9 @@ LAYERS: tuple[Layer, ...] = (
         note="The owner's own pre-trade items, answered with their evidence.",
         evidence=(
             "None of the items has been measured against outcomes, and the report "
-            "deliberately carries no overall pass or fail. This is also the only "
-            "layer that can make extra provider calls."
+            "deliberately carries no overall pass or fail. It fetches per bias "
+            "timeframe and per SSMT instrument, and it is not alone in fetching: "
+            "gaps and ssmt do too."
         ),
     ),
 )

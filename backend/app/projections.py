@@ -3,7 +3,7 @@
 WHY THIS EXISTS, and what the evidence actually was. Across the owner's own
 annotated charts this object appears more often than almost anything else: a
 stack of short horizontal segments to the right of a range, each labelled with a
-number. `analisis lama/27.jpeg` (Gold 15m, 2026-08-11) carries TWO of them in one
+number. `Referensi grup dan Bg Nas/Whatsapp/27.jpeg` (Gold 15m, 2026-08-11) carries TWO of them in one
 screenshot - one stack anchored to that day's Asia box, a second anchored to the
 London box - and both carry the same six labels: `0`, `-0.5`, `-1`, `-1.5`, `2`,
 `2.5`. `22.jpeg` (same instrument, same day, mobile) carries a third stack with a

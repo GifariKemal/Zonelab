@@ -1,7 +1,7 @@
 # Backlog Zonelab, hasil audit 19 Agustus 2026
 
 Dokumen ini mencatat apa yang **belum** ada di Zonelab, dari tiga audit yang
-dijalankan pada 19 Agustus 2026: audit wiring UI, audit folder `analisis lama`,
+dijalankan pada 19 Agustus 2026: audit wiring UI, audit folder `Referensi grup dan Bg Nas`,
 dan riset sumber ICT, Quarterly Theory serta SMC.
 
 > [!IMPORTANT]
@@ -30,7 +30,7 @@ flowchart LR
   B --> B3[7 cacat wiring UI]
   B --> B4[Ekuilibrium DFR]
   C --> C1[Objek ICT/SMC yang hilang]
-  C --> C2[Objek dari analisis lama]
+  C --> C2[Objek dari Referensi grup dan Bg Nas]
   D --> D1[Segitiga 3-6-9]
   D --> D2[Urutan PD array]
 ```
@@ -89,9 +89,11 @@ atas primitif yang sudah ada.
 > tidak memberi urutan sama sekali. Kedua, liquidity void lawan vacuum block:
 > satu sumber menyamakannya, sumber lain membedakan berdasarkan jumlah lilin.
 
-## Bagian 4: objek dari `analisis lama` yang belum diadopsi
+## Bagian 4: objek dari `Referensi grup dan Bg Nas` yang belum diadopsi
 
-Frekuensi dihitung dari 51 gambar di folder tersebut.
+Frekuensi dihitung dari 51 gambar yang ada di folder itu pada 19 Agustus 2026.
+Folder itu sekarang `Referensi grup dan Bg Nas` dan memuat 82 gambar, jadi
+frekuensi di tabel bawah BELUM dihitung ulang atas populasi yang lebih besar.
 
 | # | Objek | Frekuensi | Status |
 |---|---|---|---|
@@ -105,7 +107,7 @@ Frekuensi dihitung dari 51 gambar di folder tersebut.
 | 8 | Template NY Judas Swing | 1 gambar, tapi spesifikasi 2x2 lengkap | Ditolak sebagai diskresioner. Gambarnya justru deterministik dan semua primitifnya sudah ada |
 
 > [!NOTE]
-> **Koreksi atribusi.** Ke-51 gambar di `analisis lama` berwatermark
+> **Koreksi atribusi.** Ke-51 gambar yang disisir waktu itu berwatermark
 > `Tango618 created with TradingView.com`, dan ekspor WhatsApp menunjukkan
 > pengirimnya "Bang Nas ICT". Sedikitnya sepuluh tempat di kode menyebutnya
 > "the owner's own diagram" atau "his own annotated charts". Yang milik pemilik

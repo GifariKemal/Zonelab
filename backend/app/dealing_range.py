@@ -207,13 +207,86 @@ def mark_dealing_range(
             stats["off_series"] += 1.0
             continue
 
-        hi_at, lo_at = knowable[bar]
-        if hi_at is None or lo_at is None or hi_at - lo_at <= 0.0:
+        pos = _position(zone, *knowable[bar])
+        if pos is None:
             stats["no_range"] += 1.0
             continue
 
-        pos = (zone.proximal - lo_at) / (hi_at - lo_at)
-        zone.dealing_range_pos = round(min(max(pos, 0.0), 1.0), 3)
+        zone.dealing_range_pos = pos
+        stats["marked"] += 1.0
+        stats[f"marked.{zone.side.value}"] += 1.0
+
+    return stats
+
+
+def _position(zone: Zone, hi_at: float | None, lo_at: float | None) -> float | None:
+    """Proximal's place in [low, high], clipped and rounded. None on no range.
+
+    THE ONLY COPY OF THIS ARITHMETIC IN THIS FILE, and that is the point rather
+    than tidiness. Two stampers read the range at two different instants; if each
+    carried its own clip and its own rounding they would drift apart on exactly
+    the zones where the reading matters, and nothing would say so.
+
+    Never a substituted 0.5, for the reason `mark_dealing_range` states: an
+    invented midpoint cannot be told apart from a measured one.
+    """
+    if hi_at is None or lo_at is None or hi_at - lo_at <= 0.0:
+        return None
+    return round(min(max((zone.proximal - lo_at) / (hi_at - lo_at), 0.0), 1.0), 3)
+
+
+def mark_dealing_range_now(
+    zones: list[Zone], candles: list[Candle], swing_n: int = 50
+) -> dict[str, float]:
+    """Stamp every zone with its position in the range knowable AT THE LAST BAR.
+
+    A SECOND INSTANT, NOT A SECOND DEFINITION. `mark_dealing_range` reads at
+    `first_test_time` because that is when ICT reads premium/discount, and it is
+    the right instant for a measurement over touches that already happened.
+
+    A live order decision has no touch. `tools/execute.py:candidates` keeps only
+    zones whose `first_test_time` is None - untouched is the whole point of the
+    measured population - so the touch-time stamper writes None on every
+    candidate it is handed and the `ote` clause answers "no dealing range, no OTE
+    reading" forever. Measured 28 Agustus 2026 on the live order path: 23 of 23
+    candidates unreadable, so requiring `ote` stopped the daemon for a reason
+    that had nothing to do with the market.
+
+    So this asks the only form of the question that is knowable before a fill:
+    where does the entry sit in the range as it stands on the decision bar. Same
+    swings, same width, same `range_at` walk, same clip. One instant later.
+
+    NOT INTERCHANGEABLE WITH THE OTHER READING, and the two must never be pooled.
+    `docs/CALIBRATION.md` counts first touches and belongs to `mark_dealing_range`;
+    this one decides orders and has no measured population behind it yet. The
+    `ote` clause it feeds is a `doctrine` clause for exactly that reason.
+
+    The stats bucket keeps the same keys, minus `untouched` which cannot occur
+    here and plus nothing, so the two are readable side by side.
+    """
+    stats: dict[str, float] = {
+        "zones": float(len(zones)),
+        "marked": 0.0,
+        "marked.demand": 0.0,
+        "marked.supply": 0.0,
+        "no_range": 0.0,
+        "no_bars": 0.0,
+    }
+    if not candles:
+        stats["no_bars"] = float(len(zones))
+        for zone in zones:
+            zone.dealing_range_pos = None
+        return stats
+
+    _, knowable = range_at(candles, swing_n)
+    hi_at, lo_at = knowable[-1]
+
+    for zone in zones:
+        pos = _position(zone, hi_at, lo_at)
+        zone.dealing_range_pos = pos
+        if pos is None:
+            stats["no_range"] += 1.0
+            continue
         stats["marked"] += 1.0
         stats[f"marked.{zone.side.value}"] += 1.0
 

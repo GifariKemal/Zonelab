@@ -10,7 +10,7 @@ import { ink } from "./ink";
  * The quarter ribbon, in its own strip beneath the chart.
  *
  * TAKEN DIRECTLY FROM THE OWNER'S OWN DIAGRAM, not designed here. Image 21 in
- * `analisis lama` is a teaching diagram he drew himself, and the middle of it is
+ * `Referensi grup dan Bg Nas` is a teaching diagram he drew himself, and the middle of it is
  * exactly this object: a full-width horizontal band split into phases, dusty red
  * for manipulation and sage green for distribution, with a SECOND smaller band
  * nested above it labelled "LTF nested" to show the fractal. His notes name the

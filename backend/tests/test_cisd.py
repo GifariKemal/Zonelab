@@ -20,6 +20,13 @@ from app.cisd import CISD, cisds, delivery_runs
 from app.models import Candle
 from app.providers.synthetic import generate
 
+#: Jam dinding dibekukan untuk fixture sintetik: Kamis 2026-05-28 16:26 NY, hari
+#: kerja di tengah sesi. `generate` menambatkan grid-nya ke waktu nyata dan
+#: `_session_grid` melompati jam pasar tutup, jadi bar mana yang jatuh di mana
+#: bergerak dengan hari kalender saat test dijalankan. Satu test di repo ini lolos
+#: berbulan-bulan lalu mulai gagal stabil karena itu, tanpa fixture-nya berubah.
+FROZEN_NOW = 1780000000
+
 STEP = 900
 T0 = 1_700_000_000 // 86_400 * 86_400
 
@@ -208,7 +215,7 @@ def test_no_cisd_can_be_seen_before_the_bar_it_is_knowable_at():
     repo has caught lookahead in its own code before, so the property is asserted
     on a series long enough to have many events rather than argued from the loop.
     """
-    rows = generate(400, STEP, seed=11)
+    rows = generate(400, STEP, seed=11, now=FROZEN_NOW)
     events, runs = cisds(rows)
     assert len(events) > 20, f"the fixture must exercise the loop, got {len(events)}"
 
@@ -227,7 +234,7 @@ def test_no_cisd_can_be_seen_before_the_bar_it_is_knowable_at():
 
 
 def test_every_run_ends_after_it_starts_and_is_confirmed_after_it_ends():
-    rows = generate(400, STEP, seed=11)
+    rows = generate(400, STEP, seed=11, now=FROZEN_NOW)
 
     for tolerance in (0, 1, 3):
         runs = delivery_runs(rows, interrupt_tolerance=tolerance)

@@ -17,6 +17,13 @@ from app.indicators import classify_candles, runs, wilder_atr
 from app.models import Candle, SupplyDemandParams, ZoneKind, ZoneSide, ZoneState
 from app.providers.base import INTERVALS, normalize
 
+#: Jam dinding dibekukan untuk fixture sintetik: Kamis 2026-05-28 16:26 NY, hari
+#: kerja di tengah sesi. `generate` menambatkan grid-nya ke waktu nyata dan
+#: `_session_grid` melompati jam pasar tutup, jadi bar mana yang jatuh di mana
+#: bergerak dengan hari kalender saat test dijalankan. Satu test di repo ini lolos
+#: berbulan-bulan lalu mulai gagal stabil karena itu, tanpa fixture-nya berubah.
+FROZEN_NOW = 1780000000
+
 STEP = 900  # 15-minute bars
 T0 = 1_700_000_000
 
@@ -420,7 +427,7 @@ def test_confirmed_zone_geometry_never_changes_as_bars_arrive():
         merge_overlap_pct=1.0,
     )
 
-    candles = generate(bars=400, step=STEP, seed=11)
+    candles = generate(bars=400, step=STEP, seed=11, now=FROZEN_NOW)
     final = {z.id: z for z in detect(candles, unfiltered)[0]}
 
     checked = 0
@@ -827,3 +834,49 @@ def test_the_departure_window_stops_at_the_first_touch():
     assert zones, "the formation should still be detected"
     # Without the clip the 72-point run after the touch inflates this hugely.
     assert max(z.departure_atr for z in zones) < 15.0
+
+
+def test_every_candidate_lands_in_a_bucket_or_in_the_zone_list():
+    """Akuntansi `stats`, sebagai identitas dan bukan sebagai daftar angka.
+
+    Modul ini menjanjikan tidak ada yang dibuang senyap. Satu jalur melanggarnya:
+    base bertinggi nol pada `zone_min_atr=0` di-`continue` setelah `candidates`
+    dinaikkan, tanpa menaikkan `rejected_*` apa pun, jadi satu kandidat hilang
+    tanpa jejak. Field itu `ge=0.0`, jadi slider UI bisa mencapainya - ini bukan
+    setelan harness saja.
+
+    Diasersi sebagai identitas supaya bucket baru mana pun ikut terjaga: kalau
+    seseorang menambah gate tanpa menghitungnya, ini yang gagal.
+    """
+    def bar(time: int, o: float, h: float, low: float, c: float) -> Candle:
+        return Candle(time=time, open=o, high=h, low=low, close=c, volume=1.0)
+
+    candles: list[Candle] = []
+    price, t = 100.0, 0
+    for _ in range(18):  # warm-up bergerak supaya ATR hidup
+        candles.append(bar(t, price, price + 1, price - 1, price + 0.5))
+        price += 0.5
+        t += 900
+    for _ in range(3):  # leg-in turun
+        candles.append(bar(t, price, price, price - 5, price - 5))
+        price -= 5
+        t += 900
+    for _ in range(2):  # base bertinggi NOL
+        candles.append(bar(t, price, price, price, price))
+        t += 900
+    for _ in range(3):  # leg-out naik
+        candles.append(bar(t, price, price + 6, price, price + 6))
+        price += 6
+        t += 900
+
+    for zone_min in (0.05, 0.0):
+        params = SupplyDemandParams(max_zones_per_side=0, zone_min_atr=zone_min)
+        zones, stats = detect(candles, params)
+        rejected = sum(v for k, v in stats.items() if k.startswith("rejected_"))
+        assert stats["candidates"] == rejected + len(zones), (
+            f"zone_min_atr={zone_min}: {stats['candidates']} kandidat, "
+            f"{rejected} ditolak, {len(zones)} zona - satu hilang tanpa jejak"
+        )
+    # Dan jalur itu memang dilewati, jadi test ini bukan lolos karena kosong.
+    _, zero = detect(candles, SupplyDemandParams(max_zones_per_side=0, zone_min_atr=0.0))
+    assert zero["rejected_zero_height"] >= 1

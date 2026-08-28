@@ -626,14 +626,9 @@ def smt(
                     running = min(running_low[a], running_low[b])
 
                 # Both took it, or neither did: agreement, not a divergence.
+                # The running extremes are NOT touched here - see the once-per
+                # quarter update below for why they cannot be.
                 if took_a == took_b:
-                    # Update running extremes regardless.
-                    if side == "high":
-                        running_high[a] = max(running_high[a], price_a)
-                        running_high[b] = max(running_high[b], price_b)
-                    else:
-                        running_low[a] = min(running_low[a], price_a)
-                        running_low[b] = min(running_low[b], price_b)
                     continue
 
                 took, failed = (a, b) if took_a else (b, a)
@@ -659,13 +654,20 @@ def smt(
                 )
                 stats[f"side.{side}"] += 1.0
 
-            # Update running extremes AFTER comparison, so the current
-            # quarter's extreme becomes the new running level for the next.
-            if (q.start, a, "high") in ext:
-                running_high[a] = max(running_high[a], ext[q.start, a, "high"][0])
-                running_high[b] = max(running_high[b], ext[q.start, b, "high"][0])
-                running_low[a] = min(running_low[a], ext[q.start, a, "low"][0])
-                running_low[b] = min(running_low[b], ext[q.start, b, "low"][0])
+        # ONCE PER QUARTER, after every pair has been compared, and that is the
+        # whole point rather than tidiness. This update used to sit inside the
+        # pair loop, and with three symbols pair (A,B) lifted A's running high to
+        # THIS quarter's extreme before pair (A,C) was ever compared. A then
+        # could no longer "take" it while C still could, so the engine emitted a
+        # divergence whose two prices were IDENTICAL - impossible, since taking
+        # requires a strict >. Three identical series produced three events that
+        # never happened, and the Triad chip sends exactly three symbols.
+        # Pinned by test_three_identical_series_cannot_diverge.
+        for s in symbols:
+            if (q.start, s, "high") in ext:
+                running_high[s] = max(running_high[s], ext[q.start, s, "high"][0])
+            if (q.start, s, "low") in ext:
+                running_low[s] = min(running_low[s], ext[q.start, s, "low"][0])
 
     stats["events"] = float(len(events))
     return events, stats

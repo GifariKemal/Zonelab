@@ -291,7 +291,19 @@ def spec(
     rollovers it actually crossed.
     """
     name = symbol.split(":")[-1]
-    if name == "_default" or name not in COSTS:
+    # A ROW IN THE BROKER PROFILE COUNTS AS A ROW, and leaving it out was a real
+    # defect. This test used to read `name not in COSTS`, and `COSTS` holds only
+    # XAUUSD and `_default` - so the eleven instruments measured from the terminal
+    # and written into `BROKERS["exness_raw"]` all returned None. The live cost
+    # gate reads `schedule()` and was therefore correct, while `plan.build` got
+    # None and printed "no cost schedule for this symbol, so the reward above is
+    # frictionless" for exactly the instruments whose costs WERE measured, leaving
+    # `cost_share_of_reward` null on every one of them.
+    #
+    # Merging is safe rather than partial: every broker row carries the full set
+    # `commission_bp`, `slippage_bp`, `spread_bp` and `swap_bp`, so it overrides
+    # each key `_default` has and no Binance figure survives into a CFD.
+    if name == "_default" or (name not in COSTS and name not in BROKERS.get(broker, {})):
         return None
     row = schedule(name, conservative, broker)
 
@@ -370,8 +382,13 @@ def cost_to_risk(
     jam exit, dan model biaya yang menyanjung diri soal timing adalah hal yang
     justru dihindari tool itu.
     """
+    # `or 0.0` rather than just a default, because a row can carry an explicit
+    # None for a side nobody measured, and a caller passing swap_bp=None means
+    # "read it from the row" rather than "charge nothing". Without it pyright
+    # reported one error on app/, against the 0 this repo claims for that
+    # directory, and the type hole was real: None reaches the multiply.
     if swap_bp is None:
-        swap_bp = fees.get("swap_bp", 0.0)
+        swap_bp = float(fees.get("swap_bp") or 0.0)
     friction = price * (
         fees["commission_bp"] + fees["slippage_bp"] + swap_bp * nights
     ) / 10_000

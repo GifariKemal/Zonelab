@@ -150,3 +150,61 @@ def test_alignment_of_disjoint_series_is_empty_rather_than_wrong():
 def test_one_series_needs_no_alignment():
     a = bars([1.0, 2.0])
     assert aligned({"A": a}) == {"A": a}
+
+
+def test_the_daily_loss_guard_refuses_once_today_has_lost_enough():
+    """Cap portofolio buta terhadap apa yang sudah HILANG, dan itu celahnya.
+
+    `cap_pct` membatasi berapa yang SEDANG dipertaruhkan. Delapan kekalahan
+    berturut dalam satu hari tidak melanggarnya sama sekali, karena setiap
+    kerugian mengosongkan kembali ruang yang dipakai kerugian sebelumnya. Akun
+    bisa habis pelan-pelan tanpa satu pun order melanggar satu pun gerbang yang
+    ada sebelum 28 Agustus 2026.
+    """
+    from app.portfolio import Book, admits
+
+    book = Book(equity=1000.0, cap_pct=0.06, corr_max=0.70,
+                daily_loss_pct=0.02, realised_today=-19.0)
+    ok, why = admits(book, "XAUUSD", 10.0)
+    assert ok is True, why
+
+    book.realised_today = -20.0
+    ok, why = admits(book, "XAUUSD", 10.0)
+    assert ok is False
+    assert "daily loss guard" in why and "2.00%" in why, why
+
+
+def test_an_unreadable_daily_result_refuses_rather_than_assuming_zero():
+    """Tidak terbaca bukan nol, dan di sini bedanya adalah uang.
+
+    Aturan yang sama dengan `Candle.spread` yang None ketika tak terukur, dan
+    dengan `Book.partial`. Sebuah pengaman yang menganggap riwayat kosong
+    berarti hari ini bersih akan melaporkan aman tepat pada hari terminal
+    bermasalah, yaitu hari ia paling dibutuhkan.
+    """
+    from app.portfolio import Book, admits
+
+    book = Book(equity=1000.0, cap_pct=0.06, corr_max=0.70,
+                daily_loss_pct=0.02, realised_today=None)
+    ok, why = admits(book, "XAUUSD", 10.0)
+    assert ok is False
+    assert "could not be read" in why, why
+
+
+def test_the_guard_is_off_by_default_and_changes_nothing():
+    """Default nol, jadi tidak ada perilaku yang bergeser tanpa diminta.
+
+    Termasuk saat hari ini sudah rugi besar: dengan pengaman mati, satu-satunya
+    yang mengikat tetap `cap_pct`, persis seperti sebelum pengaman ini ada.
+    """
+    from app.portfolio import Book, admits
+
+    book = Book(equity=1000.0, cap_pct=0.06, corr_max=0.70,
+                realised_today=-500.0)
+    assert book.daily_loss_pct == 0.0
+    ok, why = admits(book, "XAUUSD", 10.0)
+    assert ok is True, why
+
+    # Dan dengan pengaman mati, `realised_today=None` pun tidak menolak.
+    book.realised_today = None
+    assert admits(book, "XAUUSD", 10.0)[0] is True
