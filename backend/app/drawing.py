@@ -23,6 +23,7 @@ from .profit_zone import mark_crowding, mark_profit_zones
 from .providers import INTERVALS
 from .refine import refine_zones
 from .resample import resample
+from . import vortex
 
 #: Every layer handler has the same shape: read the bars, add to the drawing,
 #: leave its own provenance in `meta`. Nothing returns a value - a layer that
@@ -154,6 +155,32 @@ def _draw_session(
     meta["session"] = session_grid(rows, request.session, drawing)
 
 
+def _draw_vortex(
+    rows: list[Candle], request: DrawRequest, drawing: Drawing, meta: dict[str, object]
+) -> None:
+    """The 3-6-9 dial, which is the only layer here that reads NO bar values.
+
+    It reads one thing off the series - the newest bar's TIME - and everything
+    else comes from the calendar. Deliberately not the wall clock: the chart
+    draws closed bars, and a dial pointing at `time.time()` would sit up to a
+    full bar ahead of every candle on screen, which on dukascopy is 59 minutes
+    of showing a sector no visible bar belongs to.
+
+    An empty series draws no dial rather than a dial at epoch zero. A ring
+    diagram pointing confidently at 1 January 1970 is worse than an absent one,
+    because it looks like an answer.
+    """
+    if not rows:
+        meta["vortex"] = {"drawn": 0, "note": "no bars, so no bar time to place"}
+        return
+    drawing.vortex = vortex.dial(rows[-1].time)
+    meta["vortex"] = {
+        "drawn": len(drawing.vortex.rings),
+        "at": rows[-1].time,
+        "sectors": {ring.id: ring.sector for ring in drawing.vortex.rings},
+    }
+
+
 #: The layers that read the already-fetched bars and share one stats bucket.
 _HANDLERS: dict[str, _Handler] = {
     "supply_demand": _draw_supply_demand,
@@ -163,6 +190,7 @@ _HANDLERS: dict[str, _Handler] = {
     "breaker": _zone_layer("breaker"),
     "structure": _draw_structure,
     "session": _draw_session,
+    "vortex": _draw_vortex,
 }
 
 

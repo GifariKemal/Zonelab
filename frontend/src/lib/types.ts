@@ -400,6 +400,48 @@ export interface Advice {
   notes: Note[];
 }
 
+/** One ring of the 3-6-9 dial, and where the newest CLOSED bar sits on it.
+ *
+ *  `sector` is which NINTH of this ring's cycle the bar falls in, and it is not
+ *  a quarter: nine does not divide four, so Q2 of a day cycle spans sectors 3,
+ *  4 and part of 5. Quarters are read off the ribbon below the chart. */
+export interface VortexRing {
+  /** Ring multiplier, 1 innermost (fastest cycle) to 6 outermost. */
+  r: number;
+  id: string;
+  label: string;
+  /** 1..9. */
+  sector: number;
+  /** `digital_root(r * sector)`, 1..9. Carried so the renderer never has to
+   *  index the matrix for the live cell. */
+  root: number;
+  cycle_start: number;
+  /** Where the NEXT cycle of this ring opens. */
+  cycle_end: number;
+}
+
+/** The 3-6-9 dial: a constant table, plus six live positions.
+ *
+ *  A cell is lit when its digital root is 3, 6 or 9, which happens exactly when
+ *  3 divides `r * k`. So rings 1, 2, 4 and 5 light at k = 3, 6, 9 - the same
+ *  triangle every time - and rings 3 and 6 light at EVERY sector, because r is
+ *  already a multiple of three. The primitive draws those two cases
+ *  differently, so a reader can see why one ring has nine nodes and another has
+ *  three without being told a story about it.
+ *
+ *  NAVIGATION ONLY. Nothing here is a price, and `backend/tests/test_vortex.py`
+ *  asserts that no module that decides, sizes or sends can even mention it. */
+export interface VortexDial {
+  rings: VortexRing[];
+  /** `digital_root(r * k)`, rows in ring order, columns k = 1..9. Constant, and
+   *  sent anyway so this file holds no second copy of the arithmetic. */
+  matrix: number[][];
+  /** Columns per ring. Always 9. */
+  sectors: number;
+  /** The digital roots the dial marks, which is 3, 6 and 9. */
+  lit: number[];
+}
+
 /** One quarter of one cycle in the New York grid. A fact about the clock: it
  *  says nothing about what price did inside it. */
 export interface SessionQuarter {
@@ -1060,6 +1102,10 @@ export interface DrawResponse {
     /** Empty unless a degree was requested. */
     quarters: SessionQuarter[];
     true_opens: TrueOpenLevel[];
+    /** The 3-6-9 dial. Null unless the vortex layer was requested. CARRIES NO
+     *  PRICE: every field is arithmetic on the calendar, so nothing here can be
+     *  read as a level, a direction or a target. */
+    vortex: VortexDial | null;
     /** Empty unless the ssmt layer was requested. The only overlay that costs a
      *  provider call, because a divergence needs a second instrument. */
     ssmt: SSMTDivergence[];

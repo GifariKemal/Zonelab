@@ -161,7 +161,7 @@ melainkan yang terhitung paling sering muncul di 51 chart beranotasi Anda.
 | Level proyeksi deviasi | **Ada** | |
 | Silver Bullet window | **Belum** | |
 | Level fraksi 0,25 / 0,5 / 0,75 | **Sebagian** | 0,5 ada di mana-mana sebagai CE dan equilibrium; 0,25 dan 0,75 belum |
-| Segitiga 3-6-9 berbasis digital root | **Ditolak** | Sudah ditolak sebelumnya dan tetap ditolak, bersama 369 dan 168 |
+| Segitiga 3-6-9 berbasis digital root | **Ditolak sebagai sinyal, ada sebagai dial** | Sebagai sinyal tetap ditolak, bersama 369 dan 168. Sejak 29 Agustus 2026 objek yang sama ada sebagai layer `vortex`, yaitu dial navigasi yang membaca kalender dan bukan harga, dan sebuah test melarangnya menyentuh jalur order. Lihat `docs/BACKLOG.md` Bagian 7 |
 
 **Keputusan warna, dan kenapa begitu.** Chart Anda sendiri **tidak konsisten**
 dalam warna: pink berarti session box di gambar 27 dan 32-37 tetapi quarter box

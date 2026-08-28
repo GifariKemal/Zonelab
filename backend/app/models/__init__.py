@@ -56,6 +56,8 @@ from .cycle import (
     SSMTDivergence,
     SMTDivergence,
     SSMTHit,
+    VortexRing,
+    VortexDial,
 )
 from .zone import (
     Zone,
@@ -129,6 +131,8 @@ __all__ = [
     "SSMTDivergence",
     "SMTDivergence",
     "SSMTHit",
+    "VortexRing",
+    "VortexDial",
     "Zone",
     "Drawing",
     "SupplyDemandParams",

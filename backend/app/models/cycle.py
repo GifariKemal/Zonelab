@@ -388,3 +388,48 @@ class DefiningRangeBand(BaseModel):
     low: float
     equilibrium: float
     extensions: list[DFRExtension] = Field(default_factory=list)
+
+
+class VortexRing(BaseModel):
+    """One ring of the 3-6-9 dial, and where the newest closed bar sits on it.
+
+    `sector` is which NINTH of this ring's cycle the bar falls in, and it is not
+    a quarter: nine does not divide four, so Q2 of a day cycle spans sectors 3,
+    4 and part of 5. Read quarters off the ribbon, not off this.
+
+    `root` is `digital_root(r * sector)` - the dial's whole arithmetic, carried
+    on the wire so the renderer never recomputes it.
+    """
+
+    r: int = Field(description="Ring multiplier, 1 innermost to 6 outermost")
+    id: str
+    label: str
+    sector: int = Field(description="Which ninth of the cycle, 1..9")
+    root: int = Field(description="digital_root(r * sector), 1..9")
+    cycle_start: int
+    cycle_end: int = Field(description="Where the NEXT cycle of this ring opens")
+
+
+class VortexDial(BaseModel):
+    """The 3-6-9 dial: a constant table, plus six live positions.
+
+    CARRIES NO PRICE, and that is the whole shape of the object. Every field
+    here is arithmetic on the calendar, so nothing in it can be read as a level,
+    a direction or a target. See `app/vortex.py` for why the lit set is a triangle
+    on four rings and the entire ring on the other two.
+    """
+
+    rings: list[VortexRing] = Field(default_factory=list)
+    matrix: list[list[int]] = Field(
+        default_factory=list,
+        description=(
+            "digital_root(r * k), rows in ring order and columns k = 1..9. "
+            "Constant, and sent anyway so the frontend holds no second copy of "
+            "the arithmetic."
+        ),
+    )
+    sectors: int = Field(default=9, description="Columns per ring. Always 9.")
+    lit: list[int] = Field(
+        default_factory=list,
+        description="The digital roots the dial marks, which is 3, 6 and 9",
+    )

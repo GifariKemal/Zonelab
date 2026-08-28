@@ -8,7 +8,13 @@ from .primitives import Anatomy, Displacement, Refinement, ZoneKind, ZoneSide, Z
 from .structure import FibonacciAnchor, SessionQuarter, StructureEvent, SwingPoint, TrueOpenLevel
 from .gaps import EventHorizonLevel, GapStack, NewsEvent, OpeningGap, TierHorizon
 from .liquidity import LiquidityPool, NamedLevel, RangeProjection
-from .cycle import CISDEvent, DefiningRangeBand, SMTDivergence, SSMTDivergence
+from .cycle import (
+    CISDEvent,
+    DefiningRangeBand,
+    SMTDivergence,
+    SSMTDivergence,
+    VortexDial,
+)
 
 
 class Zone(BaseModel):
@@ -270,6 +276,15 @@ class Drawing(BaseModel):
     quarters: list[SessionQuarter] = Field(
         default_factory=list,
         description="Quarter divisions, empty unless a degree was requested",
+    )
+    vortex: VortexDial | None = Field(
+        default=None,
+        description=(
+            "The 3-6-9 dial: digital roots of ring x sector, plus which ninth "
+            "of each cycle the newest bar sits in. None unless the vortex layer "
+            "was requested. CARRIES NO PRICE - it is arithmetic on the "
+            "calendar, and nothing downstream of the renderer reads it."
+        ),
     )
     true_opens: list[TrueOpenLevel] = Field(
         default_factory=list,

@@ -32,6 +32,7 @@ import type {
   StructureEvent,
   SwingPoint,
   TrueOpenLevel,
+  VortexDial,
   Zone,
 } from "@/lib/types";
 import { clockStamp, clockTick, ZONE_TAG, type ClockZone, type TickKind } from "@/lib/clock";
@@ -44,6 +45,7 @@ import { SessionSeriesPrimitive } from "./session-primitive";
 import { SSMTSeriesPrimitive } from "./ssmt-primitive";
 import { SMTSeriesPrimitive } from "./smt-primitive";
 import { FibonacciSeriesPrimitive } from "./fibonacci-primitive";
+import { VortexSeriesPrimitive } from "./vortex-primitive";
 import { claimedLabels, StructureSeriesPrimitive } from "./structure-primitive";
 import { ZoneSeriesPrimitive } from "./zone-primitive";
 
@@ -64,6 +66,9 @@ interface Props {
   /** The cycle grid. Empty arrays when no degree was requested, the default. */
   quarters: SessionQuarter[];
   trueOpens: TrueOpenLevel[];
+  /** The 3-6-9 dial, or null when the layer is off. Reads no price: it is
+   *  arithmetic on the calendar, drawn as a corner instrument. */
+  vortex: VortexDial | null;
   /** Cross-instrument divergences, already positioned on THIS symbol's price.
    *  Empty unless the ssmt layer is on - the only overlay that costs a provider
    *  call, because a divergence needs a second instrument. */
@@ -169,6 +174,7 @@ export function Chart({
   fibonacci,
   quarters,
   trueOpens,
+  vortex,
   ssmt,
   smt,
   dfr,
@@ -199,6 +205,7 @@ export function Chart({
   const ssmtPrimitive = useRef<SSMTSeriesPrimitive | null>(null);
   const smtPrimitive = useRef<SMTSeriesPrimitive | null>(null);
   const fibPrimitive = useRef<FibonacciSeriesPrimitive | null>(null);
+  const vortexPrimitive = useRef<VortexSeriesPrimitive | null>(null);
   const dfrPrimitive = useRef<DFRSeriesPrimitive | null>(null);
   const levelsPrimitive = useRef<LevelsSeriesPrimitive | null>(null);
 
@@ -339,6 +346,13 @@ export function Chart({
     // `resetLabels` now says so out loud in development.
     const sessionPrim = new SessionSeriesPrimitive();
     candleSeries.attachPrimitive(sessionPrim);
+    // IMMEDIATELY AFTER SESSION, and for the reason the note above gives: the
+    // dial claims a label footprint, and the grid pass is where `resetLabels`
+    // runs, so a claim made before it is discarded. The dial cannot move out of
+    // the way of a caption - it is anchored to the pane corner, not to a price -
+    // so it has to be the one that claims.
+    const vortexPrim = new VortexSeriesPrimitive();
+    candleSeries.attachPrimitive(vortexPrim);
     // With the cycle grid, at `bottom`: a defining range is a window of the
     // clock's own Q1, so it is context the candles sit on.
     const dfrPrim = new DFRSeriesPrimitive();
@@ -435,6 +449,7 @@ export function Chart({
     ssmtPrimitive.current = ssmtPrim;
     smtPrimitive.current = smtPrim;
     fibPrimitive.current = fibPrim;
+    vortexPrimitive.current = vortexPrim;
     dfrPrimitive.current = dfrPrim;
     levelsPrimitive.current = levelsPrim;
 
@@ -494,6 +509,7 @@ export function Chart({
       ssmtPrimitive.current = null;
       smtPrimitive.current = null;
       fibPrimitive.current = null;
+      vortexPrimitive.current = null;
       dfrPrimitive.current = null;
       levelsPrimitive.current = null;
     };
@@ -613,6 +629,14 @@ export function Chart({
   useEffect(() => {
     structurePrimitive.current?.setStructure(swings, structure);
   }, [swings, structure]);
+
+  // The 3-6-9 dial. Null when the layer is off, which is the default, and null
+  // is also what an empty series produces upstream - a dial placed on no bar
+  // would point at epoch zero while looking exactly as authoritative as a
+  // correct one.
+  useEffect(() => {
+    vortexPrimitive.current?.setDial(vortex);
+  }, [vortex]);
 
   // Fibonacci anchors: the most recent CONFIRMED swing high and swing low,
   // computed by the backend so the chart draws the same anchors the engine

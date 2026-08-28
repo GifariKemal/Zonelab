@@ -31,7 +31,7 @@ flowchart LR
   B --> B4[Ekuilibrium DFR]
   C --> C1[Objek ICT/SMC yang hilang]
   C --> C2[Objek dari Referensi grup dan Bg Nas]
-  D --> D1[Segitiga 3-6-9]
+  D --> D1[Segitiga 3-6-9 sebagai sinyal]
   D --> D2[Urutan PD array]
 ```
 
@@ -361,8 +361,36 @@ ada.
 
 ## Bagian 7: yang sengaja tidak dibangun
 
-- Segitiga 3-6-9. Aritmetika akar digitalnya konsisten dan tidak mengatakan apa
-  pun tentang harga.
+- Segitiga 3-6-9 **sebagai sinyal**. Aritmetika akar digitalnya konsisten dan
+  tidak mengatakan apa pun tentang harga. Penolakan ini TETAP BERLAKU.
+
+  Yang berubah pada 29 Agustus 2026 adalah lingkupnya, atas permintaan langsung
+  owner: objek yang sama masuk sebagai **dial navigasi**, bukan sebagai sinyal.
+  Ia layer `vortex` (`app/vortex.py`, `frontend/src/components/vortex-primitive.ts`),
+  membaca kalender dan tidak membaca satu pun harga, dan ia digambar sebagai
+  instrumen kecil di pojok kiri bawah canvas.
+
+  Alasan penolakan lama justru yang membuat versi ini aman: karena ia tidak
+  mengatakan apa pun tentang harga, ia tidak boleh berada di jalur keputusan,
+  dan itu ditegakkan oleh test bukan oleh niat.
+  `backend/tests/test_vortex.py::test_no_execution_module_can_read_the_dial`
+  membaca source tujuh file yang memutuskan, menghitung size, atau mengirim
+  order, lalu gagal kalau salah satunya menyebut `vortex`, `digital_root`, atau
+  `3-6-9`. Dicek lewat teks source dan bukan lewat import graph, karena membaca
+  `drawing.vortex` dari dict response tidak butuh import sama sekali. Gate-nya
+  dibuktikan tidak kosong: satu baris komentar berisi kata `vortex` disuntikkan
+  ke `tools/execute.py`, test-nya exit 1, lalu file dikembalikan.
+
+  Aritmetikanya sendiri sudah tidak misterius dan itu ditulis di kodenya: sel
+  menyala tepat ketika 3 membagi `r * k`, jadi ring 1, 2, 4 dan 5 menyala di
+  k = 3, 6, 9 dan ring 3 dan 6 menyala di SEMUA sector. Yang kedua digambar
+  sebagai lingkaran penuh yang lebih terang, bukan sembilan titik, supaya
+  pembaca melihat sebabnya tanpa perlu menghitung.
+
+  Yang masih ditolak dan tidak berubah: memakainya untuk memilih arah, waktu
+  entry, atau level. Tidak ada angka yang mendukung itu, dan `evidence` layer
+  ini di `app/layers.py` menyatakan bahwa ia dikecualikan dari standar
+  pengukuran karena tidak ada yang bisa diukur, bukan karena lolos.
 - Gambar jalur forecast. Mesin ini tidak meramal, dan itu keputusan.
 - Varian NWOG yang mengukur ke Senin 09:30. Jalan yang tidak diambil, dan kalau
   suatu saat diinginkan ia `kind` kedua, bukan suntingan pada yang sekarang.

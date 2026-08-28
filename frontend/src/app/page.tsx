@@ -734,6 +734,7 @@ export default function Page() {
                 fibonacci={data?.drawing.fibonacci ?? null}
                 quarters={data?.drawing.quarters ?? []}
                 trueOpens={data?.drawing.true_opens ?? []}
+                vortex={data?.drawing.vortex ?? null}
                 ssmt={data?.drawing.ssmt ?? []}
                 smt={data?.drawing.smt ?? []}
                 dfr={data?.drawing.dfr ?? []}

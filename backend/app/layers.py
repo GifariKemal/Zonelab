@@ -154,6 +154,30 @@ LAYERS: tuple[Layer, ...] = (
         ),
     ),
     Layer(
+        id="vortex",
+        label="3-6-9 dial",
+        kind="overlay",
+        params="session",
+        note=(
+            "Digital roots of ring x sector on six cycles, and which ninth of "
+            "each the newest bar sits in. Navigation only: it reads no price."
+        ),
+        evidence=(
+            "NONE, and this layer is EXEMPT from the measurement standard "
+            "rather than failing it - there is nothing here to measure. The "
+            "dial is digital_root(r * k), which is arithmetic on the calendar: "
+            "a cell lands in {3, 6, 9} exactly when 3 divides r * k, so rings "
+            "1, 2, 4 and 5 light k = 3, 6 and 9 and rings 3 and 6 light every "
+            "sector. That is a fact about multiples of three, not about this "
+            "market. It carries no price, no level and no direction, and "
+            "nothing downstream of the renderer reads it: `tests/test_vortex.py` "
+            "asserts that seam against the execution modules by name. Twelve "
+            "pre-registered directional hypotheses have failed in this project, "
+            "so an unmeasured geometric construct does not get on the decision "
+            "path for looking convincing."
+        ),
+    ),
+    Layer(
         id="gaps",
         label="Opening gaps",
         kind="overlay",
