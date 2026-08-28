@@ -250,3 +250,76 @@ Yang TETAP benar dan tidak berubah: `true_open_prices` sekarang dioper ke
 `poi.confluence` di jalur order, dan `stack.true_opens` berhenti selalu nol.
 Itu perbaikan wiring, bukan promosi sinyal. Sebuah field yang benar boleh ada
 tanpa sebuah gerbang yang menyala.
+
+## 10. Replikasi `ote_band` lintas 12 instrumen, 28 Agustus 2026
+
+Bagian 7 mencatat pita OTE di XAUUSD 1 jam terbaca -0,096 R lawan populasi
+-0,021 R, dan menutupnya sebagai satu sel. Bagian ini menjalankan kolom yang
+sama ke seluruh roster, dengan alasan yang tegas: sebuah usulan untuk MENCABUT
+klausa `ote` dari jalur eksekusi datang berdasar angka satu sel itu, dan satu
+sel tidak cukup untuk mencabut maupun untuk mempertahankan.
+
+`python -m tools.true_open_matrix --column ote_band --intervals 1h --bars 20000`.
+Grup yang diuji adalah `ote`, dipilih dari bunyi klausanya ("proximal wajib
+berada di dalam pita OTE") dan bukan dari hasilnya. Menguji `premium` atau
+`discount` akan menguji aturan yang tidak pernah dinyatakan siapa pun.
+
+**12 sel, nol gagal, 36 grup layak dinilai, alpha 0,05/36 = 0,001389, |t|
+kritis 3,20.**
+
+| Sel | n | exp R populasi | discount | ote | premium | t(ote) | paruh(ote) |
+|---|---:|---:|---:|---:|---:|---:|---|
+| AUDUSD 1h | 609 | -0,077 | -0,087 | **-0,221** | -0,024 | -1,63 | -0,240 / -0,206 |
+| BTCUSD 1h | 541 | -0,024 | -0,060 | **+0,072** | -0,028 | +1,01 | -0,058 / +0,191 |
+| EURUSD 1h | 548 | -0,138 | -0,184 | **-0,204** | -0,063 | -0,79 | -0,107 / -0,308 |
+| GBPJPY 1h | 530 | -0,109 | -0,009 | **-0,101** | -0,184 | +0,10 | -0,371 / +0,051 |
+| GBPUSD 1h | 598 | +0,039 | +0,133 | **-0,133** | +0,018 | **-2,04** | -0,000 / -0,221 |
+| US30 1h | 494 | -0,036 | +0,023 | **-0,046** | -0,087 | -0,09 | +0,010 / -0,087 |
+| USDCAD 1h | 544 | -0,132 | -0,123 | **-0,192** | -0,127 | -0,73 | -0,206 / -0,179 |
+| USDJPY 1h | 547 | -0,109 | -0,104 | **-0,122** | -0,111 | -0,14 | +0,027 / -0,249 |
+| USOIL 1h | 573 | -0,256 | -0,309 | **-0,158** | -0,234 | +1,01 | -0,139 / -0,180 |
+| XAGUSD 1h | 510 | +0,023 | +0,137 | **+0,113** | -0,103 | +0,76 | +0,181 / +0,038 |
+| XAUUSD 1h | 535 | -0,021 | -0,134 | **-0,096** | +0,053 | -0,80 | -0,071 / -0,120 |
+| XPTUSD 1h | 433 | -0,165 | -0,129 | **-0,259** | -0,145 | -1,21 | -0,384 / -0,149 |
+
+**Nol dari dua belas lulus.**
+
+### Sebagai edge, terbantah tuntas
+
+|t| tertinggi di seluruh matrix adalah **2,04** pada GBPUSD, lawan kritis 3,20.
+Tidak ada satu sel pun yang mendekati, dan tidak ada kelas aset yang
+menyelamatkannya: FX, logam, indeks, energi, dan kripto semuanya di bawah
+ambang. Aturan "proximal wajib di dalam pita OTE" tidak punya dukungan angka di
+venue ini.
+
+### Sebagai racun, TIDAK terbukti
+
+Ini bagian yang harus dibaca sebelum ada yang mencabut klausanya. Arahnya memang
+condong negatif, `ote` negatif di **10 dari 12** sel dan lebih buruk daripada
+populasinya sendiri di **8 dari 12**. Tapi condongan yang tidak melewati ambang
+di satu sel pun bukan bukti kerugian; ia bukti ketiadaan sinyal. Empat sel
+justru lebih baik daripada populasinya: BTCUSD +0,096, USOIL +0,098, XAGUSD
++0,090, GBPJPY +0,008.
+
+### Angka -0,096 di emas tidak istimewa
+
+Ia bahkan bukan yang terburuk. XPTUSD -0,259, AUDUSD -0,221, dan EURUSD -0,204
+lebih buruk, sementara XAGUSD +0,113 berlawanan arah. Sel yang dipakai sebagai
+dasar usulan pencabutan ternyata sel biasa.
+
+### Putusan
+
+Klausa `ote` TETAP ADA dan TETAP tidak diwajibkan, yaitu persis tempatnya
+sekarang: `Rules.required` default kosong sehingga ia melaporkan tanpa
+memblokir. Menghapusnya akan menghapus bukti bahwa ia pernah diukur, dan
+menutup kemungkinan mengukurnya lagi di venue yang punya data berbeda.
+
+Yang berubah bukan kode melainkan apa yang boleh dikatakan tentangnya. Dulu:
+satu sel negatif. Sekarang: dua belas sel, nol sinyal, |t| tertinggi 2,04.
+`app/ict.py:MEASURED_AGAINST` diperbarui dengan angka dua belas sel itu.
+
+Batas yang tetap berlaku dari Bagian 7: hanya baris `ote` yang arah-sadar
+(demand 0,214-0,382, supply 0,618-0,786). Baris `discount` dan `premium` adalah
+posisi mentah dan mencampur kedua sisi, jadi tidak boleh dibaca sebagai
+"premium bagus". Baris `equilibrium` dan `none` di bawah 30 anggota di seluruh
+dua belas sel.

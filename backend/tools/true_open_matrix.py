@@ -39,11 +39,24 @@ from tools.conditioned import (
     rows_with_state,
 )
 
-COLUMN = "true_opens_in_zone"
-#: Grup yang dipraregistrasi. Lihat docstring.
-TARGET = "0"
-#: Urutan cetak, supaya monotonisitas terbaca dari kiri ke kanan.
-ORDER = ("0", "1-3", "4-9", "10+")
+#: Kolom yang boleh direplikasi lewat file ini, dan HANYA kolom yang sudah
+#: terdaftar di `tools/conditioned.py:ORPHAN_COLUMNS`, yaitu praregistrasi 28
+#: Agustus 2026. Nilainya adalah (grup yang diuji, urutan cetak).
+#:
+#: Daftar ini tertutup dengan alasan yang sama daftar kolom di
+#: `conditioned.py` tertutup: menambah kolom setelah melihat hasil adalah cara
+#: tercepat menghasilkan temuan palsu. Menambah entri di sini menuntut kolom
+#: itu sudah ada di praregistrasi lebih dulu.
+#:
+#: Grup yang diuji dipilih dari pertanyaan yang sudah tertulis, bukan dari
+#: hasilnya. Untuk `true_opens_in_zone` itu "0", satu-satunya yang nyaris lolos
+#: di Bagian 7. Untuk `ote_band` itu "ote", karena klausanya memang berbunyi
+#: "proximal wajib berada di dalam pita OTE"; menguji grup lain akan menguji
+#: aturan yang tidak pernah dinyatakan siapa pun.
+REGISTERED: dict[str, tuple[str, tuple[str, ...]]] = {
+    "true_opens_in_zone": ("0", ("0", "1-3", "4-9", "10+")),
+    "ote_band": ("ote", ("discount", "ote", "equilibrium", "premium", "none")),
+}
 
 
 def cells(symbols: list[str], intervals: list[str], bars: int, flat: bool):
@@ -91,6 +104,9 @@ def welch(a: np.ndarray, b: np.ndarray) -> float:
 
 def main() -> int:
     parser = argparse.ArgumentParser()
+    parser.add_argument("--column", default="true_opens_in_zone",
+                        choices=sorted(REGISTERED),
+                        help="kolom praregistrasi mana yang direplikasi")
     parser.add_argument("--intervals", default="1h,4h")
     parser.add_argument("--bars", type=int, default=20_000)
     parser.add_argument("--hold", action="store_true",
@@ -100,8 +116,10 @@ def main() -> int:
     symbols = sorted(BROKERS["exness_raw"])
     intervals = [x.strip() for x in args.intervals.split(",") if x.strip()]
     flat = not args.hold
+    column = args.column
+    target_name, order = REGISTERED[column]
 
-    print(f"kolom {COLUMN}, grup yang dipraregistrasi \"{TARGET}\"")
+    print(f"kolom {column}, grup yang dipraregistrasi \"{target_name}\"")
     print(f"{len(symbols)} instrumen x {len(intervals)} timeframe, "
           f"{args.bars} bar, exit {'hold 80 bar' if args.hold else 'flat di rollover'}")
     print(f"instrumen: {', '.join(symbols)}\n")
@@ -114,7 +132,7 @@ def main() -> int:
     for _, _, rows in collected:
         seen: dict[object, int] = {}
         for row in rows:
-            key = row["state"].get(COLUMN)
+            key = row["state"].get(column)
             seen[key] = seen.get(key, 0) + 1
         judged += sum(1 for n in seen.values() if n >= MIN_GROUP)
     if not judged:
@@ -126,8 +144,14 @@ def main() -> int:
           f"|t| kritis {critical:.2f}\n")
 
     header = (f"{'sel':13s} {'n':>5s} {'expR':>7s} "
-              + " ".join(f"{g:>8s}" for g in ORDER)
-              + f" {'t(0)':>7s} {'paruh(0)':>17s} {'lulus':>6s}")
+              + " ".join(f"{g:>9s}" for g in order)
+              # LABELNYA IKUT GRUPNYA. Versi pertama menuliskan "t(0)" mati,
+              # peninggalan dari saat file ini cuma melayani
+              # `true_opens_in_zone` yang grup ujinya memang "0". Dijalankan
+              # untuk `ote_band`, ia mencetak t milik grup "ote" di bawah judul
+              # "t(0)", yaitu tabel yang salah label tentang angkanya sendiri.
+              + f" {f't({target_name})':>9s} {f'paruh({target_name})':>19s}"
+              + f" {'lulus':>6s}")
     print(header)
     print("-" * len(header))
 
@@ -136,16 +160,16 @@ def main() -> int:
         everything = np.array([r["r"] for r in rows])
         buckets: dict[object, list[dict]] = {}
         for row in rows:
-            buckets.setdefault(row["state"].get(COLUMN), []).append(row)
+            buckets.setdefault(row["state"].get(column), []).append(row)
 
         cellname = f"{symbol} {interval}"
         means = []
-        for g in ORDER:
+        for g in order:
             grp = buckets.get(g, [])
-            means.append(f"{np.mean([r['r'] for r in grp]):+8.3f}"
-                         if len(grp) >= MIN_GROUP else f"{'n<30':>8s}")
+            means.append(f"{np.mean([r['r'] for r in grp]):+9.3f}"
+                         if len(grp) >= MIN_GROUP else f"{'n<30':>9s}")
 
-        target = buckets.get(TARGET, [])
+        target = buckets.get(target_name, [])
         if len(target) < MIN_GROUP:
             print(f"{cellname:13s} {len(rows):5d} {everything.mean():+7.3f} "
                   + " ".join(means) + f" {'-':>7s} {'-':>17s} {'-':>6s}")
@@ -153,7 +177,7 @@ def main() -> int:
 
         values = np.array([r["r"] for r in target])
         rest = np.array([r["r"] for r in rows
-                         if row_key(r) != TARGET])
+                         if r["state"].get(column) != target_name])
         t = welch(values, rest)
         # PARUH DIPOTONG PADA WAKTU, PERSIS SEPERTI `conditioned.py`, yang
         # memakai `cut = rows[len(rows)//2]["at"]` atas SELURUH populasi.
@@ -182,10 +206,6 @@ def main() -> int:
     print(f"sel yang LULUS ketiga syarat: {len(passed)} dari {len(collected)}"
           + (f" -> {', '.join(passed)}" if passed else ""))
     return 0
-
-
-def row_key(row: dict) -> object:
-    return row["state"].get(COLUMN)
 
 
 if __name__ == "__main__":

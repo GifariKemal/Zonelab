@@ -108,8 +108,9 @@ DOCTRINE_CLAUSES: frozenset[str] = frozenset([
 #: Sumbernya `docs/PRAREGISTRASI-YATIM.md` Bagian 7, ditulis sebelum angkanya
 #: dihitung. Sebuah klausa masuk daftar ini hanya lewat praregistrasi.
 MEASURED_AGAINST: dict[str, str] = {
-    "ote": ("pita OTE sendiri -0,096 R lawan populasi -0,021 R pada XAUUSD 1h "
-            "n=535, dan tandanya berbalik antar paruh"),
+    "ote": ("direplikasi di 12 instrumen 1h: NOL sel lolos, |t| tertinggi 2,04 "
+            "lawan kritis 3,20. Negatif di 10 dari 12 sel tapi tidak signifikan "
+            "di satu pun, jadi ia tidak punya edge DAN tidak terbukti merugikan"),
 }
 
 

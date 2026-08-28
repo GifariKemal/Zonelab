@@ -206,12 +206,17 @@ def test_a_clause_measured_against_is_warned_about_differently_than_an_unmeasure
 
     `DOCTRINE_CLAUSES` berarti "belum ada angkanya". `MEASURED_AGAINST` berarti
     "ada angkanya, dan ia menunjuk ke arah lain". Sampai 28 Agustus 2026 `ote`
-    dicetak dengan kalimat pertama, padahal praregistrasi sudah mengukurnya:
-    pita OTE sendiri -0,096 R lawan populasi -0,021 R, dan tandanya berbalik
-    antar paruh.
+    dicetak dengan kalimat pertama, padahal praregistrasi sudah mengukurnya.
 
     Operator yang membaca "belum diukur" menyalakan klausa itu sebagai taruhan.
     Yang membaca angkanya tidak. Bedanya bukan gaya bahasa.
+
+    ANGKANYA DIPERIKSA SEBAGAI ANGKA, BUKAN SEBAGAI STRING TERTENTU. Versi
+    pertama test ini mematok "-0,096", yaitu satu sel XAUUSD. Replikasi 12
+    instrumen (praregistrasi Bagian 10) mengganti kalimatnya, dan test yang
+    mematok satu angka akan memaksa kalimat lama bertahan setelah angkanya
+    kedaluwarsa. Yang harus dijaga adalah peringatannya membawa bukti berangka,
+    bukan membawa angka yang itu.
     """
     from app.ict import MEASURED_AGAINST, Rules
     from tools.execute import warn_required
@@ -221,7 +226,13 @@ def test_a_clause_measured_against_is_warned_about_differently_than_an_unmeasure
 
     assert "killzone" in out and "belum diukur" in out
     assert "ote" in out and "SUDAH diukur" in out
-    assert "-0,096" in out, out
+    # Diikat ke konstantanya, bukan ke satu angka. Isi `MEASURED_AGAINST["ote"]`
+    # harus sampai ke layar UTUH, dan ia harus membawa digit; kalimat tanpa
+    # angka adalah persis "belum diukur" yang ditulis ulang.
+    import re
+    evidence = MEASURED_AGAINST["ote"]
+    assert evidence in out, out
+    assert re.search(r"\d", evidence), evidence
     # KLAUSA YANG SUDAH DIUKUR TIDAK BOLEH IKUT DI KALIMAT "belum diukur",
     # karena itu persis kalimat yang menyesatkan.
     doctrine_line = next(l for l in out.splitlines() if 'belum diukur' in l)
