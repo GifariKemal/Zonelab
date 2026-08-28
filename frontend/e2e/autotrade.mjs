@@ -17,10 +17,19 @@
  *      that only changes its own colour is the exact failure mode here.
  *   4. Armed with no daemon shows the loud warning rather than a calm ON. A
  *      switch that reads armed while nothing trades is worse than one that is off.
- *   5. Disarm returns it, so the test leaves the account switched off.
+ *   5. Disarm returns it, so the button round-trips.
  *
- * The switch is restored to OFF at the end even when a check fails, because this
- * harness writes real trading state on a real machine.
+ * IT PUTS THE SWITCH BACK WHERE IT FOUND IT, and that is a change from the
+ * version that always forced OFF. Forcing OFF looked like the safe choice and
+ * was not: on 2026-08-28 this harness ran inside a gate sweep while a live
+ * daemon was armed, left the switch MATI at 09:22:50, and nothing noticed for
+ * hours. The daemon kept heartbeating, so the monitor correctly reported
+ * "daemon hidup" the whole time while zero decision cycles ran.
+ *
+ * A test that writes real trading state must be neutral, not opinionated. It
+ * reads the state first, does its work, and restores exactly what was there,
+ * pass or fail or crash. The restore is READ BACK and reported, because a
+ * restore that silently fails is the same class of bug as the leak it replaces.
  */
 import { chromium } from "playwright";
 import { mkdir } from "node:fs/promises";
@@ -37,12 +46,21 @@ const state = () => fetch(`${API}/api/autotrade`).then((r) => r.json());
 
 await mkdir(SHOTS, { recursive: true });
 
-// Start from a known place rather than from whatever the last run left.
-await fetch(`${API}/api/autotrade`, {
-  method: "POST",
-  headers: { "Content-Type": "application/json" },
-  body: JSON.stringify({ enabled: false, note: "e2e reset" }),
-});
+const arm = (enabled, note) =>
+  fetch(`${API}/api/autotrade`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ enabled, note }),
+  });
+
+// READ BEFORE WRITING. Whatever is here belongs to the operator, not to this
+// test, and it has to be handed back at the end.
+const before = await state();
+const wasEnabled = before.enabled === true;
+
+// The test still needs a known starting point, and check 2 below asserts the
+// panel starts from the server's state rather than a hardcoded default.
+await arm(false, "e2e reset");
 
 const browser = await chromium.launch();
 const page = await browser.newPage({ viewport: { width: 1440, height: 900 } });
@@ -99,13 +117,25 @@ try {
   await panel.screenshot({ path: `${SHOTS}/autotrade-off.png` });
 } finally {
   await browser.close();
-  // ALWAYS OFF ON THE WAY OUT, pass or fail. This harness writes the switch that
-  // decides whether an account trades unattended.
-  await fetch(`${API}/api/autotrade`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ enabled: false, note: "e2e teardown" }),
-  }).catch(() => {});
+  // PUT IT BACK, pass or fail or crash. This harness writes the switch that
+  // decides whether an account trades unattended, and it does not get to have
+  // an opinion about what that switch should be.
+  try {
+    await arm(wasEnabled, "e2e teardown: dikembalikan ke keadaan semula");
+    const after = await state();
+    if (after.enabled !== wasEnabled) {
+      // NOT a silent catch. A restore that did not take is exactly the failure
+      // this block exists to prevent, so it becomes a visible check.
+      check("the switch was restored to how it was found", false,
+            `wanted enabled=${wasEnabled}, server says ${after.enabled}`);
+    } else {
+      check("the switch was restored to how it was found", true,
+            `enabled=${wasEnabled}`);
+    }
+  } catch (err) {
+    check("the switch was restored to how it was found", false,
+          `restore threw: ${err}`);
+  }
 }
 
 console.log(results.join("\n"));
