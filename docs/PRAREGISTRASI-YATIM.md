@@ -186,3 +186,67 @@ sesuai janji Bagian 6:
 
 Satu sel, satu instrumen, satu timeframe. Nol di sini bukan nol di mana-mana,
 dan itu juga sebabnya tidak ada modul yang dihapus atas dasar tabel ini.
+
+## 9. Replikasi `true_opens_in_zone` lintas 12 instrumen, 28 Agustus 2026
+
+Bagian 8 menutup `true_opens_in_zone` dengan satu kalimat: ia satu-satunya
+kolom yang tandanya konsisten, jadi ia layak diukur ulang di sel lain, dan itu
+bukan izin memakainya. Bagian ini menjalankan pengukuran ulang itu.
+
+`python -m tools.true_open_matrix --intervals 1h --bars 20000`. Kolom yang
+sama, bucket yang sama, ambang yang sama, dan potongan paruh yang sama
+(`cut = rows[len(rows)//2]["at"]`, potong WAKTU atas seluruh populasi, persis
+seperti `tools/conditioned.py`). Timeframe 1 jam karena praregistrasi Bagian 7
+dijalankan di 1 jam; 4 jam adalah dimensi tambahan dan bukan replikasi.
+
+**12 sel terbaca, 47 grup layak dinilai, alpha 0,05/47 = 0,001064, |t| kritis
+3,27.** Bonferroni dihitung atas seluruh sel, bukan per instrumen.
+
+| Sel | n | exp R | grup 0 | 1-3 | 4-9 | 10+ | t(0) | paruh(0) | lulus |
+|---|---:|---:|---:|---:|---:|---:|---:|---|---|
+| AUDUSD 1h | 609 | -0,077 | n<30 | -0,153 | -0,064 | -0,035 | - | - | - |
+| BTCUSD 1h | 540 | -0,022 | +0,009 | +0,002 | -0,042 | -0,035 | +0,22 | +0,105 / -0,458 | tidak |
+| EURUSD 1h | 548 | -0,138 | -0,102 | -0,092 | -0,162 | -0,159 | +0,29 | +0,067 / -0,270 | tidak |
+| GBPJPY 1h | 530 | -0,109 | -0,112 | -0,188 | -0,079 | -0,069 | -0,02 | -0,057 / -0,203 | tidak |
+| GBPUSD 1h | 598 | +0,039 | -0,100 | +0,137 | +0,111 | -0,079 | -0,90 | +0,038 / -0,278 | tidak |
+| US30 1h | 495 | -0,038 | -0,106 | -0,041 | +0,054 | -0,217 | -0,45 | -0,315 / +0,165 | tidak |
+| USDCAD 1h | 544 | -0,132 | -0,394 | +0,048 | -0,127 | -0,208 | -2,23 | -0,387 / -0,446 | tidak |
+| USDJPY 1h | 547 | -0,109 | -0,043 | -0,027 | -0,158 | -0,121 | +0,52 | -0,115 / +0,257 | tidak |
+| USOIL 1h | 573 | -0,256 | **-0,594** | -0,192 | -0,267 | -0,232 | **-3,27** | -0,500 / -0,688 | tidak |
+| XAGUSD 1h | 510 | +0,023 | +0,040 | +0,082 | -0,044 | -0,000 | +0,16 | +0,183 / -0,071 | tidak |
+| **XAUUSD 1h** | 535 | -0,021 | **+0,290** | -0,077 | -0,054 | -0,128 | **+2,35** | +0,027 / +0,545 | tidak |
+| XPTUSD 1h | 433 | -0,165 | -0,266 | -0,189 | -0,152 | -0,098 | -0,96 | -0,456 / -0,178 | tidak |
+
+**Nol dari dua belas sel lulus.**
+
+### Kenapa ini menutup pertanyaannya
+
+**Tandanya tidak konsisten lintas instrumen.** Dari sebelas sel yang bisa
+dinilai, grup "nol True Open" positif di tiga (XAUUSD +0,290, XAGUSD +0,040,
+BTCUSD +0,009, dua terakhir praktis nol) dan negatif di delapan. Sebuah edge
+universal akan positif di mana-mana.
+
+**Sinyal terkuat di seluruh matrix justru berlawanan arah.** USOIL pada
+t = -3,27, tepat menyentuh ambang dan gagal hanya karena ujinya `>` bukan `>=`.
+Kalau ambangnya dilonggarkan sedikit saja, yang lulus adalah kesimpulan yang
+BERLAWANAN dengan anomali yang sedang diuji.
+
+**Monotonisitasnya tidak menyeberang.** Di XAUUSD urutannya rapi, +0,290 turun
+ke -0,128. Di GBPUSD grup "0" justru yang TERBURUK dari empat. Di US30 yang
+terbaik adalah "4-9". Pola yang cuma muncul di satu instrumen dan hilang di
+sebelas lainnya adalah bentuk kurva yang dipas, bukan sifat pasar.
+
+**XAUUSD tidak lulus bahkan di rumahnya sendiri**, t = +2,35 lawan kritis 3,27,
+angka t yang sama dengan Bagian 7.
+
+### Putusan akhir
+
+Kelima kolom praregistrasi ini sekarang punya angka, dan kelimanya gagal.
+`true_opens_in_zone` adalah satu-satunya yang diberi kesempatan kedua, dan ia
+memakainya untuk gagal lebih jelas. Tidak ada modul yatim yang disambungkan ke
+`tools/execute.py` atas dasar dokumen ini.
+
+Yang TETAP benar dan tidak berubah: `true_open_prices` sekarang dioper ke
+`poi.confluence` di jalur order, dan `stack.true_opens` berhenti selalu nol.
+Itu perbaikan wiring, bukan promosi sinyal. Sebuah field yang benar boleh ada
+tanpa sebuah gerbang yang menyala.

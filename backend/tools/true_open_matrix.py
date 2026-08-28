@@ -55,8 +55,17 @@ def cells(symbols: list[str], intervals: list[str], bars: int, flat: bool):
     yang kehilangan sel tanpa mengatakannya terbaca sebagai universe yang lebih
     kecil.
     """
+    total = len(symbols) * len(intervals)
+    done = 0
     for symbol in symbols:
         for interval in intervals:
+            done += 1
+            # DICETAK SAAT MULAI, BUKAN SAAT SELESAI. Versi pertama file ini
+            # diam sepanjang pengumpulan, karena sel yang berhasil di-yield
+            # tanpa mencetak apa pun. Dua puluh menit tanpa satu baris tidak
+            # bisa dibedakan dari proses yang hang, dan itu persis keluhan yang
+            # membuat run pertama dihentikan sebelum selesai.
+            print(f"[{done}/{total}] {symbol} {interval} ...", flush=True)
             try:
                 rows = rows_with_state(f"mt5:{symbol}", interval, bars, flat)
             except Exception as exc:  # noqa: BLE001 - satu sel, bukan run
@@ -65,6 +74,8 @@ def cells(symbols: list[str], intervals: list[str], bars: int, flat: bool):
             if not rows:
                 print(f"{symbol:8s} {interval:3s} tanpa trade yang lolos gerbang")
                 continue
+            print(f"[{done}/{total}] {symbol} {interval} {len(rows)} trade",
+                  flush=True)
             yield symbol, interval, rows
 
 
@@ -144,11 +155,21 @@ def main() -> int:
         rest = np.array([r["r"] for r in rows
                          if row_key(r) != TARGET])
         t = welch(values, rest)
-        # Paruh dipotong pada urutan waktu baris, sama seperti `conditioned.py`.
-        half = len(target) // 2
-        first = float(values[:half].mean()) if half else 0.0
-        second = float(values[half:].mean()) if half else 0.0
-        same_sign = (first > 0) == (second > 0)
+        # PARUH DIPOTONG PADA WAKTU, PERSIS SEPERTI `conditioned.py`, yang
+        # memakai `cut = rows[len(rows)//2]["at"]` atas SELURUH populasi.
+        #
+        # Versi pertama file ini memotong grup targetnya sendiri jadi dua
+        # berdasarkan jumlah anggota, dan itu kriteria yang BERBEDA: ia bertanya
+        # "apakah efeknya bertahan di separuh anggota pertama", bukan "apakah ia
+        # bertahan di separuh sejarah pertama". Yang kedua lebih keras dan itu
+        # yang dipraregistrasi. Memakai yang pertama berarti melonggarkan
+        # ambang, yang docstring file ini sendiri berjanji tidak dilakukan.
+        cut = rows[len(rows) // 2]["at"]
+        early = np.array([r["r"] for r in target if r["at"] < cut])
+        late = np.array([r["r"] for r in target if r["at"] >= cut])
+        first = float(early.mean()) if len(early) else 0.0
+        second = float(late.mean()) if len(late) else 0.0
+        same_sign = bool(len(early) and len(late)) and (first > 0) == (second > 0)
         ok = len(target) >= MIN_GROUP and abs(t) > critical and same_sign
         if ok:
             passed.append(cellname)
