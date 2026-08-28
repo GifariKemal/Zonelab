@@ -154,6 +154,29 @@ const page = await browser.newPage({
 const pageErrors = [];
 page.on("pageerror", (e) => pageErrors.push(e.message));
 
+// CANVAS CONTEXT LOSS, watched from before the first canvas exists. Installed
+// as an init script rather than after load because the chart builds its
+// canvases during hydration, and a listener attached afterwards would miss a
+// loss that happened while it was being attached. The observer picks up
+// canvases the library adds later too.
+await page.addInitScript(() => {
+  window.__ctxLost = [];
+  const attach = (c) => {
+    if (c.__zlWatched) return;
+    c.__zlWatched = true;
+    c.addEventListener("contextlost", () => window.__ctxLost.push("2d contextlost"));
+    c.addEventListener("webglcontextlost", () => window.__ctxLost.push("webgl contextlost"));
+  };
+  const sweep = () => document.querySelectorAll("canvas").forEach(attach);
+  // OBSERVE `document`, not `document.documentElement`. An init script runs at
+  // document_start, where `documentElement` is still null and `observe` throws
+  // "parameter 1 is not of type Node" - which this harness then recorded as a
+  // page error and blamed on the app. `document` is a Node from the beginning
+  // and subtree:true reaches every canvas added under it.
+  new MutationObserver(sweep).observe(document, { childList: true, subtree: true });
+  sweep();
+});
+
 try {
   await page.goto(WEB, { waitUntil: "domcontentloaded" });
   await page.waitForFunction(
@@ -331,6 +354,168 @@ try {
   );
 
   check("no page error", pageErrors.length === 0, pageErrors.join(" | "));
+  check(
+    "no canvas context was lost",
+    (await page.evaluate(() => window.__ctxLost.length)) === 0,
+    (await page.evaluate(() => window.__ctxLost.join(", "))) || "none",
+  );
+
+  // ======================================================== THE STORM
+  // Opt-in, because it takes minutes and the checks above are the ones worth
+  // running on every change.
+  if (process.argv.includes("--storm")) {
+    const TIMEFRAMES = ["15m", "1h", "4h", "1d"];
+    const CYCLES = 50;
+    // TWO PHASES PER CYCLE, because the two things being asked for pull in
+    // opposite directions.
+    //
+    // BURST is the storm proper: clicks faster than the app can answer, so
+    // every draw is aborted by the next one. That is the path that once left
+    // the worker burning 5.33 seconds of CPU per 5 seconds after every client
+    // had given up, and it is where a crash or a lost context would surface.
+    //
+    // SETTLE exists because burst alone proved nothing about the dial. Measured
+    // on this machine: at 120 ms between clicks `setDial` fired ZERO times
+    // across 100 toggles, because no /api/draw round trip ever completed while
+    // the layer was on. The harness passed 27 of 27 without the dial ever
+    // reaching the canvas. So each cycle ends with a dwell long enough for a
+    // payload to land, and a sample every tenth cycle has to SEE it.
+    const BURST_MS = 120;
+    const SETTLE_MS = 1300;
+
+    /** One pass of the storm. `withDial` false is the CONTROL: the same
+     *  timeframe churn with the layer never switched on.
+     *
+     *  THE CONTROL IS THE POINT. "The heap grew 1.4 MB after 50 cycles" says
+     *  nothing about the dial on its own - a Next.js page under 50 redraws
+     *  allocates caches, route data and canvas buffers whatever is switched on.
+     *  Only the DIFFERENCE between the two passes is attributable, and this
+     *  harness already learned that lesson once today: the backend health probe
+     *  read 259 ms until it was moved off the loop generating the load. */
+    /** Corner paint right now, so the storm can PROVE the dial was live. */
+    const cornerNow = async () => (await scan())?.corner ?? -1;
+
+    const storm = async (withDial) => {
+      await setLayer(false);
+      await page.evaluate(() => {
+        window.__ctxLost.length = 0;
+      });
+      const dark = await cornerNow();
+      const errorsBefore = pageErrors.length;
+      const before = await heap();
+      const started = Date.now();
+      let clicks = 0;
+      let sampled = 0;
+      let dialSeen = 0;
+      const samples = [];
+
+      for (let i = 0; i < CYCLES; i += 1) {
+        // ---- burst: faster than the app can answer ----------------------
+        for (const tf of [TIMEFRAMES[i % 4], TIMEFRAMES[(i + 2) % 4]]) {
+          if (withDial) {
+            await toggle.click();
+            clicks += 1;
+          }
+          await page.getByRole("button", { name: tf, exact: true }).click();
+          clicks += 1;
+          await page.waitForTimeout(BURST_MS);
+        }
+
+        // ---- settle: long enough for a draw to land ---------------------
+        if (withDial && (await toggle.getAttribute("aria-checked")) === "false") {
+          await toggle.click();
+          clicks += 1;
+        }
+        await page.waitForTimeout(SETTLE_MS);
+        if (withDial && i % 10 === 0) {
+          // PAIRED, AND ON THE SAME TIMEFRAME. The first version compared each
+          // sample against one `dark` reading taken before the pass, and that
+          // is invalid: the corner's grey count moves with the candles, so the
+          // baseline came from one timeframe and the samples from three others.
+          // It read dark 3434 against lit 3572/2777/3572/2777/3572 and scored
+          // zero - not because the dial was absent, but because the comparison
+          // crossed a variable nobody was controlling for. Off and on are now
+          // read back to back without touching anything else.
+          sampled += 1;
+          const lit = await cornerNow();
+          await toggle.click();
+          clicks += 1;
+          await page.waitForTimeout(SETTLE_MS);
+          const off = await cornerNow();
+          await toggle.click();
+          clicks += 1;
+          await page.waitForTimeout(SETTLE_MS);
+          samples.push(`${off}+${lit - off}`);
+          if (lit - off > 150) dialSeen += 1;
+        }
+        if (withDial) {
+          await toggle.click();
+          clicks += 1;
+          await page.waitForTimeout(BURST_MS);
+        }
+      }
+
+      // Let the last redraws land before collecting, or the reading counts work
+      // still in flight as retained.
+      await page.waitForTimeout(3000);
+      const after = await heap();
+      return {
+        clicks,
+        sampled,
+        dialSeen,
+        dark,
+        samples,
+        seconds: (Date.now() - started) / 1000,
+        mb: (after - before) / (1024 * 1024),
+        before,
+        after,
+        errors: pageErrors.length - errorsBefore,
+        lost: await page.evaluate(() => window.__ctxLost.length),
+      };
+    };
+
+    const control = await storm(false);
+    const withDial = await storm(true);
+    const attributable = withDial.mb - control.mb;
+
+    check(
+      "the control storm survives without errors",
+      control.errors === 0 && control.lost === 0,
+      `${control.clicks} clicks in ${control.seconds.toFixed(0)}s, ${control.mb >= 0 ? "+" : ""}${control.mb.toFixed(2)} MB`,
+    );
+    check(
+      "the storm actually rendered the dial rather than out-racing it",
+      withDial.dialSeen >= Math.ceil(withDial.sampled * 0.6),
+      `dial visible on ${withDial.dialSeen} of ${withDial.sampled} paired samples (off+gain): ${withDial.samples.join(", ")}`,
+    );
+    check(
+      "50 dial toggles across 50 redraws raise no page error",
+      withDial.errors === 0,
+      `${withDial.clicks} clicks in ${withDial.seconds.toFixed(0)}s`,
+    );
+    check(
+      "no canvas context is lost during the storm",
+      withDial.lost === 0,
+      `${withDial.lost} events`,
+    );
+    check(
+      "heap growth attributable to the dial stays under 2 MB",
+      attributable < 2,
+      `dial storm ${withDial.mb >= 0 ? "+" : ""}${withDial.mb.toFixed(2)} MB, control ${control.mb >= 0 ? "+" : ""}${control.mb.toFixed(2)} MB, attributable ${attributable >= 0 ? "+" : ""}${attributable.toFixed(2)} MB`,
+    );
+    check(
+      "the whole dial storm stays under 2 MB on its own too",
+      withDial.mb < 2,
+      `${(withDial.before / 1048576).toFixed(2)} -> ${(withDial.after / 1048576).toFixed(2)} MB`,
+    );
+    check(
+      "the claim list is still one rectangle after the storm",
+      (await (async () => {
+        await setLayer(true);
+        return claimCount();
+      })()) - claimsOff === 1,
+    );
+  }
 } finally {
   await browser.close();
 }
