@@ -280,10 +280,35 @@ async def fetch_ticks(
 
     gate = asyncio.Semaphore(CONCURRENCY)
     failed = 0
+    # ANGGARAN JAM DINDING UNTUK SELURUH TARIKAN, dan ia menjawab kegagalan yang
+    # nyata, bukan kegagalan yang dibayangkan.
+    #
+    # `tools/validate_api.py` menuntut tiap provider "menggambar ATAU
+    # menjelaskan diri lewat 502 yang menyebut namanya". Dukascopy pada sekitar
+    # 61 detik per 200 bar duduk tepat di tepi timeout klien 60 detik, jadi yang
+    # sampai ke pemeriksa adalah `httpx.ReadTimeout` di sisi KLIEN, bukan 502 di
+    # sisi kita. Gerbangnya karena itu merah karena vendor lambat, bukan karena
+    # kode ini salah, dan pesannya tidak menyebut apa pun yang bisa ditindak.
+    #
+    # Timeout per request tidak cukup: `http_timeout_seconds` 15 detik dikali
+    # RETRIES ditambah backoff berarti SATU jam yang bermasalah sendirian bisa
+    # memakan 46 detik, dan sebuah tarikan berisi ratusan jam.
+    #
+    # Jadi batasnya di sini, atas seluruh tarikan. Melewatinya adalah
+    # `ProviderError` yang menyebut vendor dan anggarannya, yaitu tepat bentuk
+    # jawaban yang diminta gerbang itu.
+    deadline = time.monotonic() + settings.dukascopy_budget_seconds
 
     async def one(hour: datetime) -> list[tuple[int, float, float, float]]:
         nonlocal failed
         async with gate:
+            if time.monotonic() > deadline:
+                raise ProviderError(
+                    f"dukascopy exceeded its {settings.dukascopy_budget_seconds:.0f}s "
+                    f"budget for {vendor}. The feed is one request per hour and "
+                    f"answers slowly in bursts; ask for fewer bars, or use "
+                    f"another provider for this window."
+                )
             try:
                 return await _hour(client, vendor, hour, divisor)
             except ProviderError:

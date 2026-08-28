@@ -98,6 +98,21 @@ DOCTRINE_CLAUSES: frozenset[str] = frozenset([
 ])
 
 
+#: Klausa yang SUDAH diukur dan hasilnya BURUK, dengan angkanya. Ini daftar
+#: yang berbeda dari `DOCTRINE_CLAUSES`, dan bedanya penting: doctrine berarti
+#: "belum ada angkanya", sementara ini berarti "ada angkanya, dan ia menunjuk ke
+#: arah lain". Menyamakan keduanya di sebuah peringatan membuat operator
+#: menyalakan gerbang yang sudah dibuktikan merugikan, dengan mengira ia sekadar
+#: belum terbukti.
+#:
+#: Sumbernya `docs/PRAREGISTRASI-YATIM.md` Bagian 7, ditulis sebelum angkanya
+#: dihitung. Sebuah klausa masuk daftar ini hanya lewat praregistrasi.
+MEASURED_AGAINST: dict[str, str] = {
+    "ote": ("pita OTE sendiri -0,096 R lawan populasi -0,021 R pada XAUUSD 1h "
+            "n=535, dan tandanya berbalik antar paruh"),
+}
+
+
 def evaluate(
     zone: Zone,
     state: dict[str, Any],

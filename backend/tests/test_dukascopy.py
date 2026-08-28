@@ -346,3 +346,42 @@ def test_a_throttled_feed_is_reported_unavailable_and_not_merely_unreachable(
     asyncio.run(dukascopy.DukascopyProvider().probe())
     assert len(seen) == before, "a cached answer still hit the network"
     dukascopy._probe = None
+
+
+def test_a_slow_feed_becomes_a_spoken_refusal_before_the_client_gives_up():
+    """Anggaran jam dinding, dan kenapa timeout per request tidak cukup.
+
+    `tools/validate_api.py` menuntut tiap provider "menggambar ATAU menjelaskan
+    diri lewat 502 yang menyebut namanya". Terukur 28 Agustus 2026, Dukascopy
+    pada sekitar 61 detik per 200 bar melewati timeout klien 60 detik, jadi yang
+    sampai ke pemeriksa adalah `httpx.ReadTimeout` di sisi KLIEN. Gerbangnya
+    merah karena vendor lambat, dan pesannya tidak menyebut satu pun hal yang
+    bisa ditindak.
+
+    Timeout per request tidak menutupnya: `http_timeout_seconds` 15 detik dikali
+    RETRIES ditambah backoff berarti SATU jam bermasalah sendirian bisa memakan
+    46 detik, dan satu tarikan berisi ratusan jam.
+
+    Yang diperiksa di sini: begitu anggaran lewat, yang keluar `ProviderError`
+    yang menyebut vendor dan angkanya, bukan exception transport.
+    """
+    import asyncio
+
+    from app.config import settings
+    from app.providers.base import ProviderError
+    from app.providers import dukascopy as duka
+
+    original = settings.dukascopy_budget_seconds
+    settings.dukascopy_budget_seconds = -1.0  # anggaran sudah lewat sejak awal
+    try:
+        with pytest.raises(ProviderError) as caught:
+            asyncio.run(duka.fetch_ticks(
+                "XAUUSD", [datetime(2026, 8, 20, 3, tzinfo=UTC)]))
+    finally:
+        settings.dukascopy_budget_seconds = original
+
+    why = str(caught.value)
+    assert "budget" in why, why
+    # NAMA VENDOR WAJIB ADA. Itu yang dicari `validate_api` di body 502, dan
+    # sebuah penolakan yang tidak menyebut siapa yang menolak tidak lulus.
+    assert "XAUUSD" in why or "dukascopy" in why, why

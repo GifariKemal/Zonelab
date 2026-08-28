@@ -197,3 +197,33 @@ def test_the_journal_lines_all_carry_a_number_or_a_name():
     nothing checkable in it is an opinion."""
     for line in setup(zone(), state(), stack()).why():
         assert ":" in line and "[" in line, line
+
+
+def test_a_clause_measured_against_is_warned_about_differently_than_an_unmeasured_one(
+    capsys,
+):
+    """Dua peringatan, dua arti, dan menyamakannya adalah kerugian nyata.
+
+    `DOCTRINE_CLAUSES` berarti "belum ada angkanya". `MEASURED_AGAINST` berarti
+    "ada angkanya, dan ia menunjuk ke arah lain". Sampai 28 Agustus 2026 `ote`
+    dicetak dengan kalimat pertama, padahal praregistrasi sudah mengukurnya:
+    pita OTE sendiri -0,096 R lawan populasi -0,021 R, dan tandanya berbalik
+    antar paruh.
+
+    Operator yang membaca "belum diukur" menyalakan klausa itu sebagai taruhan.
+    Yang membaca angkanya tidak. Bedanya bukan gaya bahasa.
+    """
+    from app.ict import MEASURED_AGAINST, Rules
+    from tools.execute import warn_required
+
+    warn_required(Rules(required=("killzone", "ote")))
+    out = capsys.readouterr().out
+
+    assert "killzone" in out and "belum diukur" in out
+    assert "ote" in out and "SUDAH diukur" in out
+    assert "-0,096" in out, out
+    # KLAUSA YANG SUDAH DIUKUR TIDAK BOLEH IKUT DI KALIMAT "belum diukur",
+    # karena itu persis kalimat yang menyesatkan.
+    doctrine_line = next(l for l in out.splitlines() if 'belum diukur' in l)
+    assert 'ote' not in doctrine_line, doctrine_line
+    assert "ote" in MEASURED_AGAINST

@@ -57,6 +57,14 @@ class Settings(BaseSettings):
     cache_ttl_seconds: int = 20
 
     http_timeout_seconds: float = 15.0
+    #: Anggaran jam dinding untuk SATU tarikan dukascopy, seluruh jamnya
+    #: sekaligus. Vendor ini satu request per jam dan menjawab dalam burst;
+    #: terukur sekitar 61 detik per 200 bar, yaitu tepat di atas timeout klien
+    #: 60 detik yang dipakai `tools/validate_api.py`. Melewati anggaran ini
+    #: menghasilkan 502 yang menyebut vendor, bukan timeout di sisi klien.
+    #: Dua puluh detik memberi ruang untuk tarikan kecil dan tetap gagal jauh
+    #: sebelum pemeriksa menyerah.
+    dukascopy_budget_seconds: float = 20.0
 
     # Raised from 5000 when the local MT5 terminal arrived. It was a ceiling
     # shaped by the HTTP sources - binance caps a page at 1000, yahoo's intraday

@@ -43,7 +43,12 @@ from app.confluence import mark_nesting
 from app.costs import COST_TO_RISK_MAX, cost_to_risk, schedule, spec
 from app.dealing_range import mark_dealing_range_now
 from app.detect import DETECTORS
-from app.ict import DOCTRINE_CLAUSES, Rules, setup as ict_setup
+from app.ict import (
+    DOCTRINE_CLAUSES,
+    MEASURED_AGAINST,
+    Rules,
+    setup as ict_setup,
+)
 from app.indicators import wilder_atr
 from app.models import LotSpec, SupplyDemandParams, ZoneSide
 from app.plan import DEPARTURE_GATE_ATR, build
@@ -94,6 +99,29 @@ RULE = {
     "exit_rule": "flat at the 21:00 UTC rollover",
     "horizon_bars": HORIZON,
 }
+
+
+def warn_required(rules) -> None:
+    """Cetak peringatan untuk klausa yang diwajibkan, DUA jenis terpisah.
+
+    Sampai 28 Agustus 2026 keduanya dicetak dengan kalimat yang sama, "belum
+    diukur". Untuk `ote` itu sudah tidak benar: ia diukur lewat praregistrasi
+    dan hasilnya lebih buruk daripada tidak memfilter sama sekali. Operator yang
+    membaca "belum diukur" akan menyalakannya sebagai taruhan; yang membaca
+    angkanya tidak akan.
+    """
+    doctrine = [c for c in rules.required
+                if c in DOCTRINE_CLAUSES and c not in MEASURED_AGAINST]
+    against = [c for c in rules.required if c in MEASURED_AGAINST]
+    if doctrine:
+        print(f"PERINGATAN: --require mencantumkan klausa doctrine "
+              f"(belum diukur): {', '.join(doctrine)}. "
+              f"Klausa ini diterapkan karena metode mensyaratkannya, "
+              f"bukan karena proyek ini punya angka untuknya.")
+    for clause in against:
+        print(f"PERINGATAN: --require mencantumkan {clause}, dan klausa ini "
+              f"SUDAH diukur dengan hasil yang berlawanan: "
+              f"{MEASURED_AGAINST[clause]}. Lihat docs/PRAREGISTRASI-YATIM.md.")
 
 
 def grounds(zone, plan) -> list[str]:
@@ -637,12 +665,7 @@ def cycle(
     five trades at three percent is fifteen percent nobody chose.
     """
     rules = rules or Rules()
-    doctrine_required = [c for c in rules.required if c in DOCTRINE_CLAUSES]
-    if doctrine_required:
-        print(f"PERINGATAN: --require mencantumkan klausa doctrine "
-              f"(belum diukur): {', '.join(doctrine_required)}. "
-              f"Klausa ini diterapkan karena metode mensyaratkannya, "
-              f"bukan karena proyek ini punya angka untuknya.")
+    warn_required(rules)
     if isinstance(symbols, str):
         symbols = [symbols]
     if isinstance(intervals, str):
@@ -903,12 +926,7 @@ def main() -> None:
     )
     rule = {**RULE, "risk_pct": args.risk_pct}
 
-    doctrine_required = [c for c in rules.required if c in DOCTRINE_CLAUSES]
-    if doctrine_required:
-        print(f"PERINGATAN: --require mencantumkan klausa doctrine "
-              f"(belum diukur): {', '.join(doctrine_required)}. "
-              f"Klausa ini diterapkan karena metode mensyaratkannya, "
-              f"bukan karena proyek ini punya angka untuknya.")
+    warn_required(rules)
 
     symbols = [s.strip() for s in args.symbol.split(",") if s.strip()]
 
