@@ -25,7 +25,7 @@ import time
 
 from app import clock
 from tools import history
-from tools.brief import collect, render
+from tools.brief import collect, live, render
 
 
 def main() -> int:
@@ -104,6 +104,23 @@ def main() -> int:
         except Exception as exc:  # noqa: BLE001
             brief["failures"].append(
                 {"ict": cand["zone_id"], "error": f"{type(exc).__name__}: {exc}"})
+
+    # ------------------------------------------------ bacaan yang menjaring
+    # Ditaruh SETELAH seluruh bacaan struktural selesai, supaya kegagalan
+    # jaringan tidak mengambil brief yang sudah lengkap bersamanya.
+    print("  checklist dan triad (butuh provider call) ...", flush=True)
+    both = live.gather(args.symbol, base_tf, args.bars, partners)
+    brief["checklist"] = both["checklist"]
+    brief["triad"] = both["triad"]
+    if not brief["checklist"].get("present"):
+        brief["failures"].append({"checklist": brief["checklist"].get("why")})
+    if not brief["triad"].get("present"):
+        brief["failures"].append({"triad": brief["triad"].get("why")})
+    elif brief["triad"].get("skipped"):
+        brief["failures"].append({"triad_partners_skipped": brief["triad"]["skipped"]})
+
+    brief["ote_reconciliation"] = live.ote_reconciliation(
+        brief["fibonacci"], brief["cycle"]["conditioning_state"])
 
     (out / "brief.json").write_text(
         json.dumps(brief, indent=1, ensure_ascii=True), encoding="utf-8")

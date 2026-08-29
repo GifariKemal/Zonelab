@@ -87,13 +87,45 @@ Exit code `1` kalau ada bagian yang gagal ditarik, dan yang gagal disebut di
 `failures` serta di `BRIEF.md`. Brief yang kehilangan satu timeframe tanpa
 mengatakannya terbaca sebagai timeframe yang tidak punya apa apa.
 
-## Yang TIDAK ada di sini
+## Bacaan yang menjaring, di `live.py`
 
-- **Checklist async** (`app/checklist.py`) butuh provider call per bias
-  timeframe dan per simbol SSMT, jadi ia hidup di jalur async API. Brief ini
-  sengaja sinkron supaya tidak ikut mati saat server mati.
-- **Triad dan korelasi** (`/api/triad`) untuk alasan yang sama.
+Checklist dan triad butuh provider call, jadi keduanya dipisah ke `live.py` dan
+dijalankan SETELAH seluruh bacaan struktural selesai. Bagian yang bisa gagal
+harus bisa gagal sendirian: kalau partner tidak terbaca, brief tetap keluar
+dengan semua yang tidak butuh partner, dan kegagalannya disebut.
 
-Keduanya bisa ditambahkan, dan kalau ditambahkan harus dengan penanganan
-kegagalan per partner, karena `load_aligned` melaporkan partner yang di-skip dan
-brief harus meneruskan laporan itu alih alih menelannya.
+Tiga hal yang dijaga di sana:
+
+- **Satu `asyncio.run` untuk keduanya.** Versi pertama memakai dua, dan yang
+  kedua gagal dengan `<asyncio.locks.Lock> is bound to a different event loop`.
+  `app/providers` menyimpan satu `asyncio.Lock` per key dan sebuah Lock terikat
+  ke loop tempat ia dibuat; `asyncio.run` menutup loop-nya saat selesai. Yang
+  muncul di permukaan bukan "loop salah" melainkan
+  `nothing left to compare XAUUSD with`, yaitu pesan yang terbaca seperti
+  masalah data.
+- **Partner yang di-skip diteruskan.** `load_aligned` melaporkannya, dan
+  korelasi dua instrumen yang disajikan seolah korelasi tiga bukan angka yang
+  lebih lemah, ia angka tentang sesuatu yang lain.
+- **Substitusi provider dilaporkan.** Binance dan Yahoo tidak membawa partner
+  triad, jadi keduanya jatuh ke mt5. `provider_asked`, `provider_used` dan
+  `provider_substituted` ketiganya ada di keluaran.
+
+## Rekonsiliasi OTE
+
+Dua sumber menjawab "di mana harga dalam retracement", dan brief membawa
+KEDUANYA:
+
+| Sumber | Dari | Dibaca oleh |
+|---|---|---|
+| `from_structure_swings` | `drawing.fibonacci`, dua pivot terkonfirmasi terakhir | grid Fibonacci |
+| `from_dealing_range` | `state["range_band"]`, swing-to-swing saat harga tiba | klausa `ote` dan `discount_or_premium` |
+
+Pada 29 Agustus 2026 keduanya menjawab berbeda di bar yang sama: grid memberi
+retracement 0,376 sementara klausanya mengembalikan "no dealing range, no OTE
+reading".
+
+`agree_within_0_10` membandingkan keduanya, dan `null` berarti salah satunya
+tidak terbaca. **Tidak terbaca bukan sepakat.** Tool ini tidak memilih pemenang:
+mana definisi yang berlaku adalah keputusan pemilik metode, dan klausa `ote`
+sendiri sudah diukur di 12 instrumen dengan nol lolos, jadi memilih definisi
+tidak mengubah bahwa ia belum punya nilai terukur.

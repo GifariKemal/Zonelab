@@ -110,3 +110,93 @@ def test_the_markdown_leads_with_what_must_not_be_concluded():
     caution = md.index("[!CAUTION]")
     assert caution < md.index("## Ringkasan per timeframe")
     assert "belum mengalahkan" in md, "pagar harus menyebut batas yang terukur"
+
+
+# ------------------------------------------------- bacaan yang menjaring
+
+
+def test_both_network_reads_share_one_event_loop():
+    """SATU `asyncio.run`, dan ini bukan kerapian.
+
+    Versi pertama memanggil `asyncio.run` dua kali, sekali untuk checklist dan
+    sekali untuk triad. Yang pertama berhasil dan yang kedua gagal dengan
+    `<asyncio.locks.Lock> is bound to a different event loop`, karena
+    `app/providers` menyimpan satu `asyncio.Lock` per key dan sebuah Lock
+    terikat ke loop tempat ia dibuat. `asyncio.run` menutup loop-nya saat
+    selesai, jadi panggilan kedua mewarisi lock milik loop yang sudah mati dan
+    SETIAP partner gagal.
+
+    Yang muncul di permukaan bukan "loop salah" melainkan "nothing left to
+    compare XAUUSD with", yaitu pesan yang terbaca seperti masalah data. Test
+    ini menghitung berapa loop yang dibuat, bukan memeriksa hasilnya, karena
+    hasilnya butuh terminal dan penyebabnya tidak.
+    """
+    import ast
+    import pathlib
+
+    src = pathlib.Path(__file__).resolve().parents[1] / "tools" / "brief" / "live.py"
+    tree = ast.parse(src.read_text(encoding="utf-8"))
+    runs = [
+        n for n in ast.walk(tree)
+        if isinstance(n, ast.Call)
+        and isinstance(n.func, ast.Attribute)
+        and n.func.attr == "run"
+        and isinstance(n.func.value, ast.Name)
+        and n.func.value.id == "asyncio"
+    ]
+    assert len(runs) == 1, (
+        f"{len(runs)} panggilan asyncio.run di live.py. Tiap satunya membuat "
+        "dan menutup loop sendiri, dan lock provider yang di-cache terikat ke "
+        "loop pertama. Bungkus semuanya dalam satu run."
+    )
+
+
+def test_a_skipped_triad_partner_is_forwarded_and_not_swallowed():
+    """Korelasi dua instrumen yang disajikan seolah korelasi tiga bukan angka
+    yang lebih lemah, ia angka tentang sesuatu yang lain.
+
+    `load_aligned` mengembalikan daftar `skipped`, dan brief harus
+    meneruskannya. Diperiksa lewat source karena jalur aslinya butuh terminal.
+    """
+    import pathlib
+
+    src = (pathlib.Path(__file__).resolve().parents[1]
+           / "tools" / "brief" / "live.py").read_text(encoding="utf-8")
+    assert '"skipped": skipped' in src, "daftar partner yang di-skip tidak diteruskan"
+    assert "skipped_note" in src, "partner yang di-skip diteruskan tanpa penjelasan"
+
+
+def test_the_two_ote_sources_are_reported_side_by_side_and_neither_wins():
+    """Dua definisi menjawab pertanyaan yang sama, dan tool pelapor tidak boleh
+    memilih pemenangnya. Memilih adalah keputusan pemilik metode."""
+    from tools.brief import live
+
+    out = live.ote_reconciliation(
+        {"present": True, "price_retracement": 0.376},
+        {"range_band": "discount", "range_pos": 0.30},
+    )
+    assert out["from_structure_swings"]["retracement"] == 0.376
+    assert out["from_dealing_range"]["band"] == "discount"
+    assert out["agree_within_0_10"] is True
+    assert "tidak memilih" in out["note"]
+
+    jauh = live.ote_reconciliation(
+        {"present": True, "price_retracement": 0.80},
+        {"range_band": "discount", "range_pos": 0.20},
+    )
+    assert jauh["agree_within_0_10"] is False
+
+
+def test_an_absent_dealing_range_says_so_instead_of_reading_as_zero():
+    """29 Agustus 2026: grid memberi 0,376 sementara klausanya mengembalikan
+    "no dealing range, no OTE reading". Absen bukan nol, dan absen bukan
+    setuju."""
+    from tools.brief import live
+
+    out = live.ote_reconciliation(
+        {"present": True, "price_retracement": 0.376},
+        {"range_band": None, "range_pos": None},
+    )
+    assert out["from_dealing_range"]["present"] is False
+    assert out["from_dealing_range"]["why_absent"]
+    assert out["agree_within_0_10"] is None, "tidak terbaca bukan sepakat"
