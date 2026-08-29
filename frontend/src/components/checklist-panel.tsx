@@ -277,8 +277,16 @@ export const ChecklistPanel = memo(function ChecklistPanel({
 
       <p className="border-t border-line px-3 py-2 text-[11px] leading-relaxed text-text-faint">
         Your rule, computed. Not a reading of what price will do: none of these five
-        items has been measured against outcomes, and the eleven directional
-        hypotheses this project did pre-register all failed.
+        items has been measured against outcomes, and the twelve directional
+        hypotheses this project did pre-register all failed.{" "}
+        <strong className="text-text-dim">
+          Nothing here can stop a trade.
+        </strong>{" "}
+        This report and the gate are two different surfaces: the clauses that can
+        actually refuse an order live in <code>app/ict.py</code> and are reachable
+        only from the command line, through <code>--require</code>. Both read the
+        same quarterly readings, so they cannot disagree about the facts, but
+        switching one on is not something this panel can do.
         {stats?.extra_fetches
           ? ` This cost ${stats.extra_fetches} extra provider call${stats.extra_fetches === 1 ? "" : "s"}.`
           : null}

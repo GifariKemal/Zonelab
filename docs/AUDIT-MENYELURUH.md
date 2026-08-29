@@ -302,13 +302,35 @@ Wiring dibuktikan lewat grep importer, bukan lewat nama file.
 | `ssmt.GAP_TO_SSMT` | nol pembaca | `"15m": "90m"`, dan `90m` bukan derajat sah; akan raise kalau dibaca |
 
 > [!WARNING]
-> **Ada dua checklist, dan hanya satu yang bisa memblokir.** `app/main.py`
-> tidak pernah mengimpor `app/ict.py`. Web app menghitung checklist lewat
-> `app/checklist.py`, yang nol kemunculan kata `required`. Seluruh kosakata
-> gerbang `Rules` hanya terjangkau dari `tools/execute.py`,
+> **Ada dua permukaan checklist, dan hanya satu yang bisa memblokir.**
+> `app/main.py` tidak pernah mengimpor `app/ict.py`. Web app menghitung
+> laporannya lewat `app/checklist.py`, yang nol kemunculan kata `required`.
+> Seluruh kosakata gerbang `Rules` hanya terjangkau dari `tools/execute.py`,
 > `tools/autotrade.py` dan `tools/conditioned.py`. Pengguna web tidak bisa
-> menyalakan gerbang; pengguna CLI bisa; dan tidak ada apa pun yang memeriksa
-> keduanya sepakat.
+> menyalakan gerbang; pengguna CLI bisa.
+
+> [!NOTE]
+> **Koreksi, 29 Agustus 2026 sore.** Versi pertama bagian ini menutup dengan
+> "dan tidak ada apa pun yang memeriksa keduanya sepakat". Itu terlalu keras,
+> dan ditelusuri lebih jauh ternyata salah menggambarkan bahayanya.
+>
+> Keduanya bukan dua implementasi hal yang sama. `app/ict.py` memancarkan
+> klausa bernama dengan gerbang; `app/checklist.py` menghasilkan
+> `ChecklistReport`, bacaan terstruktur yang sengaja tanpa pass/fail. Keduanya
+> menjawab pertanyaan berbeda, jadi menyatukannya bukan perbaikan.
+>
+> Dan keduanya **bermuara di satu sumber**: `app/checklist.py` memanggil
+> `quarterly.defining_range` dan `quarterly.manipulation_done` langsung,
+> sementara `app/conditions.py` memanggil dua fungsi yang sama lalu menaruh
+> jawabannya ke state dict yang dibaca `app/ict.py`. Jadi tidak ada dua
+> implementasi yang bisa berbeda soal faktanya.
+>
+> Yang nyata tinggal dua, dan keduanya sudah ditutup:
+> `tests/test_checklist_seam.py` memaku bahwa keduanya tetap membaca fungsi
+> yang sama dan tidak ada yang mendefinisikan salinan lokalnya, plus bahwa
+> hanya satu yang punya kosakata gerbang; dan panel checklist di web sekarang
+> menyatakan sendiri bahwa tidak ada apa pun di sana yang bisa menghentikan
+> sebuah trade.
 
 Satu klausa doktrin yang dekoratif: `day_of_week` menghitung
 `day_ok = ny_day in (0,1,2,3,4)`, jadi setiap hari kerja lolos. Seluruh doktrin
@@ -671,9 +693,13 @@ Status diperbarui 29 Agustus 2026 sore, setelah sepuluh butir ini dikerjakan.
       ke siklus daemon. Kepemilikan dibaca dari `magic` dan bukan dari journal,
       karena journal-nya gitignored dan tidak pernah direkonsiliasi. Order
       tangan di terminal yang sama tidak pernah ikut tersapu, dan itu dites
-- [ ] **7.** Dua checklist BELUM disatukan. Ini keputusan arsitektur yang
-      menyentuh permukaan API, dan menyatukannya diam diam akan mengubah apa
-      yang bisa memblokir sebuah trade
+- [x] **7.** Dua permukaan checklist TIDAK disatukan, dan setelah ditelusuri
+      itu memang jawaban yang benar: keduanya menjawab pertanyaan berbeda dan
+      sudah berbagi satu sumber bacaan. Yang dikerjakan adalah menutup bahaya
+      yang sebenarnya: `tests/test_checklist_seam.py` memaku sumber bersamanya
+      dan memaku bahwa hanya satu yang punya gerbang, dan panel web sekarang
+      menyatakan sendiri bahwa tidak ada apa pun di sana yang bisa menghentikan
+      trade
 - [ ] **8.** Korelasi partner BELUM diukur, tapi praregistrasinya sudah ditulis
       dan bertanggal sebelum satu angka pun ada:
       [`PRAREGISTRASI-KORELASI.md`](PRAREGISTRASI-KORELASI.md). Bagian 7-nya
