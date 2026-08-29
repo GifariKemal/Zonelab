@@ -508,12 +508,22 @@ try {
       withDial.mb < 2,
       `${(withDial.before / 1048576).toFixed(2)} -> ${(withDial.after / 1048576).toFixed(2)} MB`,
     );
+    // PAIRED, SAME TIMEFRAME, and for the third time in this file that turned
+    // out to matter. This compared against `claimsOff` taken before the storm,
+    // on whatever timeframe the page happened to be showing then - but the
+    // claim count is the number of LABELS drawn, and that moves with the
+    // timeframe like the corner's pixel count does. It passed by luck until the
+    // storm left the chart on a different interval, then read a difference of
+    // something other than one and called it a leak. Off and on are now read
+    // back to back with nothing else changing.
+    await setLayer(false);
+    const quietAfter = await claimCount();
+    await setLayer(true);
+    const litAfter = await claimCount();
     check(
-      "the claim list is still one rectangle after the storm",
-      (await (async () => {
-        await setLayer(true);
-        return claimCount();
-      })()) - claimsOff === 1,
+      "the dial still claims exactly one rectangle after the storm",
+      litAfter - quietAfter === 1,
+      `claims ${quietAfter} -> ${litAfter}`,
     );
   }
 } finally {

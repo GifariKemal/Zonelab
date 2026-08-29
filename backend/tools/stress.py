@@ -30,6 +30,12 @@ WHAT IS ACTUALLY STRESSED, and each of these is a shape a real user can reach:
   5. MEMORY. RSS before and after, because a leak in a long-lived server is a
      defect a short test cannot see and a trading day can.
 
+`tools/stress_api.py` is the narrow complement to this file: an async flood deep
+enough to reach `main._BUILDS`, plus a health probe that watches the event loop
+while it happens. It imports `rss_mb` from here rather than re-deriving it. If a
+question is about the heaviest draw, the sliders, churn, or memory, it belongs
+here; if it is about queue depth or loop starvation, it belongs there.
+
 NOTHING HERE ASSERTS A THRESHOLD. There is no measured baseline for what this
 service "should" do on this machine, so inventing one would be a gate with no
 evidence behind it. It prints numbers and names failures; a human reads it. The

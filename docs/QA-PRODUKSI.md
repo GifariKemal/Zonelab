@@ -10,7 +10,7 @@ mesin ini, dan bila sebuah klaim belum terukur, kalimatnya mengatakan begitu.
 
 ## Daftar Isi
 
-Enam belas bagian, dan urutannya adalah urutan pengerjaannya - bukan urutan
+Tujuh belas bagian, dan urutannya adalah urutan pengerjaannya - bukan urutan
 kepentingannya. Kalau hanya ada waktu untuk tiga: bagian 3 adalah celah gambar
 terbesar yang ditemukan, bagian 11 adalah keadaan akhir yang terukur, dan bagian 7
 adalah cerita tentang bagaimana memperbaiki peringatan yang paling murah justru
@@ -23,7 +23,7 @@ merusak dua hal.
 | 3 | [Dealing range](#3-dealing-range-dihitung-distempel-tidak-pernah-digambar) | dihitung selama ini, tidak pernah sampai ke kanvas |
 | 4 | [Korelasi lintas instrumen](#4-korelasi-lintas-instrumen-yang-sebelumnya-tidak-ada-sama-sekali) | nol perhitungan korelasi di repo, sekarang terukur per pasangan |
 | 5 | [Instrumen tak terjangkau](#5-instrumen-yang-jalan-tapi-tidak-terjangkau) | `US30` dan `GBPJPY` jalan tapi tidak ada di picker |
-| 6 | [Stress test](#6-stress-test) | draw terberat, konkurensi, churn, memori |
+| 6 | [Stress test](#6-stress-test) | draw terberat, konkurensi, churn, memori, plus flood asinkron dan storm UI |
 | 7 | [Peringatan lint](#7-peringatan-lint-dan-kerusakan-yang-saya-buat-sendiri-saat-memperbaikinya) | 13 peringatan sepele ditukar dengan 2 kerusakan sunyi |
 | 8 | [Kalibrasi lawan open source](#8-kalibrasi-lawan-implementasi-open-source) | tidak ada jawaban kanonik untuk hampir setiap aturan |
 | 9 | [Benchmark](#9-benchmark-di-mana-kita-berdiri) | kalimat anti-repaint sudah ditempati, artefaknya kosong |
@@ -34,6 +34,7 @@ merusak dua hal.
 | 14 | [Label berimpit](#14-label-level-yang-berimpit-dibuang-bukan-ditumpuk) | digabung `PDL/PDH` alih-alih dibuang |
 | 15 | [Cleanup](#15-cleanup-dan-satu-repaint-yang-ditemukan-saat-merapikan) | apa yang dihapus, apa yang hampir dihapus padahal bukti |
 | 16 | [Launcher sekali klik](#16-launcher-sekali-klik-dan-insiden-desktop) | start.bat dan stop.bat, plus insiden desktop yang saya sebabkan |
+| 17 | [Jalur order nyata](#17-jalur-order-nyata-empat-gate-yang-tidak-mengikat) | empat gate yang tidak mengikat, dan fixture test yang ikut menyandi cacatnya |
 
 > [!TIP]
 > Setiap bagian berisi angka dan perintah yang menghasilkannya. Kalau sebuah klaim
@@ -485,6 +486,128 @@ Jalan pertama tool ini melaporkan dua puluh HTTP 422. Semuanya salah saya:
 `DrawRequest` melarang kunci tambahan, jadi `{"fvg": {...}}` adalah 422 dan bukan
 no-op sunyi. Modelnya bekerja seperti seharusnya. Nama bloknya sekarang diambil
 dari skema yang disajikan, bukan diketik ulang.
+
+### Flood asinkron dan starvation event loop, 29 Agustus 2026
+
+`tools/stress.py` di atas menanyakan apakah service bertahan dipakai keras.
+Bagian ini menanyakan dua hal yang tidak dijawabnya: berapa dalam antreannya, dan
+apakah event loop masih terlayani saat antrean itu penuh. Tool-nya
+`backend/tools/stress_api.py`, dan ia meminjam `rss_mb` dari `stress.py` alih-alih
+menurunkannya lagi.
+
+Endpoint yang dipukul `POST /api/draw` dengan layer `vortex` saja, provider
+synthetic, 400 bar.
+
+**p95 tunggal untuk endpoint ini menyesatkan, dan kurvanya yang menjelaskan.**
+`app/main.py` membatasi build serentak ke dua lewat `_BUILDS = asyncio.Semaphore(2)`,
+dengan insidennya tertulis di sebelahnya: worker pernah membakar 6,05 detik CPU
+dalam 6 detik dan `/api/health` makan 8,01 detik. Batas itu antrean, jadi pada
+kedalaman N yang terukur adalah berapa banyak yang sudah mengantre di depan,
+bukan berapa lama kerjanya.
+
+| Concurrency | p50 | p95 | p99 |
+|---|---:|---:|---:|
+| 1 | 5,1 | 8,3 | 8,9 |
+| 2 | 6,0 | 10,3 | 11,7 |
+| 8 | 22,5 | 28,9 | 33,1 |
+| 32 | 144,7 | 485,1 | 681,3 |
+| 128 | 579,4 | 1128,1 | 1201,3 |
+| flood 5.000 | 2790,9 | 12893,6 | 20463,8 |
+
+Bend-nya persis di lebar semaphore. Sampai concurrency 2 yang terukur service
+time; sesudahnya antrean.
+
+**Service time p95 10,3 ms** pada concurrency 2, yaitu rung terdalam yang masih
+mengukur layanan dan bukan antrean. **p95 di bawah flood 5.000 adalah 12.893,6 ms**,
+dan angka itu dilaporkan tanpa gerbang: menuntutnya di bawah 150 ms sama dengan
+menuntut flood guard-nya tidak ada.
+
+**Event loop tidak tersentuh.** Ini pertanyaan "apakah math engine-nya
+non-blocking", dan latency draw tidak bisa menjawabnya karena ia tidak memisahkan
+antrean dari blocking. `/api/health` mengembalikan dict dan tidak menyentuh apa
+pun, jadi tiap milidetiknya adalah loop yang sedang sibuk di tempat lain.
+
+| Run | health p95 saat flood | kontrol idle | selisih |
+|---|---:|---:|---:|
+| A | 3,1 ms (480 sampel) | 3,7 ms | -0,6 |
+| B | 5,6 ms (727 sampel) | 4,0 ms | +1,6 |
+| C | 5,1 ms (689 sampel) | 3,9 ms | +1,3 |
+
+Dengan 5.000 request menganggur di antrean, health dijawab dalam 5 ms. Bandingkan
+dengan 8.010 ms yang tercatat saat loop-nya benar-benar kelaparan. Dial-nya
+aritmetika enam integer dan tidak dekat pun ke blocking.
+
+**Memori tidak bocor, dan ini butuh enam run untuk dikatakan.** Tiga run pertama
+naik (+2,0, +4,9, +2,5 MB) dan itu terbaca seperti tren.
+
+| Run | RSS sesudah | Delta |
+|---|---:|---:|
+| awal | 82,5 MB | |
+| 1 | 84,5 MB | +2,0 |
+| 2 | 91,0 MB | +4,9 |
+| 3 | 93,5 MB | +2,5 |
+| 4 | 89,2 MB | -4,3 |
+| 5 | 93,1 MB | +3,8 |
+| 6 | **72,7 MB** | -20,4 |
+
+Setelah 30.000 request ia berakhir **10 MB di bawah tempat ia mulai**. Itu
+high-water allocator dan waktu GC, bukan kebocoran, dan bentuknya sama dengan
+temuan `stress.py`: berayun lalu kembali ke tempat semula. Tiga run pertama saja
+akan menghasilkan kalimat yang salah.
+
+> [!WARNING]
+> Ambang di `stress_api.py` (p95 150 ms, RSS +10 MB) **ditentukan owner**, bukan
+> diturunkan dari baseline terukur. Itu satu-satunya alasan file itu boleh
+> menegaskan apa pun, karena `stress.py` sengaja tidak menegaskan satu ambang pun
+> dengan alasan yang masih berlaku: proyek ini tidak punya baseline untuk apa
+> yang "seharusnya" dicapai mesin ini di mesin ini.
+
+### Storm interaksi UI, dan empat instrumen yang berbohong
+
+`frontend/e2e/vortex.mjs --storm`. 310 klik dalam 119 detik, nol page error, nol
+canvas context loss, heap 13,96 -> 13,89 MB. Lawan control pass yang melakukan
+churn timeframe sama tanpa layer pernah menyala (+0,53 MB), yang dapat
+diatribusikan ke dial adalah **-0,57 MB**.
+
+Angka-angka itu baru berarti setelah empat instrumen diperbaiki, dan keempatnya
+LULUS sebelum diperbaiki. Tiga dari empat adalah kesalahan yang sama: sebuah
+angka yang berubah dengan timeframe dibandingkan lintas timeframe.
+
+1. **Health probe mengukur dirinya sendiri.** Versi pertama await di event loop
+   dan connection pool yang sama dengan flood yang sedang ia ukur, dan membaca
+   259 ms p95 pada 300 request saja. Itu tidak bisa dibedakan dari server yang
+   sibuk, yaitu persis hal yang ia dibuat untuk membedakan. Dipindah ke thread
+   sendiri dengan client sync plus kontrol idle: beban sama, 18,7 ms.
+2. **Storm lulus 27 dari 27 tanpa sekali pun menggambar dial.** Pada 120 ms per
+   klik ia menoggle lebih cepat daripada satu round trip `/api/draw`, jadi tiap
+   request ON dibatalkan klik berikutnya dan `setDial` terpanggil **nol kali**
+   sepanjang 100 toggle, dihitung lewat marker suntikan. Sekarang tiap cycle
+   burst 120 ms untuk menguji abort path, lalu settle 1300 ms, dan lima sampel
+   wajib melihat dial-nya.
+3. **Sampel itu membandingkan lintas timeframe.** Jumlah pixel abu di pojok
+   berubah dengan candle, jadi baseline dari satu timeframe lawan sampel dari
+   tiga timeframe lain memberi 0 dari 5 pada `dark 3434` lawan
+   `lit 3572/2777/3572/2777/3572`. Sekarang off dan on dibaca berurutan di
+   timeframe yang sama: 5 dari 5, gain +1267 sampai +1554.
+4. **Hitungan klaim label juga dibandingkan lintas timeframe.** Cacat yang sama
+   sekali lagi, di check yang berbeda: jumlah klaim adalah jumlah label yang
+   digambar, dan itu ikut berubah dengan interval. Ia lolos selama storm-nya
+   kebetulan berakhir di timeframe yang sama, lalu gagal begitu tidak, dan
+   melaporkannya sebagai kebocoran. Sekarang off dan on dibaca berurutan:
+   `claims 1 -> 2`.
+
+**Gate heap dibuktikan tidak kosong, dan butuh dua percobaan.** `Uint8Array`
+64 KB per `setDial` tidak menggerakkan angkanya sama sekali, karena storage typed
+array ada di external memory V8 dan `JSHeapUsedSize` tidak melihatnya. Leak objek
+biasa terlihat: sekitar 400 KB per panggilan membaca +15,56 MB lawan kontrol
++0,46 MB, exit 1.
+
+> [!CAUTION]
+> Menyuntikkan cacat ke kode frontend lalu langsung menjalankan harness akan
+> menguji **kode basi**. Next dev butuh sekitar 25 sampai 30 detik untuk
+> recompile di mesin ini; dengan jeda 5 detik run-nya lulus dengan leak yang
+> sudah hidup di file. Verifikasi defect-nya sampai ke browser dulu, misalnya
+> lewat marker di `globalThis`, sebelum mempercayai hasilnya.
 
 ## 7. Peringatan lint, dan kerusakan yang saya buat sendiri saat memperbaikinya
 

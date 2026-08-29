@@ -37,6 +37,21 @@ nothing about the code path under test. `--provider mt5` runs the real one, and
 is worth running small: MT5 is a LOCAL provider, which `app/providers` gives a
 zero-second cache TTL, so every request there is a fresh terminal pull.
 
+NOT THE ONLY STRESS TOOL, and the split is worth knowing before adding a third.
+`tools/stress.py` covers the heaviest honest draw, every slider at both limits,
+a sync concurrency sweep, churn, and RSS - and it deliberately asserts NOTHING,
+because this project has no measured baseline for what the service "should"
+reach and a gate without evidence is a gate without a floor. This file is the
+narrow complement: an ASYNC flood deep enough to reach the semaphore, and a
+health probe that can see the event loop while it happens. Its thresholds are
+OWNER-SPECIFIED rather than derived from a baseline, which is the only reason it
+is allowed to assert at all.
+
+`rss_mb` is imported from that file rather than written again. It reads the
+process holding the port, and its docstring carries why: an earlier version
+found "the largest python.exe" and reported memory deltas of -138.5 MB, which is
+not memory behaviour, it is a different process being measured each time.
+
 READ ONLY. It sends POSTs to a drawing endpoint and GETs to health. It places
 no order and touches no switch.
 """
@@ -46,11 +61,12 @@ from __future__ import annotations
 import argparse
 import asyncio
 import json
-import subprocess
 import threading
 import time
 
 import httpx
+
+from tools.stress import rss_mb
 
 BASE = "http://127.0.0.1:8100"
 
@@ -75,59 +91,6 @@ def percentile(values: list[float], p: float) -> float:
     ordered = sorted(values)
     rank = max(1, min(len(ordered), int(-(-p * len(ordered) // 1))))
     return ordered[rank - 1]
-
-
-def port_owner(port: int = 8100) -> int | None:
-    """PID holding the port, via PowerShell rather than a parsed `netstat`.
-
-    Windows-only, like `start.bat` and `stop.bat`, and for the same reason: this
-    is the platform the project runs on and a second code path for a second
-    platform would be a second thing to keep correct. `Get-NetTCPConnection`
-    returns the owner as a field rather than as the fifth whitespace-separated
-    column, which is one fewer thing to parse wrong.
-    """
-    try:
-        out = subprocess.run(
-            ["powershell", "-NoProfile", "-Command",
-             f"(Get-NetTCPConnection -LocalPort {port} -State Listen"
-             " -ErrorAction SilentlyContinue).OwningProcess"],
-            capture_output=True, text=True, timeout=30,
-        ).stdout.strip().splitlines()
-    except Exception:
-        return None
-    for line in out:
-        if line.strip().isdigit():
-            return int(line.strip())
-    return None
-
-
-def rss_mb(pid: int | None) -> float | None:
-    """Working set of `pid` in MB, and of its children too.
-
-    CHILDREN INCLUDED because uvicorn is not always one process. `app/main.py`
-    records a diagnosis that was wrong for exactly this reason: "CPU delta 0
-    over 6 seconds" had been measured on the PARENT, which is only a launcher,
-    while the child was pinned at a full core. A memory number read off the
-    wrong process would be wrong the same way and would look just as calm.
-    """
-    if pid is None:
-        return None
-    script = (
-        f"$ids = @({pid}); "
-        f"$ids += (Get-CimInstance Win32_Process -Filter 'ParentProcessId = {pid}')"
-        ".ProcessId; "
-        "($ids | Where-Object { $_ } | ForEach-Object { "
-        "(Get-Process -Id $_ -ErrorAction SilentlyContinue).WorkingSet64 } "
-        "| Measure-Object -Sum).Sum"
-    )
-    try:
-        out = subprocess.run(
-            ["powershell", "-NoProfile", "-Command", script],
-            capture_output=True, text=True, timeout=30,
-        ).stdout.strip()
-        return int(out) / (1024 * 1024) if out.isdigit() else None
-    except Exception:
-        return None
 
 
 async def one(client: httpx.AsyncClient, body: dict) -> tuple[float, int]:
@@ -262,10 +225,10 @@ async def main_async(args: argparse.Namespace) -> int:
               f"{len(dial['matrix'])}x{len(dial['matrix'][0])} matrix, lit {dial['lit']}")
         print(f"provider {args.provider}, {args.bars} bars, layer vortex only\n")
 
-        pid = port_owner()
-        before = rss_mb(pid)
-        print(f"backend pid {pid}, RSS before {before:.1f} MB\n" if before is not None
-              else f"backend pid {pid}, RSS unavailable\n")
+        before = rss_mb()
+        print(f"RSS before {before:.1f} MB" if before is not None
+              else "RSS unavailable")
+        print()
 
         # ---- the curve --------------------------------------------------
         print(f"LATENCY CURVE, {LADDER_REQUESTS} requests per rung")
@@ -307,7 +270,7 @@ async def main_async(args: argparse.Namespace) -> int:
         print(f"  wall clock {elapsed:.2f}s, throughput "
               f"{args.requests / elapsed:.0f} req/s\n")
 
-        after = rss_mb(pid)
+        after = rss_mb()
 
     # ---- assertions ------------------------------------------------------
     print("ASSERTIONS")
