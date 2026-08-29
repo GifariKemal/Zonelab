@@ -76,3 +76,10 @@ backend/.monitor.json
 # Artefak Playwright. Dihasilkan ulang tiap run, dan sebagian berisi screenshot
 # chart akun sungguhan.
 frontend/test-results/
+
+# Keluaran `python -m tools.brief`. Snapshot hidup, bukan bukti pengukuran:
+# ia berubah tiap run dan 3 MB per run akan mengotori diff. Berbeda dengan
+# `docs/*.json`, yang memang di-commit karena satu satunya salinan angka yang
+# sebuah dokumen mengutipnya. Di-anchor ke root: tanpa slash awal ia juga
+# match ke backend/tools/brief, yaitu paket yang MENGHASILKANNYA.
+/brief/
