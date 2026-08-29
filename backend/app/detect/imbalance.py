@@ -532,12 +532,21 @@ def _present(
 
     NO overlap merge here, and that is a decision rather than an omission. It
     was tried: reusing supply and demand's `_dedupe` cut same-side overlaps by
-    74%, and it was reverted the same hour because it was removing real objects
-    for a bad reason. `_dedupe` picks the survivor by `formation_score`, which is
-    0.0 for every imbalance zone, so the winner was whatever happened to sort
-    first - on one test that meant keeping a 0.3-wide sliver and discarding the
-    4.5-wide gap containing it. Two gaps at different bars are two events, not
-    one drawn twice, and ICT treats stacked gaps as meaningful.
+    74%, and it was reverted the same hour because it was removing real objects.
+
+    THE REASON THAT STILL STANDS: two gaps at different bars are two events, not
+    one drawn twice, and ICT treats stacked gaps as meaningful. That is true
+    whatever `_dedupe` ranks by, and it alone is enough to keep the merge out.
+
+    What no longer holds is the mechanism the revert was blamed on at the time.
+    `_dedupe` then tiebroke on `formation_score`, which is 0.0 for every zone
+    this module builds, so the winner was whatever happened to sort first: on
+    one test that meant keeping a 0.3-wide sliver and discarding the 4.5-wide
+    gap containing it. It tiebreaks on `departure_atr` now, and every zone built
+    here carries a real displacement in that field, so a reader must not
+    conclude the survivor would still be arbitrary. It would be the widest
+    displacement, a defensible pick. The merge stays out on the paragraph above
+    instead, which is the half of the argument that was never about sort order.
 
     The redundancy the merge was hiding was real, but its cause was the order
     block detector marking EVERY opposite candle instead of the last one. That

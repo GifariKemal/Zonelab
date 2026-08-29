@@ -421,23 +421,28 @@ def divergences_for(
 # --------------------------------------------------------------------------
 
 
-#: The practitioner's fractal rule: an HTF gap should be confirmed by an LTF
-#: SSMT at the corresponding degree. The key is the gap's timeframe — the chart
-#: the gap is drawn on — and the value is the SSMT degree that should confirm
-#: it. Source: Bang Nas ICT, POSKO 618 reference material.
-#:
-#:     Daily Gap = Monthly SSMT/Cycle
-#:     H4 Gap   = Weekly SSMT/Cycle
-#:     H1 Gap   = Daily SSMT/Cycle
-#:     M15 Gap  = 90m SSMT/Cycle
-#:     M5 Gap   = Micro SSMT/Cycle
-GAP_TO_SSMT: dict[str, str] = {
-    "1d": "month",
-    "4h": "week",
-    "1h": "day",
-    "15m": "90m",
-    "5m": "micro",
-}
+# ATURAN FRAKTALNYA DICATAT DI SINI DAN SENGAJA BUKAN SEBAGAI LOOKUP.
+#
+# Aturan praktisinya: gap di timeframe tinggi sebaiknya dikonfirmasi SSMT di
+# derajat yang bersesuaian. Sumber: Bang Nas ICT, materi POSKO 618.
+#
+#     Daily Gap = Monthly SSMT/Cycle
+#     H4 Gap    = Weekly SSMT/Cycle
+#     H1 Gap    = Daily SSMT/Cycle
+#     M15 Gap   = 90m SSMT/Cycle
+#     M5 Gap    = Micro SSMT/Cycle
+#
+# Sampai 29 Agustus 2026 ini hidup sebagai dict `GAP_TO_SSMT`, dan dict itu
+# punya dua masalah sekaligus. Nol pembaca, di mana pun; dan barisnya untuk M15
+# memetakan ke `"90m"`, yang BUKAN derajat sah. `quarters.ALL_DEGREES` tidak
+# memuatnya, jadi `quarters("90m", ...)` akan melempar ValueError. Kuarter 90
+# menit di repo ini dihasilkan oleh derajat `session`, bukan oleh nama "90m".
+#
+# Ia tidak pernah melempar justru karena tidak ada yang membacanya, jadi ia
+# tabel yang salah yang dibekukan oleh ketidakhadiran pemakainya. Menyimpannya
+# sebagai dict mengundang seseorang menyambungkannya dan menemukan crash-nya;
+# menyimpannya sebagai catatan mempertahankan doktrinnya tanpa jebakannya.
+# Kalau suatu saat disambungkan, "90m" harus jadi `"session"` lebih dulu.
 
 
 # --------------------------------------------------------------------------

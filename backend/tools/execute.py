@@ -58,6 +58,7 @@ from app.providers.base import INTERVALS
 from app.quarters import ALL_DEGREES, true_opens
 from app.resample import STEP_UP, resample
 from app.ssmt import divergences_for as ssmt_divergences_for
+from tools.broker import RULE, _terminal, lot_specs, place, realised_today, sizing
 from app.ssmt import ssmt as ssmt_read
 from app.ssmt import two_stage
 from tools import history
@@ -82,25 +83,6 @@ STAGE_PAIRS: dict[str, tuple[str, str]] = {
     "5m": ("micro", "nano"),
     "1m": ("micro", "nano"),
 }
-
-#: MetaTrader truncates silently past this and `order_check` answers
-#: `Invalid "comment" argument` without saying which argument or why. Measured on
-#: the connected terminal 2026-08-21: 31 characters is accepted, 32 is not.
-COMMENT_MAX = 31
-
-#: What decision procedure produced a record. Stored on every journal line, so a
-#: review months later can tell a change of market from a change of rule.
-RULE = {
-    "population": "first touch of a gate-clearing supply_demand zone, both sides",
-    "gate": f"departure_atr >= {DEPARTURE_GATE_ATR}",
-    "entry": "proximal, spread charged to the fill",
-    "stop": "distal plus 0.25 ATR buffer",
-    "target": "nearest live opposing zone (plan.target)",
-    "exit_rule": "flat at the 21:00 UTC rollover",
-    "horizon_bars": HORIZON,
-}
-
-
 def warn_required(rules) -> None:
     """Cetak peringatan untuk klausa yang diwajibkan, DUA jenis terpisah.
 
@@ -406,172 +388,6 @@ def true_open_levels(symbol: str, interval: str, candles) -> list[float]:
         levels += [lv.price for lv in true_opens(fine, ("session",))
                    if lv.time <= cutoff]
     return levels
-
-
-def realised_today(mt5) -> float | None:
-    """Hasil yang SUDAH terealisasi hari ini di akun, atau None kalau tak terbaca.
-
-    Dibaca dari `history_deals_get` sejak tengah malam waktu NY, bukan dari
-    journal: journal cuma tahu order yang tool ini kirim, sementara pengaman
-    kerugian harian harus melihat SELURUH akun. Sebuah posisi yang dibuka
-    dengan tangan lalu kena stop tetap mengosongkan equity yang sama.
-
-    None, bukan nol, ketika terminal tidak menjawab. `Book.admits` menolak pada
-    None: sebuah pengaman yang tidak bisa membaca harus berhenti, bukan
-    menganggap hari ini bersih.
-    """
-    if mt5 is None:
-        return None
-    midnight = datetime.now(NY).replace(hour=0, minute=0, second=0, microsecond=0)
-    try:
-        deals = mt5.history_deals_get(midnight, datetime.now(NY))
-    except Exception:  # noqa: BLE001 - terminal apa pun kesalahannya, jawabannya None
-        return None
-    if deals is None:
-        return None
-    # Profit sudah bersih dari commission dan swap pada deal penutup, dan
-    # keduanya dijumlahkan terpisah karena deal pembuka membawa commission-nya
-    # sendiri dengan profit nol.
-    return float(sum(d.profit + d.commission + d.swap for d in deals))
-
-
-def _terminal():
-    """The connected terminal, or a refusal naming what is wrong.
-
-    Imported here rather than at module scope so the rest of this file - and its
-    tests - can be read on a machine with no MetaTrader installed.
-    """
-    import MetaTrader5 as mt5
-
-    if not mt5.initialize():
-        return None, f"cannot reach a MetaTrader 5 terminal: {mt5.last_error()}"
-    account = mt5.account_info()
-    if account is None:
-        return None, f"terminal answered no account: {mt5.last_error()}"
-    if account.trade_mode != 0:
-        return None, (
-            f"account {account.login} reports trade_mode={account.trade_mode}, "
-            "and this tool sends orders to DEMO accounts only (0)"
-        )
-    if not account.trade_allowed:
-        return None, f"account {account.login} has trading disabled in the terminal"
-    return (mt5, account), ""
-
-
-def send_ok(mt5, sent) -> tuple[bool, str]:
-    """Apakah `order_send` berhasil. SATU tempat, karena dua tool salah sama.
-
-    RETCODE 0 BERARTI DUA HAL BERLAWANAN DI DUA CALL BERBEDA:
-
-      `order_check` sukses pada retcode 0 (TRADE_RETCODE_OK).
-      `order_send`  sukses pada 10009 TRADE_RETCODE_DONE, atau 10008 PLACED
-                    untuk pending. Retcode 0 dari `order_send` BUKAN sukses.
-
-    Sampai 27 Agustus 2026 `execute.place` DAN `flatten.close` sama-sama menguji
-    `sent.retcode != 0`. Akibatnya diukur, bukan dibayangkan: run 27 Agustus
-    mengirim dua pending XAUUSD yang BERHASIL (ticket 4609944538 dan
-    4609944542, keduanya ada di broker), mencetak
-    `GAGAL: order_send retcode=10009 'ok'`, dan menulis dua record `refused`
-    untuk order yang hidup. Yang lebih buruk, `book.held.append` cuma ada di
-    jalur sukses, jadi cap portofolio tidak pernah melihat 21,61 USD risiko yang
-    baru dikirim: satu cacat mematikan dua gate.
-
-    10010 DONE_PARTIAL sengaja BUKAN sukses. Untuk pending order ia tidak
-    seharusnya muncul, dan menghitungnya sukses akan menyembunyikan fill yang
-    lebih kecil dari yang disizing.
-    """
-    if sent is None:
-        return False, f"order_send answered nothing: {mt5.last_error()}"
-    if sent.retcode not in {mt5.TRADE_RETCODE_DONE, mt5.TRADE_RETCODE_PLACED}:
-        return False, (f"order_send retcode={sent.retcode} "
-                       f"{getattr(sent, 'comment', '')!r}")
-    return True, ""
-
-
-def place(mt5, zone, plan, symbol: str, volume: float) -> tuple[int | None, str]:
-    """Send one pending order and return its ticket, or None and the reason."""
-    long_side = plan.side is ZoneSide.DEMAND
-    request = {
-        "action": mt5.TRADE_ACTION_PENDING,
-        "symbol": symbol,
-        "volume": volume,
-        "type": mt5.ORDER_TYPE_BUY_LIMIT if long_side else mt5.ORDER_TYPE_SELL_LIMIT,
-        "price": round(plan.entry, 3),
-        "sl": round(plan.stop, 3),
-        "tp": round(plan.target, 3),
-        "type_time": mt5.ORDER_TIME_GTC,
-        "type_filling": mt5.ORDER_FILLING_RETURN,
-        # Truncated here rather than at the call site: the terminal's own error
-        # for an over-long comment does not mention length, and one debugging
-        # session per caller is one too many.
-        "comment": f"zonelab {zone.id}"[:COMMENT_MAX],
-    }
-    # `order_check` sukses pada 0, `order_send` TIDAK. Lihat `send_ok`.
-    checked = mt5.order_check(request)
-    if checked is None:
-        return None, f"order_check refused to answer: {mt5.last_error()}"
-    if checked.retcode != 0:
-        return None, f"order_check retcode={checked.retcode} {checked.comment!r}"
-    sent = mt5.order_send(request)
-    ok, why_not = send_ok(mt5, sent)
-    if not ok:
-        return None, why_not
-    return int(sent.order), ""
-
-
-def sizing(account, lots: dict[str, LotSpec], risk_pct: float) -> float:
-    """Equity dari terminal, dan cetak lot rules TIAP simbol apa adanya.
-
-    Tidak lagi mengembalikan LotSpec. Itu tugas `lot_specs`, per simbol, karena
-    satu spec untuk seluruh run adalah error 50x - lihat docstring di sana.
-    """
-    print(f"akun {account.login} {account.server} trade_mode={account.trade_mode} "
-          f"(0=DEMO) equity {account.equity} risk {risk_pct:.1%}")
-    for name, spec_ in sorted(lots.items()):
-        print(f"  {name}: contract {spec_.contract_size} "
-              f"min {spec_.volume_min} step {spec_.volume_step}")
-    return float(account.equity)
-
-
-def lot_specs(symbols: list[str]) -> tuple[dict[str, LotSpec], list[str]]:
-    """Lot rules PER SIMBOL dari terminal, dan simbol mana yang tak terbaca.
-
-    SATU CONTRACT SIZE UNTUK SELURUH RUN ADALAH ERROR 50x, dan itu hidup sampai
-    27 Agustus 2026. `sizing` dipanggil sekali dengan
-    `args.symbol.split(":")[-1]`, yang pada `mt5:XAUUSD,mt5:XAGUSD` menghasilkan
-    string 'XAUUSD,mt5:XAGUSD', lalu satu LotSpec-nya di-broadcast ke semua
-    simbol di baris 479. XAUUSD 100 unit per lot, XAGUSD 5000, jadi ke arah mana
-    pun broadcast-nya jatuh, salah satunya salah 50x.
-
-    Di dry run ia jatuh ke arah yang berbahaya. Silver dengan stop 0,651 dan
-    0,01 lot terbaca 0,65 USD; angka sebenarnya 32,53. Gate risiko meloloskan
-    tiga order silver yang, kalau terkirim, mempertaruhkan 3,3x anggarannya.
-
-    READ ONLY. Handle terminal-nya TIDAK dikembalikan, jadi dry run dapat
-    contract size yang benar tanpa ikut mendapat kemampuan mengirim apa pun.
-    """
-    bare = [s.split(":")[-1] for s in symbols]
-    try:
-        import MetaTrader5 as mt5
-    except ImportError:
-        return {}, bare
-    if not mt5.initialize():
-        return {}, bare
-    out: dict[str, LotSpec] = {}
-    missing: list[str] = []
-    for raw in symbols:
-        name = raw.split(":")[-1]
-        info = mt5.symbol_info(name)
-        if info is None:
-            missing.append(name)
-            continue
-        out[name] = LotSpec(contract_size=info.trade_contract_size,
-                            volume_min=info.volume_min,
-                            volume_max=info.volume_max,
-                            volume_step=info.volume_step)
-    return out, missing
-
-
 def gather(
     symbols: list[str],
     intervals: list[str],
@@ -722,12 +538,31 @@ def cycle(
         rows += [(o.symbol, o.price_open, o.sl, o.volume_current)
                  for o in (mt5.orders_get() or [])]
         for name, opened, stop, volume in rows:
+            # TIDAK TERHITUNG BUKAN NOL, dan dua cacat di dua baris ini
+            # membuktikan bedanya. `if not stop: continue` menghitung posisi
+            # tanpa stop sebagai nol risiko, jadi hal paling berbahaya yang bisa
+            # dipegang akun justru satu satunya yang tak terlihat cap. Dan
+            # `getattr(mt5.symbol_info(name), "trade_contract_size", 1.0)`
+            # mengembalikan 1,0 saat `symbol_info` menjawab None, karena
+            # `getattr(None, ...)` memang mengembalikan default-nya, jadi satu
+            # posisi emas menyumbang seperseratus dari yang seharusnya. Kelas
+            # yang sama dengan cacat 50x yang sudah diperbaiki di `lot_specs`.
+            info = mt5.symbol_info(name)
+            if info is None:
+                book.unbounded.append(
+                    f"{name} volume {volume}: symbol_info tidak terbaca, jadi "
+                    "contract size tidak diketahui"
+                )
+                continue
             if not stop:
+                book.unbounded.append(
+                    f"{name} volume {volume} dibuka di {opened}: tanpa stop "
+                    "loss, jadi kerugiannya tidak berbatas"
+                )
                 continue
             book.held.append(Held(
                 name,
-                abs(opened - stop) * volume
-                * getattr(mt5.symbol_info(name), "trade_contract_size", 1.0),
+                abs(opened - stop) * volume * info.trade_contract_size,
             ))
     else:
         book.partial = True
@@ -737,6 +572,11 @@ def cycle(
     # menjanjikan kapasitas yang `--send` tidak punya. Terukur 2026-08-27:
     # dry run mengirim 2 order, sementara satu posisi BTCUSD yang tak terbaca
     # sudah memakan 43.24 dari cap 58.89, jadi order kedua akan ditolak.
+    if book.unbounded:
+        print("  PERHATIAN: risiko yang tidak bisa dihitung, order baru DITOLAK "
+              "sampai ini beres:")
+        for line in book.unbounded:
+            print(f"    - {line}")
     print(f"  book: {book.committed:,.2f} sudah berisiko dari cap "
           f"{book.equity * book.cap_pct:,.2f}"
           + (" (POSISI TERBUKA TIDAK TERBACA, jadi ini LANTAI dan `--send` "

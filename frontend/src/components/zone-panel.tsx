@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { memo, useState } from "react";
 
+import { formatPrice } from "@/lib/price";
 import type { Advice, TradePlan, Zone } from "@/lib/types";
 import { clockStamp, type ClockZone } from "@/lib/clock";
 
@@ -79,6 +80,17 @@ interface Props {
    *  and "can currently be seen" are two different numbers, and this panel used
    *  to print only the first - which is what let six zones read as one. */
   clipped: { above: number; below: number };
+  /** How many decimals this instrument quotes, from the ONE `priceDecimals` call
+   *  in `app/page.tsx` that also sets the price axis and the header readout.
+   *
+   *  Threaded as a prop rather than recomputed here, and the reason is the reason
+   *  `lib/price.ts` exists at all: two places deciding a price format
+   *  independently is two places that can disagree, and this panel sits a few
+   *  hundred pixels from the axis it would disagree with. Every price below used
+   *  to be `toFixed(2)` typed inline, so on a 5-decimal FX pair the axis read
+   *  1.09234 and this panel read 1.09. Money in the ACCOUNT currency keeps its
+   *  own two decimals - realised risk and margin are not instrument prices. */
+  decimals: number;
 }
 
 /** Indonesian decimal comma, so a measured rate reads here exactly as it does
@@ -118,6 +130,7 @@ export const ZonePanel = memo(function ZonePanel({
   onReadAccount,
   canReadAccount,
   clipped,
+  decimals,
 }: Props) {
   const [tab, setTab] = useState<Tab>("zone");
   const hidden = clipped.above + clipped.below;
@@ -216,6 +229,7 @@ export const ZonePanel = memo(function ZonePanel({
                     zone={zone}
                     lastPrice={lastPrice}
                     chartInterval={chartInterval}
+                    decimals={decimals}
                     selected={zone.id === selectedId}
                     onSelect={onSelect}
                   />
@@ -253,7 +267,12 @@ export const ZonePanel = memo(function ZonePanel({
 
           <div className="scroll-thin min-h-0 flex-1 overflow-y-auto">
             {tab === "zone" ? (
-              <Inspector zone={selected} lastPrice={lastPrice} clock={clock} />
+              <Inspector
+                zone={selected}
+                lastPrice={lastPrice}
+                clock={clock}
+                decimals={decimals}
+              />
             ) : tab === "plan" ? (
               <PlanPanel
                 plan={plans.find((p) => p.zone_id === selected.id) ?? null}
@@ -262,6 +281,7 @@ export const ZonePanel = memo(function ZonePanel({
                 onReadAccount={onReadAccount}
                 canReadAccount={canReadAccount}
                 onEquity={onEquity}
+                decimals={decimals}
               />
             ) : (
               <AdvicePanel
@@ -279,12 +299,14 @@ function ZoneRow({
   zone,
   lastPrice,
   chartInterval,
+  decimals,
   selected,
   onSelect,
 }: {
   zone: Zone;
   lastPrice: number | null;
   chartInterval: string;
+  decimals: number;
   selected: boolean;
   onSelect: (id: string | null) => void;
 }) {
@@ -348,7 +370,8 @@ function ZoneRow({
         <span className="block text-[11px] text-text-dim">
           {zone.side === "demand" ? "Demand" : "Supply"}{" "}
           <span className="num">
-            {zone.bottom.toFixed(2)} to {zone.top.toFixed(2)}
+            {formatPrice(zone.bottom, decimals)} to{" "}
+            {formatPrice(zone.top, decimals)}
           </span>
         </span>
       </span>
@@ -386,6 +409,7 @@ function PlanPanel({
   equityFrom,
   onReadAccount,
   canReadAccount,
+  decimals,
 }: {
   plan: TradePlan | null;
   equity: string;
@@ -393,6 +417,7 @@ function PlanPanel({
   equityFrom: string | null;
   onReadAccount: () => void;
   canReadAccount: boolean;
+  decimals: number;
 }) {
   if (plan === null) {
     return (
@@ -469,13 +494,19 @@ function PlanPanel({
       )}
 
       <dl className="px-3 py-2">
-        <Row label="Entry" value={plan.entry.toFixed(2)} />
-        <Row label="Stop" value={plan.stop.toFixed(2)} />
+        {/* PRICES, so they follow the axis. `risk_per_unit` is |entry - stop|,
+            and the spread and cost rows further down are built in `plan.py` as
+            `entry + way * cost` - so all of them live on the instrument's own
+            scale rather than in the account currency. */}
+        <Row label="Entry" value={formatPrice(plan.entry, decimals)} />
+        <Row label="Stop" value={formatPrice(plan.stop, decimals)} />
         <Row
           label="Target"
-          value={plan.target === null ? "tidak terukur" : plan.target.toFixed(2)}
+          value={
+            plan.target === null ? "tidak terukur" : formatPrice(plan.target, decimals)
+          }
         />
-        <Row label="Risk per unit" value={plan.risk_per_unit.toFixed(2)} />
+        <Row label="Risk per unit" value={formatPrice(plan.risk_per_unit, decimals)} />
         <Row
           label="Reward"
           value={plan.reward_r === null ? "tidak terukur" : `${plan.reward_r.toFixed(2)}R`}
@@ -500,6 +531,9 @@ function PlanPanel({
           <Row
             label="Risk that size really carries"
             value={
+              // ACCOUNT CURRENCY, not the instrument, so this one legitimately
+              // keeps two decimals: `plan.py` already rounds it to 2, and a
+              // broker statement is quoted in cents whatever the pair quotes in.
               plan.realised_risk.toFixed(2) +
               (plan.realised_risk_pct !== null
                 ? ` (${pct(plan.realised_risk_pct)})`
@@ -513,12 +547,16 @@ function PlanPanel({
             value={
               plan.margin_required === 0
                 ? "none, leverage unlimited"
-                : plan.margin_required.toFixed(2)
+                : // Account currency too, same reason as the row above.
+                  plan.margin_required.toFixed(2)
             }
           />
         ) : null}
         {plan.spread_charged !== null ? (
-          <Row label="Spread charged" value={plan.spread_charged.toFixed(2)} />
+          <Row
+            label="Spread charged"
+            value={formatPrice(plan.spread_charged, decimals)}
+          />
         ) : null}
         {/* Costs are charged INTO the plan for the first time here; until this
             field existed they lived only in the measurement harness and the
@@ -534,7 +572,7 @@ function PlanPanel({
           value={
             plan.cost_charged === null
               ? "nothing charged, no schedule"
-              : plan.cost_charged.toFixed(2)
+              : formatPrice(plan.cost_charged, decimals)
           }
         />
         <Row
@@ -550,7 +588,14 @@ function PlanPanel({
           value={
             plan.carry_per_night === null
               ? "tidak terukur"
-              : plan.carry_per_night.toFixed(5)
+              : // FIVE, deliberately, and left alone. Carry is
+                // `entry * carry_bp_per_night / 10000`, three or four orders of
+                // magnitude smaller than the price it came from - at the
+                // instrument's own count a gold carry of 0.00034 prints as
+                // 0.000. Five is at or above every count `priceDecimals` can
+                // return, so it can only ever show MORE resolution than the
+                // axis, never less, and that is the direction that loses nothing.
+                plan.carry_per_night.toFixed(5)
           }
         />
       </dl>
@@ -656,11 +701,13 @@ function Inspector({
   zone,
   lastPrice,
   clock,
+  decimals,
 }: {
   zone: Zone;
   lastPrice: number | null;
   /** The one clock the whole app prints in, chosen beside the chart. */
   clock: ClockZone;
+  decimals: number;
 }) {
   const height = zone.top - zone.bottom;
   const away =
@@ -679,9 +726,10 @@ function Inspector({
       </header>
 
       <dl className="px-3 py-2">
-        <Row label="Proximal" value={zone.proximal.toFixed(2)} />
-        <Row label="Distal" value={zone.distal.toFixed(2)} />
-        <Row label="Height" value={height.toFixed(2)} />
+        {/* Two prices and one price difference, all on the axis's scale. */}
+        <Row label="Proximal" value={formatPrice(zone.proximal, decimals)} />
+        <Row label="Distal" value={formatPrice(zone.distal, decimals)} />
+        <Row label="Height" value={formatPrice(height, decimals)} />
         {away ? <Row label="Distance from price" value={`${away}%`} /> : null}
         <Row label="Departure" value={`${zone.departure_atr.toFixed(2)} ATR`} />
         {/* Shown only when false, next to the number it qualifies: departure is
@@ -725,9 +773,12 @@ function Inspector({
         {zone.refinement ? (
           <Row
             label="Refined"
-            value={`${(zone.refinement.shrank_to * 100).toFixed(0)}% of ${(
-              zone.refinement.from_top - zone.refinement.from_bottom
-            ).toFixed(2)}, from ${zone.refinement.bars} ${zone.refinement.timeframe} bars`}
+            // `shrank_to` is a fraction and keeps its own count; the figure it
+            // is a share OF is the original box height, which is a price.
+            value={`${(zone.refinement.shrank_to * 100).toFixed(0)}% of ${formatPrice(
+              zone.refinement.from_top - zone.refinement.from_bottom,
+              decimals,
+            )}, from ${zone.refinement.bars} ${zone.refinement.timeframe} bars`}
           />
         ) : null}
         {zone.arrival_atr !== null ? (

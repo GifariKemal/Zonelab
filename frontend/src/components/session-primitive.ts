@@ -12,7 +12,7 @@ import type { CanvasRenderingTarget2D } from "fancy-canvas";
 import type { NewsEvent, SessionQuarter, TrueOpenLevel } from "@/lib/types";
 import { cycleWeekday, sessionOpenName } from "@/lib/clock";
 import { INKS } from "./ink";
-import { LABEL_GUTTER, claimedLabels, labelFree, resetLabels } from "./structure-primitive";
+import { LABEL_GUTTER, claimedLabels, labelFree } from "./structure-primitive";
 
 /**
  * The New York cycle grid: quarter boxes and true opens.
@@ -46,10 +46,15 @@ import { LABEL_GUTTER, claimedLabels, labelFree, resetLabels } from "./structure
  * would assert exactly what eleven failed hypotheses could not.
  */
 
-/** Neutral, and quieter than the structure overlay's own rgb(154, 166, 181):
- *  the grid is context, not an event. Stated here rather than read from a CSS
- *  variable, because the two theme tokens that once named these inks were read
- *  by nothing and had already drifted away from the values actually painted. */
+/** Neutral, and quieter than the structure overlay's own rgb(161, 132, 195):
+ *  the grid is context, not an event. The literal here used to read
+ *  rgb(154, 166, 181), which was true before `ink.ts` gave each family its own
+ *  hue and false afterwards - a comment carrying a stale rgb triple is the exact
+ *  failure mode the rest of this sentence goes on to describe.
+ *
+ *  Stated here rather than read from a CSS variable, because the two theme
+ *  tokens that once named these inks were read by nothing and had already
+ *  drifted away from the values actually painted. */
 const INK = INKS.grid;
 
 /** A TRUE OPEN IS NOT CONTEXT, so it does not get the context ink.
@@ -58,16 +63,21 @@ const INK = INKS.grid;
  *  a wash behind the candles. It is wrong for a named horizontal level, which is
  *  the single most-used object in the owner's whole practice - on 24 of his 24
  *  price charts - and which a reader is meant to compare a price against. The
- *  measurement: the ray at alpha 0.7 in the grid ink is 2.27:1 against #0b0d10
- *  and its name at 0.95 is 3.22:1. Even at full opacity the grid ink tops out at
- *  3.45:1, so no alpha available on it can carry 10px text past the 4.5:1 floor.
- *  The ink itself had to change.
+ *  measurement, recomputed against the palette `ink.ts` now owns: the ray at
+ *  alpha 0.7 in the grid ink is 2.29:1 against #0b0d10 and its name at 0.95 is
+ *  3.26:1. Even at full opacity the grid ink tops out at 3.49:1, so no alpha
+ *  available on it can carry 10px text past the 4.5:1 floor. The ink itself had
+ *  to change. (This comment shipped with 2.27 / 3.22 / 3.45, measured on the
+ *  grey-blue that preceded `INKS.grid`. The conclusion held; the numbers had
+ *  moved and nobody had moved them.)
  *
- *  This is the LEVELS overlay's ink, the same rgb(139, 150, 165) an event
- *  horizon and a liquidity pool are drawn in, and that is the point rather than
- *  a coincidence: a true open belongs to that family of objects, not to the
- *  grid. It is still one neutral ink for everything, still no hue, so nothing
- *  about "colour cannot type the object" changed. */
+ *  This is the LEVELS overlay's ink, the same rgb(137, 183, 207) an event
+ *  horizon and a liquidity pool are drawn in - the old literal here said
+ *  rgb(139, 150, 165), from before the five families stopped sharing one hue.
+ *  Sharing it is the point rather than a coincidence: a true open belongs to
+ *  that family of objects, not to the grid. It is still one neutral ink per
+ *  family, so nothing about "colour cannot type the object" changed - inside a
+ *  family the label is still the only thing that says which object this is. */
 const LEVEL_INK = INKS.levels;
 
 function levelInk(alpha: number): string {
@@ -167,16 +177,18 @@ class SessionRenderer implements IPrimitivePaneRenderer {
       const height = scope.bitmapSize.height;
       const width = scope.bitmapSize.width;
 
-      // THE FRAME'S LABEL MAP STARTS HERE, because this is the frame's first
-      // pass: the grid is attached before levels, structure and zones, and it
-      // draws at `bottom`. Doing it here rather than in `structure-primitive`
-      // is what makes the map cover all four primitives instead of one - see
-      // `resetLabels` for the z-order that was being got wrong.
+      // THE FRAME'S LABEL MAP IS NOT RESET HERE ANY MORE, and the line that
+      // used to do it is worth a note rather than a silent deletion. This pass
+      // held `resetLabels` while the grid really was the frame's first pass;
+      // then `break-primitive.ts` was attached ahead of it, also at `bottom`,
+      // and the reset stayed put. The break primitive's weekend caption was
+      // therefore claimed and then wiped by this pass on every single frame -
+      // the DFR incident again, one primitive further along. The reset now lives
+      // in whichever pass is genuinely first, which is that one.
       //
-      // Unconditional, including the frames where the grid is switched off and
-      // there is nothing to claim. That is what keeps a switched-off overlay
-      // from leaving rectangles behind that no later pass would clear.
-      resetLabels();
+      // Nothing else changes here: this pass still claims the attribution mark
+      // below and its own labels, and it still runs on frames where the grid is
+      // switched off.
 
       // AND THE ONE RECTANGLE NOTHING MAY PAINT UNDER: the library's own
       // attribution mark. It is a DOM anchor - `#tv-attr-logo`, 35x19 flush to

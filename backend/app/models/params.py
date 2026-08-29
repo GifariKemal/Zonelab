@@ -4,10 +4,41 @@ from __future__ import annotations
 
 from typing import Literal
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
 
 
-class SupplyDemandParams(BaseModel):
+class ParamBlock(BaseModel):
+    """Base for every params block below. Its only job is to REFUSE a field it
+    does not know.
+
+    `DrawRequest` has carried `extra="forbid"` since the incident recorded in
+    `models/api.py`: five providers were "measured" by sending a `source` field
+    that model never had, pydantic ignored it, and all five answered 200 with
+    identical Yahoo bars. The top level was closed that day and these twelve
+    nested blocks were not, which left the same defect one level down and made
+    it worse in one respect: the top level holds eight scalar fields a typo is
+    hard to hide in, while these hold roughly seventy knobs whose names are
+    hand-copied into TypeScript. `supply_demand.departure_min_ATR`,
+    `imbalance.min_gap`, `session.true_open` - each of those was a silent no-op
+    with an HTTP 200 and a chart drawn on the DEFAULT, which is a wrong reading
+    that looks right. That is the same failure shape, and it is the one this
+    project's own notes call the worst way for an API to be wrong.
+
+    Closing it is safe because the caller sends exactly these names and the
+    seam is already tested from the other side: `tests/test_frontend_defaults`
+    fails when `DEFAULT_LAYER_PARAMS` in `frontend/src/lib/types.ts` carries a
+    key no model has. Before this class that test was the ONLY thing standing
+    between a renamed knob and a silent drop; now the request itself refuses,
+    and the test explains why in TypeScript terms rather than being the guard.
+
+    A base class rather than twelve `model_config` lines, so the thirteenth
+    params block cannot ship open by forgetting one.
+    """
+
+    model_config = ConfigDict(extra="forbid")
+
+
+class SupplyDemandParams(ParamBlock):
     """Every knob the UI exposes. Defaults are the ones the test fixtures pin."""
 
     atr_period: int = Field(default=14, ge=2, le=200)
@@ -138,7 +169,7 @@ class SupplyDemandParams(BaseModel):
     merge_overlap_pct: float = Field(default=0.6, ge=0.0, le=1.0)
 
 
-class ImbalanceParams(BaseModel):
+class ImbalanceParams(ParamBlock):
     """Knobs for the four detectors that read imbalance: fvg, order_block,
     ifvg and breaker.
 
@@ -229,7 +260,7 @@ class ImbalanceParams(BaseModel):
     max_zones_per_side: int = Field(default=6, ge=0, le=100)
 
 
-class StructureParams(BaseModel):
+class StructureParams(ParamBlock):
     """Knobs for the structure overlay. Off unless the caller asks for it.
 
     Two widths on purpose. ICT reads structure at two scales and treats the small
@@ -291,7 +322,7 @@ class StructureParams(BaseModel):
     )
 
 
-class SessionParams(BaseModel):
+class SessionParams(ParamBlock):
     """Which parts of the New York cycle grid to draw. Nothing, by default.
 
     Two separate lists rather than one switch, because they answer different
@@ -353,7 +384,7 @@ class SessionParams(BaseModel):
     )
 
 
-class DFRParams(BaseModel):
+class DFRParams(ParamBlock):
     """The defining range: Q1 split in thirds, first third discarded.
 
     SINGLE-SOURCED AND UNVERIFIED, which is why it is off by default and why
@@ -407,7 +438,7 @@ class DFRParams(BaseModel):
     )
 
 
-class LiquidityParams(BaseModel):
+class LiquidityParams(ParamBlock):
     """Named previous-period levels, plus the dealing range read as ERL and IRL."""
 
     periods: list[str] = Field(
@@ -483,7 +514,7 @@ class LiquidityParams(BaseModel):
     )
 
 
-class ProjectionParams(BaseModel):
+class ProjectionParams(ParamBlock):
     """Standard deviation projections off a named session range."""
 
     sessions: list[str] = Field(
@@ -512,7 +543,7 @@ class ProjectionParams(BaseModel):
     )
 
 
-class NewsParams(BaseModel):
+class NewsParams(ParamBlock):
     """The economic calendar. The SECOND block that can make a network call.
 
     The checklist was the only one until now, and the difference matters to a
@@ -540,7 +571,7 @@ class NewsParams(BaseModel):
     )
 
 
-class PoolParams(BaseModel):
+class PoolParams(ParamBlock):
     """Session extremes as candidate targets. No extra provider call."""
 
     sessions: list[str] = Field(
@@ -563,7 +594,7 @@ class PoolParams(BaseModel):
     )
 
 
-class GapParams(BaseModel):
+class GapParams(ParamBlock):
     """Opening gaps, and the levels between them.
 
     Costs no extra provider call: both are read off the bars already fetched. Off
@@ -609,7 +640,7 @@ class GapParams(BaseModel):
     )
 
 
-class CISDParams(BaseModel):
+class CISDParams(ParamBlock):
     """Change in state of delivery, off the bars already fetched.
 
     Both knobs change the ANSWER rather than the presentation, and neither was
@@ -652,7 +683,7 @@ class CISDParams(BaseModel):
     )
 
 
-class ChecklistParams(BaseModel):
+class ChecklistParams(ParamBlock):
     """The owner's own pre-trade checklist, computed rather than asserted.
 
     OFF BY DEFAULT, and unlike every other block here that is a COST decision as

@@ -208,3 +208,45 @@ def test_the_guard_is_off_by_default_and_changes_nothing():
     # Dan dengan pengaman mati, `realised_today=None` pun tidak menolak.
     book.realised_today = None
     assert admits(book, "XAUUSD", 10.0)[0] is True
+
+
+def test_a_position_whose_risk_cannot_be_computed_refuses_every_new_order():
+    """Tidak terhitung bukan nol, dan cap yang menjumlahkan sebagian bukan cap.
+
+    Sampai 29 Agustus 2026 penyusun Book melakukan `if not stop: continue`, jadi
+    posisi tanpa stop loss dihitung NOL risiko. Itu membalik arti gerbangnya:
+    hal paling berbahaya yang bisa dipegang sebuah akun, yaitu posisi yang
+    kerugiannya tidak berbatas, adalah satu satunya hal yang tidak terlihat
+    olehnya. Cacat kedua di baris yang sama memakai
+    `getattr(mt5.symbol_info(name), "trade_contract_size", 1.0)`, dan
+    `getattr(None, ...)` mengembalikan default-nya, jadi simbol yang tidak
+    terbaca menyumbang 1,0 alih alih 100,0.
+
+    `partial` sudah menangani "book tidak terbaca sama sekali" dengan
+    melaporkan cap sebagai LANTAI. Ini kasus yang lebih berbahaya: book-nya
+    terbaca, angkanya terlihat lengkap, dan salah satu barisnya tak berbatas.
+    """
+    book = Book(equity=10_000.0, cap_pct=0.06, corr_max=0.70)
+    book.unbounded.append("XAUUSD volume 0.10 dibuka di 4600.0: tanpa stop loss")
+
+    ok, why = admits(book, "XAUUSD", 1.0)
+    assert not ok
+    assert "tidak bisa dihitung" in why, why
+    assert "tanpa stop loss" in why, why
+
+
+def test_the_unbounded_guard_refuses_before_the_cap_can_look_roomy():
+    """Urutannya load-bearing.
+
+    Sebuah book dengan satu posisi tak berbatas dan nol risiko terhitung akan
+    lolos uji cap dengan mudah, karena `committed` nol. Kalau gerbang ini
+    berjalan SESUDAH cap, jawabannya jadi "diizinkan" pada persis keadaan yang
+    paling tidak diketahui.
+    """
+    book = Book(equity=10_000.0, cap_pct=0.06, corr_max=0.70)
+    book.unbounded.append("EURUSD volume 1.00: symbol_info tidak terbaca")
+
+    # Risiko yang diminta kecil, jadi cap sendirian pasti meloloskannya.
+    ok, why = admits(book, "GBPUSD", 1.0)
+    assert not ok, "cap yang longgar tidak boleh menutupi jumlah yang tak lengkap"
+    assert "symbol_info" in why, why

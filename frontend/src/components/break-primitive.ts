@@ -11,7 +11,7 @@ import type { CanvasRenderingTarget2D } from "fancy-canvas";
 
 import type { Candle } from "@/lib/types";
 import { ink } from "./ink";
-import { claimedLabels, labelFree } from "./structure-primitive";
+import { claimedLabels, labelFree, resetLabels } from "./structure-primitive";
 
 /**
  * WHERE THE MARKET WAS SHUT. A vertical mark between two bars that are
@@ -81,6 +81,38 @@ class BreakRenderer implements IPrimitivePaneRenderer {
       const kx = scope.horizontalPixelRatio;
       const ky = scope.verticalPixelRatio;
       const height = scope.bitmapSize.height;
+      const width = scope.bitmapSize.width;
+
+      // THE FRAME'S LABEL MAP STARTS HERE, because this pass is the frame's
+      // first one. The library paints `bottom` views, then the series, then
+      // `normal`, then `top`, and within one z-order pass it paints in ATTACH
+      // ORDER - and `chart.tsx` attaches this primitive before every other,
+      // ahead of the cycle grid it used to sit behind.
+      //
+      // It lived in `session-primitive.ts` until now, and that was wrong by one
+      // pass in exactly the direction that hides itself: the weekend caption
+      // below claimed its rectangle, the grid pass then ran `resetLabels` and
+      // threw the claim away, and every later pass saw a list that had never
+      // heard of it. The comment on that claim asserted the opposite - "attached
+      // FIRST, so it claims before anyone else" - which is true about attach
+      // order and false about the reset, and being attached first is precisely
+      // what made it the victim. This is the DFR incident a second time, and the
+      // codebase already documents that one twice.
+      //
+      // MOVED RATHER THAN REORDERED, and the choice matters. Attaching break
+      // after the grid would fix the claim and change the picture: both draw at
+      // `bottom`, so the clock marks would then paint over the quarter washes
+      // instead of under them, and `e2e/pixel-truth.mjs` reads that pane back
+      // off the bitmap. Having break claim later is not available either - it
+      // has one pass and this is it. The reset belongs to whichever pass runs
+      // first, so it follows the attach order rather than the attach order
+      // bending to it.
+      //
+      // Unconditional, and this primitive is the right owner for that too: the
+      // grid is a layer the reader switches off, while a chart that hides a
+      // weekend is misreporting its own axis, so this one is always attached and
+      // always draws. A frame can no longer start without its map being cleared.
+      resetLabels();
 
       ctx.save();
       ctx.font = `${Math.round(9 * ky)}px ui-monospace, monospace`;
@@ -113,13 +145,39 @@ class BreakRenderer implements IPrimitivePaneRenderer {
           // not. `e2e/labels.mjs` proves labels do not overlap by differencing
           // the shared claim list, so a caption that never enters the list is a
           // caption that harness is structurally unable to see: "intersections
-          // zero" only ever meant zero among those that registered. This
-          // primitive is attached FIRST and paints at `bottom`, so it claims
-          // before anyone else and a later pass now moves out of its way.
+          // zero" only ever meant zero among those that registered.
+          //
+          // This claim now SURVIVES the frame, which is a second thing from
+          // being made. It is made first because this primitive is attached
+          // first and paints at `bottom`; it survives because the reset above
+          // runs in this same pass, ahead of it. Until that moved here the claim
+          // was made and then wiped a few microseconds later by the grid, so the
+          // list this checks against was always empty and every later pass drew
+          // over the weekend caption as if it were not there.
+          const plate = w + pad * 2;
+          // OFF-PANE MARKS GET NO CAPTION, and marks near an edge get a clamped
+          // one. Both halves of that became load-bearing the moment this claim
+          // started surviving the frame, and neither could be seen before.
+          //
+          // The x axis is indexed by bar, so at 4h with 500 bars twelve of the
+          // sixteen weekends in the window sit at a NEGATIVE x - measured, from
+          // -1968 to 810 on a 1030px pane. A caption for one of those names a
+          // line nobody can see and takes a slot in the collision map from a
+          // caption that IS visible, which is the same argument
+          // `structure-primitive.ts` already makes for skipping wholly off-pane
+          // segments rather than clamping them.
+          //
+          // And a mark that lands between `-plate` and 0 straddles the edge, so
+          // half the word is unreadable in the way a missing word is not -
+          // `e2e/labels.mjs` fails exactly that shape. None of the sixteen
+          // happened to land there, which is the kind of luck this project has
+          // learnt not to leave a harness resting on.
+          if (x < 0 || x > width) continue;
+          const lx = Math.min(Math.max(x + pad, 0), Math.max(width - plate, 0));
           const rect = {
-            x: x + pad,
+            x: lx,
             y: Math.round(2 * ky),
-            w: w + pad * 2,
+            w: plate,
             h: Math.round(12 * ky),
           };
           if (labelFree(rect, claimedLabels)) {
@@ -127,7 +185,10 @@ class BreakRenderer implements IPrimitivePaneRenderer {
             ctx.fillStyle = "rgba(11, 13, 16, 0.82)";
             ctx.fillRect(rect.x, rect.y, rect.w, rect.h);
             ctx.fillStyle = ink("grid", 0.95);
-            ctx.fillText(text, x + pad * 2, Math.round(4 * ky));
+            // From the PLATE, not from the mark. The plate is what moved when
+            // the clamp bit, and text drawn off its own plate is the defect
+            // `structure-primitive.ts` carried for a release.
+            ctx.fillText(text, rect.x + pad, Math.round(4 * ky));
           }
         }
       }

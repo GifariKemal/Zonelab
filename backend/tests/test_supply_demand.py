@@ -880,3 +880,115 @@ def test_every_candidate_lands_in_a_bucket_or_in_the_zone_list():
     # Dan jalur itu memang dilewati, jadi test ini bukan lolos karena kosong.
     _, zero = detect(candles, SupplyDemandParams(max_zones_per_side=0, zone_min_atr=0.0))
     assert zero["rejected_zero_height"] >= 1
+
+
+def test_a_candidate_whose_reference_atr_underflows_lands_in_a_bucket():
+    """Gate `atr_base <= EPS`, dan pembuktian bahwa ia bisa dicapai.
+
+    Ini pasangan test di atas untuk gate yang dulu satu satunya melanggar janji
+    docstring modul: `candidates` sudah dinaikkan, lalu `continue` tanpa bucket
+    mana pun. Enam baris di atas komentar sembilan baris yang menjelaskan persis
+    kenapa pola itu cacat.
+
+    Fixture-nya candle yang well-formed semua, bukan bar cacat: ATR Wilder itu
+    RMA, jadi tiap bar datar mengalikannya dengan (period-1)/period dan ia tidak
+    pernah benar benar nol, ia underflow ke bawah `EPS`. Pada default, 392 bar
+    datar adalah panjang pertama yang mendarat di sini; 391 masih mendarat satu
+    gate lebih jauh di `rejected_zero_height`. Keduanya diassert, karena yang
+    membuat test ini tidak kosong adalah batas itu, bukan angka 392-nya.
+
+    Base clip yang membuatnya bisa dicapai: `base_from` dipotong ke ekor base,
+    jadi `base_from - 1` jatuh DI DALAM hamparan datar, bukan di bar leg-in yang
+    true range-nya besar.
+    """
+    def bar(time: int, o: float, h: float, low: float, c: float) -> Candle:
+        return Candle(time=time, open=o, high=h, low=low, close=c, volume=1.0)
+
+    def halted(flat_bars: int) -> list[Candle]:
+        candles: list[Candle] = []
+        price, t = 100.0, 0
+        for _ in range(18):  # warm-up bergerak, supaya ATR hidup dulu
+            candles.append(bar(t, price, price + 1, price - 1, price + 0.5))
+            price += 0.5
+            t += 900
+        for _ in range(3):  # leg-in turun
+            candles.append(bar(t, price, price, price - 5, price - 5))
+            price -= 5
+            t += 900
+        for _ in range(flat_bars):  # sesi yang berhenti dikutip: true range 0
+            candles.append(bar(t, price, price, price, price))
+            t += 900
+        for _ in range(3):  # leg-out naik
+            candles.append(bar(t, price, price + 6, price, price + 6))
+            price += 6
+            t += 900
+        return candles
+
+    params = SupplyDemandParams(max_zones_per_side=0)
+    zones, stats = detect(halted(392), params)
+    assert stats["rejected_zero_atr"] == 1, stats
+    # Identitas yang sama dengan test di atas, dan inilah yang dulu pecah.
+    rejected = sum(v for k, v in stats.items() if k.startswith("rejected_"))
+    assert stats["candidates"] == rejected + len(zones), stats
+
+    # Satu bar lebih pendek dan gate ini TIDAK kena, jadi assert di atas benar
+    # benar mengukur jalur ini dan bukan sesuatu yang selalu menyala.
+    _, just_short = detect(halted(391), params)
+    assert just_short["rejected_zero_atr"] == 0, just_short
+    assert just_short["rejected_zero_height"] == 1, just_short
+
+
+def test_prose_about_dedupe_names_the_field_its_sort_key_actually_reads():
+    """Tiga komentar pernah menyebut urutan `_dedupe` yang sudah tidak ada.
+
+    Sampai commit `4f2eefb` `_dedupe` memang mengurut dengan `formation_score`.
+    Setelah itu key-nya `(_STATE_PRIORITY[state], departure_atr)`, tapi tiga
+    tempat masih menyebut premis lama: docstring `_dedupe` sendiri, blok
+    `_VOLUME_BASELINE_BARS` di file yang sama, dan docstring `_present` di
+    `imbalance.py`. Yang terakhir memakai premis palsu itu sebagai ALASAN untuk
+    tidak memakai ulang `_dedupe`, jadi komentar yang basi di sana mengubah
+    kesimpulan pembaca berikutnya, bukan cuma bikin kotor.
+
+    Dua asersi, dan keduanya diturunkan dari kode, bukan dari daftar kata:
+
+    1. Docstring `_dedupe` harus menyebut setiap field yang lambda key-nya baca.
+       Field-nya diambil lewat AST, jadi mengganti key tanpa menyentuh
+       docstring-nya gagal di sini.
+    2. Paragraf prosa mana pun di kedua detector yang menyebut `_dedupe` DAN
+       `formation_score` harus menyebut `departure_atr` juga. Klaim historis
+       boleh tetap ada - pengukuran window-dependence itu nyata - asal paragraf
+       yang sama menyebut key yang sekarang.
+    """
+    import ast
+    from pathlib import Path
+
+    from app.detect import imbalance, supply_demand
+
+    source = Path(supply_demand.__file__).read_text(encoding="utf-8")
+    dedupe = next(
+        node
+        for node in ast.walk(ast.parse(source))
+        if isinstance(node, ast.FunctionDef) and node.name == "_dedupe"
+    )
+    lam = next(n for n in ast.walk(dedupe) if isinstance(n, ast.Lambda))
+    fields = {n.attr for n in ast.walk(lam) if isinstance(n, ast.Attribute)}
+    assert fields, "the sort key stopped reading zone fields; this test is now vacuous"
+    doc = ast.get_docstring(dedupe) or ""
+    missing = sorted(f for f in fields if f not in doc)
+    assert not missing, (
+        f"`_dedupe` sorts on {sorted(fields)} but its docstring never names "
+        f"{missing} - the comment describes an ordering the code dropped"
+    )
+
+    stale: list[str] = []
+    for module in (supply_demand, imbalance):
+        text = Path(module.__file__).read_text(encoding="utf-8")
+        for block in text.split("\n\n"):
+            if "_dedupe" not in block or "formation_score" not in block:
+                continue
+            if "departure_atr" not in block:
+                stale.append(f"{Path(module.__file__).name}: {block.strip()[:90]}")
+    assert not stale, (
+        "prose ties `_dedupe` to `formation_score` without naming the key it "
+        "actually tiebreaks on:\n  " + "\n  ".join(stale)
+    )

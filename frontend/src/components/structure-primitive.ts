@@ -40,8 +40,16 @@ import { INKS } from "./ink";
  * that measurement with a line the harness cannot even see the colour of.
  */
 
-/** One ink for everything here. `--text-dim`, the colour the rest of the UI
- *  uses for "secondary text", which is what structure is on this chart. */
+/** One ink for everything here, and it is NOT `--text-dim` any more.
+ *
+ *  It was, and this line went on saying so after `ink.ts` unified the palette:
+ *  `--text-dim` is #9aa6b5, rgb(154, 166, 181), a grey-blue that four other
+ *  primitives were also quietly using. `INKS.structure` is rgb(161, 132, 195),
+ *  a violet chosen so this family can be told from the levels rays and the DFR
+ *  bands at a glance rather than by reading their labels. A comment naming the
+ *  old token is worse than none: it sends a reader to a CSS variable this file
+ *  does not consult, which is exactly the second-source-of-truth problem
+ *  `globals.css` deleted its `--structure` pair to avoid. */
 const INK = INKS.structure;
 
 /** The two fractal widths must not read alike, or the crossing the backend just
@@ -53,20 +61,41 @@ const INK = INKS.structure;
  *  contrast: the minor line at 0.26 came out at 1.57:1 and its caption at 0.50
  *  came out at 2.77:1. 1.57:1 is below the ratio at which a 1px line can be seen
  *  at all on a desk with any ambient light, and 2.77:1 fails AA for 9px text by
- *  a wide margin. The numbers now are 3.11:1 for the minor line, 5.36:1 for its
- *  caption, 5.87:1 for the major line and 7.18:1 for its caption - every one of
- *  them over the 3:1 floor for a graphical object, and both captions over the
- *  4.5:1 floor for small text.
+ *  a wide margin.
  *
- *  The separation the two scales exist for survives that: 5.87 against 3.11 is
- *  still close to a factor of two in contrast, on top of a 1.5x stroke width and
- *  a 10px against 9px type size. What changed is that the small one is now a
- *  quiet line rather than a rumour of one.
+ *  THE FIGURES BELOW ARE THE PALETTE'S, NOT THE ONES THIS COMMENT SHIPPED WITH.
+ *  It claimed 3.11 / 5.36 / 5.87 / 7.18 and a clean pass on both floors. Those
+ *  were measured against the grey-blue this file used to hold; `ink.ts` then
+ *  gave the structure family its own violet, rgb(161, 132, 195), and the four
+ *  numbers moved without the sentence moving with them. Recomputed against
+ *  #0b0d10 at the alphas actually in the table below:
+ *
+ *    minor line, alpha 0.55     2.61:1
+ *    minor caption, alpha 0.80  4.28:1
+ *    major line, alpha 0.85     4.70:1
+ *    major caption, alpha 1.00  6.12:1
+ *
+ *  TWO OF THOSE ARE UNDER THEIR FLOOR AND ARE LEFT THAT WAY. The minor line is
+ *  2.61:1 against a 3:1 floor for a graphical object, and the minor caption is
+ *  4.28:1 against the 4.5:1 floor for text under 18px. Raising either alpha
+ *  would fix the ratio and flatten the hierarchy this file is built on - the
+ *  whole argument for running two fractal widths is that the small one is the
+ *  refinement and must read as quieter - so it is an OPEN DECISION for the
+ *  owner, stated here rather than silently corrected. The other lever is the
+ *  ink itself: a lighter violet at the same alphas would clear both floors
+ *  without touching the ordering, and that is a change to `ink.ts`, whose own
+ *  constraints (43 degrees off the two semantic hues, an L* ladder stepped six
+ *  points per family) are what any replacement has to satisfy.
+ *
+ *  The separation the two scales exist for survives either way: 4.70 against
+ *  2.61 is a factor of 1.8 in contrast, on top of a 1.5x stroke width and a 10px
+ *  against 9px type size.
  *
  *  The plates went up with them for a reason the old comment already stated
  *  without following through: a caption's contrast is against WHAT IS BEHIND IT,
  *  and at plate 0.5 what is behind it is half a candle. A plate that does not
- *  reach the background makes the measured text ratio a fiction. */
+ *  reach the background makes the measured text ratio a fiction - so the numbers
+ *  above are only true because the plates now reach it. */
 const SCALE: Record<
   StructureScale,
   { line: number; alpha: number; text: number; font: number; plate: number; mark: number }
@@ -112,8 +141,8 @@ interface LabelRect {
 export const claimedLabels: LabelRect[] = [];
 
 /**
- * Emptied ONCE PER FRAME, by the FIRST pass that draws - which is the cycle
- * grid, not this file.
+ * Emptied ONCE PER FRAME, by the FIRST pass that draws - which is the session
+ * BREAK primitive, not this file and no longer the cycle grid either.
  *
  * It used to be emptied here, at the top of this renderer, and that was wrong by
  * one whole z-order. The library paints `bottom` views, then the series, then
@@ -134,8 +163,15 @@ export const claimedLabels: LabelRect[] = [];
  * The reset stays a function rather than moving to a `useEffect` or a frame
  * counter because the pass that goes first is a fact about ATTACH ORDER, and
  * attach order is stated in one place - `chart.tsx` - where a reader can see it.
- * Called from `session-primitive.ts`, which is that first pass, and which draws
- * every frame whether or not the grid is switched on.
+ *
+ * WHICH IS ALSO WHY THE CALLER MOVED. It was `session-primitive.ts` for as long
+ * as the cycle grid was attached first. `break-primitive.ts` was then attached
+ * ahead of it, at the same `bottom` z-order, and the reset did not follow -
+ * so the break primitive's weekend caption was claimed and then discarded by the
+ * grid on every frame, and every later pass printed over it. Same defect as the
+ * DFR tags, one commit's worth of the same reasoning, which is the argument for
+ * the rule rather than against it: whoever `chart.tsx` attaches first calls
+ * this, and moving an attach line means moving this call with it.
  */
 export function resetLabels(): void {
   // No guard here, and the reason is worth writing down because the obvious one
@@ -363,6 +399,15 @@ class StructureRenderer implements IPrimitivePaneRenderer {
         // The offset it replaces was `x1 + 3 * kx - 3 * kx`, which is `x1` with
         // two steps that cancel - a leftover from moving the plate's padding into
         // `w`, and it read as a deliberate nudge that does nothing.
+        //
+        // ONLY THE RECT WAS FIXED THE FIRST TIME, which is worse than not fixing
+        // it: the plate moved to the clamped x, the collision map recorded the
+        // caption at the clamped x, and `fillText` was left reading `x1`. On a
+        // pan that puts the break's own bar off the left edge, the word then
+        // drew outside its own plate and off the pane while the map insisted it
+        // was at 0 - so the caption was invisible AND its slot was spent, and
+        // every harness here reads the map rather than the glyph. `x` is the one
+        // number three things have to agree on, so all three read it below.
         const x = Math.min(Math.max(x1, 0), Math.max(width - w, 0));
 
         // Walked upward until the caption has room. Six steps is roughly 80px of
@@ -390,7 +435,10 @@ class StructureRenderer implements IPrimitivePaneRenderer {
         ctx.fillStyle = `rgba(11, 13, 16, ${s.plate})`;
         ctx.fillRect(box.x, box.y, box.w, box.h);
         ctx.fillStyle = ink(s.text);
-        ctx.fillText(text, x1 + 3 * kx, ty);
+        // `box.x`, not `x1`. The text sits half the plate's own padding in from
+        // the plate's left edge, the same arithmetic `LABEL_PAD` states for the
+        // ray tags next door.
+        ctx.fillText(text, box.x + 3 * kx, ty);
         ctx.restore();
       }
     });

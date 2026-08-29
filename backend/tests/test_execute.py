@@ -14,7 +14,7 @@ from datetime import datetime
 import pytest
 
 from app.models import Anatomy, Zone, ZoneKind, ZoneSide, ZoneState
-from tools import execute
+from tools import broker, execute
 
 
 class FakeCheck:
@@ -42,10 +42,25 @@ class FakeMT5:
     TRADE_RETCODE_DONE = 10009
     TRADE_RETCODE_PLACED = 10008
 
-    def __init__(self, check=None, send=None):
+    #: Digit harga per simbol, karena satu angka tidak bisa mewakili keduanya.
+    #: XAUUSD tiga desimal, pasangan FX mayor lima. Fixture lama hanya punya
+    #: XAUUSD, jadi ia menyandi cacat yang test-nya justru ada untuk menangkap.
+    DIGITS = {"XAUUSD": 3, "EURUSD": 5, "GBPUSD": 5, "USDJPY": 3}
+
+    def __init__(self, check=None, send=None, digits=None, known=True):
         self.sent: list[dict] = []
         self._check = check or FakeCheck()
         self._send = send or FakeSend()
+        self._digits = digits
+        self._known = known
+
+    def symbol_info(self, symbol):
+        if not self._known:
+            return None
+        digits = self._digits if self._digits is not None else self.DIGITS.get(symbol)
+        if digits is None:
+            return None
+        return types.SimpleNamespace(digits=digits, trade_contract_size=100.0)
 
     def order_check(self, request):
         self.last_checked = request
@@ -83,7 +98,7 @@ def test_the_order_comment_is_truncated_to_what_the_terminal_accepts():
     long_id = "DBD-" + "9" * 60
     ticket, why = execute.place(mt5, zone(zid=long_id), FakePlan(), "XAUUSD", 0.01)
     assert ticket == 999, why
-    assert len(mt5.sent[0]["comment"]) <= execute.COMMENT_MAX
+    assert len(mt5.sent[0]["comment"]) <= broker.COMMENT_MAX
 
 
 def test_prices_are_rounded_to_the_symbol_s_digits():
@@ -95,6 +110,56 @@ def test_prices_are_rounded_to_the_symbol_s_digits():
     assert request["price"] == 4604.221
     assert request["sl"] == 4628.043
     assert request["tp"] == 4489.567
+
+
+class FivePlan:
+    """Rencana pada pasangan lima desimal, angkanya khas EURUSD."""
+
+    side = ZoneSide.SUPPLY
+    entry, stop, target = 1.0823412, 1.0851187, 1.0768934
+
+
+def test_a_five_digit_pair_keeps_all_five_digits():
+    """Fixture yang hanya menjalankan XAUUSD menyandi cacatnya sendiri.
+
+    `place` membulatkan ke 3 desimal mati sampai 29 Agustus 2026, yang kebetulan
+    benar untuk emas. Pada EURUSD 1,08234 jadi 1,082: geseran 3,4 pip pada entry
+    DAN stop sekaligus, jadi risk yang sudah lolos gerbang berubah setelah
+    disetujui. Empat pasangan lima desimal ada di tabel biaya dan terjangkau
+    lewat `--symbol`, jadi ini jalur yang bisa dijalankan hari ini.
+    """
+    mt5 = FakeMT5()
+    ticket, why = execute.place(mt5, zone(), FivePlan(), "EURUSD", 0.01)
+    assert ticket == 999, why
+    request = mt5.sent[0]
+    assert request["price"] == 1.08234
+    assert request["sl"] == 1.08512
+    assert request["tp"] == 1.07689
+
+
+def test_an_unreadable_symbol_refuses_instead_of_guessing_the_digits():
+    """Tanpa `digits` tidak ada cara membulatkan dengan benar.
+
+    Memakai default akan mengirim harga yang salah presisi ke terminal, yaitu
+    cara lain untuk mendarat satu tick dari garis yang direncanakan. Menolak
+    adalah satu satunya jawaban yang tidak mengarang.
+    """
+    mt5 = FakeMT5(known=False)
+    ticket, why = execute.place(mt5, zone(), FakePlan(), "XAUUSD", 0.01)
+    assert ticket is None
+    assert "digit" in why.lower(), why
+    assert not mt5.sent, "tidak boleh ada order yang terkirim"
+
+
+def test_every_order_carries_the_ownership_magic():
+    """`magic` 0 berarti tidak ditandai, dan sampai sekarang ia tidak pernah
+    diset. Satu satunya catatan bahwa sebuah order milik Zonelab ada di
+    `.journal/`, yang gitignored dan tidak pernah direkonsiliasi dengan broker.
+    """
+    mt5 = FakeMT5()
+    execute.place(mt5, zone(), FakePlan(), "XAUUSD", 0.01)
+    assert mt5.sent[0]["magic"] == broker.MAGIC
+    assert broker.MAGIC != 0
 
 
 def test_a_supply_zone_becomes_a_sell_limit():

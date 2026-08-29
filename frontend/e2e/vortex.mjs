@@ -345,12 +345,24 @@ try {
   );
 
   // And the claim list must still be one rectangle after all of that, not N.
+  //
+  // PAIRED, SAME TIMEFRAME, for the same reason the storm block below spells
+  // out - and this is the fourth time in this file. It used to compare against
+  // `claimsOff`, taken before the cycles on whatever interval the page was
+  // showing then, while the cycles themselves end on 4h or 1h. The claim count
+  // is the number of LABELS on the pane and it moves with the interval: with the
+  // weekend captions now surviving the frame's reset, 500 bars of 4h carry
+  // sixteen of them against none at 15m, so this read 2 -> 18 and called a
+  // working dial a leak. Off and on are read back to back with nothing else
+  // changing, which is the only comparison that isolates the dial.
+  await setLayer(false);
+  const quietEnd = await claimCount();
   await setLayer(true);
   const claimsEnd = await claimCount();
   check(
-    "the claim count is unchanged after the cycles",
-    claimsEnd - claimsOff === 1,
-    `claims ${claimsOff} -> ${claimsEnd}`,
+    "the dial still claims exactly one rectangle after the cycles",
+    claimsEnd - quietEnd === 1,
+    `claims ${quietEnd} -> ${claimsEnd}`,
   );
 
   check("no page error", pageErrors.length === 0, pageErrors.join(" | "));

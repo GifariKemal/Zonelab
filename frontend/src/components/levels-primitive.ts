@@ -73,15 +73,27 @@ function ink(alpha: number): string {
  * rather than taste.
  *
  * Measured as WCAG contrast of this ink composited over #0b0d10: 0.30 is
- * 1.60:1, 0.50 is 2.45:1, 0.60 is 3.02:1, 0.85 is 4.96:1, 1.00 is 6.49:1. The
- * standing tier used to be 0.70 line / 0.95 label and the faded tier 0.30 line
- * / 0.50 label, which put the faded LINE at 1.60:1 - under the ratio at which a
- * 1px stroke is visible at all once the room has any light in it - and the
- * faded LABEL at 2.45:1, which fails AA for 10px text.
+ * 1.82:1, 0.50 is 3.03:1, 0.60 is 3.87:1, 0.85 is 6.74:1, 1.00 is 9.02:1.
+ *
+ * THIS FILE WAS UNDERSTATING ITSELF. The line above used to read 1.60 / 2.45 /
+ * 3.02 / 4.96 / 6.49, which were the ratios of the grey-blue every primitive
+ * held its own copy of. `ink.ts` gave the levels family the brightest rung of
+ * its L* ladder, rgb(137, 183, 207), on the argument that named price rays are
+ * the objects a reader compares a candle against - so every figure here went UP
+ * and the comment kept quoting the dimmer ink. Recomputed, the two tiers in use
+ * are 6.74:1 for the standing line and 3.87:1 for the faded one, and the labels
+ * that sit on them are 9.02:1 and 6.08:1. Every one clears its floor, and the
+ * two labels clear 4.5:1 for small text with room to spare.
+ *
+ * The old alphas are kept above because the argument for moving them was made
+ * against those numbers: the standing tier used to be 0.70 line / 0.95 label and
+ * the faded tier 0.30 line / 0.50 label, which put the faded LINE at 1.82:1 -
+ * under the ratio at which a 1px stroke is visible at all once the room has any
+ * light in it - and the faded LABEL at 3.03:1, which fails AA for 10px text.
  *
  * "Faded" has to keep meaning something, because a taken pool is history and
- * history is why an idea is dead. It still does: 4.96 against 3.02 is a factor
- * of 1.6 in contrast, which is a plainly visible step. What it no longer means
+ * history is why an idea is dead. It still does: 6.74 against 3.87 is a factor
+ * of 1.74 in contrast, which is a plainly visible step. What it no longer means
  * is "gone".
  */
 const STANDING = { line: 0.85, label: 1 };

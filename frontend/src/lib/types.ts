@@ -1619,6 +1619,10 @@ export interface AutotradeState {
  *  way IN means "keep the stored one", because the UI cannot hand back what
  *  it was never shown. */
 export interface AgentConfig {
+  /** Apakah `vet_base_url` dimatikan lewat env di proses ini. Kontrol yang
+   *  bisa dimatikan tanpa terlihat adalah kontrol yang tidak bisa
+   *  diandalkan siapa pun. */
+  allow_private_endpoints: boolean;
   base_url: string;
   model: string;
   temperature: number;
@@ -1672,6 +1676,12 @@ export interface TriadResponse {
   triad: string;
   base: string;
   partners: string[];
+  /** Feed yang BENAR-BENAR melayani bar ini, bukan yang diminta query string.
+   *  Route ini menulis ulang binance, yahoo dan provider kosong jadi mt5,
+   *  karena feed itu tidak membawa satu pun partner triad. Bandingkan dengan
+   *  provider yang dikirim untuk melihat substitusinya. Sampai 29 Agustus 2026
+   *  ini satu satunya route yang mengganti sumber tanpa melaporkannya. */
+  provider: string;
   truth_asset: { symbol: string; scores: Record<string, number> } | null;
   correlation: {
     symbol: string;

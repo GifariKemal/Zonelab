@@ -89,32 +89,6 @@ export default function Page() {
   // the panel can say it rather than imply it.
   const [equityFrom, setEquityFrom] = useState<string | null>(null);
 
-  /** Read the account from the connected terminal, or say why not.
-   *
-   *  Only offered where it can work. A price feed answers 501 and that is a fact
-   *  about the feed, not a failure to hide - so the message is shown as-is.
-   *
-   *  EQUITY, NOT BALANCE. They diverge by the floating result of whatever is
-   *  already open, and sizing on balance in a drawdown sizes UP exactly when it
-   *  should size down. The balance is reported beside it so the gap is visible.
-   */
-  const readAccount = useCallback(async () => {
-    try {
-      const acc = await fetchAccount(provider);
-      setEquity(String(acc.equity));
-      const drift = acc.balance - acc.equity;
-      setEquityFrom(
-        `${acc.provider} at ${new Date(acc.read_at * 1000).toLocaleTimeString()} - ` +
-          `equity ${acc.equity.toLocaleString()} ${acc.currency}` +
-          (Math.abs(drift) > 0.005
-            ? `, balance ${acc.balance.toLocaleString()} (${drift > 0 ? "-" : "+"}${Math.abs(drift).toLocaleString()} floating)`
-            : ", flat") +
-          `, leverage 1:${acc.leverage}`,
-      );
-    } catch (cause) {
-      setEquityFrom(cause instanceof Error ? cause.message : "Could not read the account.");
-    }
-  }, [provider]);
   // Empty is the generic per-instrument row, which is what shipped. Naming a
   // profile prices the plan at that venue instead; see the Broker picker.
   const [broker, setBroker] = useState("");
@@ -215,8 +189,21 @@ export default function Page() {
   // DERIVED, not synced. Writing the corrected id back into state with an effect
   // is the same fact stored twice, costs a second render, and eslint's
   // set-state-in-effect refuses it for good reason. `provider` stays the user's
-  // choice and this is the one actually used - and it is what the picker
-  // displays, so the label can never name a source the request did not use.
+  // choice and this is the one actually used.
+  //
+  // THE PICKER SHOWS `provider`, NOT THIS. It used to show `usable` while its
+  // `onChange` wrote `provider`, which made the fallback unpinnable: a `select`
+  // fires no change event when the option already displayed is chosen again, so
+  // with mt5 picked and down, the box read "binance", clicking "binance" did
+  // nothing, and `provider` stayed mt5 - the chart would jump back the moment
+  // the terminal came up, with no way to say "stay here". A control that cannot
+  // re-select what it displays is a control the reader cannot use to decide
+  // anything.
+  //
+  // Both facts are on screen instead: the picker holds the PICK, and the
+  // fallback line below the header names the source actually drawing whenever
+  // the two differ. That is also the honest split - which source answered is a
+  // fact about the feed, not about what the reader asked for.
   //
   // Order comes from `/api/config`, so the preference is the backend's to state,
   // and `available` is honoured - which is why dukascopy now has a real probe.
@@ -240,6 +227,45 @@ export default function Page() {
       )?.id ?? provider
     );
   }, [config, symbol, provider]);
+
+  /** Read the account from the connected terminal, or say why not.
+   *
+   *  Only offered where it can work. A price feed answers 501 and that is a fact
+   *  about the feed, not a failure to hide - so the message is shown as-is.
+   *
+   *  EQUITY, NOT BALANCE. They diverge by the floating result of whatever is
+   *  already open, and sizing on balance in a drawdown sizes UP exactly when it
+   *  should size down. The balance is reported beside it so the gap is visible.
+   *
+   *  `usable`, NOT `provider`, and that is the same correction the triad panel
+   *  needed. `provider` is what the reader PICKED; `usable` is what every other
+   *  request on this page actually goes to. When the pick has probed down they
+   *  differ, and asking the down source for an account is a request that can
+   *  only fail - while the equity line it writes names `acc.provider`, so the
+   *  panel would have been quoting a venue nothing else on screen was using.
+   *
+   *  DECLARED BELOW `usable` for the reason the forming effect states further
+   *  down: a `const` referenced in a dependency array is read at render time, so
+   *  a `useCallback` that lists a const declared later hits the temporal dead
+   *  zone and throws during render rather than misbehaving quietly.
+   */
+  const readAccount = useCallback(async () => {
+    try {
+      const acc = await fetchAccount(usable);
+      setEquity(String(acc.equity));
+      const drift = acc.balance - acc.equity;
+      setEquityFrom(
+        `${acc.provider} at ${new Date(acc.read_at * 1000).toLocaleTimeString()} - ` +
+          `equity ${acc.equity.toLocaleString()} ${acc.currency}` +
+          (Math.abs(drift) > 0.005
+            ? `, balance ${acc.balance.toLocaleString()} (${drift > 0 ? "-" : "+"}${Math.abs(drift).toLocaleString()} floating)`
+            : ", flat") +
+          `, leverage 1:${acc.leverage}`,
+      );
+    } catch (cause) {
+      setEquityFrom(cause instanceof Error ? cause.message : "Could not read the account.");
+    }
+  }, [usable]);
 
   // THE MOVING CANDLE, on its own clock and its own endpoint.
   //
@@ -412,10 +438,14 @@ export default function Page() {
         />
         <Picker
           label="Source"
-          value={usable}
+          value={provider}
           onChange={setProvider}
+          // The current pick is ALWAYS an option, available or not. Filtering it
+          // out would leave a controlled `select` whose `value` matches no
+          // option, which renders blank - so a source that probed down would
+          // erase the picker instead of showing what is still pinned to it.
           options={(config?.providers ?? [])
-            .filter((p) => p.available)
+            .filter((p) => p.available || p.id === provider)
             .map((p) => p.id)}
         />
         <Picker
@@ -681,6 +711,23 @@ export default function Page() {
           three do not print the same highs, the same session or the same gaps.
           A zone read from one and traded on another is the quiet kind of wrong,
           so the source picker gets a caption rather than a footnote. */}
+      {/* THE PICK FELL THROUGH, said out loud. `usable` walks away from
+          `provider` whenever the picked source has probed down or does not carry
+          this symbol, and until now the only trace of that was the caption below
+          quietly describing a different venue than the one in the picker. The
+          picker now holds the pick, so this line is what closes the loop: it
+          names what actually drew. */}
+      {usable !== provider ? (
+        <p
+          role="status"
+          className="shrink-0 border-b border-accent/40 bg-accent/10 px-4 py-1 text-[11px] text-accent"
+        >
+          {provider} is not serving {symbol} right now, so everything on this
+          screen - chart, zones, plans, triad and account - was read from{" "}
+          {usable}. Pick {usable} in Source to pin it there.
+        </p>
+      ) : null}
+
       {SOURCE_NOTE[usable] ? (
         <p className="shrink-0 border-b border-line bg-panel px-4 py-1 text-[11px] text-text-faint">
           {SOURCE_NOTE[usable]}
@@ -780,12 +827,18 @@ export default function Page() {
           <LiquidityPanel
             range={data?.range_liquidity ?? null}
             draw={data?.draw_on_liquidity ?? null}
+            decimals={decimals}
           />
+          {/* `usable`, like every other request on this page. Passing the raw
+              pick sent this panel to a venue the chart was not drawing from:
+              with mt5 picked and down, the candles came from binance while the
+              triad's correlation matrix was measured on MT5 bars, and nothing
+              on screen said the two readings were of different tapes. */}
           <PoskoPanel
             symbol={symbol}
             interval={interval}
             bars={bars}
-            provider={provider}
+            provider={usable}
           />
           <ZonePanel
                 clock={clock}
@@ -806,8 +859,12 @@ export default function Page() {
             }}
             equityFrom={equityFrom}
             onReadAccount={readAccount}
-            canReadAccount={provider === "mt5"}
+            // `usable` for the same reason `readAccount` reads it: this button
+            // must be offered when the terminal is what will actually answer,
+            // not when it is merely what was picked.
+            canReadAccount={usable === "mt5"}
             clipped={clipped}
+            decimals={decimals}
           />
         </aside>
       </div>

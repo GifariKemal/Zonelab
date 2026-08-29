@@ -82,7 +82,17 @@ export const PoskoPanel = memo(function PoskoPanel({
         ) : null}
       </header>
 
-      {/* Triad buttons — one row, four presets, toggle on/off */}
+      {/* Triad buttons, one row, four presets, toggle on/off.
+
+          `bg-panel-2` FOR THE INACTIVE STATE, and the class it replaces is the
+          point: `bg-panel-elevated` was never defined. `globals.css` declares
+          `--panel` and `--panel-2` and exposes them through `@theme inline` as
+          `--color-panel` and `--color-panel-2`, so Tailwind emits nothing at all
+          for `bg-panel-elevated` - the three unpicked triads rendered fully
+          transparent, sitting straight on the rail's own `bg-panel`, and read as
+          three gaps rather than as three buttons. #131820 against the rail's
+          #0f1216 is the one step of elevation this theme has, which is what the
+          state needs to say: pickable, not picked. */}
       <div className="flex gap-1 px-2 py-1.5">
         {TRIADS.map((t) => (
           <button
@@ -91,7 +101,7 @@ export const PoskoPanel = memo(function PoskoPanel({
             className={`flex-1 rounded px-1.5 py-1 text-[10px] font-medium transition-colors ${
               triad === t.key
                 ? "bg-accent text-white"
-                : "bg-panel-elevated text-text-dim hover:text-text"
+                : "bg-panel-2 text-text-dim hover:text-text"
             }`}
             title={t.desc}
           >

@@ -10,12 +10,19 @@ rate limit must be three different messages, never one empty chart.
 
 from __future__ import annotations
 
+import os
 import sys
 from collections import Counter
 
 import httpx
 
-BASE = "http://127.0.0.1:8100"
+#: The running API. Overridable because the shipped launcher runs uvicorn
+#: WITHOUT `--reload`, so the instance on 8100 is whatever was current when
+#: somebody double-clicked start.bat - and checking a change against a server
+#: that predates it is the exact shape of instrument this project keeps a list
+#: of: green, and measuring something that is no longer there. Point this at a
+#: scratch instance to check a build before it replaces the one in use.
+BASE = os.environ.get("ZONELAB_API", "http://127.0.0.1:8100").rstrip("/")
 results: list[tuple[bool, str, str]] = []
 
 
@@ -545,6 +552,43 @@ def main() -> int:
           draw(bars=1).status_code == 422)
     check("bars above the ceiling is a 422",
           draw(bars=99999).status_code == 422)
+    # ONE KNOB, ONE CONTRACT, ACROSS EVERY DOOR. `bars` used to mean two
+    # different things depending on the route: `/api/draw` bounded it and
+    # answered 422, while `/api/candles` and `/api/triad` handed it to
+    # `get_candles`, which clamps, so `bars=-5` was a 200 over 50 bars. A caller
+    # sizing a window got a series a different length from the one it asked for,
+    # with no field saying so. Compared as EQUALITY so that loosening either
+    # side fails here rather than re-opening the gap quietly.
+    for count in (-5, 0, 49, 99999):
+        statuses = {
+            "draw": draw(bars=count).status_code,
+            "candles": get("/api/candles", bars=count).status_code,
+            "triad": get("/api/triad", bars=count).status_code,
+        }
+        check(f"bars={count} is a 422 on every route that takes it",
+              set(statuses.values()) == {422}, str(statuses))
+    # THE NESTED BLOCKS REFUSE A NAME THEY DO NOT HAVE. `DrawRequest` has
+    # forbidden extras since the `source` incident; its twelve params blocks did
+    # not, so a typo one level down was a silent no-op with a 200 and a chart
+    # drawn on the default. About seventy knob names are hand-copied into the
+    # TypeScript, which is where such a typo comes from.
+    check("a misspelled nested knob is a 422, not a silent default",
+          draw(supply_demand={"departure_min_ATR": 3.0}).status_code == 422)
+    check("a misspelled overlay knob is a 422 too",
+          draw(layers=["session"], session={"true_open": ["day"]}).status_code == 422)
+    check("the correctly spelled knob beside it still passes",
+          draw(supply_demand={"departure_min_atr": 3.0}).status_code == 200)
+    # SSRF AND CREDENTIAL EXFILTRATION. This endpoint sends `Bearer <api_key>`
+    # to whatever host the body names and this API has no authentication of its
+    # own, so a loopback or link-local target is how a key leaves the machine
+    # and how cloud metadata gets read. Nothing is stored on a refusal, which is
+    # why probing it here cannot disturb a configured endpoint.
+    for host in ("http://127.0.0.1:11434/v1", "http://169.254.169.254/v1",
+                 "http://10.0.0.5/v1"):
+        r = httpx.post(f"{BASE}/api/agent/config", json={"base_url": host},
+                       timeout=45.0)
+        check(f"a non-public agent endpoint ({host}) is refused",
+              r.status_code == 422, r.text[:160])
     check("out-of-range parameter is a 422",
           draw(supply_demand={"mitigation_pct": 5.0}).status_code == 422)
     check("negative parameter is a 422",
@@ -553,6 +597,24 @@ def main() -> int:
           draw(supply_demand={"proximal_basis": "banana"}).status_code == 422)
     check("unknown symbol on a keyless provider is a spoken 502",
           draw(symbol="NOTREAL", provider="yahoo").status_code == 502)
+
+    # ---- the triad says which feed answered ------------------------------
+    # It silently rewrites binance, yahoo and an absent provider to mt5, because
+    # those feeds carry none of the triad partners. That substitution is correct
+    # and used to be invisible: a caller asking for binance got MT5 prices and
+    # nothing in the body said so, while every other route that resolves a
+    # provider has always reported the one it used.
+    r = get("/api/triad", triad="monetary", bars=300, provider="binance")
+    body = r.json() if r.status_code == 200 else {}
+    check("triad answers 200", r.status_code == 200, r.text[:160])
+    check("triad reports the provider it actually used",
+          body.get("provider") == "mt5", str(body.get("provider")))
+    check("triad still reports its base and partners",
+          body.get("base") == "XAUUSD" and len(body.get("partners") or []) == 2,
+          str(body.get("partners")))
+    r = get("/api/triad", triad="banana")
+    check("an unknown triad is a 422 listing the real ones",
+          r.status_code == 422 and "monetary" in r.text, r.text[:120])
 
     # ---- determinism -----------------------------------------------------
     a = draw(bars=400).json()["drawing"]["zones"]

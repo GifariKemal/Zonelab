@@ -41,6 +41,14 @@ class DrawRequest(BaseModel):
     # Refusing is safe because the client sends exactly the fields below: the
     # layer parameter blocks it spreads into the body are keyed from
     # `/api/config`, which is generated from this same registry.
+    #
+    # THE NESTED BLOCKS ARE CLOSED TOO, and for a long time they were not. This
+    # config only ever guarded the eight scalars at this level; the twelve
+    # params blocks below inherited nothing and allowed extras, so the identical
+    # defect lived one level down where the field names are - about seventy of
+    # them, hand-copied into TypeScript. `supply_demand.departure_min_ATR` was a
+    # 200 over a chart drawn on the default. They now inherit
+    # `params.ParamBlock`, which carries this same line for the same reason.
     model_config = ConfigDict(extra="forbid")
 
     symbol: str = "XAUUSD"

@@ -59,11 +59,20 @@ def regime(atr_values: np.ndarray) -> str:
     return "normal"
 
 
-def risk_multiplier(reg: str) -> float:
-    """The risk multiplier for the current regime.
-
-    'chop': 0.5x — half risk, the market lacks directional conviction.
-    'normal': 1.0x — standard risk.
-    'wild': 1.0x — normal risk, but wider stops are expected.
-    """
-    return 0.5 if reg == "chop" else 1.0
+# `risk_multiplier(reg)` DIHAPUS 29 Agustus 2026, dan alasannya bukan sekadar
+# "tidak dipakai".
+#
+# Ia mengembalikan 0,5 untuk regime "chop" dan 1,0 selain itu, dengan nol
+# pemanggil di seluruh repo. Yang membuatnya layak dihapus dan bukan sekadar
+# ditandai: ia API siap pakai yang mengundang seseorang mengalikan ukuran
+# posisi dengan angka yang tidak punya satu pun pengukuran di belakangnya.
+#
+# Modul ini harness PENGUKUR, diimpor `tools/quant.py` dan
+# `tools/walkforward.py`, dan `regime_at` di sini memang dipakai untuk MENGUKUR
+# apakah regime memisahkan hasil. Sejauh ini tidak.
+#
+# Pengali risiko yang benar-benar sampai ke lot cuma satu di repo ini,
+# `monday_mult` di `tools/execute.py`, dan kode itu menyatakan sendiri bahwa ia
+# tidak punya pengukuran dan hanya boleh tinggal karena bergerak ke arah yang
+# aman. Dua pengali di dua tempat, satu tanpa pemanggil, adalah bentuk
+# duplikasi yang paling mudah tersambung tanpa sengaja.

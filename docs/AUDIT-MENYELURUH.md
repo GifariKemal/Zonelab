@@ -503,7 +503,7 @@ dan tandanya berbalik saat lebar bracket diubah.
 
 - Dua `.pyc` yatim dari modul yang sudah dihapus, `fibonacci` dan
   `volume_filter`, cukup untuk menyesatkan grep.
-- `backend/.env.example` menulis "Ten pre-registered directional hypotheses"
+- `backend/.env.example` menulis "Ten pre-registered directional hypotheses" [sic]
   sementara enam dokumen lain menulis dua belas. Guard
   `test_prose_consistency.py` hanya memindai empat direktori source, jadi ia
   buta terhadap `.env.example` dan seluruh `docs/`, padahal ia ditulis persis
@@ -580,12 +580,22 @@ Angka di `ink.ts` sendiri terverifikasi tepat: grid 3,49, dfr 5,00, structure
 | Objek | Alpha | Diklaim | Terukur | Lantai yang disebut file itu |
 |---|---:|---:|---:|---:|
 | Garis minor | 0,55 | 3,11 | **2,61** | 3,0 |
-| Caption minor | 0,44 | 5,36 | **2,08** | 4,5 |
+| Caption minor | 0,80 | 5,36 | **4,28** | 4,5 |
 | Garis major | 0,85 | 5,87 | 4,70 | 3,0 |
-| Caption major | 0,85 | 7,18 | 4,70 | 4,5 |
+| Caption major | 1,00 | 7,18 | 6,12 | 4,5 |
 
-Caption minor ada di 2,08:1, kurang dari separuh lantai yang docstring-nya
-klaim ia lewati. Itu masalah keterbacaan sungguhan, bukan prosa basi.
+> [!NOTE]
+> Kedua baris caption dikoreksi setelah versi pertama dokumen ini terbit. Versi
+> itu menulis 2,08 dan 4,70, angka yang keluar kalau caption dikomposit dengan
+> `s.alpha * s.text`. Kodenya tidak begitu: `ctx.fillStyle = ink(s.text)`
+> memakai `s.text` sendirian, jadi alpha-nya 0,80 dan 1,00. Kesimpulannya
+> bertahan, tapi angkanya tidak, dan angka yang salah di dokumen audit adalah
+> persis jenis cacat yang dokumen ini ada untuk menghitungnya.
+
+Yang benar-benar di bawah lantai tinggal satu, caption minor di 4,28:1 lawan
+4,5:1 yang docstring-nya klaim ia lewati, ditambah garis minor di 2,61:1 lawan
+lantai 3:1. Caption major di 6,12:1 justru aman. Selisihnya lebih kecil dari
+yang dilaporkan mula-mula, dan tetap nyata.
 Perbaikannya bukan sekadar mengganti angka di komentar: menaikkan alpha akan
 mengubah hierarki visual yang justru diargumentasikan file itu.
 
@@ -632,21 +642,47 @@ sehingga balasannya senyap bagi screen reader.
 ## 12. Urutan kerja
 
 Diurutkan menurut apa yang paling bisa merugikan, bukan menurut kemudahan.
+Status diperbarui 29 Agustus 2026 sore, setelah sepuluh butir ini dikerjakan.
 
-- [ ] **1.** Ganti pembulatan 3 desimal keras jadi `info.digits`, dan tambah
-      fixture FX 5 desimal ke test-nya
-- [ ] **2.** Turunkan daemon ke `--risk-pct 0.01`
-- [ ] **3.** Posisi tanpa stop dan `symbol_info` yang hilang harus MENOLAK,
-      bukan dihitung nol atau 1,0
-- [ ] **4.** Bungkus loop daemon dengan penanganan exception plus alarm
-- [ ] **5.** Pastikan hanya satu daemon berjalan, dan buat daemon menolak start
-      kalau saklar sudah menyebut PID lain yang hidup
-- [ ] **6.** Batalkan pending yang basi, dan set `magic`
-- [ ] **7.** Satukan dua checklist, atau nyatakan pemisahannya di UI
-- [ ] **8.** Ukur korelasi partner sebagai pengkondisi SSMT
-- [ ] **9.** Luaskan `test_prose_consistency.py` ke `docs/` dan `.env.example`
-- [ ] **10.** Jalankan kontrol yang belum pernah dijalankan: baseline bebas
-      sinyal dengan frekuensi dan geometri bracket yang sama
+- [x] **1.** Pembulatan harga sekarang dari `info.digits`, dan simbol yang tidak
+      terbaca MENOLAK alih alih memakai default. Fixture test-nya diberi tabel
+      digit per simbol, jadi ia menjalankan XAUUSD tiga desimal DAN EURUSD lima
+      desimal. Gate dibuktikan tidak kosong: `assert 1.082 == 1.08234`
+- [x] **2.** Daemon tidak diturunkan oleh audit ini, karena mengubah proses yang
+      sedang berjalan adalah keputusan operator. Yang dikerjakan: peringatan
+      startup yang mengutip angka 40,97 persen dari `docs/QA-QUANT.md` apa
+      adanya saat `--risk-pct` melewati rekomendasi, dan risikonya TIDAK
+      di-clamp. Dua daemon yang hidup sekarang dimulai sebelum perubahan ini,
+      jadi keduanya belum pernah mencetak peringatan itu
+- [x] **3.** Posisi tanpa stop dan `symbol_info` yang hilang sekarang masuk
+      `Book.unbounded`, dan `portfolio.admits` MENOLAK setiap order baru selama
+      daftar itu tidak kosong. Penolakannya ditaruh SEBELUM uji cap, karena cap
+      yang longgar akan menutupi jumlah yang tidak lengkap
+- [x] **4.** Siklus daemon dibungkus penanganan exception dengan traceback,
+      dicatat ke journal, dan lima kegagalan berturut turut mengeskalasi lewat
+      exit code. Eskalasinya sengaja mematikan loop, karena loop yang menelan
+      kegagalan selamanya menjaga `daemon_alive` tetap hijau di atas daemon yang
+      tidak menganalisis apa pun
+- [x] **5.** Daemon kedua menolak start kalau saklar menyebut PID lain yang
+      masih hidup, dengan flag override yang mencetak peringatan. PID basi dari
+      daemon yang crash TIDAK memblokir start baru. Diuji langsung ke saklar
+      nyata: `MENOLAK START ... sudah dipegang PID 19912`, exit 4
+- [x] **6.** `magic` diset di tiap order, dan sapuan pending basi disambungkan
+      ke siklus daemon. Kepemilikan dibaca dari `magic` dan bukan dari journal,
+      karena journal-nya gitignored dan tidak pernah direkonsiliasi. Order
+      tangan di terminal yang sama tidak pernah ikut tersapu, dan itu dites
+- [ ] **7.** Dua checklist BELUM disatukan. Ini keputusan arsitektur yang
+      menyentuh permukaan API, dan menyatukannya diam diam akan mengubah apa
+      yang bisa memblokir sebuah trade
+- [ ] **8.** Korelasi partner BELUM diukur, tapi praregistrasinya sudah ditulis
+      dan bertanggal sebelum satu angka pun ada:
+      [`PRAREGISTRASI-KORELASI.md`](PRAREGISTRASI-KORELASI.md). Bagian 7-nya
+      sengaja kosong
+- [x] **9.** `test_prose_consistency.py` sekarang memindai `docs/`, `README.md`
+      dan `.env.example`, dari 4 pohon jadi 224 file. Satu instansi yang salah
+      diperbaiki, dan pengecualian `[sic]` dibatasi per baris supaya dokumen
+      bertanggal yang MENGUTIP cacatnya tidak dipaksa berbohong
+- [ ] **10.** Kontrol bebas sinyal BELUM dijalankan
 
 > [!TIP]
 > Yang paling disarankan tidak dilakukan: menambah pilar kuantitatif baru

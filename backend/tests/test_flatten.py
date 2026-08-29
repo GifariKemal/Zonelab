@@ -8,6 +8,8 @@ disagree about what a night is.
 
 from __future__ import annotations
 
+import types
+
 import datetime
 
 from app import journal
@@ -69,6 +71,7 @@ class FakeSend:
 
 class FakeMT5:
     TRADE_ACTION_DEAL = 1
+    TRADE_ACTION_REMOVE = 2
     ORDER_TYPE_BUY = 0
     ORDER_TYPE_SELL = 1
     POSITION_TYPE_BUY = 0
@@ -77,13 +80,24 @@ class FakeMT5:
     TRADE_RETCODE_DONE = 10009
     TRADE_RETCODE_PLACED = 10008
 
-    def __init__(self, send=None, tick: FakeTick | None = FakeTick()):
+    #: Digit per simbol. Fixture lama tidak punya `symbol_info` sama sekali,
+    #: yang cocok dengan `close` versi lama karena ia memakai default 3 mati.
+    DIGITS = {"XAUUSD": 3, "EURUSD": 5, "GBPUSD": 5}
+
+    def __init__(self, send=None, tick: FakeTick | None = FakeTick(), known=True):
         self.sent: list[dict] = []
         self._send = send or FakeSend()
         self._tick = tick
+        self._known = known
 
     def symbol_info_tick(self, symbol):
         return self._tick
+
+    def symbol_info(self, symbol):
+        if not self._known:
+            return None
+        digits = self.DIGITS.get(symbol)
+        return None if digits is None else types.SimpleNamespace(digits=digits)
 
     def order_send(self, request):
         self.sent.append(request)
@@ -98,6 +112,12 @@ class Position:
         self.ticket, self.type, self.volume = ticket, kind, volume
         self.symbol, self.price_open, self.profit, self.swap = "XAUUSD", 4604.221, 20.0, 0.0
         self.time = at
+
+    def on(self, symbol):
+        """Pindahkan posisi ini ke simbol lain, supaya satu fixture melayani
+        emas tiga desimal dan FX lima desimal tanpa dua kelas."""
+        self.symbol = symbol
+        return self
 
 
 def test_a_short_is_closed_by_a_buy_at_the_ask():
@@ -169,3 +189,107 @@ def test_retcode_zero_from_a_close_is_not_success():
     closed, why = flatten.close(mt5, Position(kind=FakeMT5.POSITION_TYPE_BUY))
     assert not closed
     assert "retcode=0" in why
+
+
+class FiveDigitTick:
+    bid, ask = 1.0823412, 1.0824187
+
+
+def test_a_five_digit_close_keeps_all_five_digits():
+    """Cacat kembar dari `execute.place`, di jalur yang menutup posisi.
+
+    `close` memakai `price_digits: int = 3` sebagai default, dan
+    `tools/autotrade.py` memanggilnya TANPA argumen, jadi penutupan rollover
+    otomatis membulatkan tiap simbol ke tiga desimal. Pada EURUSD itu mengirim
+    1,082 untuk bid 1,08234, dan penutupan market yang harganya meleset tiga
+    setengah pip di rollover adalah penutupan yang berhak ditolak broker.
+    """
+    mt5 = FakeMT5(tick=FiveDigitTick())
+    ok, why = flatten.close(mt5, Position(kind=0).on("EURUSD"))
+    assert ok, why
+    assert mt5.sent[0]["price"] == 1.08234
+
+
+def test_a_close_without_a_readable_symbol_refuses_rather_than_guessing():
+    mt5 = FakeMT5(known=False)
+    ok, why = flatten.close(mt5, Position(kind=0))
+    assert not ok
+    assert "digit" in why.lower(), why
+    assert not mt5.sent, "tidak boleh ada order yang terkirim"
+
+
+def test_the_close_carries_a_deviation_so_a_rollover_requote_still_fills():
+    """Versi sebelumnya mengirim `TRADE_ACTION_DEAL` tanpa field `deviation`
+    sama sekali, sementara `live_ping` menyetel 20 untuk probe market-nya.
+    Penutupan rollover terjadi tepat saat spread paling lebar."""
+    mt5 = FakeMT5()
+    flatten.close(mt5, Position(kind=0))
+    assert mt5.sent[0]["deviation"] == flatten.CLOSE_DEVIATION
+    assert flatten.CLOSE_DEVIATION > 0
+
+
+class FakeOrder:
+    def __init__(self, ticket=7, magic=618, age=0, now=1_787_900_000):
+        self.ticket, self.magic = ticket, magic
+        self.time_setup = now - age
+
+
+class OrdersMT5(FakeMT5):
+    def __init__(self, orders=(), **kw):
+        super().__init__(**kw)
+        self._orders = list(orders)
+
+    def orders_get(self, **kw):
+        return self._orders
+
+
+NOW = 1_787_900_000
+DAY = 24 * 3600
+
+
+def test_a_pending_older_than_the_window_is_found_and_a_fresh_one_is_not():
+    """Tanpa ini tidak ada apa pun di jalur normal yang pernah membatalkan
+    apa pun: tiap order GTC, dan `TRADE_ACTION_REMOVE` hanya ada di
+    `live_ping`. Pending yang tidak pernah terisi memakan cap selamanya dan
+    mengunci zonanya lewat gerbang idempotency."""
+    old = FakeOrder(ticket=1, age=4 * DAY, now=NOW)
+    fresh = FakeOrder(ticket=2, age=2 * 3600, now=NOW)
+    mt5 = OrdersMT5(orders=[old, fresh])
+
+    found = flatten.stale_pendings(mt5, NOW)
+    assert [o.ticket for o in found] == [1]
+
+
+def test_an_order_that_is_not_ours_is_never_cancelled():
+    """Kepemilikan dibaca dari `magic`, bukan dari journal.
+
+    Journal-nya lokal, gitignored, dan tidak pernah direkonsiliasi dengan
+    broker, jadi ia bukan sumber yang aman untuk memutuskan order mana yang
+    boleh disentuh. Order tangan di terminal yang sama harus lolos dari sapuan
+    ini, dan itu jaminan yang harus dites, bukan diasumsikan.
+    """
+    theirs = FakeOrder(ticket=99, magic=0, age=30 * DAY, now=NOW)
+    mt5 = OrdersMT5(orders=[theirs])
+    assert flatten.stale_pendings(mt5, NOW) == []
+
+
+def test_a_pending_with_no_setup_time_is_left_alone():
+    """Umur yang tidak diketahui bukan umur nol dan bukan umur tak terhingga.
+    Membatalkan berdasarkan umur yang tidak terbaca akan menghapus order yang
+    baru saja dikirim."""
+    mt5 = OrdersMT5(orders=[FakeOrder(ticket=3, age=0, now=0)])
+    assert flatten.stale_pendings(mt5, NOW) == []
+
+
+def test_cancelling_uses_the_same_success_predicate_as_closing():
+    """`order_send` sukses pada 10009 atau 10008, bukan pada 0. Dua tool sudah
+    pernah salah bersamaan soal ini."""
+    mt5 = OrdersMT5(orders=[])
+    ok, why = flatten.cancel(mt5, FakeOrder(ticket=5))
+    assert ok, why
+    assert mt5.sent[0]["action"] == mt5.TRADE_ACTION_REMOVE
+    assert mt5.sent[0]["order"] == 5
+
+    refused = OrdersMT5(orders=[], send=FakeSend(retcode=0, comment="ok"))
+    ok, why = flatten.cancel(refused, FakeOrder(ticket=5))
+    assert not ok, "retcode 0 dari order_send BUKAN sukses"

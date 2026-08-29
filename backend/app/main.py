@@ -23,7 +23,7 @@ from datetime import datetime, timezone
 from zoneinfo import ZoneInfo
 
 import numpy as np
-from fastapi import FastAPI, HTTPException, Request
+from fastapi import FastAPI, HTTPException, Query, Request
 from fastapi.middleware.cors import CORSMiddleware
 
 from . import autotrade, journal, snapshots
@@ -136,7 +136,31 @@ async def config() -> dict:
 async def candles(
     symbol: str = "XAUUSD",
     interval: str = "15m",
-    bars: int = 500,
+    # ONE KNOB, ONE CONTRACT. This bound is `DrawRequest.bars` restated for a
+    # query string, and it is deliberately the SAME bound rather than a looser
+    # one, because the two disagreed and the disagreement was invisible:
+    # `bars=-5` here answered HTTP 200 with 50 candles, while the identical
+    # field on `POST /api/draw` answered 422. Same name, same meaning, two
+    # answers depending on which door you knocked on.
+    #
+    # The 422 is the right half of that pair, and clamping is the wrong half,
+    # for the reason this project already wrote down about silent substitution
+    # in `DrawRequest`: an answer nobody asked for that looks exactly like the
+    # answer they did. A caller asking for 99,999 bars is asking for a window
+    # it intends to compute over; handing back 50,000 with a 200 and no field
+    # saying so puts its lookback arithmetic on a series a different length
+    # from the one it sized. `bars=-5` is not a request to be interpreted, it
+    # is a bug in the caller, and 50 bars of gold is a perfectly plausible
+    # chart to draw from it.
+    #
+    # `get_candles` STILL CLAMPS and that clamp stays. It guards a different
+    # boundary: the in-process callers that DERIVE a bar count rather than
+    # receive one (`_gap_history` divides a day count by an interval,
+    # `checklist` sizes a bias window), where a computed 30 should become 50
+    # and not a 500. This bound is the request contract; that one is the
+    # fetch's own floor. The rule the two now share is that neither of them
+    # silently reinterprets a number a HUMAN typed.
+    bars: int = Query(default=500, ge=50, le=settings.max_bars),
     provider: str | None = None,
 ) -> dict[str, object]:
     rows, used = await fetch(symbol, interval, bars, provider)
@@ -310,7 +334,20 @@ async def agent_config_save(body: dict) -> dict:
     would surface minutes later in the middle of a chat. The save stands
     either way - the operator may be pre-configuring an endpoint that is
     briefly down - but the response says whether it answered.
+
+    THIS HANDLER MAKES AN AUTHENTICATED OUTBOUND REQUEST TO A HOST THE BODY
+    NAMES, which is why `agent.vet_base_url` exists and why its docstring is
+    the long one: the probe below sends `Bearer <api_key>` to whatever
+    `base_url` says, and this API has no authentication of its own to decide
+    who was allowed to say it.
+
+    `api_key_cleared` is reported because the save now DROPS a stored key when
+    the endpoint's host moves. Without the field an operator sees a save
+    succeed and a probe fail with a 401 from the new vendor, and the reason -
+    that the old vendor's key was deliberately not carried across - would be
+    invisible at exactly the moment it needs explaining.
     """
+    had_key = bool(agent_mod.read_config()["api_key"])
     try:
         agent_mod.save_config(
             base_url=str(body.get("base_url") or ""),
@@ -327,7 +364,8 @@ async def agent_config_save(body: dict) -> dict:
         raise HTTPException(status_code=422, detail=str(exc)) from exc
     reachable, why, offered = await agent_mod.probe()
     return {**agent_mod.masked(), "reachable": reachable, "error": why,
-            "models": offered}
+            "models": offered,
+            "api_key_cleared": had_key and not agent_mod.read_config()["api_key"]}
 
 
 @app.get("/api/agent/models")
@@ -393,7 +431,10 @@ async def forming(
 async def triad_read(
     symbol: str = "XAUUSD",
     interval: str = "1h",
-    bars: int = 2000,
+    # The same bound `/api/candles` and `DrawRequest` carry, for the same
+    # reason: this number reaches `get_candles`, which clamps it, so without
+    # the bound `bars=-5` was a 200 over 50 bars here too.
+    bars: int = Query(default=2000, ge=50, le=settings.max_bars),
     triad: str = "monetary",
     provider: str | None = None,
 ) -> dict:
@@ -409,9 +450,27 @@ async def triad_read(
     base symbol failing is a 502.
 
     The provider defaults to the chart's own, but the triad partners may not
-    be carried by it — Binance only serves three symbols. So when the
-    caller's provider is a limited feed, the triad silently falls back to
-    mt5 which carries all twenty instruments.
+    be carried by it: Binance serves three of the twenty symbols and Yahoo
+    does not carry the broker CFDs at all. So when the caller's provider is a
+    limited feed the triad falls back to mt5, which carries all twenty.
+
+    THE FALLBACK IS REPORTED, and it did not used to be. `provider` in the
+    response is the feed that actually served the bars, not the one the query
+    string asked for, and the two differ on every `binance`, `yahoo` and
+    absent request - which is most of them. Until this field existed, a caller
+    who asked for binance got MT5 prices and had no way to find out: the
+    correlations, the consolidation scores and the Truth Asset were all
+    computed from a broker's CFD tape while the request said an exchange's
+    spot tape, and the two are different numbers.
+
+    That is the same defect the `/api/draw` request model records at length -
+    five providers "measured" through a field that was silently dropped, all
+    five answering 200 with identical Yahoo bars. The other three routes that
+    resolve a provider (`/api/draw`, `/api/candles`, `/api/forming`) have
+    always returned the name they used; this one was the outlier, and a
+    substitution is worth reporting precisely BECAUSE it is helpful. A read
+    that quietly succeeded on a feed you did not name is indistinguishable
+    from one that succeeded on the feed you did.
     """
     family = TRIAD_FAMILIES.get(triad)
     if family is None:
@@ -439,6 +498,14 @@ async def triad_read(
     except ProviderError as exc:
         raise HTTPException(status_code=502, detail=str(exc)) from exc
 
+    # AFTER the load, where it cannot raise: `load_aligned` has already put
+    # every unknown name through `resolve` and turned it into the 502 above,
+    # so by here the name is known and this only canonicalises it. Reading it
+    # from `resolve` rather than echoing `triad_provider` means the response
+    # says what the provider registry calls itself, which is what the other
+    # three routes report.
+    used_provider = resolve(triad_provider).name
+
     found = truth_asset(series, base, triad)
     corr = [
         {
@@ -461,6 +528,10 @@ async def triad_read(
         "triad": triad,
         "base": base,
         "partners": [s for s in symbols if s != base],
+        # The feed that served these bars. NOT the one the caller asked for -
+        # see the docstring. A caller comparing this against its own request
+        # is how the substitution becomes visible.
+        "provider": used_provider,
         "truth_asset": (
             {"symbol": found.symbol, "scores": found.scores}
             if found

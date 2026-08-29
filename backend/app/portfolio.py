@@ -55,6 +55,22 @@ class Book:
     #: what this run placed. Reported rather than hidden: a cap computed on half
     #: the book is a cap that does not bind.
     partial: bool = False
+    #: Posisi terbuka yang risikonya TIDAK BISA dihitung, tiap entry satu
+    #: kalimat yang menyebut sebabnya.
+    #:
+    #: KENAPA INI BUKAN SEKADAR DILEWATI. Sampai 29 Agustus 2026 penyusun Book
+    #: melakukan `if not stop: continue`, jadi posisi tanpa stop loss dihitung
+    #: NOL risiko. Itu membalik arti cap-nya: hal paling berisiko yang bisa
+    #: dipegang sebuah akun, yaitu posisi tanpa batas kerugian, adalah satu
+    #: satunya hal yang tidak terlihat olehnya. Cacat kedua di baris yang sama
+    #: memakai `getattr(mt5.symbol_info(name), "trade_contract_size", 1.0)`,
+    #: dan `getattr(None, ...)` mengembalikan default-nya, jadi simbol yang
+    #: tidak terbaca menyumbang 1,0 alih alih 100,0 dan kontribusi emas
+    #: di-understate seratus kali.
+    #:
+    #: Aturannya sama dengan `realised_today=None` di bawah: tidak terbaca
+    #: bukan nol, dan penjaga yang tidak bisa membaca harus MENOLAK.
+    unbounded: list[str] = field(default_factory=list)
 
     @property
     def committed(self) -> float:
@@ -150,6 +166,21 @@ def admits(
                 f"{lost / book.equity:.2%} of {book.equity:,.2f}, at or over "
                 f"the {book.daily_loss_pct:.2%} limit. No new orders today"
             )
+
+    # RISIKO YANG TIDAK TERHITUNG MEMBATALKAN CAP-NYA, bukan sekadar
+    # mengurangi ketelitiannya. `committed` menjumlahkan apa yang BISA dihitung;
+    # kalau ada posisi yang tidak bisa, jumlah itu bukan lantai yang longgar, ia
+    # angka yang tidak diketahui hubungannya dengan kenyataan. `partial` di atas
+    # menangani kasus "book tidak terbaca sama sekali"; ini menangani kasus yang
+    # lebih berbahaya, yaitu book terbaca dan salah satu barisnya tak berbatas.
+    if book.unbounded:
+        return False, (
+            "posisi terbuka yang risikonya tidak bisa dihitung: "
+            + "; ".join(book.unbounded)
+            + ". Cap portofolio tidak bisa mengikat di atas jumlah yang tidak "
+            "lengkap, jadi tidak ada order baru sampai posisi itu punya stop "
+            "atau simbolnya terbaca"
+        )
 
     total = book.committed + risk
     if total / book.equity > book.cap_pct:

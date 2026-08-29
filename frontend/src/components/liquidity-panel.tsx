@@ -2,6 +2,7 @@
 
 import { memo } from "react";
 
+import { formatPrice } from "@/lib/price";
 import type { DrawOnLiquidity, NamedLevel, RangeLiquidityReport } from "@/lib/types";
 
 /**
@@ -21,13 +22,25 @@ import type { DrawOnLiquidity, NamedLevel, RangeLiquidityReport } from "@/lib/ty
  * have failed in this project. An EMPTY SIDE IS A FACT, not a vote for the other
  * one: price that has run above every previous-period high leaves nothing
  * untaken above it, and that is a statement about what has been swept.
+ *
+ * EVERY PRICE HERE IS PRINTED AT THE AXIS'S OWN COUNT, from `lib/price.ts`. The
+ * local helper used to be `n.toFixed(2)`, which is the exact disagreement that
+ * module exists to stop: a PDH on a 5-decimal FX pair read 1.09 in this list
+ * while the axis two hundred pixels to the left read 1.09234, and a pool level
+ * rounded to the nearest cent is not a level any more. `distance` is formatted
+ * the same way on purpose - it is a price difference, so it lives on the same
+ * scale as the price it was subtracted from.
  */
 
-function price(n: number): string {
-  return n.toFixed(2);
-}
-
-function Levels({ label, levels }: { label: string; levels: NamedLevel[] }) {
+function Levels({
+  label,
+  levels,
+  decimals,
+}: {
+  label: string;
+  levels: NamedLevel[];
+  decimals: number;
+}) {
   if (!levels.length) return null;
   return (
     <div className="border-t border-line px-3 py-2">
@@ -52,7 +65,7 @@ function Levels({ label, levels }: { label: string; levels: NamedLevel[] }) {
             <span
               className={`num text-[11px] ${level.taken_at ? "text-text-faint" : "text-text"}`}
             >
-              {price(level.price)}
+              {formatPrice(level.price, decimals)}
             </span>
           </div>
         ))}
@@ -64,9 +77,13 @@ function Levels({ label, levels }: { label: string; levels: NamedLevel[] }) {
 export const LiquidityPanel = memo(function LiquidityPanel({
   range,
   draw,
+  decimals,
 }: {
   range: RangeLiquidityReport | null;
   draw: DrawOnLiquidity | null;
+  /** How many decimals the instrument quotes, from the same `priceDecimals` call
+   *  the price axis and the header readout use. */
+  decimals: number;
 }) {
   if (!range && !draw) return null;
 
@@ -78,15 +95,23 @@ export const LiquidityPanel = memo(function LiquidityPanel({
         </h2>
         {range ? (
           <span className="num text-[11px] text-text-faint">
-            {price(range.low)} to {price(range.high)}
+            {formatPrice(range.low, decimals)} to {formatPrice(range.high, decimals)}
           </span>
         ) : null}
       </header>
 
       {range ? (
         <>
-          <Levels label="External, at the range edges" levels={range.external} />
-          <Levels label="Internal, unfilled inside it" levels={range.internal} />
+          <Levels
+            label="External, at the range edges"
+            levels={range.external}
+            decimals={decimals}
+          />
+          <Levels
+            label="Internal, unfilled inside it"
+            levels={range.internal}
+            decimals={decimals}
+          />
           {range.external.length === 0 && range.internal.length === 0 ? (
             <p className="px-3 py-2 text-[11px] leading-relaxed text-text-faint">
               The range produced no levels on either read.
@@ -100,7 +125,7 @@ export const LiquidityPanel = memo(function LiquidityPanel({
           <div className="mb-1 flex items-baseline justify-between gap-2">
             <span className="text-[11px] text-text-dim">Untaken, both sides</span>
             <span className="num text-[11px] text-text-faint">
-              at {price(draw.price)}
+              at {formatPrice(draw.price, decimals)}
             </span>
           </div>
           {/* Above first, then below, and both always rendered. The order is the
@@ -122,9 +147,9 @@ export const LiquidityPanel = memo(function LiquidityPanel({
                     >
                       <span className="num text-[11px] text-text-dim">{c.name}</span>
                       <span className="num text-[11px] text-text">
-                        {price(c.price)}
+                        {formatPrice(c.price, decimals)}
                         <span className="ml-1.5 text-text-faint">
-                          {price(c.distance)} away
+                          {formatPrice(c.distance, decimals)} away
                         </span>
                       </span>
                     </div>

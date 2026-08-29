@@ -1047,3 +1047,78 @@ def test_fibonacci_matches_the_last_confirmed_swing_anchors():
     assert fib["low_at"] == lows[-1]["time"]
     assert fib["high"] == highs[-1]["price"]
     assert fib["high_at"] == highs[-1]["time"]
+
+
+# ------------------------------------------------------- the nested contract
+
+
+#: Every params block on `DrawRequest`, paired with a knob name that block does
+#: NOT have. Each wrong name is a plausible typo of a real one rather than
+#: nonsense, because nonsense is not the case that ships: `departure_min_ATR`
+#: for `departure_min_atr`, `min_gap` for `min_gap_atr`, `true_open` for
+#: `true_opens`. Those are the ones a hand-copied TypeScript literal produces.
+FORBIDDEN = [
+    ("supply_demand", "departure_min_ATR", 3.0),
+    ("imbalance", "min_gap", 0.5),
+    ("structure", "swing_width", 9),
+    ("session", "true_open", ["day"]),
+    ("dfr", "extension", [-0.5]),
+    ("gaps", "keep_gaps", 3),
+    ("news", "impact", ["High"]),
+    ("cisd", "min_runs", 3),
+    ("pools", "max_pool", 4),
+    ("liquidity", "max_level", 4),
+    ("projections", "level", [0.0]),
+    ("checklist", "bias_timeframe", ["1h"]),
+]
+
+
+@pytest.mark.parametrize(
+    "block,knob,value", FORBIDDEN, ids=[f"{b}.{k}" for b, k, _ in FORBIDDEN]
+)
+def test_a_knob_no_params_block_has_is_a_422_and_not_a_shrug(block, knob, value):
+    """A typo in a nested knob must fail the way a typo at the top level does.
+
+    `DrawRequest` has forbidden extras since the incident written up in
+    `models/api.py`: five providers were "measured" by sending a `source` field
+    that model never had, pydantic dropped it, and all five answered 200 with
+    identical Yahoo bars. The top level was closed that day. THE TWELVE NESTED
+    BLOCKS WERE NOT, which left the same defect one level down and in the worse
+    place: the top level holds eight scalar fields, while the blocks hold about
+    seventy knobs whose names are hand-copied into `frontend/src/lib/types.ts`.
+
+    So `{"supply_demand": {"departure_min_ATR": 3.0}}` used to be an HTTP 200
+    over a chart drawn on the DEFAULT 2.0, with nothing anywhere saying the
+    number had been ignored. A wrong reading that looks right, which is the
+    failure shape this project's own notes call the worst way for an API to be
+    wrong. `ParamBlock` closes it.
+
+    Parametrised over every block rather than a representative one, because
+    what is being pinned is that no block was MISSED. One open block is the
+    whole hole back, and the next block added is the one that gets forgotten.
+    """
+    response = client.post("/api/draw", json={**BASE, block: {knob: value}})
+    assert response.status_code == 422, (
+        f"{block}.{knob} was accepted; that block still allows extras, so a "
+        f"typo there is a silent no-op with a 200"
+    )
+    assert knob in response.text, "the 422 must name the field it refused"
+
+
+def test_the_real_knob_beside_the_typo_still_works():
+    """The gate is closed, not welded: the correct spelling has to still pass.
+
+    Paired with the test above on purpose. A block that rejected EVERYTHING
+    would satisfy that assertion perfectly while breaking the product, and this
+    is the half that would catch it: same block, same request shape, the name
+    the model actually has.
+    """
+    ok = client.post(
+        "/api/draw",
+        json={
+            **BASE,
+            "layers": ["supply_demand"],
+            "supply_demand": {"departure_min_atr": 3.0},
+        },
+    )
+    assert ok.status_code == 200, ok.text

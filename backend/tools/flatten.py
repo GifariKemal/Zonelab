@@ -32,8 +32,7 @@ import datetime
 
 from app import journal
 from tools.costed import ROLLOVER_HOUR_UTC, rollovers
-from tools.execute import send_ok
-from tools.execute import RULE, _terminal
+from tools.broker import MAGIC, RULE, _terminal, send_ok
 
 
 def why_closed(nights: int, opened_at: int) -> list[str]:
@@ -48,11 +47,40 @@ def why_closed(nights: int, opened_at: int) -> list[str]:
     ]
 
 
-def close(mt5, position, price_digits: int = 3) -> tuple[bool, str]:
-    """Close one position at market. Returns (closed, reason-if-not)."""
+#: Slippage maksimum yang diterima untuk penutupan market, dalam point.
+#:
+#: KENAPA ADA ANGKANYA SAMA SEKALI. Versi sebelumnya mengirim
+#: `TRADE_ACTION_DEAL` TANPA field `deviation`, sementara `tools/live_ping.py`
+#: menyetel 20 untuk probe market-nya. Penutupan rollover terjadi tepat di
+#: pergantian sesi, yaitu saat spread paling lebar dan requote paling mungkin,
+#: dan tanpa deviation broker berhak menolak alih alih mengisi. Posisi yang
+#: GAGAL ditutup di rollover adalah persis hal yang daemon ini ada untuk
+#: mencegah. 20 point menyamai probe yang sudah terbukti diterima terminal ini.
+CLOSE_DEVIATION = 20
+
+
+def close(mt5, position, price_digits: int | None = None) -> tuple[bool, str]:
+    """Close one position at market. Returns (closed, reason-if-not).
+
+    DIGIT DIBACA DARI SIMBOLNYA, dan default 3 yang lama adalah cacat yang sama
+    dengan yang ada di `execute.place` sampai 29 Agustus 2026. Tiga desimal
+    kebetulan benar untuk XAUUSD dan salah untuk tiap pasangan FX lima desimal,
+    dan `tools/autotrade.py` memanggil fungsi ini TANPA argumen, jadi jalur
+    penutupan otomatis memakai default itu untuk simbol apa pun.
+
+    `price_digits` masih bisa dioper karena `live_ping` sudah melakukannya, tapi
+    None sekarang berarti "tanyakan terminalnya", bukan "pakai tiga".
+    """
     tick = mt5.symbol_info_tick(position.symbol)
     if tick is None:
         return False, f"no tick for {position.symbol}: {mt5.last_error()}"
+    if price_digits is None:
+        info = mt5.symbol_info(position.symbol)
+        if info is None:
+            return False, (f"symbol_info tidak terbaca untuk {position.symbol}, "
+                           f"jadi digit harganya tidak diketahui: "
+                           f"{mt5.last_error()}")
+        price_digits = int(info.digits)
     long_side = position.type == mt5.POSITION_TYPE_BUY
     request = {
         "action": mt5.TRADE_ACTION_DEAL,
@@ -63,7 +91,11 @@ def close(mt5, position, price_digits: int = 3) -> tuple[bool, str]:
         "type": mt5.ORDER_TYPE_SELL if long_side else mt5.ORDER_TYPE_BUY,
         "position": position.ticket,
         "price": round(tick.bid if long_side else tick.ask, price_digits),
+        "deviation": CLOSE_DEVIATION,
         "type_time": mt5.ORDER_TIME_GTC,
+        # IOC untuk penutupan market: isi yang bisa diisi sekarang, batalkan
+        # sisanya. Bedanya dengan RETURN di `execute.place` disengaja, karena
+        # yang di sana pending dan yang ini deal.
         "type_filling": mt5.ORDER_FILLING_IOC,
         "comment": "zonelab flat rollover"[:31],
     }
@@ -72,6 +104,54 @@ def close(mt5, position, price_digits: int = 3) -> tuple[bool, str]:
     # melaporkannya gagal, dan menulis record penolakan untuk posisi yang sudah
     # tertutup. Alasan lengkapnya di docstring `execute.send_ok`.
     return send_ok(mt5, mt5.order_send(request))
+
+
+#: Berapa lama sebuah pending order kita boleh menganggur sebelum dibatalkan,
+#: dalam detik. Tiga hari.
+#:
+#: KENAPA PEMBATALAN PERLU ADA SAMA SEKALI. Tiap order dikirim sebagai
+#: `ORDER_TIME_GTC`, dan sampai 29 Agustus 2026 `TRADE_ACTION_REMOVE` hanya
+#: muncul di `tools/live_ping.py`. Artinya tidak ada apa pun di jalur normal
+#: yang pernah membatalkan apa pun: sebuah pending yang tidak pernah terisi
+#: hidup selamanya, terus memakan cap portofolio, dan terus mengunci zonanya
+#: lewat gerbang idempotency yang membaca journal. Satu zona yang order-nya
+#: kedaluwarsa tanpa terisi jadi pensiun permanen, dan `docs/ALUR-ORDER.md`
+#: sudah menamai konsekuensi itu tanpa ada yang menutupnya.
+#:
+#: ANGKANYA TIDAK PUNYA PENGUKURAN, dan itu dinyatakan alih alih disamarkan.
+#: Ia dipilih dari horizon 80 bar yang dipakai tiap pengukuran di proyek ini,
+#: yang pada chart satu jam kira kira 3,3 hari. Ia berhak ada tanpa angka
+#: dengan alasan yang sama seperti pengaman kerugian harian: ia tidak pernah
+#: MELOLOSKAN trade yang ditolak gerbang lain, ia hanya melepas paparan.
+STALE_PENDING_SECONDS = 3 * 24 * 3600
+
+
+def stale_pendings(mt5, now: int, max_age: int = STALE_PENDING_SECONDS) -> list:
+    """Pending milik KITA yang sudah menganggur lebih lama dari `max_age`.
+
+    KEPEMILIKAN DIBACA DARI `magic`, bukan dari journal. Journal-nya lokal,
+    gitignored, dan tidak pernah direkonsiliasi dengan broker, jadi ia bukan
+    sumber yang aman untuk memutuskan order mana yang boleh dibatalkan. Sejak
+    `broker.MAGIC` diset, broker sendiri membawa jawabannya, dan order tangan
+    di terminal yang sama tidak akan pernah ikut tersapu.
+    """
+    out = []
+    for order in (mt5.orders_get() or []):
+        if int(getattr(order, "magic", 0)) != MAGIC:
+            continue
+        setup = int(getattr(order, "time_setup", 0))
+        if setup and now - setup >= max_age:
+            out.append(order)
+    return out
+
+
+def cancel(mt5, order) -> tuple[bool, str]:
+    """Batalkan satu pending. Predikat suksesnya sama dengan `close`."""
+    sent = mt5.order_send({
+        "action": mt5.TRADE_ACTION_REMOVE,
+        "order": int(order.ticket),
+    })
+    return send_ok(mt5, sent)
 
 
 def main() -> None:

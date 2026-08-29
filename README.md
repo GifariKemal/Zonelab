@@ -3,8 +3,9 @@
 
 <p align="center">
   <img alt="status" src="https://img.shields.io/badge/status-tahap%20awal-orange">
-  <img alt="tests" src="https://img.shields.io/badge/tests-834%20unit%20%2B%20124%20kontrak-brightgreen">
-  <img alt="calibrated" src="https://img.shields.io/badge/detection-validated%20p%3C0.0001-brightgreen">
+  <img alt="tests" src="https://img.shields.io/badge/tests-993%20unit%20%2B%20124%20kontrak-brightgreen">
+  <img alt="gate" src="https://img.shields.io/badge/gerbang%20departure-memisahkan%20t%3D%2B7.19-brightgreen">
+  <img alt="expectancy" src="https://img.shields.io/badge/ekspektansi-belum%20terbukti-orange">
   <img alt="license" src="https://img.shields.io/badge/license-proprietary-lightgrey">
 </p>
 

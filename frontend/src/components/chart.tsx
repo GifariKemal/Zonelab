@@ -336,21 +336,30 @@ export function Chart({
     // 49-hour weekend leaves no mark at all. Everything else in this list is a
     // layer the user switches on; a chart that hides a weekend is misreporting
     // itself, so this one is not optional.
+    //
+    // BEING FIRST MAKES IT THE FRAME'S RESET, which is a second job it did not
+    // used to do. `resetLabels` runs in the first pass that draws, and for one
+    // release that was still the grid below even though this line had moved
+    // above it - so this primitive claimed its weekend caption and the grid
+    // threw it away one pass later, every frame. The rule is that the reset
+    // follows whatever is attached first, so moving this line means moving the
+    // `resetLabels()` call in `break-primitive.ts` with it.
     const breakPrim = new BreakSeriesPrimitive();
     candleSeries.attachPrimitive(breakPrim);
-    // SESSION FIRST, and this order is load-bearing rather than tidy: the grid
-    // pass is where `resetLabels` runs, so any pass that claims a label before
-    // it has that claim thrown away and is then overprinted by every later
-    // pass. DFR was attached above this line for exactly one commit and its
-    // projection tags were invisible to the collision map the whole time.
-    // `resetLabels` now says so out loud in development.
+    // SECOND, and everything from here down is load-bearing rather than tidy:
+    // the FIRST pass is where `resetLabels` runs, so any pass that claims a
+    // label before it has that claim thrown away and is then overprinted by
+    // every later pass. DFR was attached above this line for exactly one commit
+    // and its projection tags were invisible to the collision map the whole
+    // time; the break primitive above lost its weekend caption the same way for
+    // longer, from the other side of the same line.
     const sessionPrim = new SessionSeriesPrimitive();
     candleSeries.attachPrimitive(sessionPrim);
-    // IMMEDIATELY AFTER SESSION, and for the reason the note above gives: the
-    // dial claims a label footprint, and the grid pass is where `resetLabels`
-    // runs, so a claim made before it is discarded. The dial cannot move out of
-    // the way of a caption - it is anchored to the pane corner, not to a price -
-    // so it has to be the one that claims.
+    // AFTER SESSION, and for the reason the note above gives: the dial claims a
+    // label footprint, and a claim made before the frame's first pass is
+    // discarded. The dial cannot move out of the way of a caption - it is
+    // anchored to the pane corner, not to a price - so it has to be the one that
+    // claims.
     const vortexPrim = new VortexSeriesPrimitive();
     candleSeries.attachPrimitive(vortexPrim);
     // With the cycle grid, at `bottom`: a defining range is a window of the

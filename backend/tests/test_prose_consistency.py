@@ -2,9 +2,9 @@
 
 There is exactly one of these, and it guards the sentence the project's whole
 epistemic posture rests on: how many pre-registered directional hypotheses have
-failed here. That count appears in more than twenty files, in Python docstrings
-and in TypeScript comments, and it is the reason every module can say "this is
-not a signal" with a straight face.
+failed here. That count appears in more than twenty files, in Python docstrings,
+in TypeScript comments, in the docs and on the front page, and it is the reason
+every module can say "this is not a signal" with a straight face.
 
 An audit found it stated FOUR different ways at once - nine, ten, eleven and
 twelve - because each site was written on a different day and none of them knew
@@ -24,8 +24,29 @@ import re
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[2]
-SOURCES = ("backend/app", "backend/tools", "backend/tests", "frontend/src")
-SUFFIXES = {".py", ".ts", ".tsx"}
+#: `docs` AND the two loose prose files below were added on 2026-08-29, and the
+#: reason is the defect this file was written for: `backend/.env.example` said
+#: "Ten" while `docs/ADOPSI.md`, `docs/BACKLOG.md`, `docs/CALIBRATION.md`,
+#: `docs/QA-PRODUKSI.md` and `README.md` said twelve, and the guard could see
+#: none of them. It scanned four source trees, so the last surviving instance of
+#: exactly the drift it exists to catch sat outside its own reach until an audit
+#: read the files by hand.
+SOURCES = ("backend/app", "backend/tools", "backend/tests", "frontend/src", "docs")
+SUFFIXES = {".py", ".ts", ".tsx", ".md"}
+#: The claim also lives in two files that belong to no source tree: the repo's
+#: front page, and the config template a new machine copies. Named one by one
+#: rather than by sweeping the repo root, so a scratch file dropped there cannot
+#: start voting on the count.
+LOOSE = ("README.md", "backend/.env.example")
+
+#: PROSE MAY QUOTE A WRONG COUNT ON PURPOSE, and one file here does.
+#: `docs/AUDIT-MENYELURUH.md` is a dated snapshot whose own finding IS this
+#: drift, quoted verbatim. An audit that may not repeat what it found is not an
+#: audit, and editing the record to keep a test green would be the worse of the
+#: two failures. So it is marked the way an editor marks a quoted error, and the
+#: exemption is scoped to the line the numeral starts on rather than to the file,
+#: because a whole-file skip is how a blind spot gets built the second time.
+SIC = "[sic]"
 
 #: The wrapped docstrings break the phrase across lines, so the gap has to allow
 #: a newline and whatever comment furniture starts the next line.
@@ -39,9 +60,14 @@ SUFFIXES = {".py", ".ts", ".tsx"}
 #: need the English anchor `pre-registered` beside them, for the same reason the
 #: English ones do: "sembilan" appears in ordinary prose all over the place, and
 #: a bare numeral match would find nine of them per file.
+#:
+#: `>` and `-` joined the gap class together with `docs`. Markdown wraps prose,
+#: and the continuation line of a blockquote or a list item starts with
+#: furniture no comment syntax above produces, so the same phrase split across a
+#: newline inside a `>` quote would have read as ABSENT rather than as agreeing.
 PHRASE = re.compile(
     r"\b(nine|ten|eleven|twelve|sembilan|sepuluh|sebelas|dua belas)\b"
-    r"[\s\n#*/]*(?:hipotesis arah )?pre-registered",
+    r"[\s\n#*/>-]*(?:hipotesis arah )?pre-registered",
     re.I,
 )
 
@@ -65,15 +91,24 @@ def _sources() -> list[Path]:
         for base in SOURCES
         for path in (ROOT / base).rglob("*")
         if path.suffix in SUFFIXES and "__pycache__" not in path.parts
+    ] + [ROOT / name for name in LOOSE]
+
+
+def _counts(path: Path) -> list[str]:
+    """Every count this file STATES, normalised, with quoted ones left out."""
+    text = path.read_text(encoding="utf-8")
+    lines = text.splitlines()
+    return [
+        SAME[match.group(1).lower()]
+        for match in PHRASE.finditer(text)
+        if SIC not in lines[text.count("\n", 0, match.start())]
     ]
 
 
 def test_the_failed_hypothesis_count_is_stated_identically_everywhere():
     found: dict[str, list[str]] = {}
     for path in _sources():
-        text = path.read_text(encoding="utf-8")
-        for match in PHRASE.finditer(text):
-            word = SAME[match.group(1).lower()]
+        for word in _counts(path):
             found.setdefault(word, []).append(str(path.relative_to(ROOT)))
 
     assert found, "the phrase vanished entirely, which means this guard stopped guarding"
@@ -93,11 +128,7 @@ def test_the_count_is_repeated_widely_enough_to_be_worth_guarding():
     not fail the suite - the point is that this is a REPEATED claim, which is
     what makes agreement between the copies matter.
     """
-    files = {
-        str(path.relative_to(ROOT))
-        for path in _sources()
-        if PHRASE.search(path.read_text(encoding="utf-8"))
-    }
+    files = {str(path.relative_to(ROOT)) for path in _sources() if _counts(path)}
     assert len(files) >= 15, sorted(files)
 
 

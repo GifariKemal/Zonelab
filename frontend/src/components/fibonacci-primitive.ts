@@ -9,7 +9,7 @@ import type {
 } from "lightweight-charts";
 import type { CanvasRenderingTarget2D } from "fancy-canvas";
 
-import { claimedLabels, labelFree } from "./structure-primitive";
+import { LABEL_GUTTER, claimedLabels, labelFree } from "./structure-primitive";
 import { ink } from "./ink";
 
 /**
@@ -24,6 +24,17 @@ import { ink } from "./ink";
  * NO DIRECTION CLAIM. One neutral ink for every level; the label names it.
  * Red and green on this canvas mean demand and supply, and lending them to a
  * Fibonacci line would smuggle a forecast in through the palette.
+ *
+ * EVERY RAY STOPS AT `LABEL_GUTTER`, like every other ray on this canvas. This
+ * file used to draw `moveTo(0, y)` to `lineTo(width, y)` and never imported the
+ * constant at all, so all nine levels ran the full width of the pane and
+ * straight through the reserved name column - and nine is the worst possible
+ * number to do it with, because the grid is dense enough that one of them lands
+ * near almost any ray name on screen. That is the exact defect the gutter was
+ * introduced for, written down in `structure-primitive.ts`: a line through a
+ * name is worse than either object alone, since the reader cannot tell which of
+ * the two is lying. `levels-primitive.ts`, `session-primitive.ts`,
+ * `dfr-primitive.ts` and `zone-primitive.ts` all already honoured it.
  */
 
 const INK = ink("levels", 0.8);
@@ -63,6 +74,10 @@ class FibRenderer implements IPrimitivePaneRenderer {
       ctx.font = `${Math.round(9 * ky)}px ui-monospace, monospace`;
       ctx.textBaseline = "middle";
       ctx.lineWidth = Math.max(1, Math.round(kx));
+      // Where the pane stops belonging to lines and starts belonging to names.
+      // One column for every pass, so the stop is the shared constant rather
+      // than this file's own measurement of its own label.
+      const gutter = width - LABEL_GUTTER * kx;
 
       for (const line of this.lines) {
         const y = Math.round(line.y * ky);
@@ -72,11 +87,15 @@ class FibRenderer implements IPrimitivePaneRenderer {
         ctx.setLineDash(line.kind === "eq" ? [4 * kx, 3 * kx] : []);
         ctx.beginPath();
         ctx.moveTo(0, y);
-        ctx.lineTo(width, y);
+        ctx.lineTo(gutter, y);
         ctx.stroke();
 
-        // Label, clamped to the right edge. Reuses the shared claim list so a
-        // Fibonacci label cannot land on a PDH or a zone caption.
+        // Label, clamped to the right edge - which is INSIDE the gutter the ray
+        // just stopped at, so the plate sits in the column rather than over the
+        // line. The widest tag here is "-1.000" at 9px ui-monospace, about 33px
+        // with its padding, so it fits the 46px column with room to spare.
+        // Reuses the shared claim list so a Fibonacci label cannot land on a PDH
+        // or a zone caption.
         const pad = Math.round(3 * kx);
         const w = ctx.measureText(line.label).width + pad * 2;
         const h = Math.round(12 * ky);

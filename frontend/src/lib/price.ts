@@ -52,3 +52,22 @@ export function priceDecimals(candles: Candle[]): number {
   }
   return Math.max(2, most);
 }
+
+/** One price, printed at the count `priceDecimals` returned.
+ *
+ *  A one-line wrapper over `toFixed`, and it exists so that a panel printing a
+ *  price has to IMPORT the rule rather than re-decide it. Both panels in the
+ *  right rail had `toFixed(2)` typed inline - 33 call sites between them - which
+ *  is the same defect this module was written for, one file further along: on a
+ *  5-decimal FX pair the axis read 1.09234 and the panel read 1.09, and neither
+ *  number was obviously the wrong one. `grep -r "toFixed(2)" src/components` is
+ *  now the check, and it should only ever match money in the account currency,
+ *  never an instrument price.
+ *
+ *  The count is PASSED IN rather than derived here, because the panels never
+ *  hold the candles - `app/page.tsx` does, it already calls `priceDecimals` once
+ *  for the header readout, and computing it a second and a third time per render
+ *  would be the same fact stored three ways. */
+export function formatPrice(value: number, decimals: number): string {
+  return value.toFixed(decimals);
+}

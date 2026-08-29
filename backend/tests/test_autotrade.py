@@ -12,7 +12,10 @@ order placement lives in `tools/` - and it is checked rather than trusted.
 
 from __future__ import annotations
 
+import types
+
 import json
+import sys
 import time
 
 import pytest
@@ -184,6 +187,7 @@ def test_daemon_calls_the_executor_with_the_signature_it_actually_has(monkeypatc
     monkeypatch.setattr(daemon, "cycle",
                         lambda *a, **k: seen.update(equity=a[7], symbols=a[1]))
     monkeypatch.setattr(daemon, "exits", lambda *a, **k: seen.setdefault("exits", []).append(a[1]))
+    monkeypatch.setattr(daemon, "sweep", lambda *a, **k: 0)
     monkeypatch.setattr(daemon.autotrade, "beat", lambda *a, **k: None)
     monkeypatch.setattr(daemon.autotrade, "read", lambda: {"enabled": True})
     monkeypatch.setattr(sys, "argv",
@@ -314,6 +318,7 @@ def test_daemon_can_enforce_doctrine_clauses_like_the_manual_tool(monkeypatch):
     monkeypatch.setattr(daemon, "lot_specs", lambda symbols: ({}, []))
     monkeypatch.setattr(daemon, "cycle", lambda *a, **k: seen.update(rules=a[9]))
     monkeypatch.setattr(daemon, "exits", lambda *a, **k: 0)
+    monkeypatch.setattr(daemon, "sweep", lambda *a, **k: 0)
     monkeypatch.setattr(daemon.autotrade, "beat", lambda *a, **k: None)
     monkeypatch.setattr(daemon.autotrade, "read", lambda: {"enabled": True})
     monkeypatch.setattr(sys, "argv", [
@@ -350,6 +355,7 @@ def test_daemon_defaults_leave_every_clause_reporting_only(monkeypatch):
     monkeypatch.setattr(daemon, "lot_specs", lambda symbols: ({}, []))
     monkeypatch.setattr(daemon, "cycle", lambda *a, **k: seen.update(rules=a[9]))
     monkeypatch.setattr(daemon, "exits", lambda *a, **k: 0)
+    monkeypatch.setattr(daemon, "sweep", lambda *a, **k: 0)
     monkeypatch.setattr(daemon.autotrade, "beat", lambda *a, **k: None)
     monkeypatch.setattr(daemon.autotrade, "read", lambda: {"enabled": True})
     monkeypatch.setattr(sys, "argv", ["autotrade", "--once", "--symbol", "mt5:XAUUSD"])
@@ -414,3 +420,434 @@ def test_monitor_raises_its_exit_code_when_the_engine_refused_to_act(
     log.write_text("  ringkas: 12 kandidat, 0 dikirim, 0 ditolak\n", encoding="utf-8")
     assert mon.main() == 0
     assert "BLOCKER" not in capsys.readouterr().out
+
+
+# ------------------------------------------------- the loop, and what ends it
+#
+# Everything below drives `tools.autotrade.main` itself, which is the hole the
+# 27 August 2026 incident fell through: a signature drift killed the daemon one
+# second after arming and 861 tests passed, because not one of them called
+# `main`. A gate on the loop has to run the loop.
+
+
+@pytest.fixture
+def daemon_fakes(monkeypatch):
+    """Batas I/O daemon di-fake; keputusan, sizing, dan LOOP-nya dibiarkan asli.
+
+    `_terminal`, `lot_specs`, `cycle`, `exits`, dan `beat` adalah tepi tempat
+    daemon menyentuh terminal dan disk. `main`, `sizing`, pembentukan basket,
+    penghitungan kegagalan, dan gerbang PID sengaja TIDAK di-fake: persis di
+    situ cacat yang dikejar file ini hidup.
+    """
+    from tools import autotrade as daemon
+
+    class FakeAccount:
+        login, server, trade_mode, equity = 1, "demo", 0, 1000.0
+
+    calls: list = []
+    monkeypatch.setattr(daemon, "_terminal", lambda: ((object(), FakeAccount()), ""))
+    monkeypatch.setattr(daemon, "lot_specs", lambda symbols: ({}, []))
+    monkeypatch.setattr(daemon, "exits", lambda *a, **k: 0)
+    monkeypatch.setattr(daemon, "sweep", lambda *a, **k: 0)
+    monkeypatch.setattr(daemon, "cycle", lambda *a, **k: calls.append(a))
+    # Heartbeat dimatikan supaya ia tidak menimpa `daemon_pid` yang ditulis
+    # test gerbang PID di bawah. Yang diukur di sini loop-nya, bukan detaknya.
+    monkeypatch.setattr(daemon.autotrade, "beat", lambda *a, **k: None)
+    return daemon, calls
+
+
+def _argv(monkeypatch, *extra: str) -> None:
+    import sys
+    monkeypatch.setattr(sys, "argv", [
+        "autotrade", "--symbol", "mt5:XAUUSD", "--cycle", "0", *extra])
+
+
+def test_a_raising_cycle_does_not_end_the_loop_and_escalates_after_five(
+    daemon_fakes, monkeypatch, capsys,
+):
+    """Satu raise TIDAK mengakhiri loop, tapi lima berturut mengakhiri proses.
+
+    27 Agustus 2026 tidak ada `try` sama sekali di sekitar pass keputusan, jadi
+    satu `TypeError` dari drift signature mengembalikan `main` sementara saklar
+    terus terbaca MENYALA selama `STALE_AFTER = 60` detik. Arah pertama yang
+    dijaga di sini: cycle kedua harus tetap terjadi.
+
+    Arah kedua sama pentingnya dan lebih halus. Heartbeat distempel di AWAL
+    cycle, sebelum pass keputusan, jadi loop yang menelan semua kegagalan dan
+    jalan terus akan berdetak selamanya sambil nol order dianalisa - dan
+    `daemon_alive` akan terus membacanya hijau. Menyerah mengubahnya jadi
+    kegagalan yang sudah punya alarm.
+    """
+    daemon, calls = daemon_fakes
+    autotrade.arm(True)
+    attempts: list[int] = []
+
+    def boom(*a, **k):
+        attempts.append(1)
+        raise RuntimeError("provider timeout")
+
+    monkeypatch.setattr(daemon, "cycle", boom)
+    _argv(monkeypatch)
+
+    assert daemon.main() == daemon.EXIT_TOO_MANY_FAILURES
+    assert len(attempts) == daemon.MAX_CONSECUTIVE_FAILURES, (
+        "loop berhenti di cycle pertama yang melempar, atau tidak pernah "
+        "berhenti sama sekali"
+    )
+    out = capsys.readouterr().out
+    assert "CYCLE GAGAL 1/5" in out and "CYCLE GAGAL 5/5" in out
+    # Pesan aslinya, bukan cuma tipe. "RuntimeError" tanpa "provider timeout"
+    # adalah baris log yang tidak bisa dipakai mendiagnosa apa pun.
+    assert "provider timeout" in out
+    # "GAGAL" adalah kata yang dipindai `tools/monitor.py` di log daemon, jadi
+    # kegagalan ini menaikkan exit code monitor tanpa gerbang baru di sana.
+    assert "MENYERAH setelah 5" in out
+    assert calls == []
+
+
+def test_a_recovered_cycle_resets_the_count_and_ctrl_c_exits_zero(
+    daemon_fakes, monkeypatch, capsys,
+):
+    """Empat gagal, satu sukses, empat gagal lagi: sembilan kegagalan, nol exit.
+
+    Hitungannya BERTURUT, bukan kumulatif. Daemon yang menghitung total akan
+    mati setelah lima jeda harian broker yang tersebar sepanjang seminggu,
+    padahal tiap satu pulih sendiri. Kalau reset-nya hilang, escalation menyala
+    di cycle keenam dan `main` menjawab 3.
+
+    Ctrl-C ikut diukur di sini karena ia jalur keluar yang didokumentasikan:
+    `KeyboardInterrupt` turunan `BaseException`, jadi ia lewat dari
+    `except Exception` per-cycle dan harus keluar bersih dengan 0, bukan
+    traceback.
+    """
+    daemon, _ = daemon_fakes
+    autotrade.arm(True)
+    seen: list[int] = []
+
+    def scripted(*a, **k):
+        seen.append(len(seen) + 1)
+        turn = len(seen)
+        if turn == 10:
+            raise KeyboardInterrupt
+        if turn != 5:
+            raise RuntimeError(f"gagal ke-{turn}")
+
+    monkeypatch.setattr(daemon, "cycle", scripted)
+    _argv(monkeypatch)
+
+    # Ditangkap DI SINI juga, supaya `KeyboardInterrupt` yang lolos dari `main`
+    # jadi satu test gagal dan bukan seluruh sesi pytest dibatalkan. Sebuah
+    # gerbang yang membunuh runner-nya sendiri menjawab exit 2, dan exit code
+    # itu tidak bisa dibedakan dari operator yang menekan Ctrl-C sendiri.
+    try:
+        code = daemon.main()
+    except KeyboardInterrupt:
+        pytest.fail("KeyboardInterrupt lolos dari main: Ctrl-C keluar lewat "
+                    "traceback, bukan lewat jalur berhenti yang bersih")
+    assert code == 0
+    assert len(seen) == 10, (
+        "escalation menyala terlalu cepat: hitungan kegagalan tidak dinolkan "
+        "oleh cycle yang berhasil"
+    )
+    out = capsys.readouterr().out
+    assert "pulih setelah 4 cycle gagal berturut" in out
+    assert "berhenti atas Ctrl-C" in out
+    assert "MENYERAH" not in out
+
+
+def test_one_shot_smoke_test_does_not_answer_zero_after_a_raise(
+    daemon_fakes, monkeypatch,
+):
+    """`--once` yang cycle-nya melempar harus menjawab bukan-nol.
+
+    `--once` ada untuk smoke test, dan smoke test yang menjawab 0 di atas cycle
+    yang crash adalah instrumen-hijau-di-atas-proses-mati dalam bentuknya yang
+    paling murni.
+    """
+    daemon, _ = daemon_fakes
+    autotrade.arm(True)
+
+    def boom(*a, **k):
+        raise ValueError("history.load meledak")
+
+    monkeypatch.setattr(daemon, "cycle", boom)
+    _argv(monkeypatch, "--once")
+
+    assert daemon.main() == 1
+
+
+# -------------------------------------------------------- one daemon, not two
+
+
+def _hold_the_switch(pid: int, age: int = 0) -> None:
+    """Tulis saklar seolah daemon `pid` memegangnya dan berdetak `age` detik lalu."""
+    autotrade.arm(True)
+    raw = json.loads(autotrade.STATE.read_text(encoding="utf-8"))
+    raw["daemon_pid"] = pid
+    raw["last_seen"] = int(time.time()) - age
+    autotrade.STATE.write_text(json.dumps(raw), encoding="utf-8")
+
+
+@pytest.fixture
+def live_python():
+    """PID python asli yang BUKAN PID test ini, dan yang benar-benar hidup."""
+    import subprocess
+    import sys as _sys
+    child = subprocess.Popen([_sys.executable, "-c", "import time; time.sleep(120)"])
+    try:
+        yield child.pid
+    finally:
+        child.kill()
+        child.wait()
+
+
+WINDOWS_ONLY = pytest.mark.skipif(
+    sys.platform != "win32",
+    reason="pemeriksaan proses lewat tasklist; daemon ini Windows-only karena "
+           "provider terminalnya begitu")
+
+
+@WINDOWS_ONLY
+def test_a_second_daemon_refuses_to_start_beside_a_live_one(
+    daemon_fakes, live_python, monkeypatch, capsys,
+):
+    """Dua daemon pada satu saklar ditolak, dan alasannya disebut dengan PID.
+
+    Terjadi sungguhan 29 Agustus 2026: PID 12948 dan 19912 keduanya hidup pada
+    `mt5:XAUUSD --risk-pct 0.03`. Saklar punya satu field `daemon_pid`, jadi ia
+    menamai 19912 dan tidak ada apa pun yang tahu tentang 12948, sementara
+    `tools/monitor.py` melaporkan "daemon hidup" dan terbaca sehat. Keduanya dry
+    run, dan itu satu-satunya alasan ia tidak berbiaya: dua pengirim akan
+    balapan di idempotency check journal dan cap `--max-orders` yang sama, dan
+    masing-masing lolos pemeriksaan yang sebentar lagi dibatalkan yang lain.
+    """
+    daemon, calls = daemon_fakes
+    _hold_the_switch(live_python)
+    _argv(monkeypatch, "--once")
+
+    assert daemon.main() == daemon.EXIT_ALREADY_RUNNING
+    assert calls == [], "daemon kedua tetap menjalankan pass keputusan"
+    out = capsys.readouterr().out
+    assert "MENOLAK START" in out and str(live_python) in out
+
+
+@WINDOWS_ONLY
+def test_a_stale_pid_from_a_crashed_daemon_does_not_block_a_fresh_start(
+    daemon_fakes, live_python, monkeypatch,
+):
+    """PID basi TIDAK boleh memblokir. Ini arah yang membuat gerbang bisa dipakai.
+
+    Daemon yang crash meninggalkan nomornya di saklar dan tidak ada apa pun yang
+    membersihkannya - itu justru kondisi saat operator paling perlu start ulang.
+    PID di sini sengaja dipilih yang BENAR-BENAR hidup, jadi yang diukur murni
+    umur heartbeat: kalau gerbangnya cuma melihat nomor, test ini gagal.
+    """
+    daemon, calls = daemon_fakes
+    _hold_the_switch(live_python, age=autotrade.STALE_AFTER + 1)
+    _argv(monkeypatch, "--once")
+
+    assert daemon.main() == 0
+    assert len(calls) == 1
+
+
+@WINDOWS_ONLY
+def test_a_reused_pid_that_is_no_longer_python_does_not_block(
+    daemon_fakes, live_python, monkeypatch,
+):
+    """PID hidup, heartbeat segar, tapi prosesnya bukan python: tidak memblokir.
+
+    PID didaur ulang. Nomor yang ditinggalkan daemon yang crash diberikan OS ke
+    apa pun yang start berikutnya, dan kalau ia mendarat di notepad.exe maka
+    gerbang yang cuma membaca nomor akan menolak start yang sah selamanya.
+
+    `tasklist` di-fake DI SINI dan tidak di test sebelahnya, supaya kedua
+    setengah gerbang terukur terpisah: yang satu nomor plus umur heartbeat, yang
+    ini nama image.
+    """
+    daemon, calls = daemon_fakes
+    _hold_the_switch(live_python)
+
+    class Fake:
+        stdout = f'"notepad.exe","{live_python}","Console","1","9.000 K"'
+
+    monkeypatch.setattr(autotrade.subprocess, "run", lambda *a, **k: Fake())
+    _argv(monkeypatch, "--once")
+
+    assert daemon.main() == 0
+    assert len(calls) == 1
+
+
+@WINDOWS_ONLY
+def test_the_operator_can_override_and_is_told_that_it_was_overridden(
+    daemon_fakes, live_python, monkeypatch, capsys,
+):
+    """`--allow-second-daemon` lewat, dan mencatat bahwa ia lewat.
+
+    Gerbang tanpa jalan keluar akan dicabut orang pertama yang terhalang olehnya
+    pada jam tiga pagi. Yang tidak boleh adalah lewat dengan diam.
+    """
+    daemon, calls = daemon_fakes
+    _hold_the_switch(live_python)
+    _argv(monkeypatch, "--once", "--allow-second-daemon")
+
+    assert daemon.main() == 0
+    assert len(calls) == 1
+    assert "PERINGATAN: start dipaksakan" in capsys.readouterr().out
+
+
+def test_the_gate_never_reads_our_own_heartbeat_as_another_daemon(
+    daemon_fakes, monkeypatch,
+):
+    """Daemon yang restart cepat tidak boleh terhalang oleh jejaknya sendiri.
+
+    Sebuah PID yang sama dengan PID kita bukan konflik menurut definisi, dan
+    tanpa klausa itu satu-satunya proses yang paling pasti terhalang adalah
+    daemon yang baru saja menulis heartbeat itu.
+    """
+    import os
+    daemon, calls = daemon_fakes
+    _hold_the_switch(os.getpid())
+    _argv(monkeypatch, "--once")
+
+    assert autotrade.owner() is None
+    assert daemon.main() == 0
+    assert len(calls) == 1
+
+
+# ---------------------------------------------------------------- sizing risk
+
+
+def test_risk_above_the_documented_number_is_warned_about_and_not_clamped(
+    daemon_fakes, monkeypatch, capsys,
+):
+    """3% mencetak 40,97%, dan tetap ditradingkan pada 3%.
+
+    `docs/QA-QUANT.md` bagian 8 menghitung risk 3% pada 40,97% peluang
+    kehilangan separuh akun dalam 500 trade kalau edge-nya nol, dan bagian 6
+    menunjukkan kolom edge-nol itulah yang berlaku. Default yang di-ship 1%;
+    kedua daemon yang hidup 29 Agustus 2026 berjalan pada 3% dan tidak ada satu
+    baris pun di log yang menyebutkannya.
+
+    Clamp diam-diam ditolak dan itu bagian yang dijaga di paruh kedua test ini:
+    operator yang mengetik 3% lalu diperdagangkan pada 1% akan punya journal
+    yang menjawab pertanyaan berbeda dari yang ia kira ia tanyakan.
+    """
+    daemon, calls = daemon_fakes
+    autotrade.arm(True)
+    _argv(monkeypatch, "--once", "--risk-pct", "0.03")
+
+    assert daemon.main() == 0
+    out = capsys.readouterr().out
+    assert "RISK DI ATAS ANGKA YANG DIDOKUMENTASIKAN" in out
+    assert "40,97%" in out, out
+    assert "1,00%" in out
+    assert "QA-QUANT" in out
+    # `cycle(mt5, symbols, intervals, bars, risk_pct, ...)`: argumen kelima.
+    assert calls[0][4] == 0.03, "risk operator diam-diam di-clamp"
+
+
+def test_risk_at_or_below_the_documented_number_says_nothing(
+    daemon_fakes, monkeypatch, capsys,
+):
+    """Default 1% diam. Alarm yang menyala pada operasi normal adalah alarm yang
+    akan diabaikan justru saat ia benar."""
+    daemon, _ = daemon_fakes
+    autotrade.arm(True)
+    _argv(monkeypatch, "--once")
+
+    assert daemon.main() == 0
+    assert "RISK DI ATAS" not in capsys.readouterr().out
+
+
+def test_the_quoted_ruin_figure_is_a_floor_never_an_exaggeration():
+    """Risk di antara dua baris tabel mengutip baris DI BAWAHNYA.
+
+    Angka yang dicetak harus bisa ditunjuk di `docs/QA-QUANT.md`, jadi ia tidak
+    diinterpolasi. Membulatkan ke baris di atas akan membuat log menyebut angka
+    yang lebih menakutkan daripada yang terukur, dan sekali itu ketahuan seluruh
+    peringatannya berhenti dibaca.
+    """
+    from tools import autotrade as daemon
+
+    assert daemon.risk_warning(0.01) == []
+    assert daemon.risk_warning(0.005) == []
+    between = "\n".join(daemon.risk_warning(0.025))
+    assert "16,20%" in between and "2,0%" in between
+    assert "DI ATAS baris itu" in between
+    assert "40,97%" in "\n".join(daemon.risk_warning(0.03))
+    assert "93,83%" in "\n".join(daemon.risk_warning(0.25))
+
+
+# ---------------------------------------------------------- sapuan pending
+
+
+class _SweepMT5:
+    """Cukup permukaan untuk `sweep`, dan ia mencatat apa yang dikirim."""
+
+    def __init__(self, orders=()):
+        self._orders = list(orders)
+        self.sent: list[dict] = []
+        self.TRADE_ACTION_REMOVE = 2
+        self.TRADE_RETCODE_DONE = 10009
+        self.TRADE_RETCODE_PLACED = 10008
+
+    def orders_get(self, **kw):
+        return self._orders
+
+    def order_send(self, request):
+        self.sent.append(request)
+        return types.SimpleNamespace(retcode=10009, comment="ok", order=1)
+
+    def last_error(self):
+        return (-1, "fake")
+
+
+class _Pending:
+    def __init__(self, ticket, magic, age_seconds, now):
+        self.ticket, self.magic = ticket, magic
+        self.time_setup = now - age_seconds
+
+
+def test_a_dry_run_sweep_never_cancels_anything(capsys, monkeypatch):
+    """Aturan yang sama dengan seluruh jalur order: tanpa `--send`, nol yang
+    menyentuh broker. Sapuan yang membatalkan order di dry run akan jadi satu
+    satunya tempat di repo ini yang menulis ke broker tanpa flag itu."""
+    from tools import autotrade as daemon
+    from tools.flatten import STALE_PENDING_SECONDS
+
+    now = 1_800_000_000
+    monkeypatch.setattr("tools.autotrade.time.time", lambda: now)
+    mt5 = _SweepMT5([_Pending(11, 618, STALE_PENDING_SECONDS + 60, now)])
+
+    cancelled = daemon.sweep(mt5, send=False, rule={})
+
+    assert cancelled == 0
+    assert mt5.sent == [], "dry run tidak boleh mengirim apa pun"
+    assert "DRY RUN" in capsys.readouterr().out
+
+
+def test_the_sweep_cancels_only_our_own_stale_pendings(monkeypatch, tmp_path):
+    """Tiga order, satu yang boleh disentuh.
+
+    Milik orang lain dikenali dari `magic`, bukan dari journal: journal-nya
+    lokal, gitignored, dan tidak pernah direkonsiliasi dengan broker, jadi satu
+    file yang terhapus akan membuat sapuan ini menyentuh order tangan.
+    """
+    from tools import autotrade as daemon
+    from tools.broker import MAGIC, RULE
+    from tools.flatten import STALE_PENDING_SECONDS
+
+    now = 1_800_000_000
+    monkeypatch.setattr("tools.autotrade.time.time", lambda: now)
+    monkeypatch.setattr("app.journal.DIRECTORY", tmp_path)
+    mt5 = _SweepMT5([
+        _Pending(11, MAGIC, STALE_PENDING_SECONDS + 60, now),   # milik kita, basi
+        _Pending(22, MAGIC, 3600, now),                          # milik kita, segar
+        _Pending(33, 0, STALE_PENDING_SECONDS * 10, now),        # bukan milik kita
+    ])
+
+    cancelled = daemon.sweep(mt5, send=True, rule=dict(RULE))
+
+    assert cancelled == 1
+    assert [r["order"] for r in mt5.sent] == [11]
+    assert all(r["action"] == mt5.TRADE_ACTION_REMOVE for r in mt5.sent)

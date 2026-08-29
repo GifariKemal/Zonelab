@@ -100,10 +100,13 @@ _STATE_PRIORITY = {
 #: different number because the user moved the Bars picker. Over 3000 to 50000
 #: bars the window mean went 1840.8 to 3250.3, a 77% shift.
 #:
-#: It was not only cosmetic. `_dedupe` ranks overlapping zones by this score, so
-#: WHICH box is drawn was future-dependent too: on XAUUSD 15m two supply zones
-#: that both predate bar 3000 swap survivor between a 3000-bar and a 20000-bar
-#: request, with no change to either one's geometry.
+#: It was not only cosmetic. `_dedupe` ranked overlapping zones by this score at
+#: the time, so WHICH box was drawn was future-dependent too: on XAUUSD 15m two
+#: supply zones that both predate bar 3000 swap survivor between a 3000-bar and
+#: a 20000-bar request, with no change to either one's geometry. That second
+#: route is closed independently now - `_dedupe` tiebreaks on `departure_atr`,
+#: which no window mean enters - so what the trailing baseline below still buys
+#: is the score itself, and the measurement above is why it is worth buying.
 #:
 #: 200 is the same lookback `curve_lookback` already uses for the neighbouring
 #: "what counts as normal here" question, so it is this file's own convention
@@ -124,9 +127,9 @@ _STATE_PRIORITY = {
 #: the window scores neutral on volume and the same zone scores properly in a
 #: longer window. That is a warm-up, not lookahead - nothing from the future
 #: enters either answer - and it is the same shape as any trailing indicator's
-#: first N bars. `formation_score` orders the display and feeds `_dedupe`; it
-#: gates nothing, which is why a neutral warm-up is an acceptable price and a
-#: future-dependent score was not.
+#: first N bars. `formation_score` orders the display; it gates nothing and it
+#: no longer feeds `_dedupe` either, which is why a neutral warm-up is an
+#: acceptable price and a future-dependent score was not.
 _VOLUME_BASELINE_BARS = 200
 
 
@@ -289,6 +292,7 @@ def detect(
     stats: dict[str, float] = {
         "bars": n,
         "candidates": 0,
+        "rejected_zero_atr": 0,
         "rejected_zero_height": 0,
         "rejected_base_too_tall": 0,
         "rejected_base_drifted": 0,
@@ -350,6 +354,23 @@ def detect(
         # reject pass by widening their own denominator.
         atr_base = float(atr[max(0, base_from - 1)])
         if atr_base <= EPS:
+            # COUNTED, for the reason spelled out in full at
+            # `rejected_zero_height` thirty lines below: `candidates` is already
+            # incremented here, so a bare `continue` made a candidate vanish
+            # with no bucket answering for it, and this module's docstring
+            # promise that nothing is dropped silently was false at the one
+            # branch a reader would never think to check.
+            #
+            # REACHABLE, and on well-formed candles rather than on a malformed
+            # fixture. Wilder's ATR is an RMA, so a flat bar multiplies it by
+            # (period-1)/period and it never quite reaches zero - it underflows
+            # `EPS` instead. Measured at defaults: a base of 392 identical bars
+            # after a live leg-in is the first length where `atr_base` lands
+            # here, 391 still lands one gate later in `rejected_zero_height`.
+            # That is a halted or unquoted session, not an impossible input, and
+            # the base clip is what puts `base_from - 1` inside the flat stretch
+            # instead of on the leg-in bar.
+            stats["rejected_zero_atr"] += 1
             continue
 
         # The two lines are NOT symmetric, and getting that wrong is the most
@@ -671,9 +692,18 @@ def _dedupe(
     Overlap is measured against the *smaller* of the two heights, so a thin zone
     swallowed by a fat one is correctly seen as redundant.
 
-    The survivor is chosen by display priority, not by predicted quality: least
-    consumed first, then formation. Two zones at one price are one level, and
-    the one price has not eaten yet is the one worth drawing.
+    The survivor is chosen by display priority, not by predicted quality: the
+    least consumed `state` first, then the larger `departure_atr`. Two zones at
+    one price are one level, and the one price has not eaten yet is the one
+    worth drawing.
+
+    The tiebreak used to be `formation_score`, and swapping it for
+    `departure_atr` was not a taste change. `formation_score` carries a volume
+    factor, so under the old key WHICH box survived a merge moved when the user
+    widened the Bars picker - see `_VOLUME_BASELINE_BARS` for that measurement.
+    `departure_atr` is the leg-out excursion over the ATR of the bar before the
+    base, both fixed when the zone forms, so the survivor is now a function of
+    the zone alone.
     """
     kept: list[Zone] = []
     ranked = sorted(

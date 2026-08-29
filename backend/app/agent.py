@@ -37,9 +37,13 @@ confident answer with nothing behind it.
 from __future__ import annotations
 
 import asyncio
+import ipaddress
 import json
+import os
+import socket
 from pathlib import Path
 from typing import Any
+from urllib.parse import urlsplit
 
 import httpx
 
@@ -192,28 +196,188 @@ def read_config() -> dict[str, Any]:
     return cfg
 
 
+# -- the endpoint guard ----------------------------------------------------
+
+#: Environment switch that permits a private, loopback or link-local endpoint.
+#: AN ENVIRONMENT VARIABLE AND NOT A CONFIG FIELD, and that is the mechanism
+#: rather than a style choice: `.agent.json` is written by
+#: `POST /api/agent/config`, so an opt-in stored there could be flipped by the
+#: same unauthenticated request the guard exists to constrain, and a lock whose
+#: key sits inside it is not a lock. This one needs the launcher or the shell,
+#: which is a different privilege from reaching the port.
+ALLOW_PRIVATE_ENV = "ZONELAB_AGENT_ALLOW_PRIVATE_ENDPOINTS"
+
+_TRUE = {"1", "true", "yes", "on"}
+
+
+def private_endpoints_allowed() -> bool:
+    """Whether the operator has opted in to non-public endpoints.
+
+    Read per call rather than captured at import, so the value can change
+    without a restart and so a test can set it.
+    """
+    return os.environ.get(ALLOW_PRIVATE_ENV, "").strip().lower() in _TRUE
+
+
+def _addresses(host: str) -> list:
+    """Every address `host` currently resolves to, or [] when it resolves to none.
+
+    A literal is returned without asking DNS. A name that does not resolve
+    returns [], which the caller treats as allowed - see `vet_base_url`.
+    """
+    try:
+        return [ipaddress.ip_address(host)]
+    except ValueError:
+        pass
+    try:
+        infos = socket.getaddrinfo(host, None, proto=socket.IPPROTO_TCP)
+    except (socket.gaierror, UnicodeError):
+        return []
+    out = []
+    for info in infos:
+        try:
+            out.append(ipaddress.ip_address(info[4][0]))
+        except ValueError:  # pragma: no cover - getaddrinfo returned a non-address
+            continue
+    return out
+
+
+def _origin(url: str) -> tuple:
+    """Scheme, lowercased host and port - what "the same endpoint" means here."""
+    parsed = urlsplit(url)
+    try:
+        port = parsed.port
+    except ValueError:  # pragma: no cover - a bad port is refused by vet_base_url
+        port = None
+    return parsed.scheme, (parsed.hostname or "").lower(), port
+
+
+def vet_base_url(url: str) -> None:
+    """Refuse an endpoint this server must not be talked into calling.
+
+    THE THREAT, STATED PLAINLY. `POST /api/agent/config` takes a base URL and
+    the server then sends `Authorization: Bearer <api_key>` to whatever host
+    that URL names. The API has no authentication of its own - no login, no
+    token, no per-request secret anywhere in `app/main.py` - so the only thing
+    between that field and an arbitrary outbound AUTHENTICATED request was
+    `startswith(("http://", "https://"))`. Two distinct attacks fit through it:
+
+      1. CREDENTIAL EXFILTRATION. `save_config` keeps the stored key when the
+         posted one is blank, which is correct for a model change and was
+         catastrophic here: a request carrying ONLY `base_url` re-pointed the
+         endpoint and left the operator's real key in place, and the same
+         handler then called `probe()`, which issued `GET <attacker>/models`
+         with that key in the header. One request, no knowledge of the key
+         needed, key delivered. Closed twice over: this function refuses the
+         hosts worth pointing at, and `save_config` now DROPS the stored key
+         whenever the host changes, so a rebind cannot carry the old
+         credential to a new destination.
+
+      2. SSRF WITH REFLECTION. `models()` and `_complete()` both put the
+         upstream's body into their exception text (`response.text[:200]`),
+         and that text reaches the caller as the 503 detail. An endpoint set to
+         `http://169.254.169.254/latest/meta-data`, or to any service on the
+         host's own network, is therefore a read primitive with the answer
+         echoed back. Cloud metadata lives on link-local, a service mesh lives
+         on private space, and this process is the thing on the box with routes
+         to both.
+
+    WHAT IS REFUSED: any host resolving to an address `ipaddress` does not call
+    global - loopback, RFC1918 private, link-local (169.254/16 and fe80::,
+    where every cloud metadata service lives), carrier-grade NAT, multicast,
+    reserved and unspecified. ALL of a name's addresses are checked and not the
+    first, because a name with one public and one private record would
+    otherwise pass on the public one and connect on either.
+
+    WHAT IS NOT REFUSED, and why there is no allowlist: the feature IS pointing
+    this at an endpoint of the operator's choosing. `settings.llm_base_url`
+    defaults to bigmodel.cn, the tests use x.example, and the next endpoint is
+    whichever OpenAI-compatible vendor is worth paying this month. A hardcoded
+    list would mean filing a pull request to change model provider, which is
+    not a security control, it is a broken feature. So the rule is about the
+    ADDRESS SPACE rather than the vendor: any public host, no local one, and a
+    local one on purpose via `ALLOW_PRIVATE_ENV` - which is the legitimate
+    case, an Ollama or LM Studio on 127.0.0.1 with no key worth stealing.
+
+    TWO CEILINGS, NAMED RATHER THAN PAPERED OVER, because this project keeps a
+    list of instruments that reported green while the thing they measured had
+    crashed:
+
+      - DNS REBINDING IS NOT CLOSED. This resolves the name and `httpx`
+        resolves it again when it connects; between those two the answer can
+        change. Closing it means pinning the vetted address into the transport,
+        which is a custom connector rather than a validator. What IS closed is
+        the whole class that needs no DNS control at all, which is every shape
+        above.
+      - A NAME THAT DOES NOT RESOLVE IS ALLOWED, deliberately. The endpoint may
+        legitimately be briefly down, and `agent_config_save` already promises
+        the save stands in that case. It is not a hole: a name with no address
+        cannot be connected to either, so the request that matters still fails,
+        loudly, as `reachable: false`.
+    """
+    parsed = urlsplit(url)
+    if parsed.scheme not in ("http", "https"):
+        raise ValueError(
+            f"base_url must start with http:// or https://, got {url!r}"
+        )
+    host = parsed.hostname
+    if not host:
+        raise ValueError(f"base_url names no host: {url!r}")
+    if private_endpoints_allowed():
+        return
+    # ponytail: blocking getaddrinfo on the event loop. One lookup per save, on
+    # a handler that goes on to make a full HTTP round trip anyway; move it to a
+    # thread if saves ever stop being an operator typing into a form.
+    for address in _addresses(host):
+        if not address.is_global:
+            raise ValueError(
+                f"base_url {url!r} resolves to {address}, which is not a public "
+                "address. This server would send your API key there, and a "
+                "loopback, private or link-local target is how a credential "
+                "leaves a machine and how cloud metadata gets read. Set "
+                f"{ALLOW_PRIVATE_ENV}=1 in the environment if you meant it - a "
+                "local Ollama or LM Studio is the case that is worth it."
+            )
+
+
 def save_config(
     base_url: str = "", api_key: str = "", model: str = "",
     temperature: float | None = None,
 ) -> dict[str, Any]:
     """Merge the given fields into the config file and return the reading.
 
-    An empty `api_key` KEEPS the stored one: the UI reads the key masked and
-    so cannot hand it back, and a model change must not silently erase the
-    credential it needs. A bad scheme is refused rather than stored, because
-    the failure would otherwise surface only at the first chat, far from the
-    field that caused it.
+    An empty `api_key` KEEPS the stored one for the SAME endpoint: the UI reads
+    the key masked and so cannot hand it back, and a model change must not
+    silently erase the credential it needs. A bad URL is refused rather than
+    stored, because the failure would otherwise surface only at the first chat,
+    far from the field that caused it.
+
+    A KEY IS BOUND TO THE HOST IT WAS ISSUED FOR, and moving the host without
+    supplying a new key DROPS it. That is the second half of the exfiltration
+    fix in `vet_base_url`, and it is the half that does not depend on the
+    attacker picking a blockable address: keeping-the-blank-key is exactly what
+    turned "change one field" into "and take the credential with you", because
+    the handler probes the new endpoint immediately with whatever key the file
+    holds. A credential issued by vendor A is meaningless at vendor B anyway,
+    so nothing legitimate is lost - the operator was always going to paste a
+    new one. `available` then reads False and the UI asks for the key, which is
+    the state this used to hide.
+
+    Scheme, host AND port are compared, so `http://x` to `https://x` and
+    `localhost:11434` to `localhost:1234` both count as a move. The host is
+    case-folded and the path is not, because that is what those two are.
     """
     base_url = base_url.strip().rstrip("/")
-    if base_url and not base_url.startswith(("http://", "https://")):
-        raise ValueError(
-            f"base_url must start with http:// or https://, got {base_url!r}"
-        )
+    if base_url:
+        vet_base_url(base_url)
     current = read_config()
+    moved = bool(base_url) and _origin(base_url) != _origin(str(current["base_url"]))
     if base_url:
         current["base_url"] = base_url
     if api_key:
         current["api_key"] = api_key
+    elif moved:
+        current["api_key"] = ""
     if model:
         current["model"] = model
     if temperature is not None:
@@ -226,7 +390,20 @@ def save_config(
 
 
 def masked() -> dict[str, Any]:
-    """What the UI may see: everything but the key, which becomes a hint."""
+    """What the UI may see: everything but the key, which becomes a hint.
+
+    `base_url` IS RETURNED IN FULL AND UNMASKED, which is the point rather than
+    an oversight. It is the destination the stored credential is sent to, and a
+    secret whose destination is hidden is a secret nobody can audit: the only
+    way to notice this endpoint has been re-pointed is to be able to read where
+    it points. The key itself stays a four-character hint, because reading the
+    secret back would make the mask theatre.
+
+    `allow_private_endpoints` reports whether the `vet_base_url` guard is
+    switched off in this process's environment. A control that can be disabled
+    invisibly is a control nobody can rely on, and this project's own list of
+    incidents is mostly instruments reporting green over something dead.
+    """
     cfg = read_config()
     key = str(cfg["api_key"])
     return {
@@ -236,6 +413,7 @@ def masked() -> dict[str, Any]:
         "api_key": "",
         "api_key_hint": f"...{key[-4:]}" if len(key) >= 8 else "",
         "available": bool(cfg["base_url"] and key and cfg["model"]),
+        "allow_private_endpoints": private_endpoints_allowed(),
     }
 
 
