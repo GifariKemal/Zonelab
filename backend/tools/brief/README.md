@@ -110,6 +110,30 @@ Tiga hal yang dijaga di sana:
   triad, jadi keduanya jatuh ke mt5. `provider_asked`, `provider_used` dan
   `provider_substituted` ketiganya ada di keluaran.
 
+## Kesehatan partner SSMT
+
+Nol hit SSMT punya dua sebab yang sangat berbeda: partner tidak terbaca, atau
+partner terbaca dan pasar memang tidak berdivergensi. Keduanya menghasilkan
+`ssmt: []`.
+
+Diuji 29 Agustus 2026 dengan `--partners mt5:TIDAKADA`: checklist mengembalikan
+nol hit, `notes` tidak menyebut partnernya sama sekali, dan brief melaporkan
+**nol kegagalan**. Nama yang salah ketik lolos tanpa satu pun jejak di
+permukaan, dan pembacanya menyimpulkan pasar tidak berdivergensi.
+
+`partner_health` menjawab satu pertanyaan murah yang membedakan keduanya:
+apakah deretnya ada. Partner yang tidak terbaca masuk ke `partners_unreadable`,
+muncul di `failures`, dan membuat exit code `1`.
+
+```json
+{"symbol": "mt5:TIDAKADA", "readable": false,
+ "why": "ProviderError: the terminal carries no symbol 'TIDAKADA'"}
+```
+
+`notes` laporan checklist juga dimunculkan ke permukaan. Di sanalah kalimat
+seperti "the reading is absent rather than neutral" hidup, dan itu persis jenis
+pernyataan yang harus dibaca sebelum angkanya dikutip.
+
 ## Rekonsiliasi OTE
 
 Dua sumber menjawab "di mana harga dalam retracement", dan brief membawa

@@ -58,10 +58,20 @@ async def _checklist(symbol: str, interval: str, bars: int,
         return {"present": False,
                 "why": f"{type(exc).__name__}: {exc}",
                 "note": "checklist butuh provider call; brief lainnya tetap sah"}
+    health = partner_health(partners, interval, bars)
+    unreadable = [h["symbol"] for h in health if not h["readable"]]
     return {
         "present": True,
         "report": report.model_dump(mode="json"),
         "stats": stats,
+        # PARTNER YANG TIDAK TERBACA DISEBUT, karena `ssmt: []` sendirian tidak
+        # bisa membedakannya dari "terbaca, tidak berdivergensi".
+        "partner_health": health,
+        "partners_unreadable": unreadable,
+        # `notes` laporan dimunculkan ke permukaan. Di sanalah kalimat seperti
+        # "the reading is absent rather than neutral" hidup, dan itu persis
+        # jenis pernyataan yang harus dibaca agent sebelum mengutip angkanya.
+        "notes": list(report.notes or []),
         # `extra_fetches` dibawa apa adanya. Ia satu satunya angka yang
         # mengatakan berapa panggilan provider yang dibayar bacaan ini, dan
         # tanpa itu sebuah brief yang lambat tidak bisa dijelaskan.
@@ -179,6 +189,38 @@ def ote_reconciliation(fib: dict, state: dict) -> dict[str, Any]:
                  "lolos, jadi memilih definisi tidak mengubah bahwa ia belum "
                  "punya nilai terukur."),
     }
+
+
+def partner_health(partners: list[str], interval: str, bars: int) -> list[dict[str, Any]]:
+    """Tiap partner SSMT, dan apakah ia BISA dibaca sama sekali.
+
+    KENAPA INI TERPISAH DARI JUMLAH HIT. Sebuah partner yang tidak terbaca dan
+    sebuah partner yang terbaca tapi tidak berdivergensi keduanya menghasilkan
+    `ssmt: []`, dan keduanya berarti hal yang sangat berbeda. Diuji 29 Agustus
+    2026 dengan `--partners mt5:TIDAKADA`: checklist mengembalikan nol hit,
+    `notes` tidak menyebut partnernya sama sekali, dan brief melaporkan NOL
+    kegagalan. Nama yang salah ketik lolos tanpa satu pun jejak yang muncul di
+    permukaan.
+
+    Yang membedakan keduanya cuma satu pertanyaan yang murah: apakah deretnya
+    ada. Cache provider membuat pertanyaan itu hampir gratis, karena deret yang
+    sama baru saja ditarik checklist.
+    """
+    out: list[dict[str, Any]] = []
+    for name in partners:
+        try:
+            rows = history.load(name, interval, bars)
+        except Exception as exc:  # noqa: BLE001 - satu partner, bukan brief
+            out.append({"symbol": name, "readable": False,
+                        "why": f"{type(exc).__name__}: {exc}"})
+            continue
+        out.append({
+            "symbol": name,
+            "readable": bool(rows),
+            "bars": len(rows or []),
+            "why": None if rows else "provider mengembalikan nol bar",
+        })
+    return out
 
 
 async def _both(symbol: str, interval: str, bars: int,

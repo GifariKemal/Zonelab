@@ -114,6 +114,11 @@ def main() -> int:
     brief["triad"] = both["triad"]
     if not brief["checklist"].get("present"):
         brief["failures"].append({"checklist": brief["checklist"].get("why")})
+    elif brief["checklist"].get("partners_unreadable"):
+        # Nama partner yang salah ketik lolos tanpa jejak sampai 29 Agustus
+        # 2026: nol hit SSMT terbaca sama dengan "tidak ada divergensi".
+        brief["failures"].append(
+            {"ssmt_partners_unreadable": brief["checklist"]["partners_unreadable"]})
     if not brief["triad"].get("present"):
         brief["failures"].append({"triad": brief["triad"].get("why")})
     elif brief["triad"].get("skipped"):

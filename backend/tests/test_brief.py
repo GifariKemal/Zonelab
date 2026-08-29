@@ -200,3 +200,34 @@ def test_an_absent_dealing_range_says_so_instead_of_reading_as_zero():
     assert out["from_dealing_range"]["present"] is False
     assert out["from_dealing_range"]["why_absent"]
     assert out["agree_within_0_10"] is None, "tidak terbaca bukan sepakat"
+
+
+def test_an_unreadable_ssmt_partner_is_named_instead_of_reading_as_no_divergence():
+    """Nol hit SSMT punya dua sebab yang sangat berbeda.
+
+    Partner yang tidak terbaca dan partner yang terbaca tapi tidak
+    berdivergensi keduanya menghasilkan `ssmt: []`. Diuji 29 Agustus 2026
+    dengan `--partners mt5:TIDAKADA`: checklist mengembalikan nol hit, `notes`
+    tidak menyebut partnernya sama sekali, dan brief melaporkan NOL kegagalan.
+    Nama yang salah ketik lolos tanpa satu pun jejak di permukaan, dan
+    pembacanya menyimpulkan pasar tidak berdivergensi.
+    """
+    from tools.brief import live
+
+    health = live.partner_health(["mt5:TIDAKADA"], "1h", 300)
+    assert len(health) == 1
+    assert health[0]["readable"] is False
+    assert health[0]["why"], "partner yang gagal harus membawa alasannya"
+    assert "TIDAKADA" in health[0]["symbol"]
+
+
+def test_a_readable_partner_is_not_reported_as_a_failure():
+    """Gerbangnya harus membedakan, bukan menolak semuanya. Sebuah penjaga
+    yang menandai tiap partner sebagai rusak akan memenuhi assertion di atas
+    dengan sempurna sambil merusak produknya."""
+    from tools.brief import live
+
+    health = live.partner_health(["mt5:XAGUSD"], "1h", 300)
+    assert health[0]["readable"] is True
+    assert health[0]["bars"] > 0
+    assert health[0]["why"] is None
