@@ -96,11 +96,38 @@ Tiga jebakan yang sudah memakan waktu nyata di sini:
 Gate yang harus hijau sebelum bilang selesai:
 
 ```bash
-cd backend  && .venv/Scripts/python.exe -m pytest        # 859 passed
+cd backend  && .venv/Scripts/python.exe -m pytest        # 1014 passed
 cd backend  && .venv/Scripts/python.exe -m pyflakes app tools tests
 cd frontend && npm run check                            # exit 0
 cd frontend && npm run build                            # exit 0
 ```
+
+> [!WARNING]
+> **Empat perintah di atas tidak menjalankan satu pun browser.** Pada 29
+> Agustus 2026 sebuah layer baru ditambahkan ke registry, `e2e/wiring.mjs`
+> exit 1 selama dua commit, dan keempat gate itu tetap hijau sepanjang waktu
+> itu. Laporan "semua gate hijau" ditulis berkali-kali di atas harness yang
+> merah.
+>
+> Kalau perubahannya menyentuh `app/layers.py`, `frontend/src/components/`,
+> atau apa pun yang digambar, tambahkan minimal ini, dan baca exit code-nya:
+>
+> ```bash
+> cd frontend && node e2e/wiring.mjs .playwright-shots   # tiap layer terwire
+> cd frontend && node e2e/labels.mjs .playwright-shots   # peta tabrakan label
+> cd frontend && node e2e/sweep.mjs  .playwright-shots   # sapuan fitur penuh
+> ```
+>
+> Untuk perubahan backend yang menyentuh API, restart dulu server di 8100
+> (`start.bat` menjalankan uvicorn TANPA `--reload`, jadi ia membawa kode lama
+> sampai di-restart), lalu:
+>
+> ```bash
+> cd backend && PYTHONPATH=. .venv/Scripts/python.exe -m tools.validate_api
+> ```
+>
+> `e2e/autotrade.mjs` menyentuh saklar auto-trade yang sungguhan. Jangan
+> dijalankan saat ada daemon hidup kecuali memang itu yang diuji.
 
 Gate baru harus **dibuktikan tidak kosong**: suntikkan kembali cacat yang ia
 ditulis untuk menangkap, pastikan ia gagal, lalu kembalikan.
