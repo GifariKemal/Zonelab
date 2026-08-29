@@ -133,3 +133,37 @@ def test_the_orphan_columns_are_pre_registered_and_separate_from_the_others():
     assert not set(ORPHAN_COLUMNS) & set(COLUMNS)
     assert not set(ORPHAN_COLUMNS) & set(ICT_COLUMNS)
     assert not any("ladder" in c for c in ORPHAN_COLUMNS)
+
+
+def test_the_correlation_column_is_its_own_closed_list():
+    """Daftar keempat, 29 Agustus 2026, dan ia berdiri sendiri.
+
+    `docs/PRAREGISTRASI-KORELASI.md` Bagian 3 menyatakan satu kolom dan daftar
+    TERTUTUP: menambah kolom setelah melihat hasil menuntut praregistrasi baru
+    bertanggal baru. Menempelkannya ke `COLUMNS` atau `ICT_COLUMNS` akan
+    memberinya tanggal yang bukan tanggalnya, dan tanggal itulah satu-satunya
+    hal yang membuat urutan pertanyaan-lalu-jawaban terbaca.
+    """
+    from tools.conditioned import (
+        COLUMNS,
+        CORRELATION_COLUMNS,
+        ICT_COLUMNS,
+        ORPHAN_COLUMNS,
+    )
+
+    assert CORRELATION_COLUMNS == ("partner_corr_band",)
+    for earlier in (COLUMNS, ICT_COLUMNS, ORPHAN_COLUMNS):
+        assert not set(CORRELATION_COLUMNS) & set(earlier)
+
+
+def test_the_correlation_window_is_the_repo_convention_and_not_a_new_number():
+    """200 bar, angka yang sama dengan `_VOLUME_BASELINE_BARS`.
+
+    Praregistrasi Bagian 3 poin 3 memilih jendela itu justru karena ia sudah
+    ada di repo ini. Kalau salah satunya bergeser, jendela korelasi berhenti
+    jadi konvensi dan berubah jadi hasil pencarian.
+    """
+    from app.detect.supply_demand import _VOLUME_BASELINE_BARS
+    from tools.conditioned import CORR_BARS
+
+    assert CORR_BARS == _VOLUME_BASELINE_BARS == 200

@@ -56,6 +56,17 @@ luar sampel**. Yang bertahan satu: gerbang departure 2,0 ATR memisahkan
 populasi secara nyata. Ia menunjukkan di mana harga *kurang buruk*, bukan di
 mana harga menguntungkan.
 
+Kontrol bebas sinyal yang dijalankan 29 Agustus 2026 mempertajam kalimat itu,
+dan ke dua arah sekaligus. Seluruh populasi zona **null** lawan entry tanpa box
+sama sekali (-0,0753 R lawan -0,0808 R, t=+0,28, tanda terbelah 4 lawan 4).
+Tapi kohort yang lolos gerbang memisahkan: **+0,125 R, t=+4,28, positif di 8
+dari 8 sel**, dan itu komponen pertama Zonelab yang mengalahkan kontrol yang
+bukan sekadar box yang dipindahkan. Ekspektansi kohort itu sendiri tetap
++0,0294 R dengan t=+1,22, tidak bisa dibedakan dari nol.
+
+Ringkasnya: **box mengalahkan tanpa-box, dan belum mengalahkan
+tidak-trading.**
+
 Kekuatan Zonelab bukan edge-nya. Kekuatannya adalah ia menulis sendiri daftar
 hal yang gagal diukurnya, lalu menolak menghapusnya.
 
@@ -352,6 +363,17 @@ sebelum satu baris pun dicetak, dan tiga syarat kelulusan sekaligus:
 Lulus ketiganya berhak atas walk-forward. Ia **tidak** berhak atas shipping,
 dan tidak berhak atas `--require`.
 
+> [!NOTE]
+> Satu detail syarat ketiga diperiksa 29 Agustus 2026, karena rumusnya
+> `cut = rows[len(rows)//2]["at"]` mengasumsikan `rows` terurut menurut waktu
+> dan ternyata tidak: pada XAUUSD 1h ada 169 inversi dari 534 pasangan
+> berurutan. Diukur, akibatnya dapat diabaikan. Titik potong yang dipakai jatuh
+> di bar 10.253 sementara median sejatinya 10.277, selisih 24 bar dari sekitar
+> 20.000, dan pembagiannya 265/270 lawan 267/268. Potongannya tetap menurut
+> WAKTU (`at >= cut`), hanya bukan persis di median. Rumusnya tidak diubah:
+> ia ditetapkan sebelum satu angka pun ada, dan mengubahnya sekarang akan
+> mengubah kriteria di tengah jalan.
+
 ### Ledger hipotesis arah
 
 | Hipotesis | n | Statistik | Putusan |
@@ -406,6 +428,55 @@ Positif di 17 dari 18 sel. Buktinya multi-sumbu:
 > dengan CI95 [-0,043, +0,012]. Ambang Bonferroni untuk 18 sel adalah
 > `|t| > 2,88`, dan satu satunya sel yang mencapainya adalah USOIL, di kedua
 > timeframe, negatif.
+
+### Kontrol bebas sinyal, dijalankan 29 Agustus 2026
+
+Kontrol yang selama ini belum pernah ada. Semua kontrol lama adalah **box yang
+dipindahkan**: placebo seukuran sama di tempat lain, atau box di sekitar swing
+yang tidak berhubungan. Semuanya menjawab "apakah box di sini lebih baik
+daripada box di sana". Tidak satu pun menjawab **"apakah box lebih baik
+daripada TANPA box"**.
+
+`tools/baseline.py` menjawabnya: entry pada frekuensi yang sama, geometri
+bracket yang sama, biaya yang sama, dan resolver yang sama persis, karena
+zona-nya disuntikkan ke `tools/intrabar.py` alih alih diresolusi ulang.
+Delapan sel, sampel tidak tumpang tindih, resolusi intrabar yang jujur.
+
+**Seluruh populasi zona: null.**
+
+| Lengan | n | exp R | t lawan lengan nyata |
+|---|---:|---:|---:|
+| nyata | 2.964 | -0,0753 | - |
+| baseline uniform | 3.763 | -0,0808 | +0,28 |
+| baseline hour-matched | 3.841 | -0,0913 | +0,82 |
+
+Tanda per sel terbelah 4 lawan 4. Keduanya rugi setelah biaya.
+
+**Kohort yang lolos gerbang: memisahkan.**
+
+| Lengan | n | exp R | t lawan lengan nyata |
+|---|---:|---:|---:|
+| nyata | 1.361 | +0,0294 (t sendiri +1,22) | - |
+| baseline uniform | 2.636 | -0,0958 | **+4,28** |
+| baseline hour-matched | 2.661 | -0,0813 | **+3,76** |
+
+Positif di **8 dari 8 sel** pada kedua kebijakan waktu entry, uji tanda
+p = 0,0078.
+
+> [!IMPORTANT]
+> Ini komponen pertama Zonelab yang mengalahkan kontrol yang **bukan** box
+> yang dipindahkan. Dan bacaannya harus lengkap: margin +0,125 R lawan "tanpa
+> box" hampir sama dengan +0,124 R yang sudah tercatat lawan box di bawah
+> gerbang, jadi ia menguatkan temuan lama, bukan menambah temuan kedua.
+>
+> Yang tetap berlaku: ekspektansi kohort itu sendiri +0,0294 R dengan t=+1,22,
+> tidak bisa dibedakan dari nol. Jadi **box mengalahkan tanpa-box, dan belum
+> mengalahkan tidak-trading.**
+
+Yang tidak dikontrol dan dinyatakan: dependensi lintas instrumen (penipisan
+hanya di dalam deret, jadi t=+4,28 gabungan adalah batas atas, dan itu sebabnya
+uji tanda 8/8 dilaporkan di sebelahnya), pilihan sisi, wick extreme, clustering
+volatilitas, dan satu venue.
 
 ### Dua temuan yang menentukan segalanya
 
@@ -475,9 +546,13 @@ dan tandanya berbalik saat lebar bracket diubah.
 
 ### Yang tidak pernah diuji
 
-1. **Korelasi partner sebagai pengkondisi.** Belum pernah diuji sama sekali.
-   `app/conditions.py` sengaja bebas IO dan harness-nya membaca satu deret.
-   Ini gap paling nyata di area korelasi.
+1. **Korelasi partner sebagai pengkondisi: DIUKUR 29 Agustus 2026, dan nol.**
+   Praregistrasinya di [`PRAREGISTRASI-KORELASI.md`](PRAREGISTRASI-KORELASI.md),
+   ditulis sebelum satu angka pun ada. XAUUSD 1h lawan partner XAGUSD, grid
+   irisan ketat 35.306 bar, n=958. K=101 grup dihitung sebelum satu baris hasil
+   keluar, kritis t 3,48. `t` terbesar **0,19**, selisih 18 kali lipat dari
+   ambang, dan dua dari tiga pita berbalik tanda antar paruh. Nol invalidasi:
+   `unknown` 0,00 persen, pita terbesar 54,80 persen, anti-lookahead lolos.
 2. **Deret partner dimuat pada satu interval saja.** Dengan
    `--interval 1h,4h`, klausa SSMT dan penjaga korelasi untuk scan 4h dihitung
    dari bar 1h.
@@ -700,15 +775,16 @@ Status diperbarui 29 Agustus 2026 sore, setelah sepuluh butir ini dikerjakan.
       dan memaku bahwa hanya satu yang punya gerbang, dan panel web sekarang
       menyatakan sendiri bahwa tidak ada apa pun di sana yang bisa menghentikan
       trade
-- [ ] **8.** Korelasi partner BELUM diukur, tapi praregistrasinya sudah ditulis
-      dan bertanggal sebelum satu angka pun ada:
-      [`PRAREGISTRASI-KORELASI.md`](PRAREGISTRASI-KORELASI.md). Bagian 7-nya
-      sengaja kosong
+- [x] **8.** Korelasi partner diukur, dan hasilnya nol: `t` terbesar 0,19
+      lawan kritis 3,48. Bagian 7 praregistrasinya sudah diisi apa adanya
 - [x] **9.** `test_prose_consistency.py` sekarang memindai `docs/`, `README.md`
       dan `.env.example`, dari 4 pohon jadi 224 file. Satu instansi yang salah
       diperbaiki, dan pengecualian `[sic]` dibatasi per baris supaya dokumen
       bertanggal yang MENGUTIP cacatnya tidak dipaksa berbohong
-- [ ] **10.** Kontrol bebas sinyal BELUM dijalankan
+- [x] **10.** Kontrol bebas sinyal dijalankan, dan ia mengubah bacaan utama
+      dokumen ini: seluruh populasi zona null lawan tanpa-box (t=+0,28), tapi
+      kohort yang lolos gerbang memisahkan (+0,125 R, t=+4,28, 8 dari 8 sel).
+      Komponen pertama yang mengalahkan kontrol yang bukan box dipindahkan
 
 > [!TIP]
 > Yang paling disarankan tidak dilakukan: menambah pilar kuantitatif baru

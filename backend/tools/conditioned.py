@@ -22,14 +22,18 @@ earn a place in `app/plan.py`.
 from __future__ import annotations
 
 import argparse
+import asyncio
+from bisect import bisect_right
 from datetime import datetime
 from math import erfc, sqrt
 
 import numpy as np
 
+from app.aligned import load_aligned
 from app.cisd import cisds
 from app.clock import NY
 from app.conditions import at_bar
+from app.correlation import correlations
 from app.confluence import mark_nesting
 from app.dealing_range import mark_dealing_range
 from app.detect import DETECTORS
@@ -45,6 +49,7 @@ from app.resample import STEP_UP, resample
 from tools import history
 from tools.costed import POPULATION, trades
 from tools.execute import POI_SLACK_BARS
+from tools.quant import TCISD_PARTNER
 
 #: The pre-registered columns. See the doc named in the module docstring.
 COLUMNS = (
@@ -103,6 +108,21 @@ ICT_COLUMNS = (
     "ict_met",
 )
 
+#: Kolom korelasi partner, praregistrasi KEEMPAT pada 29 Agustus 2026. Daftarnya
+#: ada di `docs/PRAREGISTRASI-KORELASI.md` dan ditulis sebelum satu angka pun
+#: dihitung. Satu kolom, daftar tertutup.
+#:
+#: Terpisah dari tiga daftar lain karena tanggalnya lain, alasan yang sama
+#: dengan pemisahan `ORPHAN_COLUMNS`: menggabungkannya akan menyembunyikan
+#: pertanyaan mana yang diajukan sebelum jawabannya ada.
+CORRELATION_COLUMNS = ("partner_corr_band",)
+
+#: Bar yang masuk jendela korelasi, berakhir di bar keputusan.
+#:
+#: 200 karena itu `_VOLUME_BASELINE_BARS` di `app/detect/supply_demand.py`, jadi
+#: ia konvensi repo ini dan bukan angka baru. Bukan hasil pencarian.
+CORR_BARS = 200
+
 MIN_GROUP = 30
 ALPHA = 0.05
 
@@ -143,6 +163,52 @@ def _dfr_band(value: float | None) -> str | None:
     return "inside_range"
 
 
+def _partner(symbol: str) -> str:
+    """Pasangan SSMT bawaan simbol, dari peta yang sudah ada di repo ini.
+
+    `tools/quant.py:TCISD_PARTNER` adalah satu-satunya peta partner SSMT per
+    instrumen yang sudah tertulis, jadi ia yang dipakai apa adanya. Praregistrasi
+    Bagian 3 poin 6 melarang memilih partner per run: memilih partner setelah
+    melihat hasil adalah pencarian yang menyamar jadi replikasi. Simbol yang
+    tidak ada di peta melempar KeyError, karena default diam-diam ke XAGUSD
+    adalah pilihan yang menyamar jadi bawaan.
+    """
+    prefix, sep, bare = symbol.rpartition(":")
+    return f"{prefix}{sep}{TCISD_PARTNER[bare.upper()]}"
+
+
+def _corr_band(
+    series: dict[str, list], base: str, times: list[int], at: int
+) -> str:
+    """Pita nilai absolut korelasi partner pada bar keputusan `at`.
+
+    ANTI-LOOKAHEAD ADA DI `bisect_right`. Grid dipotong di bar keputusan, jadi
+    bar sesudahnya tidak pernah masuk jendela walaupun deretnya dipanjangkan.
+    `tests/test_corr_lookahead.py` menyuntikkan bar masa depan dan menuntut
+    pita-nya tidak berubah; praregistrasi membuang SELURUH run kalau test itu
+    gagal, karena angka dari kolom yang melihat masa depan bukan angka yang
+    lebih lemah, ia angka yang salah.
+
+    Koefisiennya dari `app/correlation.py` dan bukan implementasi kedua: log
+    return, Pearson, dan lantai `MIN_PAIRS` 30 semuanya sudah ditetapkan di
+    sana. Di bawah 30 pasang return nilainya `unknown`, dan `unknown` adalah
+    pita tersendiri, bukan nol dan bukan dibuang.
+    """
+    end = bisect_right(times, at)
+    window = {s: rows[max(0, end - CORR_BARS):end] for s, rows in series.items()}
+    found = correlations(window, base)
+    if not found or found[0].full is None:
+        return "unknown"
+    r = abs(found[0].full)
+    if r < 0.30:
+        return "<0.30"
+    if r < 0.60:
+        return "0.30-0.60"
+    if r < 0.80:
+        return "0.60-0.80"
+    return ">=0.80"
+
+
 def rows_with_state(symbol: str, interval: str, bars: int, flat: bool) -> list[dict]:
     """Every gate-clearing trade, with layer state AND the ICT checklist attached.
 
@@ -151,6 +217,14 @@ def rows_with_state(symbol: str, interval: str, bars: int, flat: bool) -> list[d
     boxes would be grading the method on information the trade never had.
     """
     candles = history.load(symbol, interval, bars)
+    # PARTNER SSMT PADA GRID IRISAN KETAT, praregistrasi 29 Agustus 2026.
+    # `load_aligned` mengembalikan irisan waktu bar tanpa fill dan tanpa
+    # interpolasi, dan itu syarat dan bukan optimasi: korelasi atas lubang yang
+    # diisi maju adalah korelasi dengan data karangan di dalamnya. Deret ini
+    # TERPISAH dari `candles`, jadi tidak ada satu pun detector di bawah yang
+    # ikut berubah karena kolom ini ditambahkan.
+    aligned, _ = asyncio.run(load_aligned([symbol, _partner(symbol)], interval, bars))
+    corr_times = [c.time for c in aligned[symbol]]
     base = [
         r for r in trades("supply_demand", candles, interval, True,
                           symbol=symbol.split(":")[-1], broker="exness_raw",
@@ -215,6 +289,11 @@ def rows_with_state(symbol: str, interval: str, bars: int, flat: bool) -> list[d
         touch = int(row["at"])
         state = at_bar(candles, touch, interval)
         state["dfr_band"] = _dfr_band(state.get("dfr_pos"))
+        # Properti bar, bukan properti zona, jadi ia dipasang di luar penjaga
+        # `zone is not None` di bawah.
+        state["partner_corr_band"] = _corr_band(
+            aligned, symbol, corr_times, times[touch]
+        )
         zone = by_id.get(row["zone_id"])
         if zone is not None:
             anatomy = zone.anatomy
@@ -323,7 +402,7 @@ def main() -> None:
     # groups are judged, so the count has to happen in a first pass or the
     # threshold becomes a function of what the reader has already seen.
     judged = 0
-    for column in COLUMNS + ICT_COLUMNS + ORPHAN_COLUMNS:
+    for column in COLUMNS + ICT_COLUMNS + ORPHAN_COLUMNS + CORRELATION_COLUMNS:
         seen: dict[object, int] = {}
         for row in rows:
             key = row["state"].get(column)
@@ -333,7 +412,7 @@ def main() -> None:
     print(f"{judged} grup layak dinilai, alpha {ALPHA}/{judged} = "
           f"{ALPHA / judged:.5f}, |t| kritis {critical:.2f}\n")
 
-    for column in COLUMNS + ICT_COLUMNS + ORPHAN_COLUMNS:
+    for column in COLUMNS + ICT_COLUMNS + ORPHAN_COLUMNS + CORRELATION_COLUMNS:
         buckets: dict[object, list[dict]] = {}
         for row in rows:
             buckets.setdefault(row["state"].get(column), []).append(row)

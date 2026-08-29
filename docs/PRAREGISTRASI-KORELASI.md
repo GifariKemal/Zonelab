@@ -137,8 +137,104 @@ Ditulis sekarang supaya tidak bisa dirasionalkan nanti.
 
 ## 7. Hasil
 
-Belum dijalankan. Bagian ini diisi setelah run-nya selesai, dan diisi apa
-adanya termasuk kalau jawabannya nol.
+Dijalankan 29 Agustus 2026, exit code 0:
+
+```bash
+cd backend
+.venv/Scripts/python.exe -m tools.conditioned --symbol mt5:XAUUSD --interval 1h --bars 50000
+```
+
+Partner `mt5:XAGUSD`, diambil dari `tools/quant.py:TCISD_PARTNER`, peta partner
+SSMT per instrumen yang sudah ada di repo ini sebelum studi ini ditulis.
+
+`mt5:XAUUSD` mengembalikan 35.314 bar 1h, `mt5:XAGUSD` 35.306 bar, dan grid
+irisan ketat `load_aligned` menyisakan 35.306 bar dari 2016-08-09 sampai
+2026-08-28. Tidak ada partner yang di-skip, tidak ada satu bar pun yang diisi.
+
+Populasi trade n=958, sentuhan pertama yang lolos gerbang, exp R -0,046 dengan
+aturan flat di rollover.
+
+### Ambang, dicetak sebelum satu baris hasil pun keluar
+
+101 grup layak dinilai di seluruh run, alpha 0,05/101 = 0,00050, nilai kritis
+t Welch dua sisi 3,48.
+
+K=101 mencakup keempat daftar kolom yang dicetak run yang sama: `COLUMNS`,
+`ICT_COLUMNS`, `ORPHAN_COLUMNS`, dan `CORRELATION_COLUMNS`. Itu bacaan harfiah
+Bagian 4 poin 2, "di SELURUH run". Tiga dari 101 grup itu milik
+`partner_corr_band`. Membatasi K ke tiga grup kolom ini saja akan menurunkan
+ambang ke 2,39, dan Bagian 4 tidak mengizinkan pelonggaran.
+
+### Sebaran pita
+
+| Pita | n | persen populasi |
+|---|---|---|
+| `<0.30` | 0 | 0,00 |
+| `0.30-0.60` | 42 | 4,38 |
+| `0.60-0.80` | 525 | 54,80 |
+| `>=0.80` | 391 | 40,81 |
+| `unknown` | 0 | 0,00 |
+
+Emas lawan perak tidak pernah turun di bawah 0,30 pada jendela 200 bar mana pun
+di populasi ini, jadi pita korelasi lemah kosong dan tidak bisa dinilai. Itu
+fakta tentang pasangan yang praregistrasi pilih, bukan tentang kolomnya.
+
+### Hasil per pita, diuji lawan komplemennya
+
+Paruh dipotong menurut waktu di `cut = rows[479]["at"]`, yaitu bar 17710, sama
+dengan 2023-09-06 14:00 UTC. Potongan itu membagi populasi 480 lawan 478.
+
+Kolom `t` adalah t Welch grup lawan komplemennya.
+
+| Pita | n | exp R | delta | t | paruh 1 | paruh 2 | lolos |
+|---|---|---|---|---|---|---|---|
+| `0.30-0.60` | 42 | -0,074 | -0,030 | -0,18 | -0,925 | -0,040 | tidak |
+| `0.60-0.80` | 525 | -0,041 | +0,012 | +0,19 | +0,065 | -0,039 | tidak |
+| `>=0.80` | 391 | -0,051 | -0,007 | -0,11 | -0,057 | +0,055 | tidak |
+
+Nilai t terbesar secara absolut adalah 0,19 lawan nilai kritis 3,48, jarak 18
+kali lipat dan bukan selisih tipis. Dua dari tiga pita juga berganti tanda
+antar-paruh, jadi syarat ketiga gagal terpisah dari syarat kedua.
+
+Angka -0,925 di paruh pertama pita `0.30-0.60` berdiri di atas SATU trade. Ia
+dicetak apa adanya dan tidak boleh dibaca sebagai efek.
+
+Catatan implementasi, dicatat karena ia terlihat saat run: `rows` tidak terurut
+sempurna menurut `at`, jadi `rows[479]["at"]` bukan median indeks bar menurut
+definisi. Pada run ini ia tetap membelah 480 lawan 478, dan pemotongannya
+sendiri tetap menurut waktu karena tiap baris diuji dengan `at >= cut` atau
+`at < cut`. Formulanya tidak diubah: ia ditetapkan di Bagian 4 sebelum ada
+angka.
+
+### Tiga syarat pembatal, Bagian 5
+
+| Syarat | Hasil | Membatalkan |
+|---|---|---|
+| `unknown` melebihi 20 persen populasi | 0,00 persen | tidak |
+| satu pita memuat lebih dari 80 persen populasi | maksimum 54,80 persen | tidak |
+| test anti-lookahead gagal | lolos | tidak |
+
+Test anti-lookahead ada di `backend/tests/test_corr_lookahead.py`. Ia
+menyuntikkan satu bar sesudah bar keputusan lalu menuntut pita tidak berubah.
+Gerbang itu dibuktikan tidak kosong: jendela dibuat membaca satu bar terlalu
+jauh, `bisect_right(times, at) + 1`, test gagal dengan pita berpindah dari
+`>=0.80` ke `<0.30`, lalu perubahan itu dikembalikan. File yang sama juga
+menuntut bar suntikannya memang memindah pita begitu ia sah masuk jendela,
+supaya "pita tidak berubah" tidak bisa lulus karena suntikannya tumpul.
+
+### Jawabannya nol
+
+`partner_corr_band` tidak memisahkan ekspektansi gerbang pada `mt5:XAUUSD` 1h
+lawan `mt5:XAGUSD`. Tidak ada pita yang lolos ketiga syarat, dan tidak ada yang
+mendekat.
+
+Ambang `corr_max = 0.70` di `app/portfolio.py` tetap tanpa dasar empiris. Ia
+boleh tetap ada sebagai pengaman risiko, dan run ini tidak memberi satu alasan
+pun untuk mempromosikannya jadi sinyal.
+
+Batas yang Bagian 6 sudah nyatakan tetap berlaku: satu instrumen, satu partner,
+satu timeframe. Nol di sini bukan nol di mana mana. Ekspektansi populasi
+-0,046 R juga bukan angka yang studi ini uji, ia latar tempat pemisahan diukur.
 
 ---
 

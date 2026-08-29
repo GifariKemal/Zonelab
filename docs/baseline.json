@@ -1,0 +1,908 @@
+{
+ "XAUUSD 1h": {
+  "fine": "5m",
+  "seed": 20260829,
+  "draws": 3,
+  "eligible_bars": 8264,
+  "attempts": 2619,
+  "semua trade real overlap": {
+   "n": 873,
+   "exp_r": -0.013521396132923864,
+   "t": -0.4655509929016813,
+   "win_rate": 0.5693012600229095,
+   "total_r": -11.804178824042534,
+   "welch_real_minus_baseline": null
+  },
+  "semua trade uniform overlap": {
+   "n": 2610,
+   "exp_r": -0.05030631274096272,
+   "t": -3.2696669452494147,
+   "win_rate": 0.553639846743295,
+   "total_r": -131.2994762539127,
+   "welch_real_minus_baseline": 1.1191909188794038
+  },
+  "semua trade hour overlap": {
+   "n": 2607,
+   "exp_r": -0.07843371155587658,
+   "t": -4.990234791684315,
+   "win_rate": 0.5492903720751822,
+   "total_r": -204.47668602617026,
+   "welch_real_minus_baseline": 1.9656113135216096
+  },
+  "semua trade real": {
+   "n": 324,
+   "exp_r": 0.025729321967463394,
+   "t": 0.49301367778052524,
+   "win_rate": 0.5740740740740741,
+   "total_r": 8.33630031745814,
+   "welch_real_minus_baseline": null
+  },
+  "semua trade uniform": {
+   "n": 360,
+   "exp_r": -0.07310013702472805,
+   "t": -1.4804889504314012,
+   "win_rate": 0.5416666666666666,
+   "total_r": -26.3160493289021,
+   "welch_real_minus_baseline": 1.3756161381960017
+  },
+  "semua trade hour": {
+   "n": 362,
+   "exp_r": -0.02578879914977572,
+   "t": -0.5499556421341704,
+   "win_rate": 0.5966850828729282,
+   "total_r": -9.33554529221881,
+   "welch_real_minus_baseline": 0.7342908207831683
+  },
+  "kohort gerbang real overlap": {
+   "n": 226,
+   "exp_r": 0.15919615376197765,
+   "t": 2.179300627560571,
+   "win_rate": 0.6150442477876106,
+   "total_r": 35.97833075020695,
+   "welch_real_minus_baseline": null
+  },
+  "kohort gerbang uniform overlap": {
+   "n": 654,
+   "exp_r": -0.09368780007107656,
+   "t": -2.646611102639398,
+   "win_rate": 0.5045871559633027,
+   "total_r": -61.27182124648407,
+   "welch_real_minus_baseline": 3.1153161602133963
+  },
+  "kohort gerbang hour overlap": {
+   "n": 633,
+   "exp_r": -0.07934920407497437,
+   "t": -2.0714171047159518,
+   "win_rate": 0.49921011058451814,
+   "total_r": -50.22804617945877,
+   "welch_real_minus_baseline": 2.8920240990508965
+  },
+  "kohort gerbang real": {
+   "n": 173,
+   "exp_r": 0.14290252489330033,
+   "t": 1.8084442722585692,
+   "win_rate": 0.6242774566473989,
+   "total_r": 24.722136806540956,
+   "welch_real_minus_baseline": null
+  },
+  "kohort gerbang uniform": {
+   "n": 305,
+   "exp_r": -0.0990173182779298,
+   "t": -1.7823411474104334,
+   "win_rate": 0.4918032786885246,
+   "total_r": -30.200282074768587,
+   "welch_real_minus_baseline": 2.5045000662702246
+  },
+  "kohort gerbang hour": {
+   "n": 298,
+   "exp_r": -0.08001209991656492,
+   "t": -1.3890346520551444,
+   "win_rate": 0.49328859060402686,
+   "total_r": -23.843605775136346,
+   "welch_real_minus_baseline": 2.279609696515332
+  },
+  "fill_rate": {
+   "uniform": 0.9965635738831615,
+   "hour": 0.995418098510882
+  }
+ },
+ "EURUSD 1h": {
+  "fine": "5m",
+  "seed": 20260829,
+  "draws": 3,
+  "eligible_bars": 8261,
+  "attempts": 2754,
+  "semua trade real overlap": {
+   "n": 918,
+   "exp_r": -0.14041976092708935,
+   "t": -5.431830430705875,
+   "win_rate": 0.4455337690631808,
+   "total_r": -128.90534053106802,
+   "welch_real_minus_baseline": null
+  },
+  "semua trade uniform overlap": {
+   "n": 2740,
+   "exp_r": -0.1110499406457929,
+   "t": -7.563273342853056,
+   "win_rate": 0.45875912408759123,
+   "total_r": -304.27683736947256,
+   "welch_real_minus_baseline": -0.9878849927269538
+  },
+  "semua trade hour overlap": {
+   "n": 2736,
+   "exp_r": -0.08372997778400786,
+   "t": -5.736765453353556,
+   "win_rate": 0.4817251461988304,
+   "total_r": -229.0852192170455,
+   "welch_real_minus_baseline": -1.9095889812090046
+  },
+  "semua trade real": {
+   "n": 325,
+   "exp_r": -0.15498188390230952,
+   "t": -3.2861615348571913,
+   "win_rate": 0.4430769230769231,
+   "total_r": -50.369112268250596,
+   "welch_real_minus_baseline": null
+  },
+  "semua trade uniform": {
+   "n": 345,
+   "exp_r": -0.12907769589329218,
+   "t": -2.7983592974360825,
+   "win_rate": 0.4608695652173913,
+   "total_r": -44.5318050831858,
+   "welch_real_minus_baseline": -0.3926734781458155
+  },
+  "semua trade hour": {
+   "n": 345,
+   "exp_r": -0.08254088513906374,
+   "t": -1.7237013712786242,
+   "win_rate": 0.4811594202898551,
+   "total_r": -28.47660537297699,
+   "welch_real_minus_baseline": -1.077816136966783
+  },
+  "kohort gerbang real overlap": {
+   "n": 231,
+   "exp_r": -0.08253427747828651,
+   "t": -1.4025310032928167,
+   "win_rate": 0.48484848484848486,
+   "total_r": -19.065418097484184,
+   "welch_real_minus_baseline": null
+  },
+  "kohort gerbang uniform overlap": {
+   "n": 689,
+   "exp_r": -0.11934916962047258,
+   "t": -3.7950793017808038,
+   "win_rate": 0.4426705370101596,
+   "total_r": -82.23157786850561,
+   "welch_real_minus_baseline": 0.5517587877498787
+  },
+  "kohort gerbang hour overlap": {
+   "n": 692,
+   "exp_r": -0.09551541063993575,
+   "t": -3.0444227223367877,
+   "win_rate": 0.47398843930635837,
+   "total_r": -66.09666416283554,
+   "welch_real_minus_baseline": 0.1946555259788924
+  },
+  "kohort gerbang real": {
+   "n": 167,
+   "exp_r": -0.10049471273343434,
+   "t": -1.5021351783293975,
+   "win_rate": 0.49700598802395207,
+   "total_r": -16.782617026483535,
+   "welch_real_minus_baseline": null
+  },
+  "kohort gerbang uniform": {
+   "n": 301,
+   "exp_r": -0.10206365119797194,
+   "t": -1.9529868160996107,
+   "win_rate": 0.4717607973421927,
+   "total_r": -30.721159010589552,
+   "welch_real_minus_baseline": 0.01848124557902209
+  },
+  "kohort gerbang hour": {
+   "n": 307,
+   "exp_r": -0.10733078238848592,
+   "t": -2.169132521562588,
+   "win_rate": 0.4592833876221498,
+   "total_r": -32.95055019326518,
+   "welch_real_minus_baseline": 0.08215300741867584
+  },
+  "fill_rate": {
+   "uniform": 0.9949164851125636,
+   "hour": 0.9934640522875817
+  }
+ },
+ "GBPUSD 1h": {
+  "fine": "5m",
+  "seed": 20260829,
+  "draws": 3,
+  "eligible_bars": 8266,
+  "attempts": 2820,
+  "semua trade real overlap": {
+   "n": 940,
+   "exp_r": -0.06587411990267489,
+   "t": -2.426906726828866,
+   "win_rate": 0.5127659574468085,
+   "total_r": -61.92167270851439,
+   "welch_real_minus_baseline": null
+  },
+  "semua trade uniform overlap": {
+   "n": 2809,
+   "exp_r": -0.07319319518667296,
+   "t": -4.92309773782832,
+   "win_rate": 0.5094339622641509,
+   "total_r": -205.59968527936434,
+   "welch_real_minus_baseline": 0.2364942126963008
+  },
+  "semua trade hour overlap": {
+   "n": 2812,
+   "exp_r": -0.08187472295354196,
+   "t": -5.779760620901942,
+   "win_rate": 0.5291607396870555,
+   "total_r": -230.23172094536,
+   "welch_real_minus_baseline": 0.5225985454468302
+  },
+  "semua trade real": {
+   "n": 329,
+   "exp_r": -0.07404275116562964,
+   "t": -1.3764915624401095,
+   "win_rate": 0.49240121580547114,
+   "total_r": -24.36006513349215,
+   "welch_real_minus_baseline": null
+  },
+  "semua trade uniform": {
+   "n": 345,
+   "exp_r": -0.0016907790558516314,
+   "t": -0.03139571477893396,
+   "win_rate": 0.5507246376811594,
+   "total_r": -0.5833187742688128,
+   "welch_real_minus_baseline": -0.9505445762413751
+  },
+  "semua trade hour": {
+   "n": 345,
+   "exp_r": -0.12581464190736524,
+   "t": -2.870391817816736,
+   "win_rate": 0.5246376811594203,
+   "total_r": -43.406051458041006,
+   "welch_real_minus_baseline": 0.7461215449123256
+  },
+  "kohort gerbang real overlap": {
+   "n": 258,
+   "exp_r": 0.1248983135535854,
+   "t": 2.0895235283643974,
+   "win_rate": 0.5775193798449613,
+   "total_r": 32.22376489682503,
+   "welch_real_minus_baseline": null
+  },
+  "kohort gerbang uniform overlap": {
+   "n": 801,
+   "exp_r": -0.10863619549458177,
+   "t": -3.6220111197114013,
+   "win_rate": 0.4756554307116105,
+   "total_r": -87.01759259116,
+   "welch_real_minus_baseline": 3.492020441189268
+  },
+  "kohort gerbang hour overlap": {
+   "n": 775,
+   "exp_r": -0.06341954351884677,
+   "t": -2.183526765564619,
+   "win_rate": 0.5303225806451612,
+   "total_r": -49.15014622710625,
+   "welch_real_minus_baseline": 2.833700842890363
+  },
+  "kohort gerbang real": {
+   "n": 188,
+   "exp_r": 0.14744477173932982,
+   "t": 2.0435025247544396,
+   "win_rate": 0.6063829787234043,
+   "total_r": 27.719617086994006,
+   "welch_real_minus_baseline": null
+  },
+  "kohort gerbang uniform": {
+   "n": 310,
+   "exp_r": -0.06330048241506465,
+   "t": -1.1793424124157508,
+   "win_rate": 0.5225806451612903,
+   "total_r": -19.623149548670042,
+   "welch_real_minus_baseline": 2.3434966207168166
+  },
+  "kohort gerbang hour": {
+   "n": 306,
+   "exp_r": -0.049657873731094565,
+   "t": -0.954307648794521,
+   "win_rate": 0.5424836601307189,
+   "total_r": -15.195309361714937,
+   "welch_real_minus_baseline": 2.2156515453118275
+  },
+  "fill_rate": {
+   "uniform": 0.9960992907801418,
+   "hour": 0.9971631205673759
+  }
+ },
+ "USDJPY 1h": {
+  "fine": "5m",
+  "seed": 20260829,
+  "draws": 3,
+  "eligible_bars": 8265,
+  "attempts": 2751,
+  "semua trade real overlap": {
+   "n": 917,
+   "exp_r": -0.12347078828086566,
+   "t": -4.874785486373602,
+   "win_rate": 0.4623773173391494,
+   "total_r": -113.22271285355382,
+   "welch_real_minus_baseline": null
+  },
+  "semua trade uniform overlap": {
+   "n": 2735,
+   "exp_r": -0.11294224159238518,
+   "t": -7.846512444377151,
+   "win_rate": 0.45118829981718467,
+   "total_r": -308.8970307551735,
+   "welch_real_minus_baseline": -0.36139919068970366
+  },
+  "semua trade hour overlap": {
+   "n": 2733,
+   "exp_r": -0.11016648947650616,
+   "t": -7.379607531323742,
+   "win_rate": 0.4548115623856568,
+   "total_r": -301.08501573929135,
+   "welch_real_minus_baseline": -0.452519093395653
+  },
+  "semua trade real": {
+   "n": 325,
+   "exp_r": -0.11633927097699291,
+   "t": -2.593291557948388,
+   "win_rate": 0.4676923076923077,
+   "total_r": -37.8102630675227,
+   "welch_real_minus_baseline": null
+  },
+  "semua trade uniform": {
+   "n": 345,
+   "exp_r": -0.061272319084729084,
+   "t": -1.3312164734903975,
+   "win_rate": 0.5072463768115942,
+   "total_r": -21.138950084231535,
+   "welch_real_minus_baseline": -0.8567602101657155
+  },
+  "semua trade hour": {
+   "n": 345,
+   "exp_r": -0.09965627165521182,
+   "t": -2.1089965245422677,
+   "win_rate": 0.4782608695652174,
+   "total_r": -34.38141372104808,
+   "welch_real_minus_baseline": -0.256043979584879
+  },
+  "kohort gerbang real overlap": {
+   "n": 225,
+   "exp_r": -0.023233688133718816,
+   "t": -0.36844637404911196,
+   "win_rate": 0.5244444444444445,
+   "total_r": -5.227579830086734,
+   "welch_real_minus_baseline": null
+  },
+  "kohort gerbang uniform overlap": {
+   "n": 676,
+   "exp_r": -0.13560637425708033,
+   "t": -4.348477836247078,
+   "win_rate": 0.4378698224852071,
+   "total_r": -91.66990899778631,
+   "welch_real_minus_baseline": 1.5973781654352297
+  },
+  "kohort gerbang hour overlap": {
+   "n": 694,
+   "exp_r": -0.11177560819980911,
+   "t": -3.5870127458728276,
+   "win_rate": 0.46253602305475505,
+   "total_r": -77.57227209066752,
+   "welch_real_minus_baseline": 1.2588108402704101
+  },
+  "kohort gerbang real": {
+   "n": 162,
+   "exp_r": -0.01477554711024631,
+   "t": -0.2082406331245604,
+   "win_rate": 0.5432098765432098,
+   "total_r": -2.3936386318599023,
+   "welch_real_minus_baseline": null
+  },
+  "kohort gerbang uniform": {
+   "n": 293,
+   "exp_r": -0.10568940944226167,
+   "t": -1.9971769428361323,
+   "win_rate": 0.4948805460750853,
+   "total_r": -30.96699696658267,
+   "welch_real_minus_baseline": 1.0270975191015448
+  },
+  "kohort gerbang hour": {
+   "n": 303,
+   "exp_r": -0.08127700219548552,
+   "t": -1.5180283354213393,
+   "win_rate": 0.47854785478547857,
+   "total_r": -24.626931665232114,
+   "welch_real_minus_baseline": 0.7481451688583759
+  },
+  "fill_rate": {
+   "uniform": 0.9941839331152308,
+   "hour": 0.9934569247546347
+  }
+ },
+ "XAGUSD 1h": {
+  "fine": "5m",
+  "seed": 20260829,
+  "draws": 3,
+  "eligible_bars": 8270,
+  "attempts": 2469,
+  "semua trade real overlap": {
+   "n": 823,
+   "exp_r": -0.024247912965433677,
+   "t": -0.8264634592421772,
+   "win_rate": 0.5577156743620899,
+   "total_r": -19.956032370551917,
+   "welch_real_minus_baseline": null
+  },
+  "semua trade uniform overlap": {
+   "n": 2465,
+   "exp_r": -0.04918139856515678,
+   "t": -3.0233087763765156,
+   "win_rate": 0.5286004056795132,
+   "total_r": -121.23214746311146,
+   "welch_real_minus_baseline": 0.743231911880463
+  },
+  "semua trade hour overlap": {
+   "n": 2464,
+   "exp_r": -0.04344875346727511,
+   "t": -2.7273982117578646,
+   "win_rate": 0.5462662337662337,
+   "total_r": -107.05772854336587,
+   "welch_real_minus_baseline": 0.5751285484922043
+  },
+  "semua trade real": {
+   "n": 326,
+   "exp_r": -0.025725823158324407,
+   "t": -0.5247454573568046,
+   "win_rate": 0.549079754601227,
+   "total_r": -8.386618349613757,
+   "welch_real_minus_baseline": null
+  },
+  "semua trade uniform": {
+   "n": 362,
+   "exp_r": -0.09700159251405073,
+   "t": -2.112863327384757,
+   "win_rate": 0.5276243093922652,
+   "total_r": -35.114576490086364,
+   "welch_real_minus_baseline": 1.0611950765780038
+  },
+  "semua trade hour": {
+   "n": 361,
+   "exp_r": -0.0969742178784214,
+   "t": -2.0610959986347828,
+   "win_rate": 0.5373961218836565,
+   "total_r": -35.00769265411013,
+   "welch_real_minus_baseline": 1.0485451541730781
+  },
+  "kohort gerbang real overlap": {
+   "n": 224,
+   "exp_r": 0.08920091063371428,
+   "t": 1.2589589855139085,
+   "win_rate": 0.5803571428571429,
+   "total_r": 19.981003981952,
+   "welch_real_minus_baseline": null
+  },
+  "kohort gerbang uniform overlap": {
+   "n": 688,
+   "exp_r": -0.08007327911323328,
+   "t": -2.2424895482083733,
+   "win_rate": 0.46511627906976744,
+   "total_r": -55.090416029904496,
+   "welch_real_minus_baseline": 2.1334761345392783
+  },
+  "kohort gerbang hour overlap": {
+   "n": 706,
+   "exp_r": -0.06976084566141805,
+   "t": -2.067149178057641,
+   "win_rate": 0.4915014164305949,
+   "total_r": -49.25115703696114,
+   "welch_real_minus_baseline": 2.025521429212805
+  },
+  "kohort gerbang real": {
+   "n": 170,
+   "exp_r": 0.06709070254432611,
+   "t": 0.9582288277333142,
+   "win_rate": 0.6,
+   "total_r": 11.405419432535439,
+   "welch_real_minus_baseline": null
+  },
+  "kohort gerbang uniform": {
+   "n": 301,
+   "exp_r": -0.07397306465728917,
+   "t": -1.3297645815962233,
+   "win_rate": 0.48172757475083056,
+   "total_r": -22.265892461844043,
+   "welch_real_minus_baseline": 1.577466535351862
+  },
+  "kohort gerbang hour": {
+   "n": 314,
+   "exp_r": -0.03298830709069421,
+   "t": -0.5788488122296424,
+   "win_rate": 0.5127388535031847,
+   "total_r": -10.358328426477982,
+   "welch_real_minus_baseline": 1.1085761844093678
+  },
+  "fill_rate": {
+   "uniform": 0.9983799108950993,
+   "hour": 0.9979748886188741
+  }
+ },
+ "BTCUSD 1h": {
+  "fine": "5m",
+  "seed": 20260829,
+  "draws": 3,
+  "eligible_bars": 8257,
+  "attempts": 2475,
+  "semua trade real overlap": {
+   "n": 825,
+   "exp_r": -0.061183256368891846,
+   "t": -1.857386401608122,
+   "win_rate": 0.5163636363636364,
+   "total_r": -50.47618650433577,
+   "welch_real_minus_baseline": null
+  },
+  "semua trade uniform overlap": {
+   "n": 2472,
+   "exp_r": -0.06631403893933469,
+   "t": -3.996515700651508,
+   "win_rate": 0.5198220064724919,
+   "total_r": -163.92830425803535,
+   "welch_real_minus_baseline": 0.13910723330429609
+  },
+  "semua trade hour overlap": {
+   "n": 2473,
+   "exp_r": -0.042854598970764476,
+   "t": -2.611799174822753,
+   "win_rate": 0.5313384553174282,
+   "total_r": -105.97942325470055,
+   "welch_real_minus_baseline": -0.498049906848567
+  },
+  "semua trade real": {
+   "n": 309,
+   "exp_r": -0.07564224950848697,
+   "t": -1.2584766530170035,
+   "win_rate": 0.5242718446601942,
+   "total_r": -23.373455098122474,
+   "welch_real_minus_baseline": null
+  },
+  "semua trade uniform": {
+   "n": 344,
+   "exp_r": -0.10971749833468734,
+   "t": -2.3518051136301454,
+   "win_rate": 0.5087209302325582,
+   "total_r": -37.742819427132446,
+   "welch_real_minus_baseline": 0.44784680307057556
+  },
+  "semua trade hour": {
+   "n": 343,
+   "exp_r": -0.11649996429839536,
+   "t": -2.523582133518515,
+   "win_rate": 0.5102040816326531,
+   "total_r": -39.95948775434961,
+   "welch_real_minus_baseline": 0.5391007556245911
+  },
+  "kohort gerbang real overlap": {
+   "n": 218,
+   "exp_r": -0.014140203812444747,
+   "t": -0.20857084325533323,
+   "win_rate": 0.536697247706422,
+   "total_r": -3.0825644311129548,
+   "welch_real_minus_baseline": null
+  },
+  "kohort gerbang uniform overlap": {
+   "n": 631,
+   "exp_r": -0.10237296988689827,
+   "t": -2.9485562543747403,
+   "win_rate": 0.4706814580031696,
+   "total_r": -64.59734399863281,
+   "welch_real_minus_baseline": 1.1583819852040118
+  },
+  "kohort gerbang hour overlap": {
+   "n": 681,
+   "exp_r": -0.08090140649886533,
+   "t": -2.276483096131344,
+   "win_rate": 0.4522760646108664,
+   "total_r": -55.09385782572729,
+   "welch_real_minus_baseline": 0.8721779509450271
+  },
+  "kohort gerbang real": {
+   "n": 157,
+   "exp_r": -0.019024524088242074,
+   "t": -0.2622682610796372,
+   "win_rate": 0.5414012738853503,
+   "total_r": -2.9868502818540055,
+   "welch_real_minus_baseline": null
+  },
+  "kohort gerbang uniform": {
+   "n": 288,
+   "exp_r": -0.1615831001979946,
+   "t": -3.1336725144498394,
+   "win_rate": 0.4409722222222222,
+   "total_r": -46.535932857022445,
+   "welch_real_minus_baseline": 1.6018206310237157
+  },
+  "kohort gerbang hour": {
+   "n": 303,
+   "exp_r": -0.03613729343320879,
+   "t": -0.631941774173588,
+   "win_rate": 0.48184818481848185,
+   "total_r": -10.949599910262263,
+   "welch_real_minus_baseline": 0.18526680704450765
+  },
+  "fill_rate": {
+   "uniform": 0.9987878787878788,
+   "hour": 0.9991919191919192
+  }
+ },
+ "XAUUSD 4h": {
+  "fine": "15m",
+  "seed": 20260829,
+  "draws": 3,
+  "eligible_bars": 6691,
+  "attempts": 1932,
+  "semua trade real overlap": {
+   "n": 644,
+   "exp_r": -0.0651892111478173,
+   "t": -2.709934805016169,
+   "win_rate": 0.4472049689440994,
+   "total_r": -41.98185197919434,
+   "welch_real_minus_baseline": null
+  },
+  "semua trade uniform overlap": {
+   "n": 1849,
+   "exp_r": -0.10074871676193788,
+   "t": -7.2119225829411615,
+   "win_rate": 0.4321254732287723,
+   "total_r": -186.28437729282314,
+   "welch_real_minus_baseline": 1.2783024949285973
+  },
+  "semua trade hour overlap": {
+   "n": 1902,
+   "exp_r": -0.09138669809254793,
+   "t": -6.4476124147034435,
+   "win_rate": 0.46424815983175605,
+   "total_r": -173.81749977202617,
+   "welch_real_minus_baseline": 0.9382802113243546
+  },
+  "semua trade real": {
+   "n": 500,
+   "exp_r": -0.09483715632279711,
+   "t": -3.5074790455143035,
+   "win_rate": 0.428,
+   "total_r": -47.41857816139856,
+   "welch_real_minus_baseline": null
+  },
+  "semua trade uniform": {
+   "n": 835,
+   "exp_r": -0.0952724499372025,
+   "t": -4.314241847910489,
+   "win_rate": 0.4658682634730539,
+   "total_r": -79.5524956975641,
+   "welch_real_minus_baseline": 0.012468794280598928
+  },
+  "semua trade hour": {
+   "n": 885,
+   "exp_r": -0.1184434708757441,
+   "t": -5.556750036330538,
+   "win_rate": 0.47231638418079097,
+   "total_r": -104.82247172503352,
+   "welch_real_minus_baseline": 0.68563273026978
+  },
+  "kohort gerbang real overlap": {
+   "n": 186,
+   "exp_r": -0.008654233372468805,
+   "t": -0.14977417974087764,
+   "win_rate": 0.46774193548387094,
+   "total_r": -1.6096874072791976,
+   "welch_real_minus_baseline": null
+  },
+  "kohort gerbang uniform overlap": {
+   "n": 563,
+   "exp_r": -0.09630191490699154,
+   "t": -3.260190610698802,
+   "win_rate": 0.44404973357015987,
+   "total_r": -54.21797809263624,
+   "welch_real_minus_baseline": 1.3506202226611308
+  },
+  "kohort gerbang hour overlap": {
+   "n": 540,
+   "exp_r": -0.14194934494009184,
+   "t": -4.775134174211961,
+   "win_rate": 0.44074074074074077,
+   "total_r": -76.6526462676496,
+   "welch_real_minus_baseline": 2.051318826731563
+  },
+  "kohort gerbang real": {
+   "n": 164,
+   "exp_r": -0.00030329346545846636,
+   "t": -0.004890208946031215,
+   "win_rate": 0.4695121951219512,
+   "total_r": -0.04974012833518848,
+   "welch_real_minus_baseline": null
+  },
+  "kohort gerbang uniform": {
+   "n": 426,
+   "exp_r": -0.07741943174129318,
+   "t": -2.1389863477152438,
+   "win_rate": 0.460093896713615,
+   "total_r": -32.98067792179089,
+   "welch_real_minus_baseline": 1.0739006156597894
+  },
+  "kohort gerbang hour": {
+   "n": 403,
+   "exp_r": -0.15711673821743105,
+   "t": -4.403598599597802,
+   "win_rate": 0.43424317617866004,
+   "total_r": -63.31804550162472,
+   "welch_real_minus_baseline": 2.1916303684452725
+  },
+  "fill_rate": {
+   "uniform": 0.9570393374741201,
+   "hour": 0.984472049689441
+  }
+ },
+ "EURUSD 4h": {
+  "fine": "15m",
+  "seed": 20260829,
+  "draws": 3,
+  "eligible_bars": 6384,
+  "attempts": 2001,
+  "semua trade real overlap": {
+   "n": 667,
+   "exp_r": -0.07547678675436367,
+   "t": -3.4580917697718174,
+   "win_rate": 0.4407796101949025,
+   "total_r": -50.34301676516057,
+   "welch_real_minus_baseline": null
+  },
+  "semua trade uniform overlap": {
+   "n": 1925,
+   "exp_r": -0.09231769000571535,
+   "t": -7.375222016592216,
+   "win_rate": 0.4316883116883117,
+   "total_r": -177.71155326100205,
+   "welch_real_minus_baseline": 0.6693327771004831
+  },
+  "semua trade hour overlap": {
+   "n": 1967,
+   "exp_r": -0.0863838426729541,
+   "t": -6.633251934591163,
+   "win_rate": 0.46009150991357395,
+   "total_r": -169.9170185377007,
+   "welch_real_minus_baseline": 0.4291407142049163
+  },
+  "semua trade real": {
+   "n": 526,
+   "exp_r": -0.07573767706487392,
+   "t": -2.9905851450990846,
+   "win_rate": 0.44866920152091255,
+   "total_r": -39.83801813612368,
+   "welch_real_minus_baseline": null
+  },
+  "semua trade uniform": {
+   "n": 827,
+   "exp_r": -0.07154971611862371,
+   "t": -3.3991963128734057,
+   "win_rate": 0.47642079806529625,
+   "total_r": -59.17161523010181,
+   "welch_real_minus_baseline": -0.12717472854325504
+  },
+  "semua trade hour": {
+   "n": 855,
+   "exp_r": -0.06449921828496429,
+   "t": -3.0500582334209465,
+   "win_rate": 0.495906432748538,
+   "total_r": -55.14683163364447,
+   "welch_real_minus_baseline": -0.3406274003752859
+  },
+  "kohort gerbang real overlap": {
+   "n": 192,
+   "exp_r": -0.0019016680494581852,
+   "t": -0.04220030034690833,
+   "win_rate": 0.5208333333333334,
+   "total_r": -0.36512026549597154,
+   "welch_real_minus_baseline": null
+  },
+  "kohort gerbang uniform overlap": {
+   "n": 555,
+   "exp_r": -0.07960419297769059,
+   "t": -3.2492098311343987,
+   "win_rate": 0.45225225225225224,
+   "total_r": -44.18032710261827,
+   "welch_real_minus_baseline": 1.5148983926830604
+  },
+  "kohort gerbang hour overlap": {
+   "n": 557,
+   "exp_r": -0.07739768769574155,
+   "t": -2.8928640409109123,
+   "win_rate": 0.4829443447037702,
+   "total_r": -43.110512046528044,
+   "welch_real_minus_baseline": 1.440575181992354
+  },
+  "kohort gerbang real": {
+   "n": 180,
+   "exp_r": -0.008758763146152296,
+   "t": -0.18843204057100582,
+   "win_rate": 0.5222222222222223,
+   "total_r": -1.5765773663074132,
+   "welch_real_minus_baseline": null
+  },
+  "kohort gerbang uniform": {
+   "n": 412,
+   "exp_r": -0.09531324249760482,
+   "t": -3.343688270175529,
+   "win_rate": 0.4441747572815534,
+   "total_r": -39.26905590901319,
+   "welch_real_minus_baseline": 1.5873761970637406
+  },
+  "kohort gerbang hour": {
+   "n": 427,
+   "exp_r": -0.08235355651119125,
+   "t": -2.66078881130338,
+   "win_rate": 0.4964871194379391,
+   "total_r": -35.164968630278665,
+   "welch_real_minus_baseline": 1.3178621510050397
+  },
+  "fill_rate": {
+   "uniform": 0.9620189905047476,
+   "hour": 0.9830084957521239
+  }
+ },
+ "GABUNGAN": {
+  "semua trade real": {
+   "n": 2964,
+   "exp_r": -0.07531032722573071,
+   "t": -4.980160163874713,
+   "win_rate": 0.4841430499325236,
+   "total_r": -223.2198098970658,
+   "welch_real_minus_baseline": null
+  },
+  "semua trade uniform": {
+   "n": 3763,
+   "exp_r": -0.08082690143913711,
+   "t": -6.284754658646151,
+   "win_rate": 0.4964124368854637,
+   "total_r": -304.1516301154729,
+   "welch_real_minus_baseline": 0.27789388799031584
+  },
+  "semua trade hour": {
+   "n": 3841,
+   "exp_r": -0.0912616765455409,
+   "t": -7.347186387169356,
+   "win_rate": 0.5048164540484249,
+   "total_r": -350.5360996114226,
+   "welch_real_minus_baseline": 0.8151121493922405
+  },
+  "kohort gerbang real": {
+   "n": 1361,
+   "exp_r": 0.029432586253659333,
+   "t": 1.221095885548745,
+   "win_rate": 0.5518001469507715,
+   "total_r": 40.05774989123035,
+   "welch_real_minus_baseline": null
+  },
+  "kohort gerbang uniform": {
+   "n": 2636,
+   "exp_r": -0.09581302987491709,
+   "t": -5.756508618674054,
+   "win_rate": 0.47420333839150225,
+   "total_r": -252.56314675028145,
+   "welch_real_minus_baseline": 4.27579640579183
+  },
+  "kohort gerbang hour": {
+   "n": 2661,
+   "exp_r": -0.08132556913340555,
+   "t": -4.788325920204575,
+   "win_rate": 0.4859075535512965,
+   "total_r": -216.40733946399217,
+   "welch_real_minus_baseline": 3.756271680850462
+  }
+ }
+}

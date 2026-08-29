@@ -2245,3 +2245,211 @@ volatilitas atau bukan.
 
 **Yang dihemat:** satu modul Regime Detection, satu ambang karangan, dan satu
 filter yang akan membuang peristiwa tanpa imbalan terukur.
+
+## Baseline bebas-sinyal, 29 Agustus 2026: kotaknya lebih baik daripada tanpa kotak, dan tetap tidak lebih baik daripada tidak trading
+
+Bagian "Satu kontrol yang belum kita jalankan, dan seharusnya" di atas menamai
+sendiri lubangnya: setiap kontrol di halaman ini adalah KOTAK YANG DIPINDAH.
+Placebo acak menggeser kotak sejauh kelipatan tingginya sendiri, placebo
+berjangkar membangunnya ulang di sekitar swing yang tidak berhubungan. Keduanya
+menjawab "kotak di sini lebih baik daripada kotak di sana". Tidak satu pun
+menjawab "kotak lebih baik daripada TANPA kotak".
+
+`tools/baseline.py` menjalankan kontrol itu. Bukti mentahnya `docs/baseline.json`.
+
+```
+python -m tools.baseline --draws 3 --json ../docs/baseline.json \
+  --cells XAUUSD:1h,EURUSD:1h,GBPUSD:1h,USDJPY:1h,XAGUSD:1h,BTCUSD:1h,XAUUSD:4h,EURUSD:4h
+```
+
+### Cara arm baseline dibuat cocok, empat sumbu sekaligus
+
+**Frekuensi.** Satu draw per trade nyata, di deret dan jendela yang sama. Arm
+yang trading sepuluh kali lebih sering bukan kontrol, ia strategi lain. Limit
+baseline terisi 95,7% sampai 99,9% dari draw-nya, jadi frekuensi yang
+DIRENCANAKAN dan yang TERJADI berselisih di bawah lima poin di setiap sel.
+
+**Geometri bracket.** Pasangan (tinggi zona dalam ATR, reward multiple) diambil
+UTUH dari trade nyata, bukan dari dua distribusi marginal terpisah. Keduanya
+berkorelasi, dan mengambilnya terpisah akan mengarang bracket yang tidak pernah
+digambar. Tinggi lalu dikembalikan ke skala ATR lokal bar entry baseline, jadi
+jarak stop dalam satuan ATR cocok dan perbandingannya adalah ekspektasi per trade
+pada risk yang sama.
+
+**Resolver.** `tools/intrabar.resolved` ITU SENDIRI, bukan salinannya. Zona hanya
+masuk ke fungsi itu lewat dua nama, `DETECTORS` dan `profit_zone_at`, dan
+`_inject` menukar tepat dua nama itu untuk satu panggilan. Fill di bar halus,
+urutan stop lawan target, friction, hitungan rollover dan biaya admin dijalankan
+baris yang sama untuk kedua arm, jadi selisihnya tidak bisa berasal dari dua
+resolver. Ditulis begitu karena proyek ini sudah punya satu insiden di mana dua
+gerbang bernama sama hidup berdampingan berbulan-bulan dengan aturan berbeda
+(KOREKSI 2026-08-17 di atas).
+
+**Biaya.** `app/costs.py`, lewat jalur yang sama, karena resolvernya sama.
+Diperiksa dan bukan diasumsikan, pada XAUUSD 1 jam: biaya sebagai fraksi risk
+sendiri rata-rata 0,0457 di arm nyata lawan 0,0458 di `uniform` dan 0,0486 di
+`hour`, dan porsi long 0,480 lawan 0,476 dan 0,493. Porsi long ikut diperiksa
+karena swap adalah SISI, jadi campuran sisi yang meleset berarti tagihan yang
+meleset.
+
+Hasilnya dibaca di resolusi bar halus (5 menit untuk sel 1 jam, 15 menit untuk
+sel 4 jam), bukan di asumsi OHLC yang optimis. `docs/QA-QUANT.md` bagian 6
+mencatat kenapa: 62% sampai 68% PEMENANG selesai di bar entry sendiri lawan 20%
+sampai 40% yang KALAH, dan asimetri sebesar itu sifat asumsi, bukan sifat pasar.
+
+### Tiga keputusan desain, dan yang TIDAK dikendalikan masing-masing
+
+**1. Waktu entry, dua kebijakan berdampingan.** `uniform` menarik bar entry
+seragam dari seluruh bar yang layak. Ia mengendalikan lokasi harga, dan TIDAK
+mengendalikan komposisi sesi maupun clustering volatilitas: arm nyata hanya
+trading saat harga TIBA di sebuah level, dan kedatangan itu menumpuk di jam
+London dan New York. `hour` menambal persis satu dari dua lubang itu, dengan
+menarik jam UTC dari histogram jam entry arm nyata lalu menarik bar seragam di
+dalam jam tersebut. Yang masih tidak dikendalikan sesudahnya: clustering
+volatilitas di dalam jam yang sama, dan fakta bahwa arm nyata masuk saat harga
+sedang bergerak MENUJU sebuah level. Baseline yang mengendalikan itu juga akan
+mulai memakai informasi harga lokal, dan pada titik itu ia berhenti menjadi
+baseline bebas-sinyal.
+
+Yang KEDUANYA tidak kendalikan: arm nyata memasang limit di garis proximal, harga
+yang sudah pernah berbalik di sana. Baseline memasang limit di close bar
+SEBELUMNYA, yaitu level yang knowable pada awal bar entry. Memakai close bar
+entry sendiri akan lookahead, karena fill di bar halus bisa terjadi sebelum bar
+besar itu ditutup. Tetapi close bar sebelumnya bukan ekstrem wick, dan sisi itu
+memang urusan placebo berjangkar di `tools/costed.py`, bukan urusan file ini.
+
+**2. Arah.** Sisi TIDAK dilempar koin. Ia ditarik dari pasangan geometri yang
+sama, jadi campuran demand/supply baseline sama dengan campuran arm nyata.
+Alasannya biaya dan terukur: swap XAUUSD long -1,20bp per malam, short NOL.
+Koin 50/50 di atas arm nyata yang mayoritas long akan membayar tagihan swap yang
+berbeda, dan sumbu keempat di atas menuntut biaya yang sama. Konsekuensinya
+dinyatakan: pertanyaan "apakah demand-long mengalahkan supply-short" TIDAK
+dijawab di sini. Baseline ini menguji LOKASI, bukan sisi.
+
+**3. Jumlah draw dan seed.** Seed `20260829`, konstanta modul, dicetak di setiap
+laporan. Tanpa `hash()` dan tanpa jam mesin: proyek ini punya satu insiden
+provider yang tidak reproducible karena randomisasi `hash()`. Dijalankan ulang
+pada sel XAUUSD 1 jam dan setiap angkanya identik sampai empat desimal. Tiga draw
+per sel, sama dengan `PLACEBO_DRAWS` di `tools/costed.py`, dan itu hanya
+menaikkan presisi titik estimasi: t utamanya dibaca dari sampel tidak bertumpang
+tindih, dan penipisan memilih satu kandidat per jendela.
+
+### Sampel tidak bertumpang tindih, dan berapa besar sebenarnya inflasinya di sini
+
+H10 di atas mencatat t menggelembung sampai tujuh kali lipat semata karena
+jendela maju bertumpang tindih, t=5,46 menjadi 2,17. `spaced` menipis dengan
+aturan yang sama untuk kedua arm, dan ia menipis memakai JENDELA MAKSIMUM sebuah
+trade (horizon 80 bar, dipotong rollover 21:00 UTC), bukan exit yang
+benar-benar terjadi. Bedanya penting: memilih berdasarkan exit nyata adalah
+menyeleksi berdasarkan hasil.
+
+Inflasinya di sini jauh lebih kecil daripada di H10, dan sebabnya bisa dinamai:
+aturan flat-by-rollover sudah memotong setiap trade sebelum satu hari lewat, jadi
+jendela majunya memang hampir tidak beririsan sejak awal. Welch t kohort gerbang,
+arm `uniform`, sebelum dan sesudah penipisan:
+
+| Sel | t bertumpang tindih | t tidak bertumpang tindih |
+|---|---|---|
+| XAUUSD 1h | +3,12 | +2,50 |
+| EURUSD 1h | +0,55 | +0,02 |
+| GBPUSD 1h | +3,49 | +2,34 |
+| USDJPY 1h | +1,60 | +1,03 |
+| XAGUSD 1h | +2,13 | +1,58 |
+| BTCUSD 1h | +1,16 | +1,60 |
+| XAUUSD 4h | +1,35 | +1,07 |
+| EURUSD 4h | +1,51 | +1,59 |
+
+Rasionya 1,2 sampai 1,6 kali di sel yang t-nya besar, bukan tujuh kali. Dua sel
+justru naik sesudah ditipis. Semua angka di bawah ini memakai kolom kanan.
+
+### Hasilnya, delapan sel, sampel tidak bertumpang tindih
+
+Kolom `t nyata-baseline` adalah Welch t dengan arah nyata dikurangi baseline,
+jadi positif berarti arm nyata di atas baseline.
+
+**Seluruh populasi trade zona:**
+
+| Sel | n nyata | exp R nyata | n uniform | exp R uniform | t nyata-baseline | t lawan arm hour |
+|---|---|---|---|---|---|---|
+| XAUUSD 1h | 324 | +0,0257 | 360 | -0,0731 | +1,38 | +0,73 |
+| EURUSD 1h | 325 | -0,1550 | 345 | -0,1291 | -0,39 | -1,08 |
+| GBPUSD 1h | 329 | -0,0740 | 345 | -0,0017 | -0,95 | +0,75 |
+| USDJPY 1h | 325 | -0,1163 | 345 | -0,0613 | -0,86 | -0,26 |
+| XAGUSD 1h | 326 | -0,0257 | 362 | -0,0970 | +1,06 | +1,05 |
+| BTCUSD 1h | 309 | -0,0756 | 344 | -0,1097 | +0,45 | +0,54 |
+| XAUUSD 4h | 500 | -0,0948 | 835 | -0,0953 | +0,01 | +0,69 |
+| EURUSD 4h | 526 | -0,0757 | 827 | -0,0715 | -0,13 | -0,34 |
+| **Gabungan** | **2964** | **-0,0753** | **3763** | **-0,0808** | **+0,28** | **+0,82** |
+
+**Kohort gerbang, yaitu kohort yang benar-benar dikirim ke `app/plan.py`:**
+
+| Sel | n nyata | exp R nyata | n uniform | exp R uniform | t nyata-baseline | t lawan arm hour |
+|---|---|---|---|---|---|---|
+| XAUUSD 1h | 173 | +0,1429 | 305 | -0,0990 | +2,50 | +2,28 |
+| EURUSD 1h | 167 | -0,1005 | 301 | -0,1021 | +0,02 | +0,08 |
+| GBPUSD 1h | 188 | +0,1474 | 310 | -0,0633 | +2,34 | +2,22 |
+| USDJPY 1h | 162 | -0,0148 | 293 | -0,1057 | +1,03 | +0,75 |
+| XAGUSD 1h | 170 | +0,0671 | 301 | -0,0740 | +1,58 | +1,11 |
+| BTCUSD 1h | 157 | -0,0190 | 288 | -0,1616 | +1,60 | +0,19 |
+| XAUUSD 4h | 164 | -0,0003 | 426 | -0,0774 | +1,07 | +2,19 |
+| EURUSD 4h | 180 | -0,0088 | 412 | -0,0953 | +1,59 | +1,32 |
+| **Gabungan** | **1361** | **+0,0294** | **2636** | **-0,0958** | **+4,28** | **+3,76** |
+
+Delapan dari delapan sel positif, di KEDUA kebijakan waktu entry. Uji tanda pada
+delapan sel memberi p=0,0078, ambang yang sama dipakai setiap walk-forward di
+halaman ini.
+
+### Putusan, tiga bagian, dan yang ketiga yang paling penting
+
+**Satu. Seluruh populasi trade zona adalah NOL terhadap baseline.** -0,0753 R
+lawan -0,0808 R, Welch t=+0,28, dan tanda per sel terbelah empat lawan empat.
+Menggambar kotak lalu menradingkan semuanya menghasilkan apa yang dihasilkan
+bracket berbentuk sama yang dipasang di waktu acak. Keduanya rugi setelah biaya.
+
+**Dua. Kohort gerbang MEMISAHKAN diri dari baseline.** +0,0294 R lawan -0,0958 R,
+selisih +0,125 R dengan Welch t=+4,28 pada n=1361 lawan 2636, delapan dari
+delapan sel positif. Ini pertama kalinya sebuah komponen Zonelab mengalahkan
+kontrol bebas-sinyal, dan bukan hanya kontrol kotak-yang-dipindah. Gerbang
+departure bukan artefak geometri bracket.
+
+Satu pengamatan yang layak dicatat tanpa dilebihkan: selisih +0,125 R terhadap
+"tanpa kotak" hampir sama besar dengan +0,124 R yang sudah tercatat di
+`docs/QA-QUANT.md` bagian 6 sebagai selisih terhadap kotak DI BAWAH gerbang.
+Artinya keunggulan gerbang atas "tanpa kotak" dan atas "kotak yang lebih buruk"
+berukuran sama. Itu konsisten dengan gerbang yang memilih KONDISI dan bukan
+tempat, tetapi dua angka yang kebetulan sama bukan bukti mekanisme.
+
+**Tiga, dan ini yang menahan seluruh temuan di atas.** Ekspektasi kohort gerbang
+itu sendiri +0,0294 R dengan t=+1,22. Itu TIDAK bisa dibedakan dari nol. Jadi
+yang terbukti adalah "kotak di atas gerbang lebih baik daripada tanpa kotak",
+dan yang TIDAK terbukti adalah "kotak di atas gerbang lebih baik daripada tidak
+trading sama sekali". Baseline bebas-sinyal rugi 0,0958 R per trade; kohort
+gerbang berhenti rugi. Ia belum terbukti menghasilkan.
+
+> [!CAUTION]
+> Perhatikan jarak antara angka ini dan +0,235 R (t=3,76) yang tercatat untuk
+> emas 1 jam di bagian KOREKSI 2026-08-17. Sebagian besar jaraknya bukan temuan
+> baru: angka itu satu instrumen di satu timeframe pada jendela yang lain,
+> diselesaikan di bar kasar, sementara +0,0294 R adalah delapan sel yang
+> digabung, diselesaikan di bar halus, dan ditipis sampai tidak bertumpang
+> tindih. Emas 1 jam sendirian di tabel di atas membaca +0,1429 R. Yang boleh
+> disimpulkan: begitu enam instrumen lain ikut masuk, ekspektasi gabungannya
+> jatuh ke nol sementara SELISIHNYA terhadap baseline bertahan.
+
+### Yang tidak dikendalikan, didaftar supaya tidak hilang
+
+- **Dependensi lintas instrumen.** `spaced` hanya menjamin ketidaktumpangtindihan
+  DI DALAM satu deret. Emas dan perak bergerak bersama, jadi n gabungan
+  melebih-lebihkan jumlah pengamatan bebas dan t gabungan +4,28 adalah batas
+  atas. Uji tanda delapan sel (p=0,0078) tidak punya masalah itu, dan itu alasan
+  ia dilaporkan berdampingan.
+- **Sisi.** Baseline mewarisi campuran demand/supply arm nyata, jadi ia tidak
+  menguji pilihan sisi.
+- **Ekstrem wick.** Limit baseline duduk di close bar sebelumnya, bukan di harga
+  yang sudah pernah membalikkan pasar. Placebo berjangkar yang menguji itu.
+- **Clustering volatilitas.** Arm `hour` menyamakan komposisi jam, bukan
+  komposisi volatilitas. Bahwa `hour` kadang lebih buruk dan kadang lebih baik
+  daripada `uniform` (bandingkan dua kolom terakhir) menunjukkan efek jam ada
+  tetapi kecil dan tidak searah.
+- **Satu venue.** Semua sel dari terminal MT5 Exness, dengan biaya dari
+  `app/costs.py` profil broker `exness_raw`.

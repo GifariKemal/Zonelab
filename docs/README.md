@@ -1,6 +1,6 @@
 # Peta direktori docs
 
-Direktori ini berisi 11 dokumen prosa dan 22 file bukti mentah. Tanpa peta,
+Direktori ini berisi 13 dokumen prosa dan 23 file bukti mentah. Tanpa peta,
 pembaca yang membukanya melihat 30 file dan tidak bisa tahu prosa mana membaca
 data mana. Itu satu-satunya alasan file ini ada.
 
@@ -32,7 +32,7 @@ Konvensinya nama, bukan mekanisme: setiap tool mencetak ke stdout dan hasilnya
 dialihkan ke `docs/<nama>.json`. Jadi `docs/mss.json` datang dari
 `python -m tools.mss`, dan **tidak ada apa pun yang menegakkan itu** selain
 konvensi ini. Diperiksa 21 Agustus 2026 pada 21 file, dan diperiksa ulang
-27 Agustus 2026 setelah `quarter_placement.json` masuk: ke-22 file punya tool
+29 Agustus 2026 setelah `baseline.json` masuk: ke-23 file punya tool
 yang cocok, tidak ada yang orphan.
 
 Tanda hubung lawan garis bawah adalah artefak sejarah dan bukan makna:
@@ -41,6 +41,7 @@ Tanda hubung lawan garis bawah adalah artefak sejarah dan bukan makna:
 | Bukti | Dihasilkan oleh | Dibaca prosa | Isi |
 |---|---|---|---|
 | `alignment.json` | `tools.alignment` | - | 26 kunci |
+| `baseline.json` | `tools.baseline` | CALIBRATION.md | 9 kunci, 8 sel plus gabungan, kontrol bebas-sinyal |
 | `calibration.json` | `tools.calibrate` | CALIBRATION.md | 7 kunci, 54 KB |
 | `collisions.json` | `tools.collisions` | CALIBRATION.md | 6 kunci |
 | `continuation.json` | `tools.continuation` | - | 3 kunci |
