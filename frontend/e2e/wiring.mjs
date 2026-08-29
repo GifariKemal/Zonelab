@@ -64,6 +64,7 @@ const DRAWS = {
   breaker: "zones",
   structure: "swings",
   session: "quarters",
+  vortex: "vortex",
   gaps: "gaps",
   cisd: "cisd",
   dfr: "dfr",
@@ -107,7 +108,11 @@ for (const layer of registry) {
   }
   const payload = await response.json();
   const key = DRAWS[layer.id];
-  const count = (payload.drawing[key] ?? []).length;
+  // NOT EVERY LAYER DRAWS A LIST. `vortex` puts one object on `drawing.vortex`,
+  // and `(obj ?? []).length` is `undefined` for it, so the layer read as drawing
+  // nothing from the day it shipped. Counted by shape instead of assuming array.
+  const value = payload.drawing[key];
+  const count = Array.isArray(value) ? value.length : value ? 1 : 0;
   drew[layer.id] = count;
   // NEWS IS THE ONE HONEST ZERO. Its feed publishes the current week only, so an
   // empty calendar is a fact about the week rather than a broken layer.

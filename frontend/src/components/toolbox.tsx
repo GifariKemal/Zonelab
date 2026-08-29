@@ -44,7 +44,7 @@ interface Props {
   onReset: () => void;
   /** Applies a whole layer set in one step. Separate from `onLayers` because a
    *  preset also carries the params its layers need in order to draw anything -
-   *  THREE of the sixteen draw nothing with their default params, on purpose, and
+   *  THREE of the seventeen draw nothing with their default params, on purpose, and
    *  the number is measured: drawing each layer alone with pure defaults leaves
    *  `session`, `dfr` and `ssmt` empty and the other twelve drawing. This comment
    *  said six for a while, which was my own count rather than a measurement. */
@@ -575,7 +575,7 @@ export const Toolbox = memo(function Toolbox({
                 switched itself on would spend an ink budget somebody else had
                 accounted for - so switching this layer on and picking no degree
                 produces a completely blank result. Measured: `session`, `dfr` and
-                `ssmt` are the only three layers of sixteen that do this, and the
+                `ssmt` are the only three layers of seventeen that do this, and the
                 other two already said so. This one did not, and the reader's
                 report was exactly the predictable one: "the quarters do not
                 appear". An empty chart and a broken engine must never look alike.
@@ -1494,7 +1494,7 @@ export const Toolbox = memo(function Toolbox({
         </p>
       ) : null}
 
-      {/* PRESETS FIRST, above the sixteen toggles they exist to replace.
+      {/* PRESETS FIRST, above the seventeen toggles they exist to replace.
           Sixteen layers is a data advantage and a focus problem at the same
           time, and this is the honest way to solve the second: the reader picks
           a named set, the engine infers nothing. An automatic switch driven by
@@ -1774,7 +1774,7 @@ function Presets({
 
       <Note>
         A preset sets which layers are on and the minimum each needs to draw
-        anything - three of the sixteen are deliberately empty by default and
+        anything - three of the seventeen are deliberately empty by default and
         would otherwise switch on and show nothing. It never touches a threshold
         you have tuned, and it never decides anything from the market.
       </Note>
@@ -2207,6 +2207,7 @@ const LAYER_SWATCH: Record<string, readonly string[]> = {
   cisd: [ink("levels", 0.95)],
   pools: [ink("levels", 0.95)],
   liquidity: [ink("levels", 0.95)],
+  vortex: [ink("grid", 0.72)],
   projections: [ink("levels", 0.95)],
   ssmt: [ink("ssmt", 0.95)],
   dfr: [ink("dfr", 0.95)],
