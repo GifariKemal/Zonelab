@@ -73,7 +73,7 @@ Tanda hubung lawan garis bawah adalah artefak sejarah dan bukan makna:
 | `conditioned_structure.json` | `tools.conditioned_structure` | - | `structure` dan `projections` sebagai PENGKONDISI kohort zona, 8 instrumen, n=1855, 30 grup, null |
 | `wyckoff_outcomes.json` | `tools.wyckoff_outcomes` | - | forward move arah 4 fase Wyckoff lawan drift per-instrumen, 9 instrumen, null |
 | `csid_ob_outcomes.json` | `tools.csid_ob_outcomes` | - | CISD di dalam order block lawan drift (arah), 9 instrumen, null, hampir degenerat |
-| `csid_ob_intrabar.json` | `tools.csid_ob_intrabar` | - | CISD di dalam order block lawan resolved R (intrabar 5m, biaya), 8172 trade, delta -0,147 R t=-2,28 (borderline NEGATIF), degenerat 95% |
+| `csid_ob_intrabar.json` | `tools.csid_ob_intrabar` | - | CISD fresh (recency 50 bar) di dalam order block lawan resolved R (intrabar 5m, biaya), 8174 trade, delta -0,136 R t=-7,04, walk-forward 8/8 negatif, MEMISAHKAN tanda terbalik |
 
 > [!IMPORTANT]
 > Kolom "dibaca prosa" kosong **bukan** berarti file-nya mati. Ia output mentah

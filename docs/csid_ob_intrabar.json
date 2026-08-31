@@ -7,7 +7,7 @@
       "n": 870
     },
     "XAGUSD 1h": {
-      "n": 836
+      "n": 837
     },
     "XPTUSD 1h": {
       "n": 923
@@ -25,103 +25,105 @@
       "n": 938
     },
     "US30 1h": {
-      "n": 868
+      "n": 869
     },
     "USOIL 1h": {
       "n": 980
     }
   },
   "population": {
-    "n": 8172,
-    "n_cisd_inside": 7795,
-    "n_no_cisd": 377,
-    "pct_inside": 95.4,
-    "exp_r_in_band": -0.0419019606072339,
-    "exp_r_no_cisd": 0.10540207843932882
+    "n": 8174,
+    "n_cisd_inside": 3555,
+    "n_no_cisd": 4619,
+    "pct_inside": 43.5,
+    "exp_r_in_band": -0.11170009076416479,
+    "exp_r_no_cisd": 0.023965738648627083
   },
   "result": {
-    "delta": -0.14730403904656272,
-    "welch_t": -2.2779739480558874,
+    "delta": -0.13566582941279187,
+    "welch_t": -7.043166658106875,
     "critical_t": 2.241402727604945,
     "walk_forward": {
       "folds": [
         {
           "fold": 1,
-          "n_inside": 1066,
-          "n_outside": 30,
+          "n_inside": 458,
+          "n_outside": 638,
           "purged": 5,
           "readable": true,
-          "delta": -0.855443170700197
+          "delta": -0.07430041547602842
         },
         {
           "fold": 2,
-          "n_inside": 968,
-          "n_outside": 51,
-          "purged": 7,
+          "n_inside": 454,
+          "n_outside": 566,
+          "purged": 6,
           "readable": true,
-          "delta": 0.1781818716715048
+          "delta": -0.07632262003721285
         },
         {
           "fold": 3,
-          "n_inside": 876,
-          "n_outside": 72,
+          "n_inside": 408,
+          "n_outside": 540,
           "purged": 2,
           "readable": true,
-          "delta": -0.0949766028519873
+          "delta": -0.1381081946277151
         },
         {
           "fold": 4,
-          "n_inside": 988,
-          "n_outside": 62,
+          "n_inside": 484,
+          "n_outside": 567,
           "purged": 1,
           "readable": true,
-          "delta": -0.388337755987809
+          "delta": -0.18181069053013038
         },
         {
           "fold": 5,
-          "n_inside": 904,
-          "n_outside": 88,
+          "n_inside": 406,
+          "n_outside": 585,
           "purged": 4,
           "readable": true,
-          "delta": -0.06661540128596147
+          "delta": -0.19278447087484202
         },
         {
           "fold": 6,
-          "n_inside": 1024,
-          "n_outside": 24,
+          "n_inside": 453,
+          "n_outside": 595,
           "purged": 1,
           "readable": true,
-          "delta": -0.10620165609161779
+          "delta": -0.16595348943039626
         },
         {
           "fold": 7,
-          "n_inside": 990,
-          "n_outside": 16,
-          "purged": 4,
-          "readable": false,
-          "delta": null
+          "n_inside": 434,
+          "n_outside": 573,
+          "purged": 3,
+          "readable": true,
+          "delta": -0.1382800137486639
         },
         {
           "fold": 8,
-          "n_inside": 946,
-          "n_outside": 34,
-          "purged": 8,
+          "n_inside": 443,
+          "n_outside": 538,
+          "purged": 10,
           "readable": true,
-          "delta": -0.012557858728191859
+          "delta": -0.10781738623182949
         }
       ],
-      "graded": 7,
-      "positive": 1,
+      "graded": 8,
+      "positive": 0,
       "failed": [
         1,
+        2,
         3,
         4,
         5,
         6,
+        7,
         8
       ]
     }
   },
-  "degenerate": true,
-  "verdict": " (hampir degenerat, satu lengan > 95% populasi)"
+  "degenerate": false,
+  "verdict": "MEMISAHKAN"
 }

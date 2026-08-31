@@ -14,10 +14,13 @@ PRIOR, stated. `cisd_in_band` for the supply/demand box is NULL (t=-1.29,
 `app/layers.py`), and the directional version of this exact question is NULL. So
 the prior for a CISD inside a block conditioning the resolved R is low.
 
-HYPOTHESIS, two-sided. The resolved R of blocks whose band contains a CISD level
-differs from blocks whose band does not, both measured above the 2.0 ATR
-departure gate on the `cleared` population. Two-sided because a CISD inside a
-block could read as confirmation or as the block already being mitigated.
+HYPOTHESIS, two-sided. The resolved R of blocks whose band contains a RECENT CISD
+level (formed within RECENT_BARS of the touch) differs from blocks whose band
+does not, both measured above the 2.0 ATR departure gate. Two-sided because a
+recent CISD inside a block could read as confirmation or as the block already
+being mitigated. The recency is the tightening: without it the condition is
+degenerate (95% of blocks hold SOME CISD level), and a stale level from weeks
+ago is not a state-of-delivery reading at this block.
 
 SYARAT LOLOS. n >= 30 in both arms, |Welch t| past the Bonferroni bar (2 groups),
 and walk-forward 8 folds with a stable sign. A near-degenerate split (one arm
@@ -52,6 +55,14 @@ SYMBOLS = ("XAUUSD", "XAGUSD", "XPTUSD", "EURUSD", "GBPUSD", "USDJPY",
 
 MIN_GROUP = 30
 K = 2  # two groups judged: CISD inside vs not
+
+#: A CISD counts as "inside the block" only when it formed within this many bars
+#: before the block's first touch. The un-tightened condition is degenerate (95%
+#: of blocks hold SOME CISD level, because levels are dense and bands are wide);
+#: this recency window cuts it to a balanced split. 50 hourly bars is about two
+#: days - a fresh enough state-of-delivery to read as confirmation, a stale level
+#: is not. Chosen, not measured: see the selectivity probe in the session log.
+RECENT_BARS = 50
 
 
 def _welch(a: np.ndarray, b: np.ndarray) -> float:
@@ -118,10 +129,12 @@ def cell_rows(symbol: str, interval: str) -> list[dict]:
         if block is None or int(row["at"]) < 1:
             continue
         now = times[int(row["at"])]
-        # A CISD is in the band when its level sits inside it AND it was knowable
-        # at the touch bar. No lookahead.
+        # A CISD is in the band when its level sits inside it, was knowable at the
+        # touch bar, AND formed within RECENT_BARS of the touch. The recency half
+        # is the whole tightening: without it the condition is degenerate.
+        window = RECENT_BARS * INTERVALS[interval]
         in_band = any(
-            block.bottom <= e.level <= block.top and e.time <= now
+            block.bottom <= e.level <= block.top and 0 <= now - e.time <= window
             for e in cisd_sorted
         )
         out.append({"r": row["r"], "at": int(row["at"]),
