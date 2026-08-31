@@ -4,13 +4,13 @@
   "rig": "tools.detectors_costed.resolved_as(order_block), bar 5m, biaya",
   "cells": {
     "XAUUSD 1h": {
-      "n": 870,
-      "n_in": 347,
+      "n": 869,
+      "n_in": 346,
       "n_out": 523,
-      "exp_r_in": -0.05472826699415484,
+      "exp_r_in": -0.05617509328114964,
       "exp_r_out": 0.14151971225865384,
-      "delta": -0.19624797925280868,
-      "welch_t": -3.069462914243825
+      "delta": -0.19769480553980348,
+      "welch_t": -3.0894048114641937
     },
     "XAGUSD 1h": {
       "n": 837,
@@ -86,50 +86,50 @@
     }
   },
   "population": {
-    "n": 8171,
-    "n_cisd_inside": 3554,
+    "n": 8170,
+    "n_cisd_inside": 3553,
     "n_no_cisd": 4617,
     "pct_inside": 43.5,
-    "exp_r_in_band": -0.11175055197065482,
+    "exp_r_in_band": -0.11190749657529224,
     "exp_r_no_cisd": 0.024409301888240958
   },
   "result": {
-    "delta": -0.13615985385889579,
-    "welch_t": -7.0671417090455515,
+    "delta": -0.1363167984635332,
+    "welch_t": -7.074728419770016,
     "critical_t": 2.241402727604945,
     "walk_forward": {
       "folds": [
         {
           "fold": 1,
-          "n_inside": 458,
+          "n_inside": 457,
           "n_outside": 638,
-          "purged": 3,
+          "purged": 4,
           "readable": true,
-          "delta": -0.08166682592422854
+          "delta": -0.08283844549878659
         },
         {
           "fold": 2,
-          "n_inside": 455,
+          "n_inside": 454,
           "n_outside": 565,
-          "purged": 8,
+          "purged": 9,
           "readable": true,
-          "delta": -0.07736634631409041
+          "delta": -0.07870303127980291
         },
         {
           "fold": 3,
-          "n_inside": 410,
+          "n_inside": 409,
           "n_outside": 538,
-          "purged": 2,
+          "purged": 3,
           "readable": true,
-          "delta": -0.1331517130796448
+          "delta": -0.13417401274765303
         },
         {
           "fold": 4,
           "n_inside": 481,
-          "n_outside": 567,
+          "n_outside": 566,
           "purged": 1,
           "readable": true,
-          "delta": -0.18110759955084132
+          "delta": -0.1792914037935704
         },
         {
           "fold": 5,
@@ -142,10 +142,10 @@
         {
           "fold": 6,
           "n_inside": 453,
-          "n_outside": 595,
-          "purged": 1,
+          "n_outside": 596,
+          "purged": 0,
           "readable": true,
-          "delta": -0.16595348943039626
+          "delta": -0.1641536953641082
         },
         {
           "fold": 7,
@@ -179,5 +179,28 @@
     }
   },
   "degenerate": false,
-  "verdict": "MEMISAHKAN"
+  "verdict": "MEMISAHKAN",
+  "confound": {
+    "median_efficiency": 0.19101984117228207,
+    "cells": {
+      "choppy_cisd": {
+        "n": 2423,
+        "exp_r": -0.1052897554633808
+      },
+      "choppy_nocisd": {
+        "n": 1662,
+        "exp_r": 0.05656054716121567
+      },
+      "clean_cisd": {
+        "n": 1130,
+        "exp_r": -0.12609757331348814
+      },
+      "clean_nocisd": {
+        "n": 2955,
+        "exp_r": 0.006326266475826755
+      }
+    },
+    "cisd_delta_within_choppy": -0.1618503026245965,
+    "cisd_delta_within_clean": -0.1324238397893149
+  }
 }

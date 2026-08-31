@@ -72,6 +72,21 @@ def _welch(a: np.ndarray, b: np.ndarray) -> float:
     return float((a.mean() - b.mean()) / se) if se > 0 else float("nan")
 
 
+def _efficiency(closes: list[float], touch_idx: int, n: int = 20) -> float | None:
+    """Arrival efficiency: net move over path length, low = choppy.
+
+    The confound probe: `fresh CISD inside` correlates with this at t=-77, so a
+    fresh CISD is largely a proxy for a choppy arrival. This measure is orthogonal
+    to the CISD definition and is used to control for it.
+    """
+    lo = touch_idx - n
+    if lo < 0 or touch_idx - lo < 2:
+        return None
+    path = sum(abs(closes[i] - closes[i - 1]) for i in range(lo + 1, touch_idx + 1))
+    net = abs(closes[touch_idx] - closes[lo])
+    return net / path if path > 0 else None
+
+
 def _wf_in_band(rows: list[dict]) -> dict:
     """Eight time folds, the CISD-inside delta in each.
 
@@ -119,6 +134,7 @@ def cell_rows(symbol: str, interval: str) -> list[dict]:
     blocks, _ = DETECTORS["order_block"](candles, _params("order_block"))
     by_id = {z.id: z for z in blocks}
     times = [c.time for c in candles]
+    closes = [c.close for c in candles]
     events, _ = cisds(candles)
     # CISD levels sorted by time, for the anti-lookahead lookup.
     cisd_sorted = sorted(events, key=lambda e: e.time)
@@ -139,6 +155,7 @@ def cell_rows(symbol: str, interval: str) -> list[dict]:
         )
         out.append({"r": row["r"], "at": int(row["at"]),
                     "fine_bars_held": row["fine_bars_held"],
+                    "efficiency": _efficiency(closes, int(row["at"])),
                     "in_band": in_band, "cell": f"{symbol} {interval}"})
 
     # The relative position, measured on the ASSESSABLE range not the full series,
@@ -219,6 +236,38 @@ def study(symbols: list[str], interval: str) -> dict:
     )
     if degenerate:
         out["verdict"] += " (hampir degenerat, satu lengan > 95% populasi)"
+
+    # CONFOUND: is the CISD effect a proxy for arrival choppiness? Split by the
+    # median arrival efficiency (low = choppy) and by CISD-in-band, and read the
+    # CISD delta WITHIN each choppiness bucket. If it is a proxy, the within-bucket
+    # delta collapses while the between-bucket (choppy vs clean) delta stays.
+    effs = [r["efficiency"] for r in rows if r["efficiency"] is not None]
+    if effs:
+        med = float(np.median(effs))
+        buckets = {"choppy_cisd": [], "choppy_nocisd": [], "clean_cisd": [],
+                   "clean_nocisd": []}
+        for r in rows:
+            if r["efficiency"] is None:
+                continue
+            choppy = r["efficiency"] < med
+            key = ("choppy" if choppy else "clean") + (
+                "_cisd" if r["in_band"] else "_nocisd")
+            buckets[key].append(r["r"])
+        confound = {k: {"n": len(v),
+                        "exp_r": float(np.mean(v)) if v else None}
+                    for k, v in buckets.items() if v}
+        choppy_delta = (confound["choppy_cisd"]["exp_r"]
+                        - confound["choppy_nocisd"]["exp_r"]) \
+            if "choppy_cisd" in confound and "choppy_nocisd" in confound else None
+        clean_delta = (confound["clean_cisd"]["exp_r"]
+                       - confound["clean_nocisd"]["exp_r"]) \
+            if "clean_cisd" in confound and "clean_nocisd" in confound else None
+        out["confound"] = {
+            "median_efficiency": med,
+            "cells": confound,
+            "cisd_delta_within_choppy": choppy_delta,
+            "cisd_delta_within_clean": clean_delta,
+        }
     return out
 
 
