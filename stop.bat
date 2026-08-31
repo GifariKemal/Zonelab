@@ -17,7 +17,15 @@ REM     like it did nothing.
 REM  3. The server processes that hold NO port at all. Measured while writing
 REM     this: a live Zonelab was five processes, and only two of them owned a
 REM     socket. The npm shim and the Turbopack worker own nothing and would have
-REM     survived passes 1 and 2 completely.
+REM     survived passes 1 and 2 completely. The auto-trade daemon joined that
+REM     list when start.bat began launching it: it listens on nothing, so every
+REM     pass above misses it and it would have kept trading after this file
+REM     reported "Stopped".
+REM
+REM  WHAT THIS FILE DOES NOT DO: it does not turn the switch off, and it cancels
+REM  nothing at the broker. `.autotrade.json` still reads `enabled: true` after
+REM  this runs, and any pending order is still sitting at the broker with its
+REM  stop and its target, because the broker holds those, not this machine.
 REM ===========================================================================
 setlocal EnableDelayedExpansion
 cd /d "%~dp0"
@@ -51,6 +59,16 @@ call :bytitle "Zonelab"
 call :freeport %API_PORT% "API"
 call :freeport %WEB_PORT% "web app"
 call :leftovers
+
+REM SAID EVERY TIME THE TRADER WAS ONE OF THE THINGS STOPPED, and said as two
+REM separate facts because they have two different owners. The switch is a file
+REM on this machine and it is untouched, so the next start.bat picks up trading
+REM where this left off. A pending order is at the broker and outlives this
+REM machine entirely.
+if defined WASTRADING (
+    echo    The switch is NOT turned off - the next start.bat resumes trading.
+    echo    Orders already at the broker stay there with their stop and target.
+)
 
 if not defined QUIET (
     echo.
@@ -233,14 +251,59 @@ REM line with CRLF, so `%%B` on the header is `ProcessId` plus a stray carriage
 REM return and never equals the literal. It printed
 REM `Stopping a leftover web process, Name pid=ProcessId.` on a real run. `%%A`
 REM sits mid-line, so it carries no CR and compares cleanly.
-for /f "skip=1 tokens=2,3 delims=," %%A in ('wmic process where "Name='python.exe' and CommandLine like '%%uvicorn%%' and CommandLine like '%%Zonelab%%'" get Name^,ProcessId /format:csv 2^>nul') do (
+
+REM AND THE SAME CARRIAGE RETURN WAS BREAKING THE KILL ITSELF, which is the
+REM other half of that discovery and went unseen for far longer. `%%B` was the
+REM LAST token on the line, so it was not `20636` but `20636` plus a CR, and
+REM `taskkill /F /PID 20636<CR>` answers `ERROR: Invalid query` and kills
+REM nothing. Every one of these three loops printed `Stopping ...` and then did
+REM not stop it.
+REM
+REM It stayed invisible because the two rules that existed first never needed to
+REM work: `:freeport` had already killed whoever owned the socket, and the npm
+REM shim and the uvicorn launcher then exited on their own once their sibling
+REM died - which is the behaviour the header of this file calls an observation
+REM rather than a guarantee. The auto-trade daemon is the case with no sibling
+REM and no socket, so it survived the sweep and kept trading after this file
+REM said "Stopped". Measured 31 August 2026: pid 20636 and 18240 still alive
+REM after a full run, then killed by the same command with the CR removed.
+REM
+REM THE FIX IS ONE MORE COLUMN, not a string trim. `SessionId` is asked for
+REM purely so that ProcessId stops being last on the line and the CR lands on
+REM SessionId instead, where nothing reads it. Trimming the last character off
+REM `%%B` would eat a digit on any wmic build that does not emit the CR; this
+REM cannot. wmic puts Node first and the requested columns after it in
+REM alphabetical order, so the tokens are Node,Name,ProcessId,SessionId and
+REM `%%B` is still the pid. Verified by echoing `[%%B]` before wiring it up.
+for /f "skip=1 tokens=2,3,4 delims=," %%A in ('wmic process where "Name='python.exe' and CommandLine like '%%uvicorn%%' and CommandLine like '%%Zonelab%%'" get Name^,ProcessId^,SessionId /format:csv 2^>nul') do (
     if not "%%B"=="" if /i not "%%A"=="Name" (
         echo  Stopping a leftover API process, %%A pid=%%B.
         set "STOPPED=1"
         taskkill /F /PID %%B >nul 2>&1
     )
 )
-for /f "skip=1 tokens=2,3 delims=," %%A in ('wmic process where "Name='node.exe' and CommandLine like '%%Zonelab%%'" get Name^,ProcessId /format:csv 2^>nul') do (
+REM AND THE AUTO-TRADE DAEMON, which owns no socket either and which every pass
+REM above misses. Same shape as the uvicorn rule and for the same reason: the
+REM `tools.autotrade` clause alone would reach a daemon started from another
+REM checkout of this project, so the Zonelab clause stays on it.
+REM
+REM TWO PIDs MATCH ONE DAEMON, and that is not a bug here. The venv's
+REM python.exe is a launcher shim that re-execs real CPython as a child, so one
+REM daemon appears twice with identical command lines - measured 30 August 2026
+REM after a wrong "two daemons are running" diagnosis had already grown a
+REM `--allow-second-daemon` flag. Killing the parent takes the child with it and
+REM the second taskkill fails harmlessly, exactly as it already does for a pid
+REM that listens on both IPv4 and IPv6.
+for /f "skip=1 tokens=2,3,4 delims=," %%A in ('wmic process where "Name='python.exe' and CommandLine like '%%tools.autotrade%%' and CommandLine like '%%Zonelab%%'" get Name^,ProcessId^,SessionId /format:csv 2^>nul') do (
+    if not "%%B"=="" if /i not "%%A"=="Name" (
+        echo  Stopping the auto-trade daemon, %%A pid=%%B.
+        set "STOPPED=1"
+        set "WASTRADING=1"
+        taskkill /F /PID %%B >nul 2>&1
+    )
+)
+
+for /f "skip=1 tokens=2,3,4 delims=," %%A in ('wmic process where "Name='node.exe' and CommandLine like '%%Zonelab%%'" get Name^,ProcessId^,SessionId /format:csv 2^>nul') do (
     if not "%%B"=="" if /i not "%%A"=="Name" (
         echo  Stopping a leftover web process, %%A pid=%%B.
         set "STOPPED=1"
@@ -252,7 +315,7 @@ goto :eof
 :countservers
 REM How many server processes are left, for the verification above.
 set "SERVERS=0"
-for /f "skip=1 tokens=2,3 delims=," %%A in ('wmic process where "CommandLine like '%%Zonelab%%' and ((Name='python.exe' and CommandLine like '%%uvicorn%%') or Name='node.exe')" get Name^,ProcessId /format:csv 2^>nul') do (
+for /f "skip=1 tokens=2,3 delims=," %%A in ('wmic process where "CommandLine like '%%Zonelab%%' and ((Name='python.exe' and (CommandLine like '%%uvicorn%%' or CommandLine like '%%tools.autotrade%%')) or Name='node.exe')" get Name^,ProcessId /format:csv 2^>nul') do (
     if not "%%B"=="" if /i not "%%A"=="Name" set /a SERVERS+=1
 )
 goto :eof

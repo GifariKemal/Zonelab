@@ -1,6 +1,7 @@
 @echo off
 REM ===========================================================================
-REM  Zonelab: start the API and the web app, then open the browser.
+REM  Zonelab: start the API, the web app and the auto-trade daemon, then open
+REM  the browser.
 REM
 REM  Double-click this file. Nothing to type, no PowerShell.
 REM  Close everything again with stop.bat.
@@ -33,6 +34,21 @@ cd /d "%~dp0"
 set "API_PORT=8100"
 set "WEB_PORT=3100"
 set "PY=%CD%\backend\.venv\Scripts\python.exe"
+
+REM  The auto-trade daemon's launch flags. THE SWITCH IN THE UI CANNOT SET
+REM  THESE. Symbols, timeframes, risk and the required clauses are read once at
+REM  start and never re-read, so changing any of them means editing this line
+REM  and starting again. `.autotrade.json` carries a `risk_pct` field too, but
+REM  the daemon WRITES that field rather than reading it - it is a report, not a
+REM  setting, and editing it there changes nothing.
+REM
+REM  `--send` IS ARMED HERE ON PURPOSE, and arming is not trading. The daemon
+REM  re-reads the switch every cycle and does nothing at all while it is off -
+REM  it does not even open MT5. Arming it here is what makes the switch mean
+REM  what it says: turn it on on the page and orders go out. Delete `--send`
+REM  from this line to run the daemon in dry run, where it prints what it would
+REM  have sent and sends nothing.
+set "AT_FLAGS=--symbol mt5:XAUUSD,mt5:BTCUSD --interval 15m,30m --risk-pct 0.01 --max-total-risk-pct 0.04 --require bias_agrees --send"
 
 REM Absolute path to curl rather than the bare name. `where curl` on this
 REM machine finds Git's copy in mingw64 first, which is only on PATH inside a
@@ -113,6 +129,44 @@ if not defined READY (
 )
 echo  API ready.
 
+REM ------------------------------------------------------ the auto-trade daemon
+REM
+REM STARTED HERE, because for ten hours on 31 August 2026 it was started
+REM nowhere. The machine rebooted at 23:47, this file brought the API and the
+REM web app back at 05:24, and nothing brought the daemon back at all - so
+REM /api/autotrade answered `enabled: true, daemon_alive: false` and the switch
+REM sat green on the page over a process that did not exist. That is the same
+REM defect as a gate reporting green over a crash, which is the one mistake this
+REM project keeps finding in itself.
+REM
+REM AFTER THE API, not before it and not beside it. The check below asks the API
+REM whether the daemon is heartbeating, so the API has to be answering first.
+REM
+REM ITS OWN LOG FILE, not this window. One cycle prints a line per candidate and
+REM there were 21 of them every twenty seconds - in this window that buries the
+REM API and the web app completely. APPENDED rather than truncated: what the
+REM trader did yesterday is the first thing anyone asks about an order they did
+REM not expect.
+echo  Starting the auto-trade daemon ^(logging to backend\.autotrade.log^)
+start "" /b /D "%CD%\backend" cmd /c ""%PY%" -m tools.autotrade %AT_FLAGS% >> "%CD%\backend\.autotrade.log" 2>&1"
+
+REM AND WAITED FOR, for the same reason every other wait in this file exists.
+REM The daemon has a start path that REFUSES: `autotrade.owner()` returns
+REM non-empty while another daemon still holds the switch, and it exits without
+REM one order ever going out. Under `start /b` that exit is invisible - the
+REM window says "Starting the auto-trade daemon" and nothing afterwards
+REM contradicts it. `daemon_alive` is computed from the heartbeat the loop
+REM writes, so it can only be true once a cycle has actually run.
+call :waitdaemon 30
+if not defined READY (
+    echo.
+    echo  WARNING: the auto-trade daemon is NOT heartbeating after 15 seconds.
+    echo  The API and the web app are fine. The switch on the page will show
+    echo  whatever it was left at, and NOTHING WILL TRADE.
+    echo  Its reason is at the end of backend\.autotrade.log.
+    echo.
+)
+
 REM ------------------------------------------------------------- the web app
 echo  Starting the web app on http://localhost:%WEB_PORT%
 REM NO `-- --port` HERE, and the port is not passed twice. `package.json`'s dev
@@ -146,6 +200,9 @@ echo.
 echo   Both servers log into THIS window, oldest first. Lines that
 echo   start with INFO are the API; the rest are the web app.
 echo.
+echo   The auto-trade daemon logs to backend\.autotrade.log instead. It is
+echo   armed but idle until the switch on the page is turned on.
+echo.
 echo   Leave this window open. Stop everything with stop.bat.
 echo   A keypress in this window also ends it.
 echo  ---------------------------------------------------------------
@@ -176,6 +233,28 @@ pause >nul
 exit /b 0
 
 REM ---------------------------------------------------------------- helpers
+:waitdaemon
+REM %1 = attempts at half a second each. Sets READY once the daemon heartbeats.
+REM
+REM ASKED THROUGH THE API rather than by counting processes, and those are not
+REM the same question. A daemon that is running but wedged still has a process;
+REM `daemon_alive` is false unless the loop wrote a heartbeat within
+REM STALE_AFTER seconds, and that heartbeat is what the switch on the page
+REM actually depends on.
+REM
+REM PARSED BY PYTHON, not by findstr. Matching the raw JSON would mean putting a
+REM double quote inside a `findstr /c:` string, which batch does not escape, and
+REM the venv interpreter is already sitting in %PY%.
+set "READY="
+for /l %%I in (1,1,%~1) do (
+    if not defined READY (
+        "%PY%" -c "import json,sys,urllib.request; sys.exit(0 if json.load(urllib.request.urlopen('http://127.0.0.1:%API_PORT%/api/autotrade',timeout=2))['daemon_alive'] else 1)" 2>nul && set "READY=1"
+        if not defined READY ping -n 2 127.0.0.1 >nul
+    )
+)
+goto :eof
+
+
 :waitfor
 REM %1 = url, %2 = attempts at half a second each, %3 = what it is.
 set "READY="
