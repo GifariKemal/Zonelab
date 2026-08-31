@@ -73,6 +73,24 @@ Strategi supply/demand punya edge di emas, tapi nol di bitcoin. Konsisten dengan
 `docs/CALIBRATION.md` yang mengukur edge-nya memang di emas, bukan kripto. Buat
 produksi: fokus ke XAU, BTC-nya jangan diandalkan sebagai sumber edge.
 
+### Sweep gate departure (real tick, 2R) - jawaban "jangan rugi"
+
+| Config | PF | Net profit | Trades | Win rate | Max DD |
+|---|---|---|---|---|---|
+| M15 gate 2,0 | 1,09 | +32,5% | 476 | 35,5% | 19,2% |
+| M15 gate 4,0 | 1,27 | +41,2% | 221 | 38,9% | 14,5% |
+| H1 gate 2,0 | 1,32 | +23,2% | 118 | 39,0% | 8,15% |
+| **H1 gate 4,0** | **1,63** | +16,2% | 50 | 44,0% | **6,01%** |
+
+Gate departure lebih ketat (4,0 ATR) menaikkan PF dan menurunkan drawdown di
+kedua timeframe, dengan harga trade lebih sedikit. Ini lever "jangan rugi" yang
+benar-benar menambah robustness, bukan trade-off win rate.
+
+Kaveat: `tools/walkforward.py` memvalidasi 2,0 ATR sebagai ambang yang stabil di
+luar sampel. 4,0 adalah perbaikan in-sample yang belum lolos walk-forward -
+bisa jadi overfit ke 8 bulan ini. Default tetap 2,0; naikkan ke 4,0 hanya kalau
+mau mengejar robustness dengan risiko overfit.
+
 ## Kesimpulan jujur
 
 Win rate supply/demand di target 2R secara struktural 35-40%, bukan cacat presisi.
