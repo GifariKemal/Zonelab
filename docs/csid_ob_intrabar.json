@@ -1,0 +1,127 @@
+{
+  "preregistered": "tools/csid_ob_intrabar.py, 2026-08-31",
+  "question": "apakah CISD di dalam order block mengkondisikan resolved R",
+  "rig": "tools.detectors_costed.resolved_as(order_block), bar 5m, biaya",
+  "cells": {
+    "XAUUSD 1h": {
+      "n": 870
+    },
+    "XAGUSD 1h": {
+      "n": 836
+    },
+    "XPTUSD 1h": {
+      "n": 923
+    },
+    "EURUSD 1h": {
+      "n": 912
+    },
+    "GBPUSD 1h": {
+      "n": 952
+    },
+    "USDJPY 1h": {
+      "n": 893
+    },
+    "AUDUSD 1h": {
+      "n": 938
+    },
+    "US30 1h": {
+      "n": 868
+    },
+    "USOIL 1h": {
+      "n": 980
+    }
+  },
+  "population": {
+    "n": 8172,
+    "n_cisd_inside": 7795,
+    "n_no_cisd": 377,
+    "pct_inside": 95.4,
+    "exp_r_in_band": -0.0419019606072339,
+    "exp_r_no_cisd": 0.10540207843932882
+  },
+  "result": {
+    "delta": -0.14730403904656272,
+    "welch_t": -2.2779739480558874,
+    "critical_t": 2.241402727604945,
+    "walk_forward": {
+      "folds": [
+        {
+          "fold": 1,
+          "n_inside": 1066,
+          "n_outside": 30,
+          "purged": 5,
+          "readable": true,
+          "delta": -0.855443170700197
+        },
+        {
+          "fold": 2,
+          "n_inside": 968,
+          "n_outside": 51,
+          "purged": 7,
+          "readable": true,
+          "delta": 0.1781818716715048
+        },
+        {
+          "fold": 3,
+          "n_inside": 876,
+          "n_outside": 72,
+          "purged": 2,
+          "readable": true,
+          "delta": -0.0949766028519873
+        },
+        {
+          "fold": 4,
+          "n_inside": 988,
+          "n_outside": 62,
+          "purged": 1,
+          "readable": true,
+          "delta": -0.388337755987809
+        },
+        {
+          "fold": 5,
+          "n_inside": 904,
+          "n_outside": 88,
+          "purged": 4,
+          "readable": true,
+          "delta": -0.06661540128596147
+        },
+        {
+          "fold": 6,
+          "n_inside": 1024,
+          "n_outside": 24,
+          "purged": 1,
+          "readable": true,
+          "delta": -0.10620165609161779
+        },
+        {
+          "fold": 7,
+          "n_inside": 990,
+          "n_outside": 16,
+          "purged": 4,
+          "readable": false,
+          "delta": null
+        },
+        {
+          "fold": 8,
+          "n_inside": 946,
+          "n_outside": 34,
+          "purged": 8,
+          "readable": true,
+          "delta": -0.012557858728191859
+        }
+      ],
+      "graded": 7,
+      "positive": 1,
+      "failed": [
+        1,
+        3,
+        4,
+        5,
+        6,
+        8
+      ]
+    }
+  },
+  "degenerate": true,
+  "verdict": " (hampir degenerat, satu lengan > 95% populasi)"
+}
