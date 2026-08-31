@@ -63,6 +63,12 @@ from .zone import (
     Zone,
     Drawing,
 )
+from .expectation import (
+    QuantileSet,
+    ExpectationFan,
+)
+from .chart_gaps import ChartGapModel
+from .wyckoff import WyckoffPhaseModel
 from .params import (
     DFRParams,
     SupplyDemandParams,
@@ -76,6 +82,9 @@ from .params import (
     GapParams,
     CISDParams,
     ChecklistParams,
+    ChartGapParams,
+    ExpectationParams,
+    WyckoffParams,
 )
 from .plan import (
     ChecklistReport,
@@ -135,6 +144,10 @@ __all__ = [
     "VortexDial",
     "Zone",
     "Drawing",
+    "QuantileSet",
+    "ExpectationFan",
+    "ChartGapModel",
+    "WyckoffPhaseModel",
     "SupplyDemandParams",
     "ImbalanceParams",
     "StructureParams",
@@ -146,6 +159,9 @@ __all__ = [
     "GapParams",
     "CISDParams",
     "ChecklistParams",
+    "ChartGapParams",
+    "ExpectationParams",
+    "WyckoffParams",
     "ChecklistReport",
     "CostSpec",
     "LotSpec",

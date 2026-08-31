@@ -72,6 +72,73 @@ _TIMEFRAMES: dict[str, int] = (
 _MAX_COUNT = 99_999
 
 
+#: Jeda antar percobaan `mt5.initialize()`, dalam detik. Percobaan pertama
+#: tanpa jeda, jadi anggarannya 3,85 detik untuk enam percobaan.
+#:
+#: KENAPA RETRY SAMA SEKALI. Terminal MT5 melayani satu klien Python pada satu
+#: waktu. Dengan daemon auto-trade dan uvicorn 8100 sama sama hidup, proses
+#: ketiga menerima `(-6, 'Terminal: Authorization failed')`. Diukur 30 Agustus
+#: 2026, 30 panggilan `history.load` berturut turut: 0 sukses, 30 gagal.
+#:
+#: KENAPA JADWALNYA SEPERTI INI, dan bukan sleep tetap. Diukur pada hari yang
+#: sama, 20 percobaan tiap jadwal, dengan daemon dan server berjalan:
+#:
+#:   enam kali 50 ms         12 sukses di attempt 1, 1 di attempt 8, 7 GAGAL
+#:   0,1 0,25 0,5 1,0 2,0    18 sukses di attempt 1, 1 di attempt 4, 1 gagal
+#:
+#: Tabrakannya sementara, jadi yang menolong adalah menunggu lebih lama, bukan
+#: mencoba lebih sering.
+_RETRY_WAITS = (0.1, 0.25, 0.5, 1.0, 2.0)
+
+
+def _retrying(probe) -> bool:
+    """`probe()` sekali, lalu sekali per jeda, sampai True atau jadwal habis.
+
+    SATU JADWAL UNTUK DUA PEMERIKSAAN, karena keduanya menunggu hal yang sama:
+    terminal yang sedang sibuk atau sedang menyambung ulang. Dua salinan jadwal
+    akan menua terpisah, dan yang tertinggal adalah yang tidak ada test-nya.
+    """
+    if probe():
+        return True
+    for wait in _RETRY_WAITS:
+        time.sleep(wait)
+        if probe():
+            return True
+    return False
+
+
+def _initialize_with_retry() -> bool:
+    """`mt5.initialize()` yang tidak menyerah pada tabrakan sesaat.
+
+    Yang gagal TIDAK menelan `last_error()`: pemanggil yang mengangkat
+    ProviderError membaca error terakhir, jadi pesannya tetap menyebut sebab
+    yang sebenarnya.
+    """
+    return _retrying(mt5.initialize)
+
+
+def _broker_link_up() -> bool:
+    """Link ke broker hidup, ditunggu kalau ia sedang berkedip.
+
+    KENAPA INI DITUNGGU DAN BUKAN LANGSUNG DITOLAK. Cabang ini benar: terminal
+    bisa terbuka sementara link broker-nya putus, dan dalam keadaan itu ia
+    menyajikan history basi tanpa satu error pun. Yang salah adalah menolak
+    request pada kedipan pertama. Diukur 30 Agustus 2026, 40 sampel selama 10
+    detik pada hari Minggu: `terminal_info().connected` False pada 17 sampel,
+    yaitu 43 persen. Itu angka yang menjelaskan kenapa `pytest` gagal di test
+    yang berpindah pindah dan `tools/validate_api` mati di baris yang berbeda
+    tiap run.
+
+    Link yang benar benar mati tetap diangkat, karena ia False sepanjang
+    seluruh anggaran 3,85 detik.
+    """
+    def up() -> bool:
+        info = mt5.terminal_info()
+        return bool(info is not None and info.connected)
+
+    return _retrying(up)
+
+
 class MT5Provider:
     """Bars from the local terminal. No key, no network, no rate limit."""
 
@@ -88,7 +155,23 @@ class MT5Provider:
         # terminal - there is nothing per-key to hold - and a fetch measured
         # 0.01s, so serialising every call costs nothing worth a second lock.
         self._lock = asyncio.Lock()
+        self._lock_loop: asyncio.AbstractEventLoop | None = None
         self._connected = False
+
+    def _loop_lock(self) -> asyncio.Lock:
+        """Lock yang milik loop yang sedang berjalan.
+
+        Lihat `app/providers/__init__.py` di sekitar `_locks_loop` untuk sebab
+        dan angkanya. Provider ini dibangun sekali di level modul
+        (`app/providers/__init__.py:29`), jadi lock-nya hidup lebih lama dari
+        loop mana pun yang memakainya, dan `asyncio.run` kedua di process yang
+        sama bertemu lock dari loop yang sudah mati.
+        """
+        loop = asyncio.get_running_loop()
+        if loop is not self._lock_loop:
+            self._lock = asyncio.Lock()
+            self._lock_loop = loop
+        return self._lock
 
     def available(self) -> bool:
         """Static capability only: is the package importable at all.
@@ -103,7 +186,7 @@ class MT5Provider:
     async def probe(self) -> bool:
         if mt5 is None:
             return False
-        async with self._lock:
+        async with self._loop_lock():
             try:
                 return await asyncio.to_thread(self._connect)
             except ProviderError:
@@ -120,7 +203,7 @@ class MT5Provider:
             raise ProviderError(f"mt5 has no {interval} interval")
 
         vendor = vendor_symbol(self.name, symbol)
-        async with self._lock:
+        async with self._loop_lock():
             # The MetaTrader5 API is blocking C, so it goes to a thread: a
             # terminal that is busy or reconnecting would otherwise stall the
             # whole event loop, and `/api/health` would stop answering with it.
@@ -160,7 +243,7 @@ class MT5Provider:
                 "the MetaTrader5 package is not installed - it is Windows-only, "
                 "and this provider needs a terminal on this machine"
             )
-        async with self._lock:
+        async with self._loop_lock():
             return await asyncio.to_thread(self._account)
 
     # -- everything below runs in a worker thread ----------------------------
@@ -194,15 +277,14 @@ class MT5Provider:
         that state it serves stale history without a single error.
         """
         if not self._connected:
-            if not mt5.initialize():
+            if not _initialize_with_retry():
                 raise ProviderError(
                     f"cannot reach a MetaTrader 5 terminal: {mt5.last_error()}. "
                     "Open the terminal and log in, then try again."
                 )
             self._connected = True
 
-        info = mt5.terminal_info()
-        if info is None or not info.connected:
+        if not _broker_link_up():
             # Do not leave a half-dead handle behind: the next call should get a
             # fresh initialize rather than inherit this one.
             self._connected = False

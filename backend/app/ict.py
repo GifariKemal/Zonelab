@@ -43,6 +43,7 @@ from typing import Any, Literal
 from .clock import NY
 from .models import Zone, ZoneSide
 from .poi import Confluence
+from .bias import DEGREES as _BIAS_DEGREES
 from .pools import killzones_at
 
 Source = Literal["measured", "doctrine", "nominated"]
@@ -84,6 +85,19 @@ class Rules:
     #: Opposite-side boxes tolerated in the same band before `poi_clean` fails.
     max_conflicts: int = 0
     #: Whether the higher-timeframe bias must agree with the zone's side.
+    #: Derajat bias yang dibaca klausa `bias_agrees`.
+    #:
+    #: DEFAULTNYA 4 JAM UNTUK SETIAP TIMEFRAME, dan sampai 30 Agustus 2026 tidak
+    #: ada flag untuk mengubahnya di `tools/execute.py` maupun
+    #: `tools/autotrade.py`. Akibatnya terukur pada 30 Agustus 2026 pukul 19:00:
+    #: BTCUSD naik 1,36% dalam 24 jam, `bias_1h` +1 dan `bias_1d` +1, sementara
+    #: `bias_4h` -1, dan gerbang membaca yang terakhir. Sembilan belas kandidat
+    #: demand di 15m dan 30m ditolak oleh satu bacaan 4 jam.
+    #:
+    #: Nilai yang sah adalah `bias_` plus salah satu dari `app.bias.DEGREES`.
+    #: Salah ketik akan membuat `state.get()` menjawab None dan klausanya jadi
+    #: `unknown` selamanya, yang di repo ini dihitung GAGAL kalau ia diwajibkan.
+    #: Diam adalah cara terburuk untuk salah, jadi ia divalidasi.
     bias_degree: str = "bias_4h"
 
 
@@ -111,7 +125,31 @@ MEASURED_AGAINST: dict[str, str] = {
     "ote": ("direplikasi di 12 instrumen 1h: NOL sel lolos, |t| tertinggi 2,04 "
             "lawan kritis 3,20. Negatif di 10 dari 12 sel tapi tidak signifikan "
             "di satu pun, jadi ia tidak punya edge DAN tidak terbukti merugikan"),
+    "dfr_side": (
+        "MEMISAHKAN, DAN KE ARAH SEBALIKNYA. Diukur 30 Agustus 2026 di 8 "
+        "instrumen, zona 1h diselesaikan di bar 5 menit, n=1855, biaya "
+        "exness_raw: klausa TERPENUHI exp R -0,0660 pada n=1141 (delta -0,1676, "
+        "t=-3,54), klausa GAGAL exp R +0,1481 pada n=341 (delta +0,1832, "
+        "t=+3,41), lawan kritis Bonferroni 3,267 untuk 46 grup. Kedua paruh "
+        "setanda, 8 dari 8 instrumen setanda pada sisi True, dan t tetap -3,32 "
+        "setelah di-demean per instrumen. Urutannya monoton ke arah salah: "
+        "False +0,148 > None +0,059 > True -0,066. Bukti di "
+        "docs/checklist_outcomes.json"),
 }
+
+#: KENAPA KLAUSANYA TIDAK DIBALIK SAJA. Karena pemisahan di atas BELUM
+#: di-walk-forward per klausa: `docs/checklist_outcomes.json` membawa fold hanya
+#: untuk skor agregat, bukan untuk `dfr_side`. Standar repo ini, tertulis di
+#: docs/AUDIT-MENYELURUH.md, adalah gerbang menyala setelah lolos walk-forward,
+#: bukan setelah lolos satu potong. Membalik doktrin di atas satu pengukuran
+#: adalah overfit yang persis sama, cuma tandanya lain. Yang dilakukan di sini:
+#: angkanya dicatat, dan `warn_required` di tools/execute.py memperingatkan
+#: keras kalau operator mewajibkannya.
+
+
+#: Nilai `Rules.bias_degree` yang sah, diturunkan dari `app.bias.DEGREES`
+#: supaya menambah derajat di sana cukup sekali.
+BIAS_DEGREES: tuple[str, ...] = tuple(f"bias_{d}" for d in _BIAS_DEGREES)
 
 
 def evaluate(
@@ -124,6 +162,7 @@ def evaluate(
     draw: Literal["higher", "lower", "unnominated"] = "unnominated",
     two_stage_confirmed: bool = False,
     reward_r: float | None = None,
+    always_open: bool = False,
 ) -> list[Condition]:
     """The checklist for one candidate, in a fixed order.
 
@@ -164,12 +203,22 @@ def evaluate(
         5: "weekend — no trading",
         6: "weekend — no trading",
     }
-    day_ok = ny_day in (0, 1, 2, 3, 4)  # all weekdays
+    # `always_open` DATANG DARI DERET INSTRUMENNYA, bukan dari daftar ticker.
+    # Kalender di atas adalah minggu futures, dan sampai 30 Agustus 2026 ia
+    # dipaksakan ke setiap instrumen: BTCUSD ditolak tiap Sabtu dan Minggu atas
+    # nama hari libur forex, pada pasar yang jelas buka. Terukur hari itu, 2000
+    # bar 1h di dalam `clock.market_shut`: XAUUSD 0, BTCUSD 621. Klausa ini
+    # `doctrine`, jadi dua dari tujuh hari hilang tanpa satu angka pun di
+    # belakangnya.
+    day_ok = always_open or ny_day in (0, 1, 2, 3, 4)  # all weekdays
     monday_risk = 0.5 if ny_day == 0 else 1.0
+    detail = f"{day_names[ny_day]}: {day_quality[ny_day]}"
+    if always_open and ny_day >= 5:
+        detail = (f"{day_names[ny_day]}: instrumen ini dagang saat minggu CME "
+                  f"tutup, jadi kalender akhir pekan tidak berlaku untuknya")
     out.append(Condition(
         "day_of_week", day_ok, "doctrine",
-        f"{day_names[ny_day]}: {day_quality[ny_day]}"
-        + (f" [risk × {monday_risk}]" if monday_risk < 1.0 else ""),
+        detail + (f" [risk × {monday_risk}]" if monday_risk < 1.0 else ""),
     ))
 
     # ------------------------------------------------------- price location

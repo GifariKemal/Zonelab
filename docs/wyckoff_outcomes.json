@@ -1,0 +1,72 @@
+{
+  "preregistered": "tools/wyckoff_outcomes.py, 2026-08-31",
+  "question": "apakah fase Wyckoff mendahului move arah yang ia namai, di atas drift",
+  "horizon_bars": 96,
+  "critical_t": 2.4977054744123732,
+  "min_group": 30,
+  "control": "excess move = forward move - symbol drift",
+  "phases": {
+    "spring": {
+      "n": 15926,
+      "mean_excess_move_atr": -0.027986737770724857,
+      "t": -0.4726035512792185,
+      "verdict": ""
+    },
+    "sos": {
+      "n": 19654,
+      "mean_excess_move_atr": -0.12389314976852533,
+      "t": -2.2520008323514316,
+      "verdict": ""
+    },
+    "upthrust": {
+      "n": 18283,
+      "mean_excess_move_atr": 0.02587638773742698,
+      "t": 0.4528370478711262,
+      "verdict": ""
+    },
+    "sow": {
+      "n": 15407,
+      "mean_excess_move_atr": -0.11041359036338737,
+      "t": -1.8493480767217763,
+      "verdict": ""
+    }
+  },
+  "cells": {
+    "XAUUSD": {
+      "n_events": 7192,
+      "drift_atr": 1.0968592397239596
+    },
+    "XAGUSD": {
+      "n_events": 7254,
+      "drift_atr": 0.7549257414779271
+    },
+    "XPTUSD": {
+      "n_events": 3375,
+      "drift_atr": 1.0689935258171928
+    },
+    "EURUSD": {
+      "n_events": 7710,
+      "drift_atr": -0.20435360286176488
+    },
+    "GBPUSD": {
+      "n_events": 7932,
+      "drift_atr": -0.0779401540419549
+    },
+    "USDJPY": {
+      "n_events": 7885,
+      "drift_atr": 1.094522010949304
+    },
+    "AUDUSD": {
+      "n_events": 8161,
+      "drift_atr": -0.11722509930846597
+    },
+    "US30": {
+      "n_events": 7565,
+      "drift_atr": 0.6490773250880795
+    },
+    "USOIL": {
+      "n_events": 12387,
+      "drift_atr": 0.2815932058524638
+    }
+  }
+}

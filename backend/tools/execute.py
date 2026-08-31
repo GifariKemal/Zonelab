@@ -37,13 +37,14 @@ import numpy as np
 from app import journal
 from app.actionable import blockers
 from app.cisd import cisds
-from app.clock import NY
+from app.clock import NY, trades_when_shut
 from app.conditions import at_bar
 from app.confluence import mark_nesting
 from app.costs import COST_TO_RISK_MAX, cost_to_risk, schedule, spec
 from app.dealing_range import mark_dealing_range_now
 from app.detect import DETECTORS
 from app.ict import (
+    BIAS_DEGREES,
     DOCTRINE_CLAUSES,
     MEASURED_AGAINST,
     Rules,
@@ -78,11 +79,40 @@ STAGE_PAIRS: dict[str, tuple[str, str]] = {
     "1w": ("month", "week"),
     "1d": ("month", "week"),
     "4h": ("week", "day"),
-    "1h": ("day", "90m"),
-    "15m": ("90m", "micro"),
+    # "90m" BUKAN NAMA DERAJAT, dan itu cacat yang hidup diam sampai 30 Agustus
+    # 2026. `app/quarters.ALL_DEGREES` tidak pernah memuatnya, jadi `quarters()`
+    # melempar ValueError, `except ValueError` di bawah menelannya, dan
+    # `two_stage_confirmed` TIDAK PERNAH BISA True pada 1h maupun 15m. Nol baris
+    # log. Derajat yang dimaksud adalah `session`, yang docstring
+    # `app/quarters.py` baris 23 definisikan sebagai kuarter 90 menit.
+    "1h": ("day", "session"),
+    "15m": ("session", "micro"),
     "5m": ("micro", "nano"),
     "1m": ("micro", "nano"),
 }
+
+# DIPERIKSA SAAT IMPORT, bukan saat sebuah kandidat kebetulan lewat. Cacat yang
+# baru saja dicabut di atas hidup diam karena satu-satunya yang bisa menemukannya
+# adalah menjalankan jalur order pada interval yang tepat lalu memperhatikan
+# klausa yang selalu False. Satu baris di sini membuat itu mustahil terulang.
+for _interval, _pair in STAGE_PAIRS.items():
+    for _degree in _pair:
+        if _degree not in ALL_DEGREES:
+            raise ValueError(
+                f"STAGE_PAIRS[{_interval!r}] menyebut derajat {_degree!r} yang "
+                f"tidak ada di app.quarters.ALL_DEGREES {ALL_DEGREES}"
+            )
+
+
+#: Di mana angka tiap klausa MEASURED_AGAINST bisa dibaca ulang. Sampai 30
+#: Agustus 2026 peringatannya selalu menunjuk PRAREGISTRASI-YATIM, yang benar
+#: untuk `ote` dan salah untuk klausa mana pun yang diukur di tempat lain.
+_EVIDENCE: dict[str, str] = {
+    "ote": "docs/PRAREGISTRASI-YATIM.md",
+    "dfr_side": "docs/checklist_outcomes.json",
+}
+
+
 def warn_required(rules) -> None:
     """Cetak peringatan untuk klausa yang diwajibkan, DUA jenis terpisah.
 
@@ -103,7 +133,8 @@ def warn_required(rules) -> None:
     for clause in against:
         print(f"PERINGATAN: --require mencantumkan {clause}, dan klausa ini "
               f"SUDAH diukur dengan hasil yang berlawanan: "
-              f"{MEASURED_AGAINST[clause]}. Lihat docs/PRAREGISTRASI-YATIM.md.")
+              f"{MEASURED_AGAINST[clause]}. Lihat "
+              f"{_EVIDENCE.get(clause, 'docs/PRAREGISTRASI-YATIM.md')}.")
 
 
 def grounds(zone, plan) -> list[str]:
@@ -187,6 +218,12 @@ def candidates(
     # jalur order tidak memberi apa-apa, jadi `cisd_in_band` False pada 23 dari
     # 23 kandidat. Difilter ke `last.time` supaya potongan anti-lookahead-nya
     # nyata dan bukan formalitas, walau di sini semuanya memang sudah lampau.
+    # DIHITUNG SEKALI PER DERET, bukan sekali per kandidat: apakah instrumen
+    # ini dagang saat minggu CME tutup adalah properti instrumen. Klausa
+    # `day_of_week` menolak akhir pekan, dan sampai 30 Agustus 2026 penolakan itu
+    # ikut mengenai crypto yang pasarnya buka.
+    always_open = trades_when_shut(times)
+
     cisd_events, _ = cisds(candles)
     cisd_levels = [float(e.level) for e in cisd_events if int(e.time) <= last.time]
 
@@ -255,8 +292,15 @@ def candidates(
             hi_div = ssmt_divergences_for(hi_events, bare)
             lo_div = ssmt_divergences_for(lo_events, bare)
             two_stage_confirmed = len(two_stage(hi_div, lo_div, bare)) > 0
-        except ValueError:
-            pass
+        except ValueError as exc:
+            # DICETAK, TIDAK DITELAN. `pass` di sini menyembunyikan nama derajat
+            # yang salah selama entah berapa lama; sebuah klausa yang tidak
+            # pernah bisa True terbaca sama persis dengan klausa yang kebetulan
+            # False. Nama derajat yang salah sekarang mustahil lolos, dijaga
+            # oleh assert di bawah definisi STAGE_PAIRS, jadi yang tersisa di
+            # sini adalah ValueError runtime yang sah, misalnya grid terlalu
+            # pendek untuk memuat satu siklus.
+            print(f"  two_stage tidak dievaluasi pada {interval}: {exc}")
 
     # The minimal shape `actionable.blockers` reads. `app/drawing.py` builds the
     # API's copy of these four fields; this is the same four for a path that
@@ -335,7 +379,8 @@ def candidates(
         out.append((zone, plan, ict_setup(zone, state, stack, rules,
                                           ssmt_side=ssmt_side,
                                           two_stage_confirmed=two_stage_confirmed,
-                                          reward_r=plan.reward_r)))
+                                          reward_r=plan.reward_r,
+                                          always_open=always_open)))
 
     # CHECKLIST FIRST, distance second. Two candidates that satisfy the method
     # equally are then ordered by which price reaches first, which is what the
@@ -743,6 +788,16 @@ def main() -> None:
         help="comma list of kill zones that count, e.g. ny_am,london. Empty "
              "means all of them",
     )
+    parser.add_argument("--bias-degree", default="bias_4h", choices=BIAS_DEGREES,
+                        help="derajat bias yang dibaca klausa bias_agrees. "
+                             "DEFAULTNYA 4 JAM UNTUK SETIAP TIMEFRAME, dan itu "
+                             "yang menolak 19 kandidat demand di 15m dan 30m "
+                             "pada 30 Agustus 2026 sementara bias_1h dan "
+                             "bias_1d keduanya +1 dan BTCUSD naik 1,36 persen "
+                             "dalam 24 jam. Menurunkannya BUKAN perbaikan yang "
+                             "terbukti: H7 mengukur kontribusi zona di atas "
+                             "bias ini NOL, jadi derajat mana pun yang dipilih "
+                             "adalah pilihan operator, bukan temuan")
     parser.add_argument("--min-families", type=int, default=2,
                         help="PD array families that must stack for poi_families")
     parser.add_argument("--max-conflicts", type=int, default=0,
@@ -761,6 +816,7 @@ def main() -> None:
         required=tuple(x.strip() for x in args.require.split(",") if x.strip()),
         min_families=args.min_families,
         max_conflicts=args.max_conflicts,
+        bias_degree=args.bias_degree,
         **({"killzones": tuple(x.strip() for x in args.killzones.split(",")
                                if x.strip())} if args.killzones else {}),
     )

@@ -70,21 +70,26 @@ def detect(
     candles: list[Candle],
     ssmt_candle_idx: int,
     levels: list[float],
-    lookback: int = 10,
+    lookback: int = 3,
 ) -> PSPEvent | None:
     """Detect a PSP within `lookback` bars after an SSMT event.
 
     `candles` are the chart's own bars.
     `ssmt_candle_idx` is the index of the candle that created the SSMT.
     `levels` are the key levels to check for sweep (PDH, PDL, session
-    extremes, previous swing highs/lows).
+    extremes, previous swing highs/lows, or the open of a candle N bars back -
+    the caller supplies the level, this function never invents one).
     `lookback` is how many bars after the SSMT to search.
 
     A PSP is found when:
     1. Price sweeps BELOW a key level and closes BACK ABOVE it → buy PSP
     2. Price sweeps ABOVE a key level and closes BACK BELOW it → sell PSP
 
-    The sweep must happen within `lookback` bars after the SSMT candle.
+    The sweep must happen within `lookback` bars after the SSMT candle. The
+    default is 3 - "the last 3 candles" - not the 10 this function shipped with,
+    and the change is a doctrine reading rather than a measured one: the
+    practitioner's rule names three candles, and no source publishes a longer
+    window.
     """
     end = min(ssmt_candle_idx + lookback + 1, len(candles))
     for i in range(ssmt_candle_idx + 1, end):

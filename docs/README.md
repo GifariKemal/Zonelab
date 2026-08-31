@@ -1,6 +1,6 @@
 # Peta direktori docs
 
-Direktori ini berisi 13 dokumen prosa dan 23 file bukti mentah. Tanpa peta,
+Direktori ini berisi 13 dokumen prosa dan 31 file bukti mentah. Tanpa peta,
 pembaca yang membukanya melihat 30 file dan tidak bisa tahu prosa mana membaca
 data mana. Itu satu-satunya alasan file ini ada.
 
@@ -22,7 +22,7 @@ data mana. Itu satu-satunya alasan file ini ada.
 | [ALUR-ORDER.md](ALUR-ORDER.md) | Apa yang terjadi, urut, ketika Zonelab memasang order, dan gerbang mana yang menghentikan apa |
 | [PRAREGISTRASI-KONDISI.md](PRAREGISTRASI-KONDISI.md) | Kolom mana yang diuji sebagai pengkondisi ekspektasi, ditulis sebelum satu angka dihitung, plus hasilnya |
 | [QA-QUANT.md](QA-QUANT.md) | Apakah edge-nya nyata setelah biaya per instrumen dan urutan di dalam bar diselesaikan dengan benar. **Baca ini sebelum CALIBRATION.md** |
-| [PRAREGISTRASI-KORELASI.md](PRAREGISTRASI-KORELASI.md) | Apakah korelasi partner mengkondisikan hasil SSMT, ditulis sebelum satu angka pun ada. Bagian 7 kosong sampai run-nya selesai |
+| [PRAREGISTRASI-KORELASI.md](PRAREGISTRASI-KORELASI.md) | Apakah korelasi partner mengkondisikan hasil SSMT, ditulis sebelum satu angka pun ada. Bagian 7 terisi 29 Agustus 2026: null, `t` terbesar 0,19 lawan kritis 3,48 |
 | [PRAREGISTRASI-YATIM.md](PRAREGISTRASI-YATIM.md) | Apakah enam modul yang tidak tersambung ke jalur keputusan memisahkan hasil, ditulis sebelum angkanya ada, plus hasilnya |
 | [PRAREGISTRASI-EKSEKUSI.md](PRAREGISTRASI-EKSEKUSI.md) | Dua aturan eksekusi yang diuji setelah sinyalnya habis, keduanya ditolak, dan satu ambang praregistrasi yang salah dirancang |
 
@@ -32,7 +32,7 @@ Konvensinya nama, bukan mekanisme: setiap tool mencetak ke stdout dan hasilnya
 dialihkan ke `docs/<nama>.json`. Jadi `docs/mss.json` datang dari
 `python -m tools.mss`, dan **tidak ada apa pun yang menegakkan itu** selain
 konvensi ini. Diperiksa 21 Agustus 2026 pada 21 file, dan diperiksa ulang
-29 Agustus 2026 setelah `baseline.json` masuk: ke-23 file punya tool
+29 Agustus 2026 setelah `baseline.json` masuk: ke-31 file punya tool
 yang cocok, tidak ada yang orphan.
 
 Tanda hubung lawan garis bawah adalah artefak sejarah dan bukan makna:
@@ -63,6 +63,16 @@ Tanda hubung lawan garis bawah adalah artefak sejarah dan bukan makna:
 | `walkforward.json` | `tools.walkforward` | CALIBRATION.md | 15 kunci, 44 KB |
 | `walkforward-mt5.json` | `tools.walkforward` | WALKFORWARD-MT5.md | 15 kunci, sumber MT5 |
 | `quarter_placement.json` | `tools.quarter_placement` | - | 9 deret, penempatan kuarter |
+| `checklist_outcomes.json` | `tools.checklist_outcomes` | - | 17 klausa lawan outcome, n=1855 di 8 instrumen, resolusi bar 5m. `dfr_side` memisahkan dengan tanda TERBALIK |
+| `detectors_costed.json` | `tools.detectors_costed` | - | gerbang departure pada populasi `fvg` dan `order_block` setelah biaya dan intrabar, venue MT5. fvg FAIL, order_block PASS |
+| `detectors_costed_binance.json` | skrip replikasi di riwayat sesi 30 Agustus 2026 | - | replikasi venue kedua, Binance, 3 sel crypto. order_block 7 dari 8 fold, di bawah bar 8 dari 8 yang ditulis di depan; tanda `fvg` BERBALIK |
+| `dfr_outcomes.json` | `tools.dfr_outcomes` | - | level ekstensi DFR lawan kontrol jitter per-event, 10 grup, null |
+| `reality_check.json` | `tools.reality_check` | - | White's RC, Hansen's SPA, Romano-Wolf StepM pada 4 universe aturan yang sudah diuji |
+| `ssmt_outcomes.json` | `tools.ssmt_outcomes` | - | divergensi SSMT lawan bar non-divergensi instrumennya sendiri, 24 sel, null |
+| `conditioned_gaps.json` | `tools.conditioned_gaps` | - | `gaps` dan `liquidity` sebagai PENGKONDISI kohort zona, 12 instrumen, n=2757, 20 grup, null |
+| `conditioned_structure.json` | `tools.conditioned_structure` | - | `structure` dan `projections` sebagai PENGKONDISI kohort zona, 8 instrumen, n=1855, 30 grup, null |
+| `wyckoff_outcomes.json` | `tools.wyckoff_outcomes` | - | forward move arah 4 fase Wyckoff lawan drift per-instrumen, 9 instrumen, null |
+| `csid_ob_outcomes.json` | `tools.csid_ob_outcomes` | - | CISD di dalam order block lawan drift, 9 instrumen, null, hampir degenerat (97% block punya CISD) |
 
 > [!IMPORTANT]
 > Kolom "dibaca prosa" kosong **bukan** berarti file-nya mati. Ia output mentah

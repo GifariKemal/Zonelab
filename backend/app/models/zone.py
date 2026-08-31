@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, computed_field
 
 from .primitives import Anatomy, Displacement, Refinement, ZoneKind, ZoneSide, ZoneState
 from .structure import FibonacciAnchor, SessionQuarter, StructureEvent, SwingPoint, TrueOpenLevel
@@ -15,6 +15,9 @@ from .cycle import (
     SSMTDivergence,
     VortexDial,
 )
+from .expectation import ExpectationFan
+from .chart_gaps import ChartGapModel
+from .wyckoff import WyckoffPhaseModel
 
 
 class Zone(BaseModel):
@@ -161,6 +164,24 @@ class Zone(BaseModel):
             "consolidation revisits the same prices; a slow trend does not."
         ),
     )
+
+    @computed_field  # type: ignore[prop-decorator]
+    @property
+    def consolidation_quality(self) -> str:
+        """`original` / `staircase` / `borderline`, read from the two base fields.
+
+        A staircase (`base_drift` near 1) is a fake consolidation that never
+        paused; a real consolidation (`base_overlap` near 1) revisits the same
+        prices. The thresholds are the same 0.6 the `max_base_drift` gate uses,
+        and 0.5 overlap, both stated rather than measured. Surfaces the verdict
+        the two raw fields imply, so a reader does not have to derive it.
+        """
+        if self.base_drift >= 0.6:
+            return "staircase"
+        if self.base_overlap >= 0.5:
+            return "original"
+        return "borderline"
+
 
     inverted_at: int | None = Field(
         default=None,
@@ -359,4 +380,27 @@ class Drawing(BaseModel):
     projections: list[RangeProjection] = Field(
         default_factory=list,
         description="Deviation stacks off named ranges. Empty unless requested.",
+    )
+    expectation: ExpectationFan | None = Field(
+        default=None,
+        description=(
+            "The expectation overlay's reading: measured R distributions for this "
+            "cell, looked up from a precomputed table. None unless the expectation "
+            "layer was requested, or when the cell was never measured."
+        ),
+    )
+    chart_gaps: list[ChartGapModel] = Field(
+        default_factory=list,
+        description=(
+            "Breakaway and measuring gaps, empty unless requested. A trend gap, "
+            "not a session gap - see OpeningGap for the difference. Unmeasured."
+        ),
+    )
+    wyckoff: list[WyckoffPhaseModel] = Field(
+        default_factory=list,
+        description=(
+            "Wyckoff phase readings over a rolling trading range: spring, "
+            "upthrust, sign of strength, sign of weakness. A reading, never a "
+            "bias. Empty unless requested. Unmeasured."
+        ),
     )

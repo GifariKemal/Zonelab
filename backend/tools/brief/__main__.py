@@ -50,6 +50,7 @@ def main() -> int:
         "generated_at": int(started),
         "generated_at_ny": f"{clock.to_ny(int(started)):%Y-%m-%d %H:%M} NY",
         "market_shut": clock.market_shut(int(started)),
+        "always_open": False,
         "symbol": args.symbol,
         "partners": partners,
         "intervals": intervals,
@@ -82,6 +83,14 @@ def main() -> int:
     brief["cycle"] = collect.cycle_now(rows, base_tf)
     brief["fibonacci"] = collect.fib_grid(
         brief["timeframes"][base_tf]["drawing"], price)
+    # SESUDAH deretnya ditarik, karena jawabannya datang dari bar-nya.
+    # `clock.market_shut(started)` sendirian adalah minggu futures CME,
+    # dan ia pernah menulis "Pasar tutup: True" untuk BTCUSD pada menit
+    # yang sama terminal menyerahkan bar 15m berumur 244 detik.
+    brief["always_open"] = any(
+        tf.get("always_open") for tf in brief["timeframes"].values())
+    brief["market_shut"] = clock.market_shut(
+        int(started), always_open=brief["always_open"])
     brief["layer_evidence"] = collect.evidence_table()
     brief["clause_provenance"] = collect.clause_provenance()
     brief["known_degrees"] = collect.known_degrees()

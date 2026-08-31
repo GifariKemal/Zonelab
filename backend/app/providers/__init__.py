@@ -78,11 +78,46 @@ _MAX_CACHED_CANDLES = 250_000
 # nobody asked for.
 _locks: dict[_CacheKey, asyncio.Lock] = {}
 
+#: Loop yang memiliki isi `_locks` sekarang.
+#:
+#: SEBUAH `asyncio.Lock` TERIKAT KE LOOP SAAT PERTAMA DIPAKAI, dan dipakai lagi
+#: di loop lain ia melempar "is bound to a different event loop". Server hidup di
+#: satu loop selamanya jadi ini tak pernah menggigit di sana. Yang menggigit
+#: adalah tool pengukuran: `asyncio.run` kedua di process yang sama menemukan
+#: lock dari loop pertama yang sudah mati. Terukur 30 Agustus 2026 pada
+#: `tools/true_open_matrix.py`, yang menjalankan 12 sel dalam satu process: 9
+#: dari 12 sel mati, dan studi 12 sel di docs/PRAREGISTRASI-YATIM.md runtuh jadi
+#: 3 sel. Gagalnya keras, tapi angka yang sudah diterbitkan tidak bisa
+#: dihasilkan ulang dengan perintah yang tertulis di docs/README.md.
+#:
+#: ponytail: satu referensi loop untuk seluruh modul, bukan lock per loop. Dua
+#: loop yang hidup BERSAMAAN di dua thread akan saling menghapus lock; tak ada
+#: yang melakukan itu di repo ini, dan kalau suatu saat ada, kuncinya jadi
+#: `(id(loop), key)`.
+_locks_loop: asyncio.AbstractEventLoop | None = None
+
 #: Above this many distinct keys, unlocked entries are dropped. `bars` is a free
 #: integer, so a client looping over it could otherwise grow this without bound.
 #: Only idle locks go: evicting a held one would let two fetches for one key
 #: overlap, which costs an extra call and breaks nothing.
 _MAX_LOCKS = 512
+
+
+def _drop_locks_from_a_dead_loop() -> None:
+    """Buang lock milik loop sebelumnya, sekali tiap loop berganti.
+
+    FUNGSI SENDIRI DAN BUKAN LIMA BARIS DI DALAM `get_candles`, supaya gate-nya
+    bisa memanggil kode yang SAMA dengan yang dijalankan server. Versi pertama
+    perbaikan ini diuji lewat tiruan `dict` dan `asyncio.Lock` di test, dan
+    tiruan itu hijau baik dengan maupun tanpa perbaikannya.
+    """
+    global _locks_loop
+    loop = asyncio.get_running_loop()
+    if loop is not _locks_loop:
+        # Loop baru berarti tidak ada satu pun lock lama yang bisa dipegang
+        # siapa pun yang masih hidup, jadi membuangnya aman.
+        _locks.clear()
+        _locks_loop = loop
 
 
 async def availability() -> dict[str, bool]:
@@ -246,6 +281,8 @@ async def get_candles(
 
     provider = resolve(provider_name)
     key = (provider.name, symbol.upper(), interval, bars)
+
+    _drop_locks_from_a_dead_loop()
 
     if len(_locks) > _MAX_LOCKS:
         for stale, lock in list(_locks.items()):

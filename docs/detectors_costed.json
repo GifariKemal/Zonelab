@@ -1,0 +1,668 @@
+{
+ "preregistration": {
+  "hypotheses": [
+   "H1 fvg: exp_R(departure >= 2.0 ATR) - exp_R(below) > 0",
+   "H2 order_block: same"
+  ],
+  "cells": 18,
+  "gate_atr": 2.0,
+  "t_threshold_pooled_bonferroni_2": 2.24,
+  "t_threshold_per_cell_bonferroni_18": 2.88,
+  "min_n_per_cell": 20,
+  "min_n_per_fold": 20,
+  "folds": 8,
+  "sign_test_p_for_8_of_8": 0.0078125,
+  "pass_rule": "difference > 0 AND |welch t| > 2.24 AND cells positive >= 14 AND walk-forward 8 of 8",
+  "caveat": "departure_atr is NOT the same quantity across detectors: leg-out excursion for supply_demand, gap height for fvg, 5-bar impulse for order_block",
+  "reference_supply_demand": {
+   "source": "docs/QA-QUANT.md section 6",
+   "exp_r_above": -0.0153,
+   "n_above": 3928,
+   "exp_r_below": -0.1258,
+   "n_below": 10885,
+   "difference": 0.1105,
+   "welch_t": 7.19,
+   "cells_positive": "17 of 18"
+  }
+ },
+ "detectors": {
+  "fvg": {
+   "gate_atr": 2.0,
+   "cells": {
+    "XAUUSD 1h": {
+     "n_above": 34,
+     "n_below": 927,
+     "exp_r_above": 0.06754510148827297,
+     "exp_r_below": 0.16714490232748863,
+     "t_above": 0.670135035076458,
+     "difference": -0.09959980083921566,
+     "welch_t": -0.8977943552563508,
+     "bars": 33976,
+     "readable": true
+    },
+    "XAGUSD 1h": {
+     "n_above": 41,
+     "n_below": 856,
+     "exp_r_above": -0.026226738264142634,
+     "exp_r_below": 0.19136250159546345,
+     "t_above": -0.30492034737681456,
+     "difference": -0.21758923985960607,
+     "welch_t": -2.2339283212314656,
+     "bars": 33968,
+     "readable": true
+    },
+    "XPTUSD 1h": {
+     "n_above": 25,
+     "n_below": 953,
+     "exp_r_above": -0.06190294245731768,
+     "exp_r_below": -0.03517121422226469,
+     "t_above": -0.5218202012456392,
+     "difference": -0.026731728235052987,
+     "welch_t": -0.21749010453852857,
+     "bars": 15051,
+     "readable": true
+    },
+    "EURUSD 1h": {
+     "n_above": 40,
+     "n_below": 1003,
+     "exp_r_above": -0.0016622183475146573,
+     "exp_r_below": 0.14396851185875476,
+     "t_above": -0.01991417041915361,
+     "difference": -0.1456307302062694,
+     "welch_t": -1.5803337323103406,
+     "bars": 35533,
+     "readable": true
+    },
+    "GBPUSD 1h": {
+     "n_above": 40,
+     "n_below": 1003,
+     "exp_r_above": 0.079940609897199,
+     "exp_r_below": 0.149843746540307,
+     "t_above": 0.9791187825718368,
+     "difference": -0.06990313664310799,
+     "welch_t": -0.7736596427716201,
+     "bars": 35533,
+     "readable": true
+    },
+    "USDJPY 1h": {
+     "n_above": 42,
+     "n_below": 970,
+     "exp_r_above": 0.10089075335381746,
+     "exp_r_below": 0.09525207849017034,
+     "t_above": 0.9162815476001727,
+     "difference": 0.005638674863647122,
+     "welch_t": 0.04763211492743719,
+     "bars": 35533,
+     "readable": true
+    },
+    "GBPJPY 1h": {
+     "n_above": 41,
+     "n_below": 923,
+     "exp_r_above": -0.2386261631315348,
+     "exp_r_below": -0.04717022666316325,
+     "t_above": -2.9578468595559775,
+     "difference": -0.19145593646837156,
+     "welch_t": -2.1653862692115364,
+     "bars": 35533,
+     "readable": true
+    },
+    "AUDUSD 1h": {
+     "n_above": 36,
+     "n_below": 1072,
+     "exp_r_above": -0.1367889390101978,
+     "exp_r_below": 0.15429198645444708,
+     "t_above": -1.5079252762067452,
+     "difference": -0.2910809254646449,
+     "welch_t": -2.965065405107198,
+     "bars": 35533,
+     "readable": true
+    },
+    "USDCAD 1h": {
+     "n_above": 35,
+     "n_below": 1064,
+     "exp_r_above": -0.06325303470237265,
+     "exp_r_below": 0.007086043214413315,
+     "t_above": -0.7069084030457264,
+     "difference": -0.07033907791678597,
+     "welch_t": -0.725088536182995,
+     "bars": 35533,
+     "readable": true
+    },
+    "BTCUSD 1h": {
+     "n_above": 44,
+     "n_below": 899,
+     "exp_r_above": -0.06392696065937636,
+     "exp_r_below": 0.2276840688766884,
+     "t_above": -0.6867264465507325,
+     "difference": -0.29161102953606477,
+     "welch_t": -2.7738348054902215,
+     "bars": 47788,
+     "readable": true
+    },
+    "US30 1h": {
+     "n_above": 58,
+     "n_below": 939,
+     "exp_r_above": 0.05808735082466051,
+     "exp_r_below": 0.04139122209360452,
+     "t_above": 0.5986748771562267,
+     "difference": 0.01669612873105599,
+     "welch_t": 0.15780883966410836,
+     "bars": 33431,
+     "readable": true
+    },
+    "USOIL 1h": {
+     "n_above": 61,
+     "n_below": 1039,
+     "exp_r_above": -0.04362411185590623,
+     "exp_r_below": 0.006002482139820418,
+     "t_above": -0.7928261668970282,
+     "difference": -0.049626593995726644,
+     "welch_t": -0.7446549611524788,
+     "bars": 57712,
+     "readable": true
+    },
+    "XAUUSD 4h": {
+     "n_above": 43,
+     "n_below": 733,
+     "exp_r_above": 0.09860017950943961,
+     "exp_r_below": 0.1187046501470805,
+     "t_above": 1.9494509756288905,
+     "difference": -0.020104470637640884,
+     "welch_t": -0.30402390040197674,
+     "bars": 9252,
+     "readable": true
+    },
+    "EURUSD 4h": {
+     "n_above": 37,
+     "n_below": 805,
+     "exp_r_above": 0.035969078507206674,
+     "exp_r_below": 0.12558572318512834,
+     "t_above": 0.6089143591679942,
+     "difference": -0.08961664467792166,
+     "welch_t": -1.2587913364984964,
+     "bars": 9245,
+     "readable": true
+    },
+    "GBPUSD 4h": {
+     "n_above": 30,
+     "n_below": 784,
+     "exp_r_above": 0.05532991433124708,
+     "exp_r_below": 0.16753133975045612,
+     "t_above": 0.6556662546081603,
+     "difference": -0.11220142541920904,
+     "welch_t": -1.202105890552854,
+     "bars": 9245,
+     "readable": true
+    },
+    "AUDUSD 4h": {
+     "n_above": 29,
+     "n_below": 759,
+     "exp_r_above": 0.04031073663346287,
+     "exp_r_below": 0.20540120421575364,
+     "t_above": 0.6727744909833004,
+     "difference": -0.16509046758229076,
+     "welch_t": -2.2785351289446303,
+     "bars": 9245,
+     "readable": true
+    },
+    "BTCUSD 4h": {
+     "n_above": 19,
+     "n_below": 562,
+     "exp_r_above": 0.08851722038284687,
+     "exp_r_below": 0.11591819139244855,
+     "t_above": 0.9552781637056043,
+     "difference": -0.027400971009601677,
+     "welch_t": -0.2679436638579499,
+     "bars": 11949,
+     "readable": false
+    },
+    "USOIL 4h": {
+     "n_above": 35,
+     "n_below": 909,
+     "exp_r_above": -0.07779741674231705,
+     "exp_r_below": -0.07893704670239718,
+     "t_above": -1.0831414795060543,
+     "difference": 0.0011396299600801296,
+     "welch_t": 0.01431129231536361,
+     "bars": 15575,
+     "readable": true
+    }
+   },
+   "pooled": {
+    "n_above": 690,
+    "n_below": 16200,
+    "exp_r_above": -0.00670437755257398,
+    "exp_r_below": 0.09384298597739191,
+    "t_above": -0.3299542928709752,
+    "difference": -0.10054736352996589,
+    "welch_t": -4.475790632319515
+   },
+   "cells_positive": 3,
+   "cells_readable": 17,
+   "cells_beating_bonferroni": [
+    "AUDUSD 1h"
+   ],
+   "walk_forward": {
+    "folds": [
+     {
+      "fold": 1,
+      "n_above": 86,
+      "n_below": 2091,
+      "purged": 4,
+      "readable": true,
+      "exp_r_above": -0.03844313821753491,
+      "exp_r_below": 0.10684197196305506,
+      "difference": -0.14528511018058998,
+      "welch_t": -2.4895937091028992
+     },
+     {
+      "fold": 2,
+      "n_above": 92,
+      "n_below": 2093,
+      "purged": 5,
+      "readable": true,
+      "exp_r_above": 0.013463992309142083,
+      "exp_r_below": 0.08359984933212379,
+      "difference": -0.07013585702298171,
+      "welch_t": -1.4320232973857598
+     },
+     {
+      "fold": 3,
+      "n_above": 83,
+      "n_below": 1909,
+      "purged": 4,
+      "readable": true,
+      "exp_r_above": -0.07395844032462041,
+      "exp_r_below": 0.05357877570708175,
+      "difference": -0.12753721603170215,
+      "welch_t": -2.164338377221642
+     },
+     {
+      "fold": 4,
+      "n_above": 70,
+      "n_below": 1951,
+      "purged": 1,
+      "readable": true,
+      "exp_r_above": 0.0031529863828639528,
+      "exp_r_below": 0.08253937641507568,
+      "difference": -0.07938639003221172,
+      "welch_t": -1.0401785091488764
+     },
+     {
+      "fold": 5,
+      "n_above": 73,
+      "n_below": 1973,
+      "purged": 10,
+      "readable": true,
+      "exp_r_above": 0.008971256976514266,
+      "exp_r_below": 0.15007991517522531,
+      "difference": -0.14110865819871105,
+      "welch_t": -2.2844627872454564
+     },
+     {
+      "fold": 6,
+      "n_above": 97,
+      "n_below": 2081,
+      "purged": 3,
+      "readable": true,
+      "exp_r_above": -0.09185699404079387,
+      "exp_r_below": 0.10568310016031346,
+      "difference": -0.19754009420110732,
+      "welch_t": -2.6742159384542523
+     },
+     {
+      "fold": 7,
+      "n_above": 90,
+      "n_below": 1972,
+      "purged": 7,
+      "readable": true,
+      "exp_r_above": 0.03087423591061226,
+      "exp_r_below": 0.11550611372483832,
+      "difference": -0.08463187781422607,
+      "welch_t": -1.175594246297176
+     },
+     {
+      "fold": 8,
+      "n_above": 98,
+      "n_below": 2079,
+      "purged": 18,
+      "readable": true,
+      "exp_r_above": 0.09315060652077534,
+      "exp_r_below": 0.05654413327163218,
+      "difference": 0.03660647324914316,
+      "welch_t": 0.6720054731867151
+     }
+    ],
+    "graded": 8,
+    "positive": 1,
+    "failed": [
+     1,
+     2,
+     3,
+     4,
+     5,
+     6,
+     7
+    ],
+    "sign_test_p": null,
+    "purged": 52
+   },
+   "verdict": "FAIL, selisihnya negatif dan signifikan"
+  },
+  "order_block": {
+   "gate_atr": 2.0,
+   "cells": {
+    "XAUUSD 1h": {
+     "n_above": 872,
+     "n_below": 499,
+     "exp_r_above": 0.06608072752386666,
+     "exp_r_below": -0.07559226867130682,
+     "t_above": 1.9371041177600519,
+     "difference": 0.14167299619517348,
+     "welch_t": 2.728381882463974,
+     "bars": 33976,
+     "readable": true
+    },
+    "XAGUSD 1h": {
+     "n_above": 836,
+     "n_below": 462,
+     "exp_r_above": 0.059124260599807466,
+     "exp_r_below": -0.10606830589127457,
+     "t_above": 1.8914767985086596,
+     "difference": 0.16519256649108205,
+     "welch_t": 3.461444690473037,
+     "bars": 33968,
+     "readable": true
+    },
+    "XPTUSD 1h": {
+     "n_above": 924,
+     "n_below": 559,
+     "exp_r_above": -0.07269568726686347,
+     "exp_r_below": -0.12972721649470573,
+     "t_above": -3.2023702188843326,
+     "difference": 0.057031529227842256,
+     "welch_t": 1.627008090955004,
+     "bars": 15051,
+     "readable": true
+    },
+    "EURUSD 1h": {
+     "n_above": 913,
+     "n_below": 479,
+     "exp_r_above": -0.08806398521185424,
+     "exp_r_below": -0.1495215725179517,
+     "t_above": -3.1582994573198477,
+     "difference": 0.06145758730609746,
+     "welch_t": 1.3181188619649835,
+     "bars": 35533,
+     "readable": true
+    },
+    "GBPUSD 1h": {
+     "n_above": 956,
+     "n_below": 455,
+     "exp_r_above": 0.0004970322935921425,
+     "exp_r_below": -0.13800911518218212,
+     "t_above": 0.016754286532551635,
+     "difference": 0.13850614747577425,
+     "welch_t": 2.8451990860071925,
+     "bars": 35533,
+     "readable": true
+    },
+    "USDJPY 1h": {
+     "n_above": 894,
+     "n_below": 541,
+     "exp_r_above": -0.03270451125109306,
+     "exp_r_below": -0.10705239504234625,
+     "t_above": -1.0867735344085083,
+     "difference": 0.07434788379125318,
+     "welch_t": 1.6216398547720705,
+     "bars": 35533,
+     "readable": true
+    },
+    "GBPJPY 1h": {
+     "n_above": 872,
+     "n_below": 519,
+     "exp_r_above": -0.09709472064365043,
+     "exp_r_below": -0.18615941391879606,
+     "t_above": -3.5607633544347683,
+     "difference": 0.08906469327514563,
+     "welch_t": 2.0775529978108875,
+     "bars": 35533,
+     "readable": true
+    },
+    "AUDUSD 1h": {
+     "n_above": 939,
+     "n_below": 507,
+     "exp_r_above": -0.03607984954424504,
+     "exp_r_below": -0.123949602072614,
+     "t_above": -1.2515677259984086,
+     "difference": 0.08786975252836896,
+     "welch_t": 1.9748333079697427,
+     "bars": 35533,
+     "readable": true
+    },
+    "USDCAD 1h": {
+     "n_above": 931,
+     "n_below": 438,
+     "exp_r_above": -0.1344164056692662,
+     "exp_r_below": -0.12149713531500436,
+     "t_above": -5.329452300481899,
+     "difference": -0.012919270354261825,
+     "welch_t": -0.2736386302716811,
+     "bars": 35533,
+     "readable": true
+    },
+    "BTCUSD 1h": {
+     "n_above": 881,
+     "n_below": 474,
+     "exp_r_above": 0.004478938175304009,
+     "exp_r_below": -0.04206795075843616,
+     "t_above": 0.1438083120909261,
+     "difference": 0.04654688893374017,
+     "welch_t": 0.9056594548262233,
+     "bars": 47788,
+     "readable": true
+    },
+    "US30 1h": {
+     "n_above": 867,
+     "n_below": 363,
+     "exp_r_above": -0.07100629479128129,
+     "exp_r_below": -0.19248599678789172,
+     "t_above": -2.0296734533678427,
+     "difference": 0.12147970199661043,
+     "welch_t": 2.2873789562783644,
+     "bars": 33431,
+     "readable": true
+    },
+    "USOIL 1h": {
+     "n_above": 981,
+     "n_below": 417,
+     "exp_r_above": -0.12638200014499948,
+     "exp_r_below": -0.15106013144391595,
+     "t_above": -4.342510326696608,
+     "difference": 0.024678131298916467,
+     "welch_t": 0.49082023513967454,
+     "bars": 57712,
+     "readable": true
+    },
+    "XAUUSD 4h": {
+     "n_above": 690,
+     "n_below": 363,
+     "exp_r_above": -0.0719876991983706,
+     "exp_r_below": -0.10218288341882206,
+     "t_above": -2.5109692557537464,
+     "difference": 0.030195184220451463,
+     "welch_t": 0.657592361679011,
+     "bars": 9252,
+     "readable": true
+    },
+    "EURUSD 4h": {
+     "n_above": 734,
+     "n_below": 404,
+     "exp_r_above": 0.009830198357002782,
+     "exp_r_below": -0.09609451787026162,
+     "t_above": 0.3528672002206626,
+     "difference": 0.1059247162272644,
+     "welch_t": 2.3366781308557316,
+     "bars": 9245,
+     "readable": true
+    },
+    "GBPUSD 4h": {
+     "n_above": 725,
+     "n_below": 446,
+     "exp_r_above": 0.04972010601312442,
+     "exp_r_below": -0.06719872498108077,
+     "t_above": 1.744152762409565,
+     "difference": 0.11691883099420519,
+     "welch_t": 2.6801321176082515,
+     "bars": 9245,
+     "readable": true
+    },
+    "AUDUSD 4h": {
+     "n_above": 708,
+     "n_below": 426,
+     "exp_r_above": 0.028431848720021902,
+     "exp_r_below": -0.04651823432170232,
+     "t_above": 1.067131214553305,
+     "difference": 0.07495008304172422,
+     "welch_t": 1.7048185045145847,
+     "bars": 9245,
+     "readable": true
+    },
+    "BTCUSD 4h": {
+     "n_above": 638,
+     "n_below": 340,
+     "exp_r_above": -0.031064083495825155,
+     "exp_r_below": -0.1043247786949777,
+     "t_above": -1.1464438212589847,
+     "difference": 0.07326069519915254,
+     "welch_t": 1.6709647756022814,
+     "bars": 11949,
+     "readable": true
+    },
+    "USOIL 4h": {
+     "n_above": 795,
+     "n_below": 440,
+     "exp_r_above": -0.18731021754036875,
+     "exp_r_below": -0.20746059395879088,
+     "t_above": -6.9556490306705205,
+     "difference": 0.020150376418422128,
+     "welch_t": 0.4574872280064597,
+     "bars": 15575,
+     "readable": true
+    }
+   },
+   "pooled": {
+    "n_above": 15156,
+    "n_below": 8132,
+    "exp_r_above": -0.042859590971646225,
+    "exp_r_below": -0.11922117887122934,
+    "t_above": -6.2128348010319305,
+    "difference": 0.07636158789958311,
+    "welch_t": 6.952136737280197
+   },
+   "cells_positive": 17,
+   "cells_readable": 18,
+   "cells_beating_bonferroni": [
+    "XAGUSD 1h"
+   ],
+   "walk_forward": {
+    "folds": [
+     {
+      "fold": 1,
+      "n_above": 2012,
+      "n_below": 1019,
+      "purged": 8,
+      "readable": true,
+      "exp_r_above": -0.046711787494544736,
+      "exp_r_below": -0.1249832420529756,
+      "difference": 0.07827145455843088,
+      "welch_t": 2.3892809156039747
+     },
+     {
+      "fold": 2,
+      "n_above": 1920,
+      "n_below": 976,
+      "purged": 15,
+      "readable": true,
+      "exp_r_above": -0.04267495936730958,
+      "exp_r_below": -0.10729640954679197,
+      "difference": 0.0646214501794824,
+      "welch_t": 2.1441818091062537
+     },
+     {
+      "fold": 3,
+      "n_above": 1790,
+      "n_below": 1030,
+      "purged": 6,
+      "readable": true,
+      "exp_r_above": -0.06283322954295913,
+      "exp_r_below": -0.13002273532037842,
+      "difference": 0.06718950577741929,
+      "welch_t": 2.190125360329943
+     },
+     {
+      "fold": 4,
+      "n_above": 1947,
+      "n_below": 968,
+      "purged": 4,
+      "readable": true,
+      "exp_r_above": 0.0024669228657093166,
+      "exp_r_below": -0.13403242339276933,
+      "difference": 0.13649934625847865,
+      "welch_t": 4.600657518450866
+     },
+     {
+      "fold": 5,
+      "n_above": 1859,
+      "n_below": 1009,
+      "purged": 9,
+      "readable": true,
+      "exp_r_above": -0.0332599400261046,
+      "exp_r_below": -0.1147616287455865,
+      "difference": 0.08150168871948191,
+      "welch_t": 2.5394235770057074
+     },
+     {
+      "fold": 6,
+      "n_above": 1909,
+      "n_below": 1094,
+      "purged": 6,
+      "readable": true,
+      "exp_r_above": -0.030099212170035892,
+      "exp_r_below": -0.11036585145141692,
+      "difference": 0.08026663928138103,
+      "welch_t": 2.5732102732126787
+     },
+     {
+      "fold": 7,
+      "n_above": 1850,
+      "n_below": 996,
+      "purged": 6,
+      "readable": true,
+      "exp_r_above": -0.06571602404685731,
+      "exp_r_below": -0.08224815077897064,
+      "difference": 0.016532126732113336,
+      "welch_t": 0.510233207359678
+     },
+     {
+      "fold": 8,
+      "n_above": 1828,
+      "n_below": 1006,
+      "purged": 21,
+      "readable": true,
+      "exp_r_above": -0.0706192979417931,
+      "exp_r_below": -0.1552072015499258,
+      "difference": 0.08458790360813269,
+      "welch_t": 2.8704109228427694
+     }
+    ],
+    "graded": 8,
+    "positive": 8,
+    "failed": [],
+    "sign_test_p": 0.0078125,
+    "purged": 75
+   },
+   "verdict": "PASS"
+  }
+ }
+}

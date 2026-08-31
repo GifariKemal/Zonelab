@@ -20,7 +20,9 @@ import type {
   SSMTDivergence,
   SMTDivergence,
   CISDEvent,
+  ChartGap,
   EventHorizonLevel,
+  ExpectationFan,
   GapStack,
   LiquidityPool,
   NamedLevel,
@@ -33,19 +35,23 @@ import type {
   SwingPoint,
   TrueOpenLevel,
   VortexDial,
+  WyckoffPhase,
   Zone,
 } from "@/lib/types";
 import { clockStamp, clockTick, ZONE_TAG, type ClockZone, type TickKind } from "@/lib/clock";
 import { priceDecimals } from "@/lib/price";
 import { BreakSeriesPrimitive } from "./break-primitive";
+import { ChartGapSeriesPrimitive } from "./chart-gap-primitive";
 import { CycleRibbon } from "./cycle-ribbon";
 import { DFRSeriesPrimitive } from "./dfr-primitive";
+import { ExpectationSeriesPrimitive } from "./expectation-primitive";
 import { LevelsSeriesPrimitive } from "./levels-primitive";
 import { SessionSeriesPrimitive } from "./session-primitive";
 import { SSMTSeriesPrimitive } from "./ssmt-primitive";
 import { SMTSeriesPrimitive } from "./smt-primitive";
 import { FibonacciSeriesPrimitive } from "./fibonacci-primitive";
 import { VortexSeriesPrimitive } from "./vortex-primitive";
+import { WyckoffSeriesPrimitive } from "./wyckoff-primitive";
 import { claimedLabels, StructureSeriesPrimitive } from "./structure-primitive";
 import { ZoneSeriesPrimitive } from "./zone-primitive";
 
@@ -78,6 +84,10 @@ interface Props {
    *  dfr layer is on. Single-sourced and unverified, and drawn fainter for it. */
   dfr: DefiningRangeBand[];
   dfrEquilibrium: boolean;
+  /** The expectation fan. Null when the layer is off or the cell was never
+   *  measured. A MEASUREMENT of resolved R, never a forecast. */
+  expectation: ExpectationFan | null;
+  expectationShowPath: boolean;
   /** The four price-anchored overlays. Empty arrays when off, which is default. */
   gaps: OpeningGap[];
   eventHorizons: EventHorizonLevel[];
@@ -91,6 +101,10 @@ interface Props {
    *  cannot exist without them and a second switch would be a switch that only
    *  works when another one is on. */
   gapStacks: GapStack[];
+  /** Breakaway and measuring gaps, off the chart_gaps layer. Unmeasured. */
+  chartGaps: ChartGap[];
+  /** Wyckoff phase readings, off the wyckoff layer. A reading, never a bias. */
+  wyckoff: WyckoffPhase[];
   news: NewsEvent[];
   /** The chart's own timeframe. Zones stamped with anything else came from a
    *  higher timeframe and are drawn heavier. */
@@ -179,6 +193,8 @@ export function Chart({
   smt,
   dfr,
   dfrEquilibrium,
+  expectation,
+  expectationShowPath,
   gaps,
   eventHorizons,
   pools,
@@ -187,6 +203,8 @@ export function Chart({
   projections,
   tierHorizons,
   gapStacks,
+  chartGaps,
+  wyckoff,
   news,
   interval,
   zone,
@@ -207,6 +225,9 @@ export function Chart({
   const fibPrimitive = useRef<FibonacciSeriesPrimitive | null>(null);
   const vortexPrimitive = useRef<VortexSeriesPrimitive | null>(null);
   const dfrPrimitive = useRef<DFRSeriesPrimitive | null>(null);
+  const expectationPrimitive = useRef<ExpectationSeriesPrimitive | null>(null);
+  const chartGapPrimitive = useRef<ChartGapSeriesPrimitive | null>(null);
+  const wyckoffPrimitive = useRef<WyckoffSeriesPrimitive | null>(null);
   const levelsPrimitive = useRef<LevelsSeriesPrimitive | null>(null);
 
   /** Structure on the bar under the crosshair. A bar can carry TWO events - an
@@ -380,6 +401,12 @@ export function Chart({
     candleSeries.attachPrimitive(structurePrim);
     const zonePrimitive = new ZoneSeriesPrimitive();
     candleSeries.attachPrimitive(zonePrimitive);
+    const expectationPrim = new ExpectationSeriesPrimitive();
+    candleSeries.attachPrimitive(expectationPrim);
+    const chartGapPrim = new ChartGapSeriesPrimitive();
+    candleSeries.attachPrimitive(chartGapPrim);
+    const wyckoffPrim = new WyckoffSeriesPrimitive();
+    candleSeries.attachPrimitive(wyckoffPrim);
 
     /** How many zones the price scale is currently hiding.
      *
@@ -460,6 +487,9 @@ export function Chart({
     fibPrimitive.current = fibPrim;
     vortexPrimitive.current = vortexPrim;
     dfrPrimitive.current = dfrPrim;
+    expectationPrimitive.current = expectationPrim;
+    chartGapPrimitive.current = chartGapPrim;
+    wyckoffPrimitive.current = wyckoffPrim;
     levelsPrimitive.current = levelsPrim;
 
     if (process.env.NODE_ENV !== "production") {
@@ -520,6 +550,9 @@ export function Chart({
       fibPrimitive.current = null;
       vortexPrimitive.current = null;
       dfrPrimitive.current = null;
+      expectationPrimitive.current = null;
+      chartGapPrimitive.current = null;
+      wyckoffPrimitive.current = null;
       levelsPrimitive.current = null;
     };
   }, []);
@@ -694,6 +727,18 @@ export function Chart({
   useEffect(() => {
     dfrPrimitive.current?.setRanges(dfr, dfrEquilibrium);
   }, [dfr, dfrEquilibrium]);
+
+  useEffect(() => {
+    expectationPrimitive.current?.setFan(expectation, expectationShowPath);
+  }, [expectation, expectationShowPath]);
+
+  useEffect(() => {
+    chartGapPrimitive.current?.setGaps(chartGaps);
+  }, [chartGaps]);
+
+  useEffect(() => {
+    wyckoffPrimitive.current?.setPhases(wyckoff);
+  }, [wyckoff]);
 
   useEffect(() => {
     primitive.current?.setSelected(selectedId);

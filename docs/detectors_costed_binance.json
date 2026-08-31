@@ -1,0 +1,197 @@
+{
+ "preregistration": {
+  "venue": "binance, simbol telanjang",
+  "cells": 3,
+  "thresholds_borrowed_from": "tools/detectors_costed.py",
+  "t_pooled": 2.24,
+  "min_n_per_cell": 20,
+  "min_n_per_fold": 20,
+  "folds": 8,
+  "gate_atr": 2.0,
+  "note": "replikasi sempit: Binance hanya membawa crypto, 3 sel lawan 18"
+ },
+ "detectors": {
+  "fvg": {
+   "n_above": 261,
+   "n_below": 6262,
+   "exp_r_above": -0.14536102421379266,
+   "exp_r_below": -0.3082567198671669,
+   "difference": 0.16289569565337425,
+   "welch_t": 4.554427906025078,
+   "cells_positive": 3,
+   "cells_judged": 3,
+   "cells": {
+    "BTCUSDT 1h": {
+     "n_above": 53,
+     "n_below": 945,
+     "judged": true,
+     "difference": 0.030693106145096266,
+     "welch_t": 0.39339747631496713
+    },
+    "ETHUSDT 1h": {
+     "n_above": 53,
+     "n_below": 858,
+     "judged": true,
+     "difference": 0.08922543513298366,
+     "welch_t": 0.9777463012100746
+    },
+    "BTCUSDT 15m": {
+     "n_above": 155,
+     "n_below": 4459,
+     "judged": true,
+     "difference": 0.17432486613336776,
+     "welch_t": 3.935546968902177
+    }
+   },
+   "walk_forward": {
+    "readable": 8,
+    "failed": [
+     4
+    ],
+    "n_per_fold": [
+     [
+      1,
+      37,
+      817
+     ],
+     [
+      2,
+      25,
+      748
+     ],
+     [
+      3,
+      35,
+      735
+     ],
+     [
+      4,
+      32,
+      748
+     ],
+     [
+      5,
+      34,
+      763
+     ],
+     [
+      6,
+      31,
+      818
+     ],
+     [
+      7,
+      27,
+      793
+     ],
+     [
+      8,
+      39,
+      826
+     ]
+    ],
+    "deltas": [
+     0.4364,
+     0.103,
+     0.2187,
+     -0.1268,
+     0.2785,
+     0.1535,
+     0.1944,
+     0.0469
+    ]
+   }
+  },
+  "order_block": {
+   "n_above": 5464,
+   "n_below": 3084,
+   "exp_r_above": -0.2817903183761029,
+   "exp_r_below": -0.3456918912811437,
+   "difference": 0.06390157290504078,
+   "welch_t": 4.324314658151297,
+   "cells_positive": 3,
+   "cells_judged": 3,
+   "cells": {
+    "BTCUSDT 1h": {
+     "n_above": 890,
+     "n_below": 477,
+     "judged": true,
+     "difference": 0.05229543331861353,
+     "welch_t": 1.3361558179250956
+    },
+    "ETHUSDT 1h": {
+     "n_above": 858,
+     "n_below": 496,
+     "judged": true,
+     "difference": 0.1379815800042573,
+     "welch_t": 3.1646866159616054
+    },
+    "BTCUSDT 15m": {
+     "n_above": 3716,
+     "n_below": 2111,
+     "judged": true,
+     "difference": 0.04871037527657279,
+     "welch_t": 2.915563786765321
+    }
+   },
+   "walk_forward": {
+    "readable": 8,
+    "failed": [
+     5
+    ],
+    "n_per_fold": [
+     [
+      1,
+      715,
+      391
+     ],
+     [
+      2,
+      666,
+      414
+     ],
+     [
+      3,
+      641,
+      371
+     ],
+     [
+      4,
+      692,
+      385
+     ],
+     [
+      5,
+      657,
+      393
+     ],
+     [
+      6,
+      696,
+      378
+     ],
+     [
+      7,
+      687,
+      384
+     ],
+     [
+      8,
+      697,
+      362
+     ]
+    ],
+    "deltas": [
+     0.0362,
+     0.1007,
+     0.1111,
+     0.0917,
+     -0.0037,
+     0.0806,
+     0.0671,
+     0.0549
+    ]
+   }
+  }
+ }
+}

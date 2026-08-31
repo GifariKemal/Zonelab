@@ -195,6 +195,39 @@ LAYERS: tuple[Layer, ...] = (
         ),
     ),
     Layer(
+        id="chart_gaps",
+        label="Breakaway and measuring gaps",
+        kind="overlay",
+        params="chart_gaps",
+        note=(
+            "Trend gaps (Edwards-Magee): a bar that opens past the last bar's "
+            "extreme, with its halfway projection target."
+        ),
+        evidence=(
+            "Unmeasured. Detection is geometry on two bars; the breakaway/measuring "
+            "classification and the halfway projection are doctrine, stated as "
+            "rules rather than results. Drawn for fidelity only, and nothing here "
+            "has been walked forward."
+        ),
+    ),
+    Layer(
+        id="wyckoff",
+        label="Wyckoff phases",
+        kind="overlay",
+        params="wyckoff",
+        note=(
+            "Spring, upthrust, sign of strength and weakness over a rolling "
+            "trading range."
+        ),
+        evidence=(
+            "Unmeasured. The determinable subset of the Wyckoff schematic - the "
+            "full schematic needs volume and discretion, see "
+            "docs/superpowers/specs/2026-08-31-wyckoff-design.md. These four "
+            "readings map onto the structure primitives (sweep, break) that H6 "
+            "and H9 already measured null, so this is a reading, never a bias."
+        ),
+    ),
+    Layer(
         id="cisd",
         label="Change in state of delivery",
         kind="overlay",
@@ -218,7 +251,17 @@ LAYERS: tuple[Layer, ...] = (
         params="dfr",
         note="Q1's final two thirds, its 50% equilibrium and its projections.",
         evidence=(
-            "SINGLE-SOURCED AND UNVERIFIED, which is the whole of what is known. "
+            "MEASURED 2026-08-30 AND NULL, after shipping single-sourced and "
+            "unverified. Reach of the -0.5 and -1 extension levels within 96 "
+            "bars against a per-event jitter control at the same distance: "
+            "n=3358 bands over four instruments, pooled -0.06pp at m=0.5 and "
+            "+0.00pp at m=1.0, 0 of 10 groups pass, best cell +1.02pp at |t| "
+            "2.39 against a Bonferroni bar of 2.807 and walk-forward 6 of 8. "
+            "Real reach is high everywhere, 77.89% against a placebo 77.95%, "
+            "and that is distance rather than the thirds rule. Evidence in "
+            "docs/dfr_outcomes.json. SEPARATELY the `dfr_side` CLAUSE does "
+            "separate, with its sign INVERTED - see MEASURED_AGAINST in "
+            "app/ict.py. What follows is what was known before those runs. "
             "The thirds rule reached this project from one description of a "
             "closed-source indicator and has never been checked against the "
             "course material it came from, let alone against outcomes. Four "
@@ -241,8 +284,16 @@ LAYERS: tuple[Layer, ...] = (
         evidence=(
             "The RATE is almost entirely the pair you choose, measured 14.9% "
             "against silver and 59.5% against DXY at day degree - an inversely "
-            "correlated partner disagrees by construction. Nothing connects a "
-            "divergence to an outcome, by anyone. Drawn because it is the most "
+            "correlated partner disagrees by construction. MEASURED 2026-08-30 "
+            "AND NULL: bracket resolution on the bar a divergence becomes "
+            "knowable, against non-divergence bars of the same instrument, "
+            "same bracket, same ATR unit - an empirical control rather than "
+            "the 50% a symmetric bracket assumes. 24 cells over four pairs, "
+            "three bracket widths and two sides, n_event 338 to 555 per cell: "
+            "0 pass, largest |z| 2.070 against a Bonferroni bar of 3.078, and "
+            "the sign splits 12 positive to 12 negative. Pair correlations "
+            "spanned -0.45 to +0.82. Evidence in docs/ssmt_outcomes.json. "
+            "Drawn because it is the most "
             "frequent annotation in the reference charts, 33 of 51, and it was "
             "computed here for months while being visible only as a count."
         ),
@@ -301,6 +352,26 @@ LAYERS: tuple[Layer, ...] = (
         ),
     ),
     Layer(
+        id="expectation",
+        label="Expectation fan",
+        kind="overlay",
+        params="expectation",
+        note=(
+            "The measured distribution of resolved R for this symbol, conditioned "
+            "on dfr_side, drawn as a fan at the right edge."
+        ),
+        evidence=(
+            "A MEASUREMENT DISPLAY, never a prediction, and it shows exactly "
+            "that: the only separator in the seventeen-clause checklist is "
+            "dfr_side, and its sign is INVERTED - clause met -0.0660 R on n=1141, "
+            "clause failed +0.1481 R on n=341 (docs/checklist_outcomes.json). "
+            "So the base-rate fan is the honest centre, and where the conditioned "
+            "fan departs from it, the departure is a warning, not an edge. The "
+            "fan maps R to price through one R equals one ATR, the plan's own "
+            "stop scale, stated rather than fitted."
+        ),
+    ),
+    Layer(
         id="news",
         label="Economic calendar",
         kind="overlay",
@@ -323,7 +394,15 @@ LAYERS: tuple[Layer, ...] = (
         params="checklist",
         note="The owner's own pre-trade items, answered with their evidence.",
         evidence=(
-            "None of the items has been measured against outcomes, and the report "
+            "MEASURED 2026-08-30. Seventeen clauses against outcomes, n=1855 "
+            "over eight instruments, 1h zones resolved on 5-minute bars: ONE "
+            "separates, and it is `dfr_side` with the sign INVERTED (clause "
+            "met -0.0660 R on n=1141, clause failed +0.1481 R on n=341, t "
+            "-3.54 and +3.41 against a Bonferroni bar of 3.267). The AGGREGATE "
+            "`met` score, which tools/execute.py sorts candidates by, is NULL "
+            "and points slightly the wrong way: Spearman rho -0.0268, "
+            "monotonicity fails at 5 of 7 neighbouring pairs, walk-forward 5 "
+            "of 8. Evidence in docs/checklist_outcomes.json. The report still "
             "deliberately carries no overall pass or fail. It fetches per bias "
             "timeframe and per SSMT instrument, and it is not alone in fetching: "
             "gaps and ssmt do too."

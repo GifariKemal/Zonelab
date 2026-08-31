@@ -60,8 +60,12 @@ def add_ny_days(epoch: int, days: int) -> int:
     return to_epoch(wall.replace(tzinfo=NY))
 
 
-def market_shut(epoch: int) -> bool:
+def market_shut(epoch: int, always_open: bool = False) -> bool:
     """Is the market shut at this instant, on the CME futures week?
+
+    `always_open` short-circuits to False, for an instrument whose own bars say
+    it trades through the CME week. Default False, so every existing caller -
+    `app/gaps.py` reads its NDOG and NWOG off this - keeps the answer it had.
 
     Shut from 17:00 New York Friday to 18:00 Sunday, and for the one-hour daily
     maintenance break from 17:00 to 18:00 on the other weekdays. Those are the
@@ -74,6 +78,8 @@ def market_shut(epoch: int) -> bool:
     Both tests had already been written against a market that never closes, and
     both failed on a Friday evening for that reason alone.
     """
+    if always_open:
+        return False
     when = to_ny(epoch)
     if when.hour == 17:
         return True
@@ -83,3 +89,36 @@ def market_shut(epoch: int) -> bool:
     if weekday == 4 and when.hour >= 17:  # Friday evening onward
         return True
     return weekday == 6 and when.hour < 18  # Sunday before the reopen
+
+
+#: Bagian bar terkecil di dalam jendela tutup yang sudah dianggap bukti bahwa
+#: instrumennya dagang saat pasar CME tutup.
+#:
+#: Diukur 30 Agustus 2026 pada 2000 bar per deret, `market_shut` per bar:
+#:
+#:   mt5:XAUUSD 1h   0 dari 2000 (0,0%)     15m   0 dari 2000 (0,0%)
+#:   mt5:BTCUSD 1h 621 dari 2000 (31,1%)    15m 620 dari 2000 (31,0%)
+#:   mt5:ETHUSD 1h 621 dari 2000 (31,1%)    15m 620 dari 2000 (31,0%)
+#:
+#: Nol lawan 31 persen, jadi ambangnya boleh di mana saja di antaranya dan 5
+#: persen jauh dari keduanya. Ia ada supaya satu bar nyasar di batas 17:00
+#: tidak membalik jawabannya.
+WEEKEND_BAR_SHARE = 0.05
+
+
+def trades_when_shut(times: list[int], floor: float = WEEKEND_BAR_SHARE) -> bool:
+    """Apakah instrumen ini dagang saat minggu CME bilang pasar tutup.
+
+    DIUKUR DARI DERETNYA SENDIRI, bukan dari daftar ticker. Daftar ticker harus
+    dirawat, dan yang lupa dirawat tetap menjawab dengan yakin; deret bar tidak
+    bisa bohong soal jam berapa ia ada.
+
+    JANGAN PAKAI `weekday() >= 5` UNTUK INI. Emas punya 102 bar akhir pekan pada
+    2000 bar 1h, karena CME buka lagi Minggu 18:00 NY, jadi cek "ada bar Sabtu
+    atau Minggu" menandai emas sebagai instrumen 24/7. Yang memisahkan adalah
+    bar DI DALAM jendela tutup, dan di sana emas nol.
+    """
+    if not times:
+        return False
+    hits = sum(1 for t in times if market_shut(int(t)))
+    return hits / len(times) >= floor

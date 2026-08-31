@@ -73,6 +73,9 @@ const DRAWS = {
   liquidity: "levels",
   projections: "projections",
   news: "news",
+  expectation: "expectation",
+  chart_gaps: "chart_gaps",
+  wyckoff: "wyckoff",
 };
 
 const results = [];
@@ -116,7 +119,9 @@ for (const layer of registry) {
   drew[layer.id] = count;
   // NEWS IS THE ONE HONEST ZERO. Its feed publishes the current week only, so an
   // empty calendar is a fact about the week rather than a broken layer.
-  const allowed = layer.id === "news";
+  // CHART_GAPS IS A SECOND: a trend gap is a rare event on intraday bars, so an
+  // empty answer is the honest one on a quiet window, not a broken layer.
+  const allowed = layer.id === "news" || layer.id === "chart_gaps";
   check(
     `${layer.id} draws into drawing.${key}`,
     count > 0 || allowed,
@@ -197,8 +202,11 @@ const OWNERS = [
   ["ssmt", "SSMT divergence", "SSMT against"],
   ["liquidity", "Named levels", "Periods"],
   ["projections", "Deviation projections", "Sessions"],
+  ["expectation", "Expectation fan", "Expected path line"],
+  ["wyckoff", "Wyckoff phases", "Trading range width"],
   ["news", "Economic calendar", "Impact"],
 ];
+
 for (const [id, label, knob] of OWNERS) {
   const toggle = page.getByRole("switch", { name: label, exact: true });
   if ((await toggle.getAttribute("aria-checked")) === "false") {

@@ -58,9 +58,24 @@ from tools.quant import BROKER, clean, metrics
 FINER = {"1h": "5m", "4h": "15m", "15m": "1m"}
 
 
+def _venue(symbol: str, source: str) -> str:
+    """`symbol` dengan prefix venue.
+
+    `source` ADALAH PREFIX `history.load`, bukan nama venue bebas. Yang dikenal
+    cuma `mt5` dan `yahoo`; Binance dan Dukascopy adalah routing untuk simbol
+    TELANJANG, jadi keduanya dipilih dengan `source=""`. Menamainya "binance"
+    akan terbaca benar dan menghasilkan `binance:BTCUSDT`, yang dijawab
+    Binance dengan HTTP 400.
+    """
+    if ":" in symbol or not source:
+        return symbol
+    return f"{source}:{symbol}"
+
+
 def resolved(symbol: str, interval: str, fine: str, bars: int = 99_999,
              flat: bool = True, entry_depth: float = 0.0,
-             breakeven_at: float | None = None) -> list[dict]:
+             breakeven_at: float | None = None,
+             source: str = "mt5") -> list[dict]:
     """Trade yang sama, diselesaikan di bar `fine`.
 
     Zona, entry, stop, target dan biaya dihitung persis seperti `costed.trades`.
@@ -68,8 +83,20 @@ def resolved(symbol: str, interval: str, fine: str, bars: int = 99_999,
     seluruh maksudnya: dua angka yang hanya berbeda di satu aturan bisa
     dibandingkan, tiga yang berbeda tidak.
     """
-    candles, _, _ = clean(symbol, interval, bars)
-    small = history.load(f"mt5:{symbol}", fine, 99_999)
+    candles, _, _ = clean(symbol, interval, bars, source)
+    # SUMBER YANG SAMA UNTUK BAR KASAR DAN BAR HALUS, selalu. `quant.clean`
+    # di atas juga memakai prefix ini, dan itu bukan kebetulan: `tools/history.py`
+    # sudah mencatat bahwa `mt5:XAUUSD`, `yahoo:XAUUSD` dan `XAUUSD` telanjang
+    # adalah tiga INSTRUMEN berbeda, terukur 56 dolar berjarak pada menit yang
+    # sama. Menyelesaikan trade venue A memakai bar halus venue B adalah cacat
+    # itu, cuma di dalam satu fungsi.
+    #
+    # `source` DEFAULT `mt5` supaya setiap pemanggil yang sudah ada menjawab
+    # angka yang persis sama. Ia ada untuk satu hal: mereplikasi sebuah hasil di
+    # venue kedua, yang `docs/walkforward.json` lawan `docs/walkforward-mt5.json`
+    # lakukan untuk `supply_demand` dan belum pernah dilakukan untuk detector
+    # lain.
+    small = history.load(_venue(symbol, source), fine, 99_999)
     if not small:
         return []
     # Hanya rentang yang dipunyai KEDUANYA. Bar halus jauh lebih pendek

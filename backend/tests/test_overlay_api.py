@@ -82,8 +82,8 @@ def test_the_layer_catalogue_is_advertised_in_draw_order_and_says_what_each_is()
     config = client.get("/api/config").json()
     assert [layer["id"] for layer in config["layers"]] == [
         "supply_demand", "fvg", "order_block", "ifvg", "breaker",
-        "structure", "session", "vortex", "gaps", "cisd", "dfr", "ssmt", "pools", "liquidity",
-        "projections", "news", "checklist",
+        "structure", "session", "vortex", "gaps", "chart_gaps", "wyckoff", "cisd", "dfr", "ssmt", "pools", "liquidity",
+        "projections", "expectation", "news", "checklist",
     ]
     for layer in config["layers"]:
         assert layer["kind"] in ("detector", "overlay", "report"), layer

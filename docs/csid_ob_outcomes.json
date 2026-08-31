@@ -1,0 +1,65 @@
+{
+  "preregistered": "tools/csid_ob_outcomes.py, 2026-08-31",
+  "question": "apakah CISD di dalam order block memprediksi arah block, di atas drift",
+  "horizon_bars": 96,
+  "critical_t": 2.241402727604945,
+  "min_group": 30,
+  "cells": {
+    "XAUUSD": {
+      "n_blocks": 6961,
+      "drift_atr": 1.0968592397239596,
+      "n_cisd_inside": 6638
+    },
+    "XAGUSD": {
+      "n_blocks": 7116,
+      "drift_atr": 0.7549257414779271,
+      "n_cisd_inside": 6837
+    },
+    "XPTUSD": {
+      "n_blocks": 3262,
+      "drift_atr": 1.0689935258171928,
+      "n_cisd_inside": 3144
+    },
+    "EURUSD": {
+      "n_blocks": 7215,
+      "drift_atr": -0.20435360286176488,
+      "n_cisd_inside": 7061
+    },
+    "GBPUSD": {
+      "n_blocks": 7173,
+      "drift_atr": -0.0779401540419549,
+      "n_cisd_inside": 7010
+    },
+    "USDJPY": {
+      "n_blocks": 7337,
+      "drift_atr": 1.094522010949304,
+      "n_cisd_inside": 6994
+    },
+    "AUDUSD": {
+      "n_blocks": 7524,
+      "drift_atr": -0.11722509930846597,
+      "n_cisd_inside": 7409
+    },
+    "US30": {
+      "n_blocks": 6771,
+      "drift_atr": 0.6490773250880795,
+      "n_cisd_inside": 6462
+    },
+    "USOIL": {
+      "n_blocks": 11878,
+      "drift_atr": 0.2815932058524638,
+      "n_cisd_inside": 11621
+    }
+  },
+  "population": {
+    "n_cisd_inside": 61023,
+    "n_no_cisd": 1939
+  },
+  "result": {
+    "exp_excess_in_band": 0.06569163740612585,
+    "exp_excess_no_cisd": -0.24013732433717977,
+    "delta": 0.30582896174330565,
+    "t": 1.8145125318469462
+  },
+  "verdict": ""
+}

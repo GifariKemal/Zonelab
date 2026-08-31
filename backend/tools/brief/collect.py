@@ -16,6 +16,7 @@ from app import vortex
 from app.conditions import at_bar
 from app.drawing import build
 from app.main import _annotate
+from app.clock import trades_when_shut
 from app.ict import DOCTRINE_CLAUSES, MEASURED_AGAINST, Rules, setup as ict_setup
 from app.layers import LAYERS, catalogue
 from app.models import (
@@ -133,6 +134,12 @@ def one_timeframe(symbol: str, interval: str, bars: int,
         # akhir pekan berarti pasar tutup dan bukan feed rusak.
         "feed_lag_seconds": lag,
         "feed_stale_for_execution": lag > step,
+        # PROPERTI INSTRUMEN, dibaca dari deretnya. Header brief pernah
+        # menulis "Pasar tutup: True" untuk BTCUSD pada saat yang sama
+        # terminal menyerahkan bar 15m berumur 244 detik, karena
+        # `clock.market_shut` adalah minggu futures CME dan dipakai apa
+        # adanya untuk instrumen 24/7.
+        "always_open": trades_when_shut([r.time for r in rows]),
         "counts": counts,
         "empty_because": notes,
         "meta": meta,
@@ -181,7 +188,11 @@ def ict_reading(zone_json: dict, plan_json: dict, rows, interval: str,
         born_from=zone.time_from - POI_SLACK_BARS * step,
         born_to=zone.time_from + POI_SLACK_BARS * step,
     )
-    s = ict_setup(zone, state, stack, Rules(), reward_r=plan_json.get("reward_r"))
+    # Sama seperti jalur order: kalender akhir pekan tidak berlaku untuk
+    # instrumen yang deretnya sendiri menunjukkan ia dagang saat CME tutup.
+    s = ict_setup(zone, state, stack, Rules(),
+                  reward_r=plan_json.get("reward_r"),
+                  always_open=trades_when_shut([c.time for c in rows]))
     return {
         "zone_id": zone.id,
         "met": s.met,

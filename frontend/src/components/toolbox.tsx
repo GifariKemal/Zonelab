@@ -1429,6 +1429,48 @@ export const Toolbox = memo(function Toolbox({
           </>
         );
 
+      case "expectation":
+        return (
+          <>
+            <Toggle
+              label="Expected path line"
+              value={params.expectation.show_path}
+              onChange={(v) => onParams("expectation", { show_path: v })}
+            />
+            <Note>
+              The fan is a measurement of resolved R and is on with the layer. The
+              path is the median of that fan drawn as one line, and it is off by
+              default because a lone line reads as a forecast, and this engine
+              does not forecast - it draws the average historical trajectory,
+              labelled as such. One R is one ATR, the plan&apos;s own stop scale.
+            </Note>
+          </>
+        );
+
+      case "wyckoff":
+        return (
+          <>
+            <Slider
+              label="Trading range width"
+              hint="Bars in the rolling range a phase is read against."
+              note="20 is a chosen number, not a measured one - the Wyckoff method names no window, so this is stated rather than fitted."
+              suffix="bars"
+              min={5}
+              max={200}
+              step={5}
+              value={params.wyckoff.lookback}
+              onChange={(v) => onParams("wyckoff", { lookback: v })}
+            />
+            <Note>
+              Spring, upthrust, sign of strength and weakness over a rolling
+              trading range. The full Wyckoff schematic needs volume and
+              discretion, so only these four determinable readings are here - and
+              they map onto the structure primitives (sweep, break) that this
+              project already measured null. A reading, never a bias.
+            </Note>
+          </>
+        );
+
       default:
         return null;
     }
@@ -2211,6 +2253,9 @@ const LAYER_SWATCH: Record<string, readonly string[]> = {
   projections: [ink("levels", 0.95)],
   ssmt: [ink("ssmt", 0.95)],
   dfr: [ink("dfr", 0.95)],
+  expectation: [ink("levels", 0.95)],
+  chart_gaps: [ink("levels", 0.95)],
+  wyckoff: [ink("structure", 0.85)],
   news: ["var(--accent)"],
 };
 

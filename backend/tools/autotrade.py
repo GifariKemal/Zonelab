@@ -58,7 +58,7 @@ import traceback
 
 from app import autotrade, journal
 from tools.costed import rollovers
-from app.ict import Rules
+from app.ict import BIAS_DEGREES, Rules
 from tools.broker import RULE, _terminal, lot_specs, sizing
 from tools.execute import cycle
 from tools.flatten import cancel, close, stale_pendings, why_closed
@@ -277,6 +277,16 @@ def main() -> int:
     parser.add_argument("--killzones", default="",
                         help="comma list killzone yang dihitung, misal ny_am,london. "
                              "Kosong berarti semuanya")
+    parser.add_argument("--bias-degree", default="bias_4h", choices=BIAS_DEGREES,
+                        help="derajat bias yang dibaca klausa bias_agrees. "
+                             "DEFAULTNYA 4 JAM UNTUK SETIAP TIMEFRAME, dan itu "
+                             "yang menolak 19 kandidat demand di 15m dan 30m "
+                             "pada 30 Agustus 2026 sementara bias_1h dan "
+                             "bias_1d keduanya +1 dan BTCUSD naik 1,36 persen "
+                             "dalam 24 jam. Menurunkannya BUKAN perbaikan yang "
+                             "terbukti: H7 mengukur kontribusi zona di atas "
+                             "bias ini NOL, jadi derajat mana pun yang dipilih "
+                             "adalah pilihan operator, bukan temuan")
     parser.add_argument("--min-families", type=int, default=2,
                         help="famili PD array yang harus menumpuk untuk poi_families")
     parser.add_argument("--max-conflicts", type=int, default=0,
@@ -322,6 +332,7 @@ def main() -> int:
         required=tuple(x.strip() for x in args.require.split(",") if x.strip()),
         min_families=args.min_families,
         max_conflicts=args.max_conflicts,
+        bias_degree=args.bias_degree,
         **({"killzones": tuple(x.strip() for x in args.killzones.split(",")
                                if x.strip())} if args.killzones else {}),
     )

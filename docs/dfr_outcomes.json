@@ -1,0 +1,891 @@
+{
+ "preregistration": "tools/dfr_outcomes.py docstring, Bagian 1 sampai 8",
+ "hypothesis": "H-DFR-1: level ekstensi DFR pada multiple 0.5 dan 1.0 dicapai dalam 96 bar lebih sering daripada placebo per-event jitter pada jarak sebanding dari anchor yang sama",
+ "degree": "day",
+ "horizon_bars": 96,
+ "multiples": [
+  0.5,
+  1.0
+ ],
+ "thresholds": {
+  "min_n": 30,
+  "effect_min_pp": 3.0,
+  "groups_eligible_K": 10,
+  "bonferroni_alpha": 0.005,
+  "t_critical_two_sided": 2.807033770114134,
+  "walkforward_folds": 8,
+  "sign_test_alpha_one_sided": 0.05,
+  "folds_positive_required": 7
+ },
+ "series": [
+  {
+   "symbol": "mt5:XAUUSD",
+   "interval": "1h",
+   "bars_requested": 20000,
+   "bars_used": 20000,
+   "irregular_prefix_trimmed": 0,
+   "first_bar": 1681340400,
+   "last_bar": 1787947200,
+   "band_multiple_rows": 1738
+  },
+  {
+   "symbol": "mt5:BTCUSD",
+   "interval": "1h",
+   "bars_requested": 20000,
+   "bars_used": 20000,
+   "irregular_prefix_trimmed": 0,
+   "first_bar": 1716076800,
+   "last_bar": 1788076800,
+   "band_multiple_rows": 1660
+  },
+  {
+   "symbol": "mt5:ETHUSD",
+   "interval": "1h",
+   "bars_requested": 20000,
+   "bars_used": 20000,
+   "irregular_prefix_trimmed": 0,
+   "first_bar": 1716076800,
+   "last_bar": 1788076800,
+   "band_multiple_rows": 1660
+  },
+  {
+   "symbol": "mt5:EURUSD",
+   "interval": "1h",
+   "bars_requested": 20000,
+   "bars_used": 20000,
+   "irregular_prefix_trimmed": 0,
+   "first_bar": 1686574800,
+   "last_bar": 1787947200,
+   "band_multiple_rows": 1658
+  }
+ ],
+ "groups": {
+  "mt5:XAUUSD m=0.5": {
+   "symbol": "mt5:XAUUSD",
+   "multiple": 0.5,
+   "n": 869,
+   "delta_pp": -0.23014959723820483,
+   "ci95_pp": [
+    -0.9070059170807693,
+    0.4467067226043597
+   ],
+   "t": -0.6664534220376415,
+   "levels": 1738,
+   "reach_real_pct": 76.92750287686997,
+   "reach_placebo_pct": 77.15765247410818,
+   "jitter_mean": 0.9950067305819917,
+   "by_side_not_judged": {
+    "above": {
+     "n": 869,
+     "reach_real_pct": 79.74683544303798,
+     "reach_placebo_pct": 80.66743383199079
+    },
+    "below": {
+     "n": 869,
+     "reach_real_pct": 74.10817031070195,
+     "reach_placebo_pct": 73.64787111622555
+    }
+   },
+   "halves_pp": [
+    -0.5760368663594471,
+    0.11494252873563218
+   ],
+   "folds": [
+    {
+     "fold": 1,
+     "n": 108,
+     "delta_pp": -0.9259259259259258
+    },
+    {
+     "fold": 2,
+     "n": 109,
+     "delta_pp": -0.9174311926605505
+    },
+    {
+     "fold": 3,
+     "n": 108,
+     "delta_pp": -0.9259259259259258
+    },
+    {
+     "fold": 4,
+     "n": 109,
+     "delta_pp": 0.45871559633027525
+    },
+    {
+     "fold": 5,
+     "n": 109,
+     "delta_pp": 0.9174311926605505
+    },
+    {
+     "fold": 6,
+     "n": 108,
+     "delta_pp": -0.4629629629629629
+    },
+    {
+     "fold": 7,
+     "n": 109,
+     "delta_pp": 0.0
+    },
+    {
+     "fold": 8,
+     "n": 109,
+     "delta_pp": 0.0
+    }
+   ],
+   "folds_positive": 2,
+   "sign_test_p_one_sided": 0.96484375,
+   "verdict": "NULL",
+   "checks": {
+    "n": true,
+    "effect": false,
+    "t": false,
+    "walkforward": false
+   }
+  },
+  "mt5:XAUUSD m=1.0": {
+   "symbol": "mt5:XAUUSD",
+   "multiple": 1.0,
+   "n": 869,
+   "delta_pp": 0.5178365937859608,
+   "ci95_pp": [
+    -0.5580202449776228,
+    1.5936934325495442
+   ],
+   "t": 0.9433966372207238,
+   "levels": 1738,
+   "reach_real_pct": 68.46950517836594,
+   "reach_placebo_pct": 67.95166858457998,
+   "jitter_mean": 0.9981616376166389,
+   "by_side_not_judged": {
+    "above": {
+     "n": 869,
+     "reach_real_pct": 72.38204833141542,
+     "reach_placebo_pct": 71.5765247410817
+    },
+    "below": {
+     "n": 869,
+     "reach_real_pct": 64.55696202531645,
+     "reach_placebo_pct": 64.32681242807826
+    }
+   },
+   "halves_pp": [
+    0.6912442396313364,
+    0.3448275862068966
+   ],
+   "folds": [
+    {
+     "fold": 1,
+     "n": 108,
+     "delta_pp": 2.314814814814815
+    },
+    {
+     "fold": 2,
+     "n": 109,
+     "delta_pp": 1.3761467889908259
+    },
+    {
+     "fold": 3,
+     "n": 108,
+     "delta_pp": -0.4629629629629629
+    },
+    {
+     "fold": 4,
+     "n": 109,
+     "delta_pp": -0.45871559633027525
+    },
+    {
+     "fold": 5,
+     "n": 109,
+     "delta_pp": 1.834862385321101
+    },
+    {
+     "fold": 6,
+     "n": 108,
+     "delta_pp": 0.4629629629629629
+    },
+    {
+     "fold": 7,
+     "n": 109,
+     "delta_pp": -1.834862385321101
+    },
+    {
+     "fold": 8,
+     "n": 109,
+     "delta_pp": 0.9174311926605505
+    }
+   ],
+   "folds_positive": 5,
+   "sign_test_p_one_sided": 0.36328125,
+   "verdict": "NULL",
+   "checks": {
+    "n": true,
+    "effect": false,
+    "t": false,
+    "walkforward": false
+   }
+  },
+  "mt5:BTCUSD m=0.5": {
+   "symbol": "mt5:BTCUSD",
+   "multiple": 0.5,
+   "n": 830,
+   "delta_pp": 1.0240963855421688,
+   "ci95_pp": [
+    0.18326824726170987,
+    1.8649245238226273
+   ],
+   "t": 2.3872047381377453,
+   "levels": 1660,
+   "reach_real_pct": 77.04819277108433,
+   "reach_placebo_pct": 76.02409638554217,
+   "jitter_mean": 1.0004751054421375,
+   "by_side_not_judged": {
+    "above": {
+     "n": 830,
+     "reach_real_pct": 77.2289156626506,
+     "reach_placebo_pct": 76.62650602409639
+    },
+    "below": {
+     "n": 830,
+     "reach_real_pct": 76.86746987951807,
+     "reach_placebo_pct": 75.42168674698796
+    }
+   },
+   "halves_pp": [
+    1.6867469879518073,
+    0.3614457831325301
+   ],
+   "folds": [
+    {
+     "fold": 1,
+     "n": 103,
+     "delta_pp": 0.48543689320388345
+    },
+    {
+     "fold": 2,
+     "n": 104,
+     "delta_pp": 3.3653846153846154
+    },
+    {
+     "fold": 3,
+     "n": 104,
+     "delta_pp": 1.4423076923076923
+    },
+    {
+     "fold": 4,
+     "n": 104,
+     "delta_pp": 1.4423076923076923
+    },
+    {
+     "fold": 5,
+     "n": 103,
+     "delta_pp": 0.9708737864077669
+    },
+    {
+     "fold": 6,
+     "n": 104,
+     "delta_pp": 0.4807692307692308
+    },
+    {
+     "fold": 7,
+     "n": 104,
+     "delta_pp": 0.0
+    },
+    {
+     "fold": 8,
+     "n": 104,
+     "delta_pp": 0.0
+    }
+   ],
+   "folds_positive": 6,
+   "sign_test_p_one_sided": 0.14453125,
+   "verdict": "NULL",
+   "checks": {
+    "n": true,
+    "effect": false,
+    "t": false,
+    "walkforward": false
+   }
+  },
+  "mt5:BTCUSD m=1.0": {
+   "symbol": "mt5:BTCUSD",
+   "multiple": 1.0,
+   "n": 830,
+   "delta_pp": -0.5421686746987951,
+   "ci95_pp": [
+    -1.564655354146628,
+    0.4803180047490374
+   ],
+   "t": -1.0392806319819203,
+   "levels": 1660,
+   "reach_real_pct": 64.75903614457832,
+   "reach_placebo_pct": 65.3012048192771,
+   "jitter_mean": 0.9919339257687529,
+   "by_side_not_judged": {
+    "above": {
+     "n": 830,
+     "reach_real_pct": 65.5421686746988,
+     "reach_placebo_pct": 66.02409638554217
+    },
+    "below": {
+     "n": 830,
+     "reach_real_pct": 63.975903614457835,
+     "reach_placebo_pct": 64.57831325301204
+    }
+   },
+   "halves_pp": [
+    -0.9638554216867471,
+    -0.12048192771084339
+   ],
+   "folds": [
+    {
+     "fold": 1,
+     "n": 103,
+     "delta_pp": -0.48543689320388345
+    },
+    {
+     "fold": 2,
+     "n": 104,
+     "delta_pp": -1.4423076923076923
+    },
+    {
+     "fold": 3,
+     "n": 104,
+     "delta_pp": 0.0
+    },
+    {
+     "fold": 4,
+     "n": 104,
+     "delta_pp": -1.9230769230769231
+    },
+    {
+     "fold": 5,
+     "n": 103,
+     "delta_pp": 0.9708737864077669
+    },
+    {
+     "fold": 6,
+     "n": 104,
+     "delta_pp": -2.403846153846154
+    },
+    {
+     "fold": 7,
+     "n": 104,
+     "delta_pp": 2.8846153846153846
+    },
+    {
+     "fold": 8,
+     "n": 104,
+     "delta_pp": -1.9230769230769231
+    }
+   ],
+   "folds_positive": 2,
+   "sign_test_p_one_sided": 0.96484375,
+   "verdict": "NULL",
+   "checks": {
+    "n": true,
+    "effect": false,
+    "t": false,
+    "walkforward": false
+   }
+  },
+  "mt5:ETHUSD m=0.5": {
+   "symbol": "mt5:ETHUSD",
+   "multiple": 0.5,
+   "n": 830,
+   "delta_pp": -1.144578313253012,
+   "ci95_pp": [
+    -1.967904123307199,
+    -0.321252503198825
+   ],
+   "t": -2.724770032204209,
+   "levels": 1660,
+   "reach_real_pct": 74.27710843373494,
+   "reach_placebo_pct": 75.42168674698796,
+   "jitter_mean": 0.9956264923344184,
+   "by_side_not_judged": {
+    "above": {
+     "n": 830,
+     "reach_real_pct": 75.66265060240964,
+     "reach_placebo_pct": 76.74698795180723
+    },
+    "below": {
+     "n": 830,
+     "reach_real_pct": 72.89156626506023,
+     "reach_placebo_pct": 74.09638554216868
+    }
+   },
+   "halves_pp": [
+    -0.7228915662650602,
+    -1.566265060240964
+   ],
+   "folds": [
+    {
+     "fold": 1,
+     "n": 103,
+     "delta_pp": -0.48543689320388345
+    },
+    {
+     "fold": 2,
+     "n": 104,
+     "delta_pp": 0.0
+    },
+    {
+     "fold": 3,
+     "n": 104,
+     "delta_pp": -0.4807692307692308
+    },
+    {
+     "fold": 4,
+     "n": 104,
+     "delta_pp": -1.9230769230769231
+    },
+    {
+     "fold": 5,
+     "n": 103,
+     "delta_pp": -2.4271844660194173
+    },
+    {
+     "fold": 6,
+     "n": 104,
+     "delta_pp": -1.4423076923076923
+    },
+    {
+     "fold": 7,
+     "n": 104,
+     "delta_pp": -1.4423076923076923
+    },
+    {
+     "fold": 8,
+     "n": 104,
+     "delta_pp": -0.9615384615384616
+    }
+   ],
+   "folds_positive": 0,
+   "sign_test_p_one_sided": 1.0,
+   "verdict": "NEGATIF",
+   "checks": {
+    "n": true,
+    "effect": false,
+    "t": false,
+    "walkforward": false
+   }
+  },
+  "mt5:ETHUSD m=1.0": {
+   "symbol": "mt5:ETHUSD",
+   "multiple": 1.0,
+   "n": 830,
+   "delta_pp": 0.5421686746987951,
+   "ci95_pp": [
+    -0.5335367065213628,
+    1.6178740559189533
+   ],
+   "t": 0.9878639829841591,
+   "levels": 1660,
+   "reach_real_pct": 64.63855421686748,
+   "reach_placebo_pct": 64.09638554216868,
+   "jitter_mean": 1.0029511407149978,
+   "by_side_not_judged": {
+    "above": {
+     "n": 830,
+     "reach_real_pct": 65.90361445783132,
+     "reach_placebo_pct": 64.93975903614458
+    },
+    "below": {
+     "n": 830,
+     "reach_real_pct": 63.373493975903614,
+     "reach_placebo_pct": 63.25301204819277
+    }
+   },
+   "halves_pp": [
+    0.6024096385542169,
+    0.48192771084337355
+   ],
+   "folds": [
+    {
+     "fold": 1,
+     "n": 103,
+     "delta_pp": 5.339805825242718
+    },
+    {
+     "fold": 2,
+     "n": 104,
+     "delta_pp": -2.8846153846153846
+    },
+    {
+     "fold": 3,
+     "n": 104,
+     "delta_pp": 0.4807692307692308
+    },
+    {
+     "fold": 4,
+     "n": 104,
+     "delta_pp": -0.4807692307692308
+    },
+    {
+     "fold": 5,
+     "n": 103,
+     "delta_pp": -0.9708737864077669
+    },
+    {
+     "fold": 6,
+     "n": 104,
+     "delta_pp": 1.4423076923076923
+    },
+    {
+     "fold": 7,
+     "n": 104,
+     "delta_pp": -0.4807692307692308
+    },
+    {
+     "fold": 8,
+     "n": 104,
+     "delta_pp": 1.9230769230769231
+    }
+   ],
+   "folds_positive": 4,
+   "sign_test_p_one_sided": 0.63671875,
+   "verdict": "NULL",
+   "checks": {
+    "n": true,
+    "effect": false,
+    "t": false,
+    "walkforward": false
+   }
+  },
+  "mt5:EURUSD m=0.5": {
+   "symbol": "mt5:EURUSD",
+   "multiple": 0.5,
+   "n": 829,
+   "delta_pp": 0.12062726176115801,
+   "ci95_pp": [
+    -0.45879556699459256,
+    0.7000500905169086
+   ],
+   "t": 0.4080430064510523,
+   "levels": 1658,
+   "reach_real_pct": 83.3534378769602,
+   "reach_placebo_pct": 83.23281061519903,
+   "jitter_mean": 0.9933384447121467,
+   "by_side_not_judged": {
+    "above": {
+     "n": 829,
+     "reach_real_pct": 82.50904704463208,
+     "reach_placebo_pct": 83.11218335343787
+    },
+    "below": {
+     "n": 829,
+     "reach_real_pct": 84.1978287092883,
+     "reach_placebo_pct": 83.3534378769602
+    }
+   },
+   "halves_pp": [
+    0.0,
+    0.24096385542168677
+   ],
+   "folds": [
+    {
+     "fold": 1,
+     "n": 103,
+     "delta_pp": 0.48543689320388345
+    },
+    {
+     "fold": 2,
+     "n": 104,
+     "delta_pp": -0.4807692307692308
+    },
+    {
+     "fold": 3,
+     "n": 103,
+     "delta_pp": 0.48543689320388345
+    },
+    {
+     "fold": 4,
+     "n": 104,
+     "delta_pp": -0.4807692307692308
+    },
+    {
+     "fold": 5,
+     "n": 104,
+     "delta_pp": 0.0
+    },
+    {
+     "fold": 6,
+     "n": 103,
+     "delta_pp": -0.48543689320388345
+    },
+    {
+     "fold": 7,
+     "n": 104,
+     "delta_pp": 1.4423076923076923
+    },
+    {
+     "fold": 8,
+     "n": 104,
+     "delta_pp": 0.0
+    }
+   ],
+   "folds_positive": 3,
+   "sign_test_p_one_sided": 0.85546875,
+   "verdict": "NULL",
+   "checks": {
+    "n": true,
+    "effect": false,
+    "t": false,
+    "walkforward": false
+   }
+  },
+  "mt5:EURUSD m=1.0": {
+   "symbol": "mt5:EURUSD",
+   "multiple": 1.0,
+   "n": 829,
+   "delta_pp": -0.5428226779252111,
+   "ci95_pp": [
+    -1.419276177260324,
+    0.3336308214099017
+   ],
+   "t": -1.2139063276494697,
+   "levels": 1658,
+   "reach_real_pct": 74.90952955367914,
+   "reach_placebo_pct": 75.45235223160434,
+   "jitter_mean": 0.9857221863445707,
+   "by_side_not_judged": {
+    "above": {
+     "n": 829,
+     "reach_real_pct": 74.66827503015682,
+     "reach_placebo_pct": 75.15078407720145
+    },
+    "below": {
+     "n": 829,
+     "reach_real_pct": 75.15078407720145,
+     "reach_placebo_pct": 75.75392038600724
+    }
+   },
+   "halves_pp": [
+    -1.2077294685990339,
+    0.12048192771084339
+   ],
+   "folds": [
+    {
+     "fold": 1,
+     "n": 103,
+     "delta_pp": -1.9417475728155338
+    },
+    {
+     "fold": 2,
+     "n": 104,
+     "delta_pp": -0.9615384615384616
+    },
+    {
+     "fold": 3,
+     "n": 103,
+     "delta_pp": -1.4563106796116505
+    },
+    {
+     "fold": 4,
+     "n": 104,
+     "delta_pp": -0.4807692307692308
+    },
+    {
+     "fold": 5,
+     "n": 104,
+     "delta_pp": 0.0
+    },
+    {
+     "fold": 6,
+     "n": 103,
+     "delta_pp": -0.48543689320388345
+    },
+    {
+     "fold": 7,
+     "n": 104,
+     "delta_pp": 2.403846153846154
+    },
+    {
+     "fold": 8,
+     "n": 104,
+     "delta_pp": -1.4423076923076923
+    }
+   ],
+   "folds_positive": 1,
+   "sign_test_p_one_sided": 0.99609375,
+   "verdict": "NULL",
+   "checks": {
+    "n": true,
+    "effect": false,
+    "t": false,
+    "walkforward": false
+   }
+  },
+  "POOLED m=0.5": {
+   "symbol": "POOLED",
+   "multiple": 0.5,
+   "n": 3358,
+   "delta_pp": -0.05955926146515784,
+   "ci95_pp": [
+    -0.42876086944360575,
+    0.3096423465132901
+   ],
+   "t": -0.31618538475738117,
+   "levels": 6716,
+   "reach_real_pct": 77.88862418106015,
+   "reach_placebo_pct": 77.94818344252532,
+   "jitter_mean": 0.9960996860323591,
+   "by_side_not_judged": {
+    "above": {
+     "n": 3358,
+     "reach_real_pct": 78.79690291840382,
+     "reach_placebo_pct": 79.30315664085765
+    },
+    "below": {
+     "n": 3358,
+     "reach_real_pct": 76.9803454437165,
+     "reach_placebo_pct": 76.59321024419297
+    }
+   },
+   "halves_pp": [
+    0.05955926146515784,
+    -0.1786777843954735
+   ],
+   "folds": [
+    {
+     "fold": 1,
+     "n": 419,
+     "delta_pp": -0.5966587112171837
+    },
+    {
+     "fold": 2,
+     "n": 420,
+     "delta_pp": 0.0
+    },
+    {
+     "fold": 3,
+     "n": 420,
+     "delta_pp": 0.9523809523809524
+    },
+    {
+     "fold": 4,
+     "n": 420,
+     "delta_pp": -0.11904761904761905
+    },
+    {
+     "fold": 5,
+     "n": 419,
+     "delta_pp": 0.0
+    },
+    {
+     "fold": 6,
+     "n": 420,
+     "delta_pp": -0.2380952380952381
+    },
+    {
+     "fold": 7,
+     "n": 420,
+     "delta_pp": -0.35714285714285715
+    },
+    {
+     "fold": 8,
+     "n": 420,
+     "delta_pp": -0.11904761904761905
+    }
+   ],
+   "folds_positive": 1,
+   "sign_test_p_one_sided": 0.99609375,
+   "verdict": "NULL",
+   "checks": {
+    "n": true,
+    "effect": false,
+    "t": false,
+    "walkforward": false
+   }
+  },
+  "POOLED m=1.0": {
+   "symbol": "POOLED",
+   "multiple": 1.0,
+   "n": 3358,
+   "delta_pp": 0.0,
+   "ci95_pp": [
+    -0.5089168741072111,
+    0.5089168741072111
+   ],
+   "t": 0.0,
+   "levels": 6716,
+   "reach_real_pct": 68.19535437760572,
+   "reach_placebo_pct": 68.19535437760572,
+   "jitter_mean": 0.9947351878350271,
+   "by_side_not_judged": {
+    "above": {
+     "n": 3358,
+     "reach_real_pct": 69.65455628350209,
+     "reach_placebo_pct": 69.44609886837404
+    },
+    "below": {
+     "n": 3358,
+     "reach_real_pct": 66.73615247170935,
+     "reach_placebo_pct": 66.9446098868374
+    }
+   },
+   "halves_pp": [
+    -0.05955926146515784,
+    0.05955926146515784
+   ],
+   "folds": [
+    {
+     "fold": 1,
+     "n": 419,
+     "delta_pp": 0.23866348448687352
+    },
+    {
+     "fold": 2,
+     "n": 420,
+     "delta_pp": 0.7142857142857143
+    },
+    {
+     "fold": 3,
+     "n": 420,
+     "delta_pp": -1.3095238095238095
+    },
+    {
+     "fold": 4,
+     "n": 420,
+     "delta_pp": 0.11904761904761905
+    },
+    {
+     "fold": 5,
+     "n": 419,
+     "delta_pp": 0.11933174224343676
+    },
+    {
+     "fold": 6,
+     "n": 420,
+     "delta_pp": -0.11904761904761905
+    },
+    {
+     "fold": 7,
+     "n": 420,
+     "delta_pp": 0.4761904761904762
+    },
+    {
+     "fold": 8,
+     "n": 420,
+     "delta_pp": -0.2380952380952381
+    }
+   ],
+   "folds_positive": 5,
+   "sign_test_p_one_sided": 0.36328125,
+   "verdict": "NULL",
+   "checks": {
+    "n": true,
+    "effect": false,
+    "t": false,
+    "walkforward": false
+   }
+  }
+ },
+ "passed": [],
+ "negative": [
+  "mt5:ETHUSD m=0.5"
+ ],
+ "negative_past_bonferroni": [],
+ "headline_rule": "Amandemen 30 Agustus 2026: headline NEGATIF menuntut bar Bonferroni yang sama dengan LULUS. Verdict per grup tidak diubah.",
+ "verdict": "NULL"
+}

@@ -121,6 +121,27 @@ SYMBOLS: dict[str, dict[str, str]] = {
     # rather than offered as a trap. One provider is a fact about the venue, the
     # same shape `US10Y` and `US30Y` already have in reverse.
     "DE30": {"mt5": "DE30"},
+    # --- added 2026-08-31: the instruments the owner asked to cover -----------
+    # E-mini Russell 2000, NY Harbour ULSD, RBOB gasoline, and the two CME
+    # currency futures (6E euro, 6B British pound). All five are Yahoo futures
+    # tickers. The mt5 column is deliberately ABSENT: this table's rule is that a
+    # mapping is read off the terminal's own `symbols_get()`, and querying that
+    # while the auto-trade daemon holds the MT5 client would contend with a live
+    # order path. A missing column is the honest "not verified", the same shape
+    # `US10Y` and `US30Y` already carry in reverse.
+    "RUS2000": {"yahoo": "RTY=F"},
+    "ULSD": {"yahoo": "HO=F"},
+    "RBOB": {"yahoo": "RB=F"},
+    "EURFX": {"yahoo": "6E=F"},
+    "GBPFX": {"yahoo": "6B=F"},
+    # The Jakarta Composite (IHSG). A CASH index, kept under a warning rather than
+    # silently in the futures block: it trades a WIB session that overlaps the New
+    # York clock almost not at all, so every killzone, day-of-week and session
+    # reading this engine makes is wrong for it. It is offered for a price axis
+    # only. LQ45 and IDX30 have no Yahoo ticker and stay out until a Jakarta
+    # source exists - a cash-index trap with no data at all is worse than one with
+    # a warning.
+    "IDX": {"yahoo": "^JKSE"},
     # NOT ADDED, deliberately: `twelvedata` and `polygon` do carry several of the
     # instruments above under mechanical ids like `USD/JPY`, and no key is
     # installed on this machine to verify them. Writing an unverified mapping

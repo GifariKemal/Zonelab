@@ -14,8 +14,11 @@ from .zone import Drawing
 from .params import (
     DFRParams,
     CISDParams,
+    ChartGapParams,
     ChecklistParams,
+    ExpectationParams,
     GapParams,
+    WyckoffParams,
     ImbalanceParams,
     LiquidityParams,
     NewsParams,
@@ -225,6 +228,21 @@ class DrawRequest(BaseModel):
     projections: ProjectionParams = Field(
         default_factory=ProjectionParams,
         description="Deviation stacks off a session range. An overlay.",
+    )
+    expectation: ExpectationParams = Field(
+        default_factory=ExpectationParams,
+        description=(
+            "The expectation overlay: a measured distribution of resolved R, "
+            "looked up from a precomputed table. Costs no provider call."
+        ),
+    )
+    chart_gaps: ChartGapParams = Field(
+        default_factory=ChartGapParams,
+        description="Breakaway and measuring gaps. No knobs.",
+    )
+    wyckoff: WyckoffParams = Field(
+        default_factory=WyckoffParams,
+        description="Wyckoff phase readings. One knob, the rolling range width.",
     )
 
 

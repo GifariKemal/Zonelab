@@ -911,6 +911,22 @@ export interface ProjectionParams {
   levels: number[];
 }
 
+/** The expectation overlay. The fan is on with the layer; `show_path` adds the
+ *  median expected path as a single line, off by default because a lone line
+ *  reads as a forecast and this engine does not forecast. */
+export interface ExpectationParams {
+  show_path: boolean;
+}
+
+/** Breakaway and measuring gaps. No knobs: the detection constants are doctrine
+ *  and live in the backend, not on the wire. */
+export type ChartGapParams = Record<string, never>;
+
+/** Wyckoff phase readings. One knob, the rolling trading-range width. */
+export interface WyckoffParams {
+  lookback: number;
+}
+
 export const LIQUIDITY_PERIODS = ["day", "week", "friday", "monday"] as const;
 export const TIER_REDUCTIONS = ["envelope", "ce_span", "newest", "eh_span"] as const;
 
@@ -1081,6 +1097,59 @@ export interface ChecklistReport {
   notes: string[];
 }
 
+/** Five quantiles of a measured distribution, in R multiples, plus the sample
+ *  size. The expectation overlay's numbers, looked up from a precomputed table
+ *  rather than computed at render time. */
+export interface QuantileSet {
+  n: number;
+  q5: number;
+  q25: number;
+  q50: number;
+  q75: number;
+  q95: number;
+}
+
+/** The expectation overlay's reading for one cell. A MEASUREMENT of resolved R,
+ *  never a prediction: `base_rate` is the unconditional distribution and
+ *  `matched` is the one conditioned on `dfr_side`, the only clause that
+ *  separated, and its sign is INVERTED. `anchor` and `atr` let the renderer
+ *  place R quantiles as prices - one R equals one ATR, stated rather than
+ *  fitted. */
+export interface ExpectationFan {
+  symbol: string;
+  interval: string;
+  base_rate: QuantileSet;
+  matched: QuantileSet | null;
+  /** "met", "failed" or "unknown", the newest zone's dfr_side bucket. */
+  matched_key: string | null;
+  verdict: string;
+  note: string;
+  anchor: number | null;
+  atr: number | null;
+}
+
+/** A breakaway or measuring gap: a trend gap, not a session gap. `target` is the
+ *  measuring projection - the practitioner's halfway rule, stated not fitted. */
+export interface ChartGap {
+  up: boolean;
+  top: number;
+  bottom: number;
+  at: number;
+  kind: string;
+  move_start: number;
+  target: number;
+}
+
+/** A Wyckoff phase reading: spring, upthrust, sign of strength or weakness over
+ *  a rolling trading range. A reading, never a bias. */
+export interface WyckoffPhase {
+  kind: string;
+  at: number;
+  level: number;
+  tr_low: number;
+  tr_high: number;
+}
+
 export interface DrawResponse {
   symbol: string;
   interval: string;
@@ -1123,6 +1192,14 @@ export interface DrawResponse {
     pools: LiquidityPool[];
     levels: NamedLevel[];
     projections: RangeProjection[];
+    /** The expectation fan. Null unless the expectation layer was requested,
+     *  or when the cell was never measured. */
+    expectation: ExpectationFan | null;
+    /** Breakaway and measuring gaps. Empty unless the chart_gaps layer was
+     *  requested. Unmeasured doctrine, drawn for fidelity. */
+    chart_gaps: ChartGap[];
+    /** Wyckoff phase readings. Empty unless the wyckoff layer was requested. */
+    wyckoff: WyckoffPhase[];
   };
   /** One per drawn zone, in the same order as `drawing.zones`. */
   plans: TradePlan[];
@@ -1416,6 +1493,9 @@ export interface LayerParams {
   liquidity: LiquidityParams;
   projections: ProjectionParams;
   checklist: ChecklistParams;
+  expectation: ExpectationParams;
+  chart_gaps: ChartGapParams;
+  wyckoff: WyckoffParams;
 }
 
 /** THE DEFAULT CHART IS ONE DETECTOR. Everything else is opt-in, and that is a
@@ -1511,6 +1591,11 @@ export const DEFAULT_LAYER_PARAMS: LayerParams = {
     ssmt_max: 40,
     ssmt_provider: null,
   },
+  expectation: {
+    show_path: false,
+  },
+  chart_gaps: {},
+  wyckoff: { lookback: 20 },
 };
 
 

@@ -1,0 +1,735 @@
+{
+  "generated": "2026-08-30",
+  "tool": "backend/tools/reality_check.py",
+  "method": "White (2000) Reality Check + Hansen (2005) SPA, stationary bootstrap (Politis-Romano 1994), Romano-Wolf StepM",
+  "question": "Apakah ada aturan yang lolos di bawah koreksi yang sadar korelasi (White's Reality Check, Hansen's SPA) tapi tertolak oleh Bonferroni, yang dipakai delapan praregistrasi di docs/.",
+  "verdict": "Tidak ada aturan yang lolos bersih. Tiga dari empat universe null dengan jarak besar (SPA p 0,10 sampai 0,40). Satu universe, XAUUSD 1 jam, mendarat TEPAT di garis 0,05: SPA p 0,0507 pada blok dan seed praregistrasi, dan bergerak antara 0,042 dan 0,059 kalau blok atau seed diubah. Aturan itu ict_met=8-9 arah NEGATIF, dan bucket tetangganya di kedua sisi lebih baik, jadi ia tidak monoton dan tidak punya mekanisme.",
+  "caveat_population": "Populasi hari ini BUKAN populasi yang tercatat di docs. XAUUSD 1 jam 50.000 bar terbaca exp R -0,046 sekarang lawan +0,221 pada 21 Agustus 2026, dan pohon kerja punya suntingan belum di-commit di app/ict.py, app/clock.py, app/providers/mt5.py, dan tools/execute.py. app/ict.py adalah yang menghitung ict_met, yaitu kolom yang mendarat di garis. Angka di file ini diukur pada pohon kerja itu, bukan pada commit mana pun.",
+  "bonferroni_unchanged": "Bonferroni konservatif, jadi tidak ada satu pun null lama yang berubah jadi false positive. Yang berubah cuma kalimatnya: null-nya sekarang berdiri di bawah koreksi yang sadar korelasi, bukan cuma di bawah koreksi yang mungkin terlalu ketat.",
+  "reps": 10000,
+  "seed": 20260830,
+  "conditioned": {
+    "symbol": "mt5:XAUUSD",
+    "bars": 50000,
+    "exit_rule": "flat di rollover",
+    "universe": "the pre-registered columns of tools/conditioned.py, both directions per bucket",
+    "cells": {
+      "1h": {
+        "bootstrap_unit": "trade",
+        "n_observations": 958,
+        "n_rules": 202,
+        "n_buckets": 101,
+        "block_length": 10,
+        "block_length_reason": "round(n ** (1/3)), the Politis-Romano rate",
+        "reps": 10000,
+        "rc_statistic": 9.813373930733455,
+        "rc_p": 0.6081391860813918,
+        "spa_statistic": 3.4247689351318957,
+        "spa_p_consistent": 0.05069493050694931,
+        "spa_p_lower": 0.035996400359964,
+        "spa_p_upper": 0.051894810518948106,
+        "spa_p_by_block_length": {
+          "1": 0.09395302348825588,
+          "5": 0.05247376311844078,
+          "20": 0.0384807596201899,
+          "50": 0.04997501249375312,
+          "10": 0.05069493050694931
+        },
+        "stepm_alpha": 0.05,
+        "stepm_passing": [],
+        "top_10_rules": [
+          {
+            "column": "ict_met",
+            "value": "8-9",
+            "direction": "below",
+            "n_group": 297,
+            "delta": 0.20505094833731877,
+            "exp_r_group": -0.1876870747832501,
+            "welch_t": 3.187542032205219,
+            "studentised": 3.4247689351318957
+          },
+          {
+            "column": "dfr_side",
+            "value": "True",
+            "direction": "below",
+            "n_group": 550,
+            "delta": 0.1574204153629373,
+            "exp_r_group": -0.11324955141906501,
+            "welch_t": 2.424710441096157,
+            "studentised": 2.397187699218654
+          },
+          {
+            "column": "ict_met",
+            "value": "6-7",
+            "direction": "above",
+            "n_group": 455,
+            "delta": 0.1457867699953787,
+            "exp_r_group": 0.030339461916794982,
+            "welch_t": 2.270736720158503,
+            "studentised": 2.260661644959399
+          },
+          {
+            "column": "hour_utc",
+            "value": "17",
+            "direction": "below",
+            "n_group": 33,
+            "delta": 0.23167560979305618,
+            "exp_r_group": -0.26990133596029525,
+            "welch_t": 2.1850992121265813,
+            "studentised": 2.252638643746186
+          },
+          {
+            "column": "range_band",
+            "value": "equilibrium",
+            "direction": "below",
+            "n_group": 337,
+            "delta": 0.13212527837965454,
+            "exp_r_group": -0.1318531718842916,
+            "welch_t": 2.099526188768672,
+            "studentised": 2.199236620393208
+          },
+          {
+            "column": "poi_clean",
+            "value": "False",
+            "direction": "below",
+            "n_group": 582,
+            "delta": 0.1321524334987298,
+            "exp_r_group": -0.09807396219927798,
+            "welch_t": 1.9083654471775113,
+            "studentised": 2.1931231952744668
+          },
+          {
+            "column": "poi_clean",
+            "value": "True",
+            "direction": "above",
+            "n_group": 376,
+            "delta": 0.1321524334987298,
+            "exp_r_group": 0.03407847129945185,
+            "welch_t": 1.9083654471775113,
+            "studentised": 2.1931231952744668
+          },
+          {
+            "column": "hour_utc",
+            "value": "13",
+            "direction": "below",
+            "n_group": 98,
+            "delta": 0.22604055308858834,
+            "exp_r_group": -0.24912360798285166,
+            "welch_t": 2.2618349029571796,
+            "studentised": 2.0490284454645913
+          },
+          {
+            "column": "true_opens_in_zone",
+            "value": "0",
+            "direction": "above",
+            "n_group": 134,
+            "delta": 0.18958251187377856,
+            "exp_r_group": 0.11685850625533149,
+            "welch_t": 1.9031285240347382,
+            "studentised": 2.041781649021396
+          },
+          {
+            "column": "bias_1h",
+            "value": "1",
+            "direction": "below",
+            "n_group": 494,
+            "delta": 0.12187168874335332,
+            "exp_r_group": -0.10523382501910424,
+            "welch_t": 1.8877306458021896,
+            "studentised": 1.93356783210525
+          }
+        ],
+        "exp_r_population": -0.04620620124361784,
+        "bonferroni_critical_t": 3.4834208364606987,
+        "acf_lag_1_to_10": [
+          -0.011300516535726205,
+          0.006626416877243623,
+          0.029641075274872173,
+          0.003088752704239456,
+          0.008796893846165988,
+          0.03430194029636052,
+          0.01478411352113839,
+          -0.036118993964347854,
+          0.05163254333404118,
+          0.05032306418123795
+        ],
+        "acf_two_sigma_band": 0.06461706697512384
+      },
+      "15m": {
+        "bootstrap_unit": "trade",
+        "n_observations": 1450,
+        "n_rules": 214,
+        "n_buckets": 107,
+        "block_length": 11,
+        "block_length_reason": "round(n ** (1/3)), the Politis-Romano rate",
+        "reps": 10000,
+        "rc_statistic": 9.359313163363298,
+        "rc_p": 0.9035096490350965,
+        "spa_statistic": 2.671675282778935,
+        "spa_p_consistent": 0.40005999400059994,
+        "spa_p_lower": 0.30426957304269575,
+        "spa_p_upper": 0.40235976402359763,
+        "spa_p_by_block_length": {
+          "1": 0.672663668165917,
+          "5": 0.4897551224387806,
+          "10": 0.35932033983008493,
+          "20": 0.3353323338330835,
+          "50": 0.351824087956022,
+          "11": 0.40005999400059994
+        },
+        "stepm_alpha": 0.05,
+        "stepm_passing": [],
+        "top_10_rules": [
+          {
+            "column": "poi_family_count",
+            "value": "2",
+            "direction": "below",
+            "n_group": 367,
+            "delta": 0.15968062990737783,
+            "exp_r_group": -0.14214482648853202,
+            "welch_t": 2.386088965314759,
+            "studentised": 2.671675282778935
+          },
+          {
+            "column": "quarter_session",
+            "value": "Q3",
+            "direction": "below",
+            "n_group": 473,
+            "delta": 0.1104713988490966,
+            "exp_r_group": -0.09731478130637838,
+            "welch_t": 1.8132059294393261,
+            "studentised": 1.7424255750492323
+          },
+          {
+            "column": "poi_clean",
+            "value": "False",
+            "direction": "below",
+            "n_group": 886,
+            "delta": 0.11007407536994795,
+            "exp_r_group": -0.06569493429471168,
+            "welch_t": 1.7737875956562883,
+            "studentised": 1.6838432735984052
+          },
+          {
+            "column": "poi_clean",
+            "value": "True",
+            "direction": "above",
+            "n_group": 564,
+            "delta": 0.11007407536994795,
+            "exp_r_group": 0.04437914107523628,
+            "welch_t": 1.7737875956562883,
+            "studentised": 1.6838432735984052
+          },
+          {
+            "column": "bias_4h",
+            "value": "-1",
+            "direction": "below",
+            "n_group": 620,
+            "delta": 0.09535275072686256,
+            "exp_r_group": -0.07746114435998427,
+            "welch_t": 1.5746850208723286,
+            "studentised": 1.5895604925430509
+          },
+          {
+            "column": "hour_utc",
+            "value": "7",
+            "direction": "above",
+            "n_group": 65,
+            "delta": 0.24578760509965608,
+            "exp_r_group": 0.21188962540989123,
+            "welch_t": 1.435938876783906,
+            "studentised": 1.5431618769117088
+          },
+          {
+            "column": "ict_met",
+            "value": "6-7",
+            "direction": "above",
+            "n_group": 714,
+            "delta": 0.09329947328874647,
+            "exp_r_group": 0.024477611118507676,
+            "welch_t": 1.5844057552672357,
+            "studentised": 1.5268835246782086
+          },
+          {
+            "column": "poi_family_count",
+            "value": "3",
+            "direction": "above",
+            "n_group": 509,
+            "delta": 0.09660958451436637,
+            "exp_r_group": 0.03981637435126719,
+            "welch_t": 1.544370390014236,
+            "studentised": 1.4709303037231247
+          },
+          {
+            "column": "bias_agrees",
+            "value": "True",
+            "direction": "below",
+            "n_group": 752,
+            "delta": 0.09103000145700983,
+            "exp_r_group": -0.06669987395563734,
+            "welch_t": 1.5383701688575009,
+            "studentised": 1.443436363090265
+          },
+          {
+            "column": "true_opens_in_zone",
+            "value": "0",
+            "direction": "above",
+            "n_group": 140,
+            "delta": 0.15382500104712715,
+            "exp_r_group": 0.11609301734693475,
+            "welch_t": 1.4028360172701562,
+            "studentised": 1.400359990073524
+          }
+        ],
+        "exp_r_population": -0.0228799146335733,
+        "bonferroni_critical_t": 3.4988383893566093,
+        "acf_lag_1_to_10": [
+          0.04740465697556944,
+          7.6667156960772e-05,
+          0.011881194517188618,
+          -0.02787610899079521,
+          0.033284711972448776,
+          -0.019363551317260468,
+          -0.0166464289106986,
+          0.010166451219639197,
+          -0.009130544712622542,
+          -0.00575674515738054
+        ],
+        "acf_two_sigma_band": 0.05252257314388902
+      }
+    },
+    "sensitivity_1h": {
+      "block=1,seed=20260830": {
+        "spa_p_consistent": 0.11048895110488952,
+        "rc_p": 0.6352364763523648,
+        "stepm_rejected": []
+      },
+      "block=1,seed=1": {
+        "spa_p_consistent": 0.11088891110888911,
+        "rc_p": 0.6258374162583742,
+        "stepm_rejected": []
+      },
+      "block=1,seed=2": {
+        "spa_p_consistent": 0.11608839116088392,
+        "rc_p": 0.6280371962803719,
+        "stepm_rejected": []
+      },
+      "block=5,seed=20260830": {
+        "spa_p_consistent": 0.05879412058794121,
+        "rc_p": 0.6215378462153784,
+        "stepm_rejected": []
+      },
+      "block=5,seed=1": {
+        "spa_p_consistent": 0.06239376062393761,
+        "rc_p": 0.6175382461753824,
+        "stepm_rejected": []
+      },
+      "block=5,seed=2": {
+        "spa_p_consistent": 0.06209379062093791,
+        "rc_p": 0.6216378362163784,
+        "stepm_rejected": []
+      },
+      "block=10,seed=20260830": {
+        "spa_p_consistent": 0.05069493050694931,
+        "rc_p": 0.6081391860813918,
+        "stepm_rejected": []
+      },
+      "block=10,seed=1": {
+        "spa_p_consistent": 0.0418958104189581,
+        "rc_p": 0.6034396560343965,
+        "stepm_rejected": [
+          "ict_met=8-9 (below)"
+        ]
+      },
+      "block=10,seed=2": {
+        "spa_p_consistent": 0.05269473052694731,
+        "rc_p": 0.6061393860613938,
+        "stepm_rejected": []
+      },
+      "block=20,seed=20260830": {
+        "spa_p_consistent": 0.0435956404359564,
+        "rc_p": 0.5838416158384162,
+        "stepm_rejected": [
+          "ict_met=8-9 (below)"
+        ]
+      },
+      "block=20,seed=1": {
+        "spa_p_consistent": 0.057394260573942604,
+        "rc_p": 0.579042095790421,
+        "stepm_rejected": []
+      },
+      "block=20,seed=2": {
+        "spa_p_consistent": 0.05119488051194881,
+        "rc_p": 0.5737426257374263,
+        "stepm_rejected": []
+      },
+      "block=50,seed=20260830": {
+        "spa_p_consistent": 0.047495250474952504,
+        "rc_p": 0.5003499650034996,
+        "stepm_rejected": [
+          "ict_met=8-9 (below)"
+        ]
+      },
+      "block=50,seed=1": {
+        "spa_p_consistent": 0.04229577042295771,
+        "rc_p": 0.504049595040496,
+        "stepm_rejected": [
+          "ict_met=8-9 (below)"
+        ]
+      },
+      "block=50,seed=2": {
+        "spa_p_consistent": 0.047495250474952504,
+        "rc_p": 0.5065493450654934,
+        "stepm_rejected": [
+          "ict_met=8-9 (below)"
+        ]
+      }
+    }
+  },
+  "matrix_true_opens_in_zone": {
+    "bars": 20000,
+    "symbols": [
+      "AUDUSD",
+      "BTCUSD",
+      "EURUSD",
+      "GBPJPY",
+      "GBPUSD",
+      "US30",
+      "USDCAD",
+      "USDJPY",
+      "USOIL",
+      "XAGUSD",
+      "XAUUSD",
+      "XPTUSD"
+    ],
+    "universe": "the pre-registered group '0' of true_opens_in_zone across 10 judgeable cells, both directions",
+    "bootstrap_unit": "UTC day",
+    "n_observations": 982,
+    "n_rules": 20,
+    "n_buckets": 10,
+    "block_length": 10,
+    "block_length_reason": "round(n ** (1/3)), the Politis-Romano rate",
+    "reps": 10000,
+    "rc_statistic": 11.324196674204602,
+    "rc_p": 0.1591840815918408,
+    "spa_statistic": 2.56155643498512,
+    "spa_p_consistent": 0.10008999100089991,
+    "spa_p_lower": 0.07779222077792221,
+    "spa_p_upper": 0.10368963103689631,
+    "spa_p_by_block_length": {
+      "1": 0.14992503748125938,
+      "5": 0.09795102448775612,
+      "20": 0.06496751624187906,
+      "50": 0.06696651674162919,
+      "10": 0.10008999100089991
+    },
+    "stepm_alpha": 0.05,
+    "stepm_passing": [],
+    "top_10_rules": [
+      {
+        "column": "true_opens_in_zone",
+        "value": "0",
+        "symbol": "XAUUSD",
+        "interval": "1h",
+        "direction": "above",
+        "n_group": 75,
+        "n_cell": 535,
+        "delta": 0.36136963704561453,
+        "exp_r_group": 0.28970597060428277,
+        "welch_t": 2.3467797311909675,
+        "studentised": 2.56155643498512
+      },
+      {
+        "column": "true_opens_in_zone",
+        "value": "0",
+        "symbol": "USOIL",
+        "interval": "1h",
+        "direction": "below",
+        "n_group": 36,
+        "n_cell": 573,
+        "delta": 0.3605626424692797,
+        "exp_r_group": -0.5940785013001608,
+        "welch_t": 3.272095089391056,
+        "studentised": 2.126969869339071
+      },
+      {
+        "column": "true_opens_in_zone",
+        "value": "0",
+        "symbol": "XPTUSD",
+        "interval": "1h",
+        "direction": "below",
+        "n_group": 41,
+        "n_cell": 434,
+        "delta": 0.10894391227908534,
+        "exp_r_group": -0.26593800404000184,
+        "welch_t": 0.9439943067793953,
+        "studentised": 0.8880786527099918
+      },
+      {
+        "column": "true_opens_in_zone",
+        "value": "0",
+        "symbol": "GBPUSD",
+        "interval": "1h",
+        "direction": "below",
+        "n_group": 31,
+        "n_cell": 596,
+        "delta": 0.11817535013125521,
+        "exp_r_group": -0.07131510863507197,
+        "welch_t": 0.7125540776224148,
+        "studentised": 0.680853906758024
+      },
+      {
+        "column": "true_opens_in_zone",
+        "value": "0",
+        "symbol": "USDJPY",
+        "interval": "1h",
+        "direction": "above",
+        "n_group": 41,
+        "n_cell": 546,
+        "delta": 0.06975717991340642,
+        "exp_r_group": -0.04254416132979294,
+        "welch_t": 0.5076412177411868,
+        "studentised": 0.606862194917496
+      },
+      {
+        "column": "true_opens_in_zone",
+        "value": "0",
+        "symbol": "US30",
+        "interval": "1h",
+        "direction": "below",
+        "n_group": 68,
+        "n_cell": 494,
+        "delta": 0.06618726143947373,
+        "exp_r_group": -0.09313343576206383,
+        "welch_t": 0.37321958726648224,
+        "studentised": 0.35881913305742597
+      },
+      {
+        "column": "true_opens_in_zone",
+        "value": "0",
+        "symbol": "EURUSD",
+        "interval": "1h",
+        "direction": "above",
+        "n_group": 38,
+        "n_cell": 548,
+        "delta": 0.038569264568417486,
+        "exp_r_group": -0.10172686583074618,
+        "welch_t": 0.2889120803171934,
+        "studentised": 0.29425650265582826
+      },
+      {
+        "column": "true_opens_in_zone",
+        "value": "0",
+        "symbol": "XAGUSD",
+        "interval": "1h",
+        "direction": "above",
+        "n_group": 78,
+        "n_cell": 510,
+        "delta": 0.020376833312421898,
+        "exp_r_group": 0.04007193848152594,
+        "welch_t": 0.15724433975338512,
+        "studentised": 0.14206093632445094
+      },
+      {
+        "column": "true_opens_in_zone",
+        "value": "0",
+        "symbol": "BTCUSD",
+        "interval": "1h",
+        "direction": "above",
+        "n_group": 48,
+        "n_cell": 542,
+        "delta": 0.015235755025038574,
+        "exp_r_group": -0.011739366994559889,
+        "welch_t": 0.09749163590017598,
+        "studentised": 0.11083502042062462
+      },
+      {
+        "column": "true_opens_in_zone",
+        "value": "0",
+        "symbol": "GBPJPY",
+        "interval": "1h",
+        "direction": "below",
+        "n_group": 45,
+        "n_cell": 529,
+        "delta": 0.004940663785503535,
+        "exp_r_group": -0.11226626603235103,
+        "welch_t": 0.03602387562752619,
+        "studentised": 0.035515736235843344
+      }
+    ],
+    "bonferroni_critical_t": 2.8070337683438042
+  },
+  "matrix_ote_band": {
+    "bars": 20000,
+    "symbols": [
+      "AUDUSD",
+      "BTCUSD",
+      "EURUSD",
+      "GBPJPY",
+      "GBPUSD",
+      "US30",
+      "USDCAD",
+      "USDJPY",
+      "USOIL",
+      "XAGUSD",
+      "XAUUSD",
+      "XPTUSD"
+    ],
+    "universe": "the pre-registered group 'ote' of ote_band across 12 judgeable cells, both directions",
+    "bootstrap_unit": "UTC day",
+    "n_observations": 982,
+    "n_rules": 24,
+    "n_buckets": 12,
+    "block_length": 10,
+    "block_length_reason": "round(n ** (1/3)), the Politis-Romano rate",
+    "reps": 10000,
+    "rc_statistic": 6.459413595066201,
+    "rc_p": 0.48225177482251774,
+    "spa_statistic": 2.137905860811398,
+    "spa_p_consistent": 0.31186881311868814,
+    "spa_p_lower": 0.2268773122687731,
+    "spa_p_upper": 0.3220677932206779,
+    "spa_p_by_block_length": {
+      "1": 0.35732133933033483,
+      "5": 0.35132433783108447,
+      "20": 0.23888055972013994,
+      "50": 0.223888055972014,
+      "10": 0.31186881311868814
+    },
+    "stepm_alpha": 0.05,
+    "stepm_passing": [],
+    "top_10_rules": [
+      {
+        "column": "ote_band",
+        "value": "ote",
+        "symbol": "GBPUSD",
+        "interval": "1h",
+        "direction": "below",
+        "n_group": 95,
+        "n_cell": 596,
+        "delta": 0.20612817081265816,
+        "exp_r_group": -0.13255863338839838,
+        "welch_t": 2.0566692591140785,
+        "studentised": 2.137905860811398
+      },
+      {
+        "column": "ote_band",
+        "value": "ote",
+        "symbol": "AUDUSD",
+        "interval": "1h",
+        "direction": "below",
+        "n_group": 81,
+        "n_cell": 609,
+        "delta": 0.16590619238245582,
+        "exp_r_group": -0.22124569364259666,
+        "welch_t": 1.6314901713387748,
+        "studentised": 1.6071908792204648
+      },
+      {
+        "column": "ote_band",
+        "value": "ote",
+        "symbol": "XPTUSD",
+        "interval": "1h",
+        "direction": "below",
+        "n_group": 68,
+        "n_cell": 434,
+        "delta": 0.10917589221752255,
+        "exp_r_group": -0.2593560202287869,
+        "welch_t": 1.1855127222958068,
+        "studentised": 1.1429228014418051
+      },
+      {
+        "column": "ote_band",
+        "value": "ote",
+        "symbol": "BTCUSD",
+        "interval": "1h",
+        "direction": "above",
+        "n_group": 87,
+        "n_cell": 542,
+        "delta": 0.1312264954201557,
+        "exp_r_group": 0.08453663380581239,
+        "welch_t": 1.1549407357434895,
+        "studentised": 1.1142088237546868
+      },
+      {
+        "column": "ote_band",
+        "value": "ote",
+        "symbol": "USOIL",
+        "interval": "1h",
+        "direction": "above",
+        "n_group": 82,
+        "n_cell": 573,
+        "delta": 0.10203069241899443,
+        "exp_r_group": -0.16873956764618264,
+        "welch_t": 0.9122385927070524,
+        "studentised": 0.8661595160662063
+      },
+      {
+        "column": "ote_band",
+        "value": "ote",
+        "symbol": "XAUUSD",
+        "interval": "1h",
+        "direction": "below",
+        "n_group": 67,
+        "n_cell": 535,
+        "delta": 0.08579709768951092,
+        "exp_r_group": -0.09605678595585515,
+        "welch_t": 0.797887164347513,
+        "studentised": 0.834602142184696
+      },
+      {
+        "column": "ote_band",
+        "value": "ote",
+        "symbol": "XAGUSD",
+        "interval": "1h",
+        "direction": "above",
+        "n_group": 72,
+        "n_cell": 510,
+        "delta": 0.10547927401045565,
+        "exp_r_group": 0.11339964441410107,
+        "welch_t": 0.7635227376181059,
+        "studentised": 0.7977450158715873
+      },
+      {
+        "column": "ote_band",
+        "value": "ote",
+        "symbol": "EURUSD",
+        "interval": "1h",
+        "direction": "below",
+        "n_group": 76,
+        "n_cell": 548,
+        "delta": 0.07752887373986958,
+        "exp_r_group": -0.20439831352255525,
+        "welch_t": 0.7898635551452174,
+        "studentised": 0.7428536725241819
+      },
+      {
+        "column": "ote_band",
+        "value": "ote",
+        "symbol": "USDCAD",
+        "interval": "1h",
+        "direction": "below",
+        "n_group": 72,
+        "n_cell": 544,
+        "delta": 0.06980553498562758,
+        "exp_r_group": -0.19236509410379343,
+        "welch_t": 0.735594545358476,
+        "studentised": 0.7396881850051638
+      },
+      {
+        "column": "ote_band",
+        "value": "ote",
+        "symbol": "USDJPY",
+        "interval": "1h",
+        "direction": "below",
+        "n_group": 65,
+        "n_cell": 546,
+        "delta": 0.016532196832424656,
+        "exp_r_group": -0.12162724289145323,
+        "welch_t": 0.15605961445913563,
+        "studentised": 0.16498855908166615
+      }
+    ],
+    "bonferroni_critical_t": 2.8652602385321337
+  }
+}

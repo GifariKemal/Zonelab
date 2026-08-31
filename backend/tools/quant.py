@@ -120,7 +120,8 @@ CHI2_95 = {1: 3.841, 2: 5.991, 3: 7.815, 4: 9.488, 5: 11.070,
 TRIALS = (1, 16, 108)
 
 
-def clean(symbol: str, interval: str, bars: int = MT5_MAX_BARS):
+def clean(symbol: str, interval: str, bars: int = MT5_MAX_BARS,
+          source: str = "mt5"):
     """Bar yang spacing-nya benar saja, plus berapa yang dibuang.
 
     Mengembalikan `(candles, dropped, requested)`. Pemotongan ini yang membuat
@@ -128,7 +129,14 @@ def clean(symbol: str, interval: str, bars: int = MT5_MAX_BARS):
     dihitung dengan step yang salah dan hasilnya tetap dilaporkan sebagai angka
     4 jam.
     """
-    rows = history.load(f"mt5:{symbol}", interval, min(bars, MT5_MAX_BARS))
+    # `source` DEFAULT `mt5`, jadi setiap pemanggil yang sudah ada menjawab
+    # angka yang persis sama. Ia ada untuk mereplikasi sebuah hasil di venue
+    # kedua, dan prefix yang sudah ditulis pemanggil dihormati apa adanya.
+    # `source` adalah PREFIX `history.load`, bukan nama venue bebas: yang
+    # dikenal `mt5` dan `yahoo`, sementara Binance dan Dukascopy adalah routing
+    # untuk simbol telanjang dan dipilih dengan `source=""`.
+    ticker = symbol if (":" in symbol or not source) else f"{source}:{symbol}"
+    rows = history.load(ticker, interval, min(bars, MT5_MAX_BARS))
     dropped = history.irregular_prefix(rows, interval)
     return rows[dropped:], dropped, len(rows)
 

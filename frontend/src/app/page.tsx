@@ -786,6 +786,8 @@ export default function Page() {
                 smt={data?.drawing.smt ?? []}
                 dfr={data?.drawing.dfr ?? []}
                 dfrEquilibrium={params.dfr.equilibrium}
+                expectation={data?.drawing.expectation ?? null}
+                expectationShowPath={params.expectation.show_path}
                 gaps={data?.drawing.gaps ?? []}
                 eventHorizons={data?.drawing.event_horizons ?? []}
                 pools={data?.drawing.pools ?? []}
@@ -794,6 +796,8 @@ export default function Page() {
                 projections={data?.drawing.projections ?? []}
                 tierHorizons={data?.drawing.tier_horizons ?? []}
                 gapStacks={data?.drawing.gap_stacks ?? []}
+                chartGaps={data?.drawing.chart_gaps ?? []}
+                wyckoff={data?.drawing.wyckoff ?? []}
                 news={data?.drawing.news ?? []}
                 interval={interval}
                 zone={clock}

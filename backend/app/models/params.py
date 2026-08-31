@@ -788,3 +788,45 @@ class ChecklistParams(ParamBlock):
             "is the exact failure aligned.py refuses to paper over."
         ),
     )
+
+
+class ChartGapParams(ParamBlock):
+    """Breakaway and measuring gaps. No knobs: the detection constants are
+    doctrine and live in `app/chart_gaps.py`, not on the wire, because nothing
+    has measured a better value for any of them."""
+
+
+class WyckoffParams(ParamBlock):
+    """Wyckoff phase readings. One knob, the rolling trading-range width."""
+
+    lookback: int = Field(
+        default=20,
+        ge=5,
+        le=200,
+        description=(
+            "Bars in the rolling trading range a phase is read against. 20 is a "
+            "chosen number, not a measured one - the Wyckoff method names no "
+            "window, so this is stated rather than fitted."
+        ),
+    )
+
+
+class ExpectationParams(ParamBlock):
+    """The expectation overlay. Reads a precomputed table, so it costs no
+    provider call and carries one knob.
+
+    The fan is a MEASUREMENT and is on with the layer. `show_path` adds the mean
+    expected path as a single line, and it is OFF by default because a lone line
+    reads as a forecast, and this engine does not forecast - it draws the average
+    historical trajectory, labelled as such, and only when the reader asks.
+    """
+
+    show_path: bool = Field(
+        default=False,
+        description=(
+            "Draw the median expected path as a single line in addition to the "
+            "fan. Off by default and kept separate: a line reads as a forecast, "
+            "and this engine does not forecast. It is the average historical "
+            "trajectory, not a prediction."
+        ),
+    )

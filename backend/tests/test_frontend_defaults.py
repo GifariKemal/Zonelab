@@ -47,6 +47,9 @@ from app.models import (
     SessionParams,
     StructureParams,
     SupplyDemandParams,
+    ExpectationParams,
+    ChartGapParams,
+    WyckoffParams,
 )
 
 TYPES_TS = Path(__file__).resolve().parents[2] / "frontend" / "src" / "lib" / "types.ts"
@@ -65,6 +68,9 @@ OWNERS = {
     "liquidity": LiquidityParams,
     "projections": ProjectionParams,
     "checklist": ChecklistParams,
+    "expectation": ExpectationParams,
+    "chart_gaps": ChartGapParams,
+    "wyckoff": WyckoffParams,
 }
 
 

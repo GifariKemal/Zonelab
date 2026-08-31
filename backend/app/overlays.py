@@ -21,17 +21,20 @@ from .cisd import cisds
 from .models import (
     Candle,
     CISDEvent,
+    ChartGapModel,
     DrawCandidate,
     DrawOnLiquidity,
     DrawRequest,
     Drawing,
     EventHorizonLevel,
+    ExpectationFan,
     GapStack,
     LiquidityPool,
     NamedLevel,
     NewsEvent,
     OpeningGap,
     ProjectionLevel,
+    QuantileSet,
     RangeLiquidityReport,
     RangeProjection,
     SessionParams,
@@ -40,6 +43,8 @@ from .models import (
     DFRExtension,
     DefiningRangeBand,
     TrueOpenLevel,
+    WyckoffPhaseModel,
+    ZoneSide,
 )
 from .providers import INTERVALS
 from . import quarterly
@@ -56,7 +61,8 @@ from .quarters import true_opens
 #: `test_every_layer_is_dispatched` now fails if any registered layer is in
 #: neither this set nor a handler.
 BAR_OVERLAYS = frozenset(
-    {"gaps", "cisd", "dfr", "pools", "liquidity", "projections"}
+    {"gaps", "cisd", "dfr", "pools", "liquidity", "projections", "expectation",
+     "chart_gaps", "wyckoff"}
 )
 
 
@@ -341,7 +347,159 @@ def bar_overlays(
     if "projections" in wanted and request.projections.sessions:
         stats.update(_projections(rows, request, drawing))
 
+    if "expectation" in wanted:
+        stats["expectation"] = _expectation(rows, request, drawing)
+
+    if "chart_gaps" in wanted:
+        stats.update(_chart_gaps(rows, drawing))
+
+    if "wyckoff" in wanted:
+        stats.update(_wyckoff(rows, request, drawing))
+
     return stats
+
+
+def _wyckoff(
+    rows: list[Candle], request: DrawRequest, drawing: Drawing
+) -> dict[str, object]:
+    """Wyckoff phase readings onto the drawing, off the bars already fetched."""
+    from .wyckoff import phases
+
+    found = phases(rows, lookback=request.wyckoff.lookback)
+    times = [c.time for c in rows]
+    drawing.wyckoff = [
+        WyckoffPhaseModel(
+            kind=p.kind,
+            at=times[p.at],
+            level=p.level,
+            tr_low=p.tr_low,
+            tr_high=p.tr_high,
+        )
+        for p in found
+    ]
+    by_kind: dict[str, int] = {}
+    for p in found:
+        by_kind[p.kind] = by_kind.get(p.kind, 0) + 1
+    return {"wyckoff": len(found), **{f"wyckoff_{k}": v for k, v in by_kind.items()}}
+
+
+def _chart_gaps(rows: list[Candle], drawing: Drawing) -> dict[str, object]:
+    """Breakaway and measuring gaps onto the drawing, off the bars already fetched.
+
+    Unmeasured doctrine, drawn for fidelity: the classification is stated as a
+    rule rather than a result, and the measuring projection is the practitioner's
+    halfway rule, not a fitted target.
+    """
+    from .chart_gaps import chart_gaps
+
+    found = chart_gaps(rows)
+    times = [c.time for c in rows]
+    drawing.chart_gaps = [
+        ChartGapModel(
+            up=g.up,
+            top=g.top,
+            bottom=g.bottom,
+            at=times[g.at],
+            kind=g.kind,
+            move_start=g.move_start,
+            target=g.target,
+        )
+        for g in found
+    ]
+    return {
+        "chart_gaps": len(found),
+        "chart_gaps_breakaway": sum(1 for g in found if g.kind == "breakaway"),
+        "chart_gaps_measuring": sum(1 for g in found if g.kind == "measuring"),
+    }
+
+
+def _dfr_side_key(side: ZoneSide, pos: float | None) -> str:
+    """The `dfr_side` bucket a zone falls into, from its dealing-range position.
+
+    Mirrors `app/ict.py:evaluate`: a demand zone wants the lower half of the
+    range (pos < 0.5), a supply zone the upper half (pos > 0.5). `None` position
+    is the "unknown" bucket. This is a PROXY for the measured `dfr_side` clause,
+    which reads the DEFINING range rather than the dealing range; both answer
+    "which half of a range is this zone on", and the proxy is stated in the
+    overlay's note, not hidden.
+    """
+    if pos is None:
+        return "unknown"
+    met = pos < 0.5 if side is ZoneSide.DEMAND else pos > 0.5
+    return "met" if met else "failed"
+
+
+def _expectation(
+    rows: list[Candle], request: DrawRequest, drawing: Drawing
+) -> dict[str, object]:
+    """The measured R distribution for this cell, looked up from a precomputed table.
+
+    No provider call and no lookahead: the table is a static measurement written
+    by `tools.expectation`, and this block only matches the newest zone's side
+    against the measured `dfr_side` buckets. The match is a PROXY: the table's
+    `dfr_side` reads the DEFINING range, while the live side reads the DEALING
+    range already stamped on each zone by `mark_dealing_range`. Both answer "is
+    the zone in the lower or upper half of a range", so the proxy is stated, not
+    hidden.
+
+    A cell that was never measured (every symbol outside the eight-instrument
+    first-touch population) reports `measured: false` and draws nothing, which is
+    a fact about the table and never a silent empty fan.
+    """
+    from . import expectation as exp
+
+    cell = exp.cell(request.symbol)
+    if cell is None:
+        drawing.expectation = None
+        return {"measured": False, "reason": "no measured cell for this symbol"}
+
+    base = cell.get("base_rate")
+    if not base:
+        drawing.expectation = None
+        return {"measured": False, "reason": "cell has no base rate"}
+
+    # The newest zone with a known range position. No such zone, or no zones at
+    # all, leaves the fan on the base rate alone.
+    key = None
+    with_pos = [z for z in drawing.zones if z.dealing_range_pos is not None]
+    if with_pos:
+        newest = max(with_pos, key=lambda z: z.time_to)
+        key = _dfr_side_key(newest.side, newest.dealing_range_pos)
+
+    matched = exp.buckets(cell).get(key or "")
+    anchor = rows[-1].close if rows else None
+    atr = None
+    if rows:
+        import numpy as np
+
+        from .indicators import wilder_atr
+
+        high = np.array([c.high for c in rows], dtype=np.float64)
+        low = np.array([c.low for c in rows], dtype=np.float64)
+        close = np.array([c.close for c in rows], dtype=np.float64)
+        atr_arr = wilder_atr(high, low, close, request.supply_demand.atr_period)
+        if len(atr_arr):
+            atr = float(atr_arr[-1])
+
+    drawing.expectation = ExpectationFan(
+        symbol=request.symbol,
+        interval=request.interval,
+        base_rate=QuantileSet(**base),
+        matched=QuantileSet(**matched) if matched else None,
+        matched_key=key,
+        verdict=exp.verdict(),
+        note=(
+            "matched by the newest zone's side in the dealing range, a proxy for "
+            "the defining-range dfr_side the table was measured on"
+        ),
+        anchor=anchor,
+        atr=atr,
+    )
+    return {
+        "measured": True,
+        "matched": key,
+        "buckets": len(exp.buckets(cell)),
+    }
 
 
 def _named(level: liq.PeriodLevel) -> NamedLevel:

@@ -110,6 +110,15 @@ _OVERLAY_KEYS = (
 SYSTEM = """You are the Zonelab AI Agent: an analyst seated above a technical
 drawing engine, discussing its output with the trader who owns the account.
 
+When a `brief` field is present it is the Zonelab brief for one symbol,
+rendered by `tools/brief`: every layer switched on, the display cap off,
+several timeframes, and the seventeen ICT clauses per candidate WITH the
+source of each clause. Read the CAUTION block at its top before quoting any
+number from it. `source` is load bearing: `doctrine` means this project has
+no number for that clause, `measured` means it does. Thirteen of the
+seventeen are `doctrine`. Say which kind you are quoting whenever a clause
+carries your argument.
+
 The data you are given is a digest of ONE /api/draw response: zones drawn by
 detectors (supply_demand, fvg, order_block, ifvg, breaker), a trade plan per
 zone (entry, stop, target, lots, risk, costs), the engine's own advice, an
@@ -601,6 +610,22 @@ async def chat(messages: object, context: object) -> dict[str, Any]:
         triads = context.get("triads")
         if isinstance(triads, list) and triads:
             payload["triads"] = triads
+        # BRIEF, DAN KENAPA IA MASUK SEBAGAI TEKS. `grounding.numbers_in`
+        # berjalan di string juga, jadi setiap angka di dalam BRIEF.md ikut
+        # menjadi angka yang boleh dikutip. Kalau brief masuk lewat jalur lain
+        # yang tidak ikut ke `payload`, model membaca angka yang kemudian
+        # ditolak grounding sebagai karangan, dan kegagalannya akan terbaca
+        # seperti model yang berhalusinasi padahal ia mengutip dengan benar.
+        #
+        # `digest` sengaja TIDAK menyentuhnya. Digest memampatkan satu response
+        # /api/draw; brief adalah bacaan lintas timeframe yang sudah dipadatkan
+        # oleh `tools/brief/render.py` untuk dibaca agent, dan memampatkannya
+        # dua kali membuang justru kolom `source` tiap klausa, yang merupakan
+        # satu satunya hal yang membedakan "doktrin menyatakan" dari "project
+        # ini mengukur".
+        brief = context.get("brief")
+        if isinstance(brief, str) and brief.strip():
+            payload["brief"] = brief
     else:
         payload = {"note": "no drawing attached to this conversation"}
 

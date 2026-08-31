@@ -83,3 +83,6 @@ frontend/test-results/
 # sebuah dokumen mengutipnya. Di-anchor ke root: tanpa slash awal ia juga
 # match ke backend/tools/brief, yaitu paket yang MENGHASILKANNYA.
 /brief/
+
+# Error logs, the .err sibling of *.log
+*.err
