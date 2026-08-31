@@ -166,7 +166,17 @@ def study(symbols: list[str], interval: str) -> dict:
             per_cell[f"{symbol} {interval}"] = {"error": str(exc)}
             continue
         rows += got
-        per_cell[f"{symbol} {interval}"] = {"n": len(got)}
+        inside = [r["r"] for r in got if r["in_band"]]
+        outside = [r["r"] for r in got if not r["in_band"]]
+        per_cell[f"{symbol} {interval}"] = {
+            "n": len(got), "n_in": len(inside), "n_out": len(outside),
+            "exp_r_in": float(np.mean(inside)) if inside else None,
+            "exp_r_out": float(np.mean(outside)) if outside else None,
+            "delta": float(np.mean(inside) - np.mean(outside))
+            if inside and outside else None,
+            "welch_t": _welch(np.array(inside), np.array(outside))
+            if inside and outside else None,
+        }
         print(f"  {symbol}: {len(got)} trade", file=sys.stderr)
     if not rows:
         return {"error": "populasi kosong", "cells": per_cell}
