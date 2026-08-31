@@ -35,16 +35,21 @@ Makin realistis model, profit makin turun, tapi tetap positif. `+32,5%` ini
 angka jujur. Pending limit robust ke urutan intrabar, jadi erosi lebih kecil
 daripada market order di bar touch (koreksi 22 Agustus +0,20 R jadi +0,02 R).
 
-### Multi-timeframe (real tick / every tick)
+### Multi-timeframe (real tick, gate 2,0, 2R)
 
-| TF | Net profit | PF | Trades | Win rate | Max DD |
-|---|---|---|---|---|---|
-| M15 | +32,5% | 1,09 | 476 | 35,5% | 19,2% |
-| M30 | +6,9% | 1,04 | 224 | 34,4% | 18,1% |
-| **H1** | +23,2% | **1,32** | 118 | 39,0% | **8,15%** |
+| TF | Net profit | PF | Trades | Win rate | Max DD | Verdict |
+|---|---|---|---|---|---|---|
+| M5 | -7,4% | 0,98 | 661 | 32,8% | 35,8% | Rugi, terlalu berisik |
+| M15 | +32,5% | 1,09 | 476 | 35,5% | 19,2% | OK |
+| M30 | +6,9% | 1,04 | 224 | 34,4% | 18,1% | Lemah |
+| **H1** | +23,2% | **1,32** | 118 | 39,0% | **8,15%** | **Terbaik** |
+| H4 | +3,3% | 1,29 | 21 | 38,1% | 8,8% | Sample terlalu kecil |
+| D1 | -1,7% | 0,64 | 4 | 25,0% | 4,2% | Tidak bermakna |
 
-H1 paling robust (PF tertinggi, DD terendah), M30 paling lemah. Tidak ada satu
-timeframe yang menang di semua metrik.
+**H1 adalah sweet spot.** M5 terlalu berisik (ATR-relative threshold menjaring
+terlalu banyak zona palsu), H4/D1 sample-nya habis. Zona supply/demand butuh
+waktu cukup membentuk base yang bermakna, tapi tidak terlalu lama sampai sample
+hilang. Default timeframe = H1.
 
 ### Sweep reward R (M15, real tick) - kenapa win rate TIDAK boleh dikejar
 
