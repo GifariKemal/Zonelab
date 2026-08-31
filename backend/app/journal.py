@@ -99,25 +99,68 @@ def record(
         "snapshot_id": snapshot_id,
         "extra": extra or {},
     }
+    # A refusal carries no order geometry worth keeping. `why` already names the
+    # target and reward, and `plan` is write-only everywhere in this repo (no
+    # code reads it back). It is the single largest term in a day's journal
+    # growth: 16,561 refusals on 31 August 2026, ~1 KB of plan each. Dropping it
+    # here, at the one place every refusal routes through, fixes all five
+    # `refused` call sites at once instead of editing each.
+    if event == "refused":
+        entry.pop("plan", None)
+    key_before = _stat_key()
     DIRECTORY.mkdir(parents=True, exist_ok=True)
     path = _path(entry["at"])
     with path.open("a", encoding="utf-8") as handle:
         handle.write(json.dumps(entry, sort_keys=True) + "\n")
+    _append_to_cache(entry, key_before)
     return entry
 
 
-def entries(day: str | None = None) -> list[dict[str, Any]]:
-    """Every record, oldest first. `day` is `YYYY-MM-DD`; None reads all days.
+def _append_to_cache(entry: dict[str, Any],
+                     key_before: tuple[tuple[str, int, int], ...]) -> None:
+    """Keep the in-memory cache current after this process writes a record.
 
-    A line that will not parse is SKIPPED AND COUNTED nowhere, the same rule
-    `snapshots.listing` follows: these files are hand-editable and one bad line
-    must not take a review down.
+    `entries()` memoizes its parse keyed on file stat. A record appended by THIS
+    process must show up in the next `entries()` without forcing a re-parse of
+    the whole (now large) journal, or a live cycle that interleaves one read
+    with one write re-parses the journal once per candidate.
+
+    `key_before` is the stat key captured in `record` BEFORE the append, so the
+    append is skipped unless the cache was built from this very directory and
+    file state. Without that guard a cache warmed by one directory (a test's
+    monkeypatched `DIRECTORY`) leaks its entries into the next test's records.
     """
+    global _cache_key
+    if _cache is None or _cache_key != key_before:
+        return
+    _cache.append(entry)
+    _cache.sort(key=lambda e: e.get("at", 0))
+    _cache_key = _stat_key()
+
+
+#: Cache dari parse terakhir seluruh journal, dan key stat file yang
+#: menghasilkannya. `for_zone` dan `for_ticket` dipanggil sekali per kandidat di
+#: loop kandidat `execute.py`, dan sampai 30 Agustus 2026 keduanya men-scan ulang
+#: seluruh `.journal` tiap panggilan. Saat journal tumbuh ke 113 MB (hari itu 62
+#: MB), 36 kandidat berarti 36 scan = ~160 detik per cycle, padahal `STALE_AFTER`
+#: cuma 60 detik, jadi `daemon_alive` selalu False di atas daemon yang hidup.
+#: Cache-nya di-invalidate oleh perubahan stat file (mtime/size), dan `record`
+#: menambah ke cache alih-alih memaksa re-scan, supaya cycle live yang menyelingi
+#: satu baca dengan satu tulis tidak re-scan 36 kali.
+_cache: list[dict[str, Any]] | None = None
+_cache_key: tuple[tuple[str, int, int], ...] | None = None
+
+
+def _stat_key() -> tuple[tuple[str, int, int], ...]:
     if not DIRECTORY.exists():
-        return []
-    files = [DIRECTORY / f"{day}.jsonl"] if day else sorted(DIRECTORY.glob("*.jsonl"))
+        return ()
+    return tuple((str(p), p.stat().st_mtime_ns, p.stat().st_size)
+                 for p in sorted(DIRECTORY.glob("*.jsonl")))
+
+
+def _read(paths: list[Path]) -> list[dict[str, Any]]:
     out: list[dict[str, Any]] = []
-    for path in files:
+    for path in paths:
         if not path.exists():
             continue
         for line in path.read_text(encoding="utf-8").splitlines():
@@ -129,6 +172,24 @@ def entries(day: str | None = None) -> list[dict[str, Any]]:
             except json.JSONDecodeError:
                 continue
     return sorted(out, key=lambda e: e.get("at", 0))
+
+
+def entries(day: str | None = None) -> list[dict[str, Any]]:
+    """Every record, oldest first. `day` is `YYYY-MM-DD`; None reads all days.
+
+    A line that will not parse is SKIPPED AND COUNTED nowhere, the same rule
+    `snapshots.listing` follows: these files are hand-editable and one bad line
+    must not take a review down.
+    """
+    if day is not None:
+        return _read([DIRECTORY / f"{day}.jsonl"])
+    global _cache, _cache_key
+    key = _stat_key()
+    if _cache is None or _cache_key != key:
+        _cache = _read(sorted(DIRECTORY.glob("*.jsonl")) if DIRECTORY.exists()
+                       else [])
+        _cache_key = key
+    return _cache
 
 
 def for_zone(zone_id: str, symbol: str | None = None) -> list[dict[str, Any]]:
