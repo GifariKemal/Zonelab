@@ -46,16 +46,32 @@ daripada market order di bar touch (koreksi 22 Agustus +0,20 R jadi +0,02 R).
 H1 paling robust (PF tertinggi, DD terendah), M30 paling lemah. Tidak ada satu
 timeframe yang menang di semua metrik.
 
-### Sweep reward R (M15, every tick) - kenapa win rate TIDAK boleh dikejar
+### Sweep reward R (M15, real tick) - kenapa win rate TIDAK boleh dikejar
 
-| Target | Win rate | PF | Net profit | Expected payoff |
+| Target | Win rate | PF | Net profit | Win > lose? |
 |---|---|---|---|---|
-| 1R | **50,4%** | 1,02 | +4,7% | 0,99 |
-| 2R | 35,7% | **1,10** | **+39,3%** | 8,25 |
+| 0,5R | **64,7%** | 0,95 | **-8,0%** | ya, tapi RUGI |
+| 1R | 50,4% | 1,02 | +4,7% | imbang |
+| 2R | 35,5% | **1,09** | **+32,5%** | tidak, tapi UNTUNG |
 
-Menurunkan target menaikkan win rate ke 50%, tapi mematikan edge (PF 1,02,
-expected payoff nyaris nol). **2R dengan win rate 36% mengalahkan 1R dengan
-50%.** Yang menentukan bukan win rate, tapi expectancy (reward-to-risk).
+Kurva ini menjawab pertanyaan "usahakan win lebih banyak dari lose" dengan angka:
+**win rate dan profit berbanding terbalik.** Target 0,5R memberi win rate
+tertinggi (64,7%) tapi justru rugi (PF 0,95), karena tiap win cuma 0,5R, tidak
+cukup menutup loss. Target 2R memberi win rate terendah (35,5%) tapi untung
+paling besar (PF 1,09). Yang menentukan bukan berapa sering menang, tapi
+expectancy = win rate x reward - loss rate x risk. Di data ini titik impas
+berada di sekitar 1R.
+
+### BTC vs XAU (real tick, 2R)
+
+| Pair | M15 | H1 | Kesimpulan |
+|---|---|---|---|
+| **XAUUSD** | PF 1,09 (+32,5%) | PF 1,32 (+23,2%) | **Ada edge** |
+| **BTCUSD** | PF 1,01 (+4,7%) | PF 1,00 (-0,4%) | **Tidak ada edge** |
+
+Strategi supply/demand punya edge di emas, tapi nol di bitcoin. Konsisten dengan
+`docs/CALIBRATION.md` yang mengukur edge-nya memang di emas, bukan kripto. Buat
+produksi: fokus ke XAU, BTC-nya jangan diandalkan sebagai sumber edge.
 
 ## Kesimpulan jujur
 
@@ -63,11 +79,12 @@ Win rate supply/demand di target 2R secara struktural 35-40%, bukan cacat presis
 Zona menandai LOKASI (di mana harga bereaksi), bukan ARAH (ke mana harga pergi).
 `docs/CALIBRATION.md` sudah mengukur 10 hipotesis arah dan semuanya nol. Tidak
 ada tuning parameter yang mengubah itu - menaikkan win rate berarti menurunkan
-target, dan itu mematikan edge (terbukti di tabel sweep di atas).
+target, dan itu mematikan edge (terbukti di tabel sweep di atas, 0,5R rugi).
 
-Edge-nya nyata tapi tipis (PF 1,09 di real tick) dan berbasis lokasi. Cara
-memperbaikinya bukan tuning zona, tapi menambah filter arah (struktur/momentum),
-yang juga sudah diukur proyek ini sebagai tidak bekerja (H6, H10).
+Edge-nya nyata tapi tipis (PF 1,09 di real tick) dan berbasis lokasi, dan hanya
+ada di emas. Cara memperbaikinya bukan tuning zona, tapi menambah filter arah
+(struktur/momentum), yang juga sudah diukur proyek ini sebagai tidak bekerja
+(H6, H10).
 
 ## Cara jalankan
 
