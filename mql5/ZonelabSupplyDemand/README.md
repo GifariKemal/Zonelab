@@ -19,6 +19,25 @@ port faithful dari `backend/app/detect/supply_demand.py` + `app/plan.py`.
    eksplisit menghasilkan zona identik dengan detektor numpy (0 mismatch).
 2. **Compile 0 error 0 warning** via MetaEditor.
 
+## Hasil backtest (M15, Exness XAUUSD, 2026-01-01 sampai 2026-08-31)
+
+Model 1 minute OHLC, deposit 10.000 USD, risk 1% per trade, target 2R.
+
+| Metrik | Nilai |
+|---|---|
+| Net profit | +4.172,80 (+41,7%) |
+| Profit factor | 1,11 |
+| Expected payoff | 8,77 per trade |
+| Total trades | 476 |
+| Win rate | 36,3% |
+| Max equity drawdown | 20,05% |
+| Sharpe ratio | 2,71 |
+
+Catatan: model 1 minute OHLC tidak menangkap urutan intrabar. `docs/CALIBRATION.md`
+sudah mengukur bahwa intrabar memakan sebagian besar edge (koreksi 22 Agustus:
++0,20 R jadi +0,02 R), jadi angka +41,7% ini batas atas, bukan ekspektasi riil.
+Run dengan Model=0 (every tick) setelah tick data ter-download untuk angka jujur.
+
 ## Cara jalankan
 
 1. Pastikan daemon auto-trade MATI (terminal Exness dipakai live, jangan bentrok).

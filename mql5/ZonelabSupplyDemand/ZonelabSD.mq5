@@ -38,6 +38,14 @@ CTrade trade;
 string g_ordered[];
 int    g_ordered_count = 0;
 
+// Counter debug.
+int g_detect_calls = 0;
+int g_zones_total = 0;
+int g_zones_fresh = 0;
+int g_orders_placed = 0;
+int g_orders_failed = 0;
+int g_orders_skipped_price = 0;
+
 bool AlreadyOrdered(string id)
   {
    for(int i = 0; i < g_ordered_count; i++)
@@ -58,7 +66,6 @@ int OnInit()
    trade.SetExpertMagicNumber(InpMagic);
    trade.SetDeviationInPoints(10);
    trade.SetAsyncMode(false);
-   // Pilih filling mode yang didukung simbol (Exness XAUUSD = FOK/IOC).
    long fm = SymbolInfoInteger(_Symbol, SYMBOL_FILLING_MODE);
    if((fm & SYMBOL_FILLING_FOK) != 0)
       trade.SetTypeFilling(ORDER_FILLING_FOK);
@@ -69,7 +76,17 @@ int OnInit()
    return INIT_SUCCEEDED;
   }
 
-void OnDeinit(const int reason) {}
+void OnDeinit(const int reason)
+  {
+   Print("=== ZONELABSD SUMMARY ===");
+   Print("detect calls: ", g_detect_calls);
+   Print("zones total: ", g_zones_total);
+   Print("zones fresh: ", g_zones_fresh);
+   Print("orders placed: ", g_orders_placed);
+   Print("orders failed: ", g_orders_failed);
+   Print("orders skipped (price): ", g_orders_skipped_price);
+   Print("orders already ordered: ", g_ordered_count);
+  }
 
 void OnTick()
   {
@@ -83,19 +100,16 @@ void OnTick()
 
 void DetectAndTrade()
   {
+   g_detect_calls++;
+
    int total = Bars(_Symbol, _Period);
    int n = MathMin(InpBars, total - 1);   // bar tertutup saja (skip forming shift 0)
    if(n < InpAtrPeriod + 3)
       return;
 
-   // as_series true => index 0 = bar tertua (konvensi Python). start_pos=1
-   // skip bar forming shift 0, jadi window = shift 1..n (n bar tertutup).
-   MqlRates rates[];
-   ArraySetAsSeries(rates, true);
-   int copied = CopyRates(_Symbol, _Period, 1, n, rates);
-   if(copied < n)
-      return;
-
+   // index 0 = bar tertua (konvensi Python). shift = n-i: i=0 -> shift n
+   // (tertua), i=n-1 -> shift 1 (bar tertutup terbaru). shift 0 (forming)
+   // dilewati. iHigh/iLow/iOpen/iClose/iTime arahnya unambiguous.
    double open_[], high_[], low_[], close_[];
    datetime time_[];
    ArrayResize(open_, n);
@@ -105,11 +119,12 @@ void DetectAndTrade()
    ArrayResize(time_, n);
    for(int i = 0; i < n; i++)
      {
-      open_[i]  = rates[i].open;
-      high_[i]  = rates[i].high;
-      low_[i]   = rates[i].low;
-      close_[i] = rates[i].close;
-      time_[i]  = rates[i].time;
+      int shift = n - i;
+      open_[i]  = iOpen(_Symbol, _Period, shift);
+      high_[i]  = iHigh(_Symbol, _Period, shift);
+      low_[i]   = iLow(_Symbol, _Period, shift);
+      close_[i] = iClose(_Symbol, _Period, shift);
+      time_[i]  = iTime(_Symbol, _Period, shift);
      }
 
    double atr[];
@@ -131,14 +146,19 @@ void DetectAndTrade()
 
    SDZone zones[];
    int zcount = SDDetect(open_, high_, low_, close_, time_, atr, n, p, zones);
+   g_zones_total += zcount;
+
+   double bid = SymbolInfoDouble(_Symbol, SYMBOL_BID);
+   double ask = SymbolInfoDouble(_Symbol, SYMBOL_ASK);
 
    for(int i = 0; i < zcount; i++)
      {
       if(zones[i].state != SD_STATE_FRESH)
          continue;
-      // Hanya zona yang leg-out-nya sudah selesai (confirmed).
       if(zones[i].leg_out_to >= n - 1)
          continue;
+
+      g_zones_fresh++;
 
       string id = zones[i].kind + "-" + IntegerToString((long)zones[i].time_from);
       if(AlreadyOrdered(id))
@@ -155,6 +175,20 @@ void DetectAndTrade()
          continue;
       double target = entry + way * InpRewardR * risk;
 
+      // Guard: buy limit harus di bawah ask, sell limit di atas bid.
+      if(is_demand && entry >= ask)
+        {
+         g_orders_skipped_price++;
+         MarkOrdered(id);
+         continue;
+        }
+      if(!is_demand && entry <= bid)
+        {
+         g_orders_skipped_price++;
+         MarkOrdered(id);
+         continue;
+        }
+
       double lots = RiskLots(risk);
 
       bool ok;
@@ -165,8 +199,13 @@ void DetectAndTrade()
          ok = trade.SellLimit(lots, entry, _Symbol, stop, target,
                               ORDER_TIME_GTC, 0, id);
 
-      if(!ok)
+      if(ok)
+         g_orders_placed++;
+      else
+        {
+         g_orders_failed++;
          Print("order gagal zona ", id, ": ", trade.ResultRetcode());
+        }
       MarkOrdered(id);
      }
   }
