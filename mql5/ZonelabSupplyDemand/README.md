@@ -232,6 +232,14 @@ fixed 2R malah rugi). Kesimpulan: OB valid dan benar (parity 0 mismatch), tapi
 edge-nya fundamental lemah - box satu lilin adalah level yang lebih lemah dari
 base multi-bar S&D. Bukan bug, bukan anomaly.
 
+**OB di BTC (H1): PF 0,93 (-14,7%), rugi.** Konsisten dengan temuan S&D di BTC:
+BTC tidak punya edge mean-reversion di level untuk detektor mana pun.
+
+| Pair | S&D PF | OB PF |
+|---|---|---|
+| XAU H1 | 1,71 | 1,06 |
+| BTC H1 | 0,82 | 0,93 |
+
 **Kaveat performa:** OB ~10x lebih lambat dari S&D (banyak kandidat). Window
 tumbuh (InpBars=20000) membuat backtest M15 butuh >15 menit, jadi default
 InpBars diturunkan ke 3000 (window tetap).
