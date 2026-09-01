@@ -1,0 +1,771 @@
+{
+  "reproduced": "tools/orphan_filters.py, 2026-09-01",
+  "replaces": "docs/PRAREGISTRASI-YATIM.md section 5, transcript-only",
+  "claimed_in_register": {
+    "tcisd": {
+      "exp_r": -0.926,
+      "note": "standalone entry, 0 of 11 positive"
+    },
+    "tcisd_as_filter": {
+      "exp_r": -0.087,
+      "note": "identical to baseline"
+    },
+    "quant": {
+      "exp_r_range": [
+        -0.1301,
+        -0.0893
+      ],
+      "note": "24 cells, sign test p=0,405, zero cells clear of zero"
+    }
+  },
+  "bars": 20000,
+  "cells": {
+    "XAUUSD|1h": {
+      "baseline": {
+        "n": 534,
+        "touched": 1956,
+        "exp_r": -0.022286478098867295,
+        "win_rate": 0.5112359550561798,
+        "folds_positive": 5,
+        "folds_counted": 8,
+        "sign_p": 0.7265625
+      },
+      "tcisd": {
+        "n": 534,
+        "touched": 1956,
+        "exp_r": -0.022286478098867295,
+        "win_rate": 0.5112359550561798,
+        "folds_positive": 5,
+        "folds_counted": 8,
+        "sign_p": 0.7265625,
+        "delta_vs_baseline": 0.0,
+        "identical_to_baseline": true
+      },
+      "quant": {
+        "n": 81,
+        "touched": 182,
+        "exp_r": -0.01984665456595361,
+        "win_rate": 0.43209876543209874,
+        "folds_positive": 3,
+        "folds_counted": 8,
+        "sign_p": 1.0,
+        "delta_vs_baseline": 0.00244,
+        "identical_to_baseline": false
+      }
+    },
+    "XAUUSD|4h": {
+      "baseline": {
+        "n": 271,
+        "touched": 918,
+        "exp_r": -0.11181774649463803,
+        "win_rate": 0.41697416974169743,
+        "folds_positive": 2,
+        "folds_counted": 8,
+        "sign_p": 1.0
+      },
+      "tcisd": {
+        "n": 0,
+        "touched": 0
+      },
+      "quant": {
+        "n": 47,
+        "touched": 90,
+        "exp_r": -0.22450906460895176,
+        "win_rate": 0.3191489361702128,
+        "folds_positive": 2,
+        "folds_counted": 8,
+        "sign_p": 1.0,
+        "delta_vs_baseline": -0.112691,
+        "identical_to_baseline": false
+      }
+    },
+    "XAGUSD|1h": {
+      "baseline": {
+        "n": 512,
+        "touched": 1926,
+        "exp_r": 0.02443595222753449,
+        "win_rate": 0.50390625,
+        "folds_positive": 6,
+        "folds_counted": 8,
+        "sign_p": 0.2890625
+      },
+      "tcisd": {
+        "n": 512,
+        "touched": 1926,
+        "exp_r": 0.02443595222753449,
+        "win_rate": 0.50390625,
+        "folds_positive": 6,
+        "folds_counted": 8,
+        "sign_p": 0.2890625,
+        "delta_vs_baseline": 0.0,
+        "identical_to_baseline": true
+      },
+      "quant": {
+        "n": 124,
+        "touched": 207,
+        "exp_r": -0.0049648482299408745,
+        "win_rate": 0.4596774193548387,
+        "folds_positive": 3,
+        "folds_counted": 8,
+        "sign_p": 1.0,
+        "delta_vs_baseline": -0.029401,
+        "identical_to_baseline": false
+      }
+    },
+    "XAGUSD|4h": {
+      "baseline": {
+        "n": 289,
+        "touched": 929,
+        "exp_r": -0.054145102808101205,
+        "win_rate": 0.49480968858131485,
+        "folds_positive": 3,
+        "folds_counted": 8,
+        "sign_p": 1.0
+      },
+      "tcisd": {
+        "n": 0,
+        "touched": 0
+      },
+      "quant": {
+        "n": 42,
+        "touched": 69,
+        "exp_r": -0.12152521140558911,
+        "win_rate": 0.42857142857142855,
+        "folds_positive": 3,
+        "folds_counted": 8,
+        "sign_p": 1.0,
+        "delta_vs_baseline": -0.06738,
+        "identical_to_baseline": false
+      }
+    },
+    "XPTUSD|1h": {
+      "baseline": {
+        "n": 435,
+        "touched": 1684,
+        "exp_r": -0.1666023899941537,
+        "win_rate": 0.5241379310344828,
+        "folds_positive": 1,
+        "folds_counted": 8,
+        "sign_p": 1.0
+      },
+      "tcisd": {
+        "n": 435,
+        "touched": 1684,
+        "exp_r": -0.1666023899941537,
+        "win_rate": 0.5241379310344828,
+        "folds_positive": 1,
+        "folds_counted": 8,
+        "sign_p": 1.0,
+        "delta_vs_baseline": 0.0,
+        "identical_to_baseline": true
+      },
+      "quant": {
+        "n": 76,
+        "touched": 165,
+        "exp_r": -0.2720417125674885,
+        "win_rate": 0.40789473684210525,
+        "folds_positive": 2,
+        "folds_counted": 8,
+        "sign_p": 1.0,
+        "delta_vs_baseline": -0.105439,
+        "identical_to_baseline": false
+      }
+    },
+    "XPTUSD|4h": {
+      "baseline": {
+        "n": 89,
+        "touched": 443,
+        "exp_r": 0.009809621647426547,
+        "win_rate": 0.5842696629213483,
+        "folds_positive": 4,
+        "folds_counted": 8,
+        "sign_p": 1.0
+      },
+      "tcisd": {
+        "n": 0,
+        "touched": 0
+      },
+      "quant": {
+        "n": 10,
+        "touched": 39,
+        "exp_r": -0.0037132290335928435,
+        "win_rate": 0.5,
+        "folds_positive": 4,
+        "folds_counted": 7,
+        "sign_p": 1.0,
+        "delta_vs_baseline": -0.013523,
+        "identical_to_baseline": false
+      }
+    },
+    "EURUSD|1h": {
+      "baseline": {
+        "n": 548,
+        "touched": 2038,
+        "exp_r": -0.13762161935244863,
+        "win_rate": 0.4744525547445255,
+        "folds_positive": 0,
+        "folds_counted": 8,
+        "sign_p": 1.0
+      },
+      "tcisd": {
+        "n": 548,
+        "touched": 2038,
+        "exp_r": -0.13762161935244863,
+        "win_rate": 0.4744525547445255,
+        "folds_positive": 0,
+        "folds_counted": 8,
+        "sign_p": 1.0,
+        "delta_vs_baseline": 0.0,
+        "identical_to_baseline": true
+      },
+      "quant": {
+        "n": 83,
+        "touched": 234,
+        "exp_r": -0.12414589471803765,
+        "win_rate": 0.4578313253012048,
+        "folds_positive": 3,
+        "folds_counted": 8,
+        "sign_p": 1.0,
+        "delta_vs_baseline": 0.013476,
+        "identical_to_baseline": false
+      }
+    },
+    "EURUSD|4h": {
+      "baseline": {
+        "n": 264,
+        "touched": 968,
+        "exp_r": -0.08582192579994107,
+        "win_rate": 0.4772727272727273,
+        "folds_positive": 0,
+        "folds_counted": 8,
+        "sign_p": 1.0
+      },
+      "tcisd": {
+        "n": 0,
+        "touched": 0
+      },
+      "quant": {
+        "n": 40,
+        "touched": 104,
+        "exp_r": -0.12333127815764336,
+        "win_rate": 0.525,
+        "folds_positive": 3,
+        "folds_counted": 8,
+        "sign_p": 1.0,
+        "delta_vs_baseline": -0.037509,
+        "identical_to_baseline": false
+      }
+    },
+    "GBPUSD|1h": {
+      "baseline": {
+        "n": 593,
+        "touched": 2091,
+        "exp_r": 0.03852820093535274,
+        "win_rate": 0.5430016863406408,
+        "folds_positive": 5,
+        "folds_counted": 8,
+        "sign_p": 0.7265625
+      },
+      "tcisd": {
+        "n": 593,
+        "touched": 2091,
+        "exp_r": 0.03852820093535274,
+        "win_rate": 0.5430016863406408,
+        "folds_positive": 5,
+        "folds_counted": 8,
+        "sign_p": 0.7265625,
+        "delta_vs_baseline": 0.0,
+        "identical_to_baseline": true
+      },
+      "quant": {
+        "n": 99,
+        "touched": 231,
+        "exp_r": -0.06351557832284876,
+        "win_rate": 0.5050505050505051,
+        "folds_positive": 3,
+        "folds_counted": 8,
+        "sign_p": 1.0,
+        "delta_vs_baseline": -0.102044,
+        "identical_to_baseline": false
+      }
+    },
+    "GBPUSD|4h": {
+      "baseline": {
+        "n": 274,
+        "touched": 1006,
+        "exp_r": -0.03137509692528641,
+        "win_rate": 0.5182481751824818,
+        "folds_positive": 3,
+        "folds_counted": 8,
+        "sign_p": 1.0
+      },
+      "tcisd": {
+        "n": 0,
+        "touched": 0
+      },
+      "quant": {
+        "n": 37,
+        "touched": 83,
+        "exp_r": -0.1579786434732714,
+        "win_rate": 0.43243243243243246,
+        "folds_positive": 3,
+        "folds_counted": 8,
+        "sign_p": 1.0,
+        "delta_vs_baseline": -0.126604,
+        "identical_to_baseline": false
+      }
+    },
+    "USDJPY|1h": {
+      "baseline": {
+        "n": 546,
+        "touched": 2129,
+        "exp_r": -0.10553742259578651,
+        "win_rate": 0.4926739926739927,
+        "folds_positive": 1,
+        "folds_counted": 8,
+        "sign_p": 1.0
+      },
+      "tcisd": {
+        "n": 546,
+        "touched": 2129,
+        "exp_r": -0.10553742259578651,
+        "win_rate": 0.4926739926739927,
+        "folds_positive": 1,
+        "folds_counted": 8,
+        "sign_p": 1.0,
+        "delta_vs_baseline": 0.0,
+        "identical_to_baseline": true
+      },
+      "quant": {
+        "n": 107,
+        "touched": 193,
+        "exp_r": -0.350998549013128,
+        "win_rate": 0.308411214953271,
+        "folds_positive": 0,
+        "folds_counted": 8,
+        "sign_p": 1.0,
+        "delta_vs_baseline": -0.245461,
+        "identical_to_baseline": false
+      }
+    },
+    "USDJPY|4h": {
+      "baseline": {
+        "n": 289,
+        "touched": 952,
+        "exp_r": -0.1803716415564374,
+        "win_rate": 0.39792387543252594,
+        "folds_positive": 1,
+        "folds_counted": 8,
+        "sign_p": 1.0
+      },
+      "tcisd": {
+        "n": 0,
+        "touched": 0
+      },
+      "quant": {
+        "n": 63,
+        "touched": 104,
+        "exp_r": -0.1858868832494095,
+        "win_rate": 0.38095238095238093,
+        "folds_positive": 2,
+        "folds_counted": 8,
+        "sign_p": 1.0,
+        "delta_vs_baseline": -0.005515,
+        "identical_to_baseline": false
+      }
+    },
+    "GBPJPY|1h": {
+      "baseline": {
+        "n": 529,
+        "touched": 2162,
+        "exp_r": -0.10774588555563325,
+        "win_rate": 0.48015122873345933,
+        "folds_positive": 2,
+        "folds_counted": 8,
+        "sign_p": 1.0
+      },
+      "tcisd": {
+        "n": 529,
+        "touched": 2162,
+        "exp_r": -0.10774588555563325,
+        "win_rate": 0.48015122873345933,
+        "folds_positive": 2,
+        "folds_counted": 8,
+        "sign_p": 1.0,
+        "delta_vs_baseline": 0.0,
+        "identical_to_baseline": true
+      },
+      "quant": {
+        "n": 103,
+        "touched": 216,
+        "exp_r": -0.055511883269023565,
+        "win_rate": 0.44660194174757284,
+        "folds_positive": 3,
+        "folds_counted": 8,
+        "sign_p": 1.0,
+        "delta_vs_baseline": 0.052234,
+        "identical_to_baseline": false
+      }
+    },
+    "GBPJPY|4h": {
+      "baseline": {
+        "n": 287,
+        "touched": 1011,
+        "exp_r": -0.1583196527547528,
+        "win_rate": 0.40418118466898956,
+        "folds_positive": 1,
+        "folds_counted": 8,
+        "sign_p": 1.0
+      },
+      "tcisd": {
+        "n": 0,
+        "touched": 0
+      },
+      "quant": {
+        "n": 48,
+        "touched": 106,
+        "exp_r": -0.15775195721798477,
+        "win_rate": 0.4375,
+        "folds_positive": 3,
+        "folds_counted": 8,
+        "sign_p": 1.0,
+        "delta_vs_baseline": 0.000568,
+        "identical_to_baseline": false
+      }
+    },
+    "AUDUSD|1h": {
+      "baseline": {
+        "n": 608,
+        "touched": 2343,
+        "exp_r": -0.07845385512456207,
+        "win_rate": 0.47039473684210525,
+        "folds_positive": 2,
+        "folds_counted": 8,
+        "sign_p": 1.0
+      },
+      "tcisd": {
+        "n": 608,
+        "touched": 2343,
+        "exp_r": -0.07845385512456207,
+        "win_rate": 0.47039473684210525,
+        "folds_positive": 2,
+        "folds_counted": 8,
+        "sign_p": 1.0,
+        "delta_vs_baseline": 0.0,
+        "identical_to_baseline": true
+      },
+      "quant": {
+        "n": 86,
+        "touched": 167,
+        "exp_r": -0.00870788711569578,
+        "win_rate": 0.47674418604651164,
+        "folds_positive": 2,
+        "folds_counted": 8,
+        "sign_p": 1.0,
+        "delta_vs_baseline": 0.069746,
+        "identical_to_baseline": false
+      }
+    },
+    "AUDUSD|4h": {
+      "baseline": {
+        "n": 307,
+        "touched": 1146,
+        "exp_r": -0.03632461668505224,
+        "win_rate": 0.48859934853420195,
+        "folds_positive": 3,
+        "folds_counted": 8,
+        "sign_p": 1.0
+      },
+      "tcisd": {
+        "n": 0,
+        "touched": 0
+      },
+      "quant": {
+        "n": 32,
+        "touched": 80,
+        "exp_r": 0.1268906506498747,
+        "win_rate": 0.59375,
+        "folds_positive": 5,
+        "folds_counted": 8,
+        "sign_p": 0.7265625,
+        "delta_vs_baseline": 0.163215,
+        "identical_to_baseline": false
+      }
+    },
+    "USDCAD|1h": {
+      "baseline": {
+        "n": 544,
+        "touched": 2149,
+        "exp_r": -0.1317985269839107,
+        "win_rate": 0.4577205882352941,
+        "folds_positive": 1,
+        "folds_counted": 8,
+        "sign_p": 1.0
+      },
+      "tcisd": {
+        "n": 544,
+        "touched": 2144,
+        "exp_r": -0.13203058775819554,
+        "win_rate": 0.4577205882352941,
+        "folds_positive": 1,
+        "folds_counted": 8,
+        "sign_p": 1.0,
+        "delta_vs_baseline": -0.000232,
+        "identical_to_baseline": false
+      },
+      "quant": {
+        "n": 88,
+        "touched": 184,
+        "exp_r": -0.1112752486810531,
+        "win_rate": 0.3977272727272727,
+        "folds_positive": 2,
+        "folds_counted": 8,
+        "sign_p": 1.0,
+        "delta_vs_baseline": 0.020523,
+        "identical_to_baseline": false
+      }
+    },
+    "USDCAD|4h": {
+      "baseline": {
+        "n": 263,
+        "touched": 937,
+        "exp_r": -0.10841974811647083,
+        "win_rate": 0.4714828897338403,
+        "folds_positive": 1,
+        "folds_counted": 8,
+        "sign_p": 1.0
+      },
+      "tcisd": {
+        "n": 0,
+        "touched": 0
+      },
+      "quant": {
+        "n": 36,
+        "touched": 59,
+        "exp_r": -0.1720350058113935,
+        "win_rate": 0.4444444444444444,
+        "folds_positive": 2,
+        "folds_counted": 8,
+        "sign_p": 1.0,
+        "delta_vs_baseline": -0.063615,
+        "identical_to_baseline": false
+      }
+    },
+    "BTCUSD|1h": {
+      "baseline": {
+        "n": 541,
+        "touched": 2037,
+        "exp_r": -0.0266780722390097,
+        "win_rate": 0.5360443622920518,
+        "folds_positive": 4,
+        "folds_counted": 8,
+        "sign_p": 1.0
+      },
+      "tcisd": {
+        "n": 541,
+        "touched": 2037,
+        "exp_r": -0.0266780722390097,
+        "win_rate": 0.5360443622920518,
+        "folds_positive": 4,
+        "folds_counted": 8,
+        "sign_p": 1.0,
+        "delta_vs_baseline": 0.0,
+        "identical_to_baseline": true
+      },
+      "quant": {
+        "n": 98,
+        "touched": 207,
+        "exp_r": -0.019273832359733987,
+        "win_rate": 0.5102040816326531,
+        "folds_positive": 3,
+        "folds_counted": 8,
+        "sign_p": 1.0,
+        "delta_vs_baseline": 0.007404,
+        "identical_to_baseline": false
+      }
+    },
+    "BTCUSD|4h": {
+      "baseline": {
+        "n": 410,
+        "touched": 1348,
+        "exp_r": -0.07548073021930611,
+        "win_rate": 0.524390243902439,
+        "folds_positive": 1,
+        "folds_counted": 8,
+        "sign_p": 1.0
+      },
+      "tcisd": {
+        "n": 0,
+        "touched": 0
+      },
+      "quant": {
+        "n": 69,
+        "touched": 138,
+        "exp_r": -0.1461075949226019,
+        "win_rate": 0.4782608695652174,
+        "folds_positive": 4,
+        "folds_counted": 8,
+        "sign_p": 1.0,
+        "delta_vs_baseline": -0.070627,
+        "identical_to_baseline": false
+      }
+    },
+    "US30|1h": {
+      "baseline": {
+        "n": 492,
+        "touched": 1540,
+        "exp_r": -0.032138503848056325,
+        "win_rate": 0.43902439024390244,
+        "folds_positive": 2,
+        "folds_counted": 8,
+        "sign_p": 1.0
+      },
+      "tcisd": {
+        "n": 492,
+        "touched": 1540,
+        "exp_r": -0.032138503848056325,
+        "win_rate": 0.43902439024390244,
+        "folds_positive": 2,
+        "folds_counted": 8,
+        "sign_p": 1.0,
+        "delta_vs_baseline": 0.0,
+        "identical_to_baseline": true
+      },
+      "quant": {
+        "n": 85,
+        "touched": 164,
+        "exp_r": -0.03388743713709665,
+        "win_rate": 0.4588235294117647,
+        "folds_positive": 3,
+        "folds_counted": 8,
+        "sign_p": 1.0,
+        "delta_vs_baseline": -0.001749,
+        "identical_to_baseline": false
+      }
+    },
+    "US30|4h": {
+      "baseline": {
+        "n": 282,
+        "touched": 809,
+        "exp_r": -0.08586139556046044,
+        "win_rate": 0.40070921985815605,
+        "folds_positive": 1,
+        "folds_counted": 8,
+        "sign_p": 1.0
+      },
+      "tcisd": {
+        "n": 0,
+        "touched": 0
+      },
+      "quant": {
+        "n": 47,
+        "touched": 89,
+        "exp_r": -0.046078727369514225,
+        "win_rate": 0.44680851063829785,
+        "folds_positive": 2,
+        "folds_counted": 8,
+        "sign_p": 1.0,
+        "delta_vs_baseline": 0.039783,
+        "identical_to_baseline": false
+      }
+    },
+    "USOIL|1h": {
+      "baseline": {
+        "n": 575,
+        "touched": 2058,
+        "exp_r": -0.2563318747632454,
+        "win_rate": 0.36,
+        "folds_positive": 0,
+        "folds_counted": 8,
+        "sign_p": 1.0
+      },
+      "tcisd": {
+        "n": 575,
+        "touched": 2058,
+        "exp_r": -0.2563318747632454,
+        "win_rate": 0.36,
+        "folds_positive": 0,
+        "folds_counted": 8,
+        "sign_p": 1.0,
+        "delta_vs_baseline": 0.0,
+        "identical_to_baseline": true
+      },
+      "quant": {
+        "n": 103,
+        "touched": 182,
+        "exp_r": -0.23423120402052044,
+        "win_rate": 0.33980582524271846,
+        "folds_positive": 2,
+        "folds_counted": 8,
+        "sign_p": 1.0,
+        "delta_vs_baseline": 0.022101,
+        "identical_to_baseline": false
+      }
+    },
+    "USOIL|4h": {
+      "baseline": {
+        "n": 485,
+        "touched": 1649,
+        "exp_r": -0.17636090041430766,
+        "win_rate": 0.32989690721649484,
+        "folds_positive": 1,
+        "folds_counted": 8,
+        "sign_p": 1.0
+      },
+      "tcisd": {
+        "n": 0,
+        "touched": 0
+      },
+      "quant": {
+        "n": 194,
+        "touched": 500,
+        "exp_r": -0.2662050501442102,
+        "win_rate": 0.29381443298969073,
+        "folds_positive": 2,
+        "folds_counted": 8,
+        "sign_p": 1.0,
+        "delta_vs_baseline": -0.089844,
+        "identical_to_baseline": false
+      }
+    }
+  },
+  "pooled": {
+    "tcisd": {
+      "cells_measured": 12,
+      "exp_r_min": -0.2563318747632454,
+      "exp_r_max": 0.03852820093535274,
+      "exp_r_mean": -0.083539,
+      "cells_positive": 2,
+      "beats_own_baseline": 0,
+      "deltas_counted": 12,
+      "cells_identical_to_baseline": [
+        "XAUUSD|1h",
+        "XAGUSD|1h",
+        "XPTUSD|1h",
+        "EURUSD|1h",
+        "GBPUSD|1h",
+        "USDJPY|1h",
+        "GBPJPY|1h",
+        "AUDUSD|1h",
+        "BTCUSD|1h",
+        "US30|1h",
+        "USOIL|1h"
+      ]
+    },
+    "quant": {
+      "cells_measured": 24,
+      "exp_r_min": -0.350998549013128,
+      "exp_r_max": 0.1268906506498747,
+      "exp_r_mean": -0.115693,
+      "cells_positive": 1,
+      "beats_own_baseline": 10,
+      "deltas_counted": 24,
+      "cells_identical_to_baseline": []
+    },
+    "baseline": {
+      "cells_measured": 24,
+      "exp_r_mean": -0.087363,
+      "cells_positive": 3
+    }
+  }
+}

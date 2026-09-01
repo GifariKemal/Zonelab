@@ -87,6 +87,12 @@ masuk daftar Bagian 3: pertanyaan tentang mereka sudah dijawab, dan mengukur
 ulang hal yang sama dengan harapan hasil berbeda adalah cara lain menghasilkan
 temuan palsu.
 
+> [!WARNING]
+> **Tiga baris di atas satu-satunya di dokumen ini yang sumbernya transkrip,
+> bukan file bukti.** Diturunkan jadi tool pada 1 September 2026,
+> `tools/orphan_filters.py` ke `docs/orphan_filters.json`, dan dua dari tiganya
+> tidak bertahan apa adanya. Lihat Bagian 12.
+
 ## 6. Apa yang terjadi pada hasil apa pun
 
 Kolom yang **lulus** ketiga syarat: dicatat di sini dengan angkanya, lalu
@@ -406,3 +412,70 @@ mengalahkan drift. Bukti: `docs/olhc_outcomes.json`.
 > bukti yang bisa dijalankan ulang. Ketiganya tidak punya tool di `backend/tools/`
 > yang menghasilkannya. Itu di bawah standar yang dipakai setiap baris lain di
 > dokumen ini.
+
+
+## 12. Menurunkan Bagian 5 jadi tool, 1 September 2026
+
+`tools/orphan_filters.py` menjalankan tiga lengan lewat `tools.quant.cell` apa
+adanya, tanpa mengimplementasi ulang satu filter pun: `baseline` (trade zona
+tanpa filter), `tcisd` (`cell(..., tcistd=True)`), dan `quant`
+(`cell(..., quant=True)`, yaitu Z-Score plus volume plus regime). 12 instrumen
+kali dua timeframe, 24 sel, 20.000 bar, bukti di `docs/orphan_filters.json`.
+
+Ini bukan praregistrasi baru. Hipotesisnya sudah dinyatakan dan dijawab di
+tempat lain; yang dikerjakan di sini reproduksi dari kode yang di-commit. Angka
+yang kembali BERBEDA adalah temuannya.
+
+### Hasil gabungan
+
+| Lengan | Sel | exp R rata-rata | Rentang per sel | Sel positif | Kalahkan baseline sendiri |
+|---|---:|---:|---|---:|---|
+| baseline | 24 | **-0,087363** | | 3 | |
+| tcisd | 12 | -0,083539 | -0,2563 sampai +0,0385 | 2 | 0 dari 12 |
+| quant | 24 | -0,115693 | -0,3510 sampai +0,1269 | 1 | 10 dari 24 |
+
+### Baris 2 direproduksi persis, dan penjelasannya membatalkannya sebagai bukti
+
+`-0,087 R, identik baseline` cocok sampai tiga desimal dengan **exp R rata-rata
+baseline, -0,087363**. Baris itu tidak pernah mengukur tCISD; ia mengukur
+baseline dan memberinya nama tCISD.
+
+Sebabnya sekarang terlihat di log per sel, dan lebih keras daripada "identik":
+
+| Mode tCISD | Sel | Akibat |
+|---|---:|---|
+| konfirmasi DUA arah | 12 (semua 1h) | tanpa pembatasan arah, SETIAP trade lolos |
+| nol konfirmasi | 12 (semua 4h) | nol trade, sel-nya kosong |
+
+**Tidak satu pun dari 24 sel menghasilkan filter satu arah.** Sebagai filter,
+tCISD di data ini biner: lolos-semua atau blokir-semua, tidak pernah memilih.
+Itu bukan "filter yang tidak menambah edge", itu filter yang tidak pernah
+menyaring.
+
+### Baris 1 tidak bisa direproduksi sama sekali
+
+`-0,926 R, 0 dari 11 positif` disebut hasil "tCISD sebagai entry mandiri", dan
+tidak ada jalur kode di repo ini yang mengimplementasi itu. `tcisd_trades`
+menyatakan sendiri di docstring-nya: "tCISD is a FILTER, not a replacement for
+the zone entry." Mode `--tcistd` hari ini berarti filter. Angka -0,926 tidak
+punya perintah yang menghasilkannya, jadi ia tidak bisa dipakai membenarkan apa
+pun.
+
+### Baris 3 arahnya bertahan, rentangnya tidak
+
+Rata-rata `quant` -0,1157 jatuh di dalam pita -0,0893 sampai -0,1301 yang
+diklaim, jadi arah kesimpulannya bertahan: menambahkan Z-Score, volume dan
+regime membuat ekspektansi lebih buruk, bukan lebih baik, dan memangkas n
+besar-besaran (534 jadi 81 di XAUUSD 1h). Tapi rentang per sel yang sebenarnya
+**-0,3510 sampai +0,1269**, hampir tiga kali lebih lebar daripada yang ditulis,
+dan filter itu justru mengalahkan baseline-nya sendiri di 10 dari 24 sel. Pita
+sempit di Bagian 5 bukan rentang per sel apa pun yang bisa direproduksi di sini.
+
+### Putusan
+
+Ketiga modul tetap yatim, dan sekarang dengan alasan yang bisa dijalankan ulang.
+Yang berubah adalah apa yang boleh dikatakan: satu baris adalah baseline yang
+salah label, satu baris tidak punya kode, dan satu baris arahnya benar dengan
+rentang yang salah. Bagian 5 dipertahankan apa adanya di atas, dengan peringatan
+yang menunjuk ke sini, karena menghapusnya akan menghapus bukti bahwa ia pernah
+dikutip.
