@@ -1,0 +1,240 @@
+{
+  "preregistered": "tools/instrument_scan.py, 2026-09-01",
+  "question": "apakah hold rate zona mengalahkan placebo geser di instrumen ini",
+  "frictionless": true,
+  "note": "TANPA BIAYA. Klaim lokasi, bukan klaim edge tradeable.",
+  "reward": 2.0,
+  "horizon": 80,
+  "mode": "r",
+  "critical_z": 2.87,
+  "cells": {
+    "yahoo:SPX500": {
+      "bars": 13693,
+      "first": 1712721600,
+      "last": 1788248632,
+      "n_real": 349,
+      "hold_real": 0.4699140401146132,
+      "n_placebo": 336,
+      "hold_placebo": 0.33035714285714285,
+      "z": 3.724951889959917,
+      "verdict": "MEMISAHKAN",
+      "fold_deltas": [
+        0.1603535353535353,
+        0.11192411924119244,
+        0.15189873417721517,
+        0.13218390804597702
+      ],
+      "positive_folds": 4,
+      "graded_folds": 4
+    },
+    "yahoo:NAS100": {
+      "bars": 13691,
+      "first": 1712721600,
+      "last": 1788248640,
+      "n_real": 337,
+      "hold_real": 0.42729970326409494,
+      "n_placebo": 327,
+      "hold_placebo": 0.327217125382263,
+      "z": 2.659006892435446,
+      "verdict": "null",
+      "fold_deltas": [
+        0.1883333333333333,
+        0.14475308641975304,
+        0.0181769580326116,
+        0.06837198183122162
+      ],
+      "positive_folds": 4,
+      "graded_folds": 4
+    },
+    "yahoo:RUS2000": {
+      "bars": 13717,
+      "first": 1712721600,
+      "last": 1788248640,
+      "n_real": 343,
+      "hold_real": 0.4868804664723032,
+      "n_placebo": 334,
+      "hold_placebo": 0.31137724550898205,
+      "z": 4.6596366971317495,
+      "verdict": "MEMISAHKAN",
+      "fold_deltas": [
+        0.21082621082621078,
+        0.18176470588235294,
+        0.0848218842502807,
+        0.23448275862068962
+      ],
+      "positive_folds": 4,
+      "graded_folds": 4
+    },
+    "yahoo:WTI": {
+      "bars": 13533,
+      "first": 1712721600,
+      "last": 1788248641,
+      "n_real": 376,
+      "hold_real": 0.4308510638297872,
+      "n_placebo": 365,
+      "hold_placebo": 0.37534246575342467,
+      "z": 1.5397952968488298,
+      "verdict": "null",
+      "fold_deltas": [
+        0.09334537789822345,
+        -0.031179005092048573,
+        0.08162211029316802,
+        0.10516795865633072
+      ],
+      "positive_folds": 3,
+      "graded_folds": 4
+    },
+    "yahoo:ULSD": {
+      "bars": 13398,
+      "first": 1712721600,
+      "last": 1788248646,
+      "n_real": 385,
+      "hold_real": 0.4701298701298701,
+      "n_placebo": 374,
+      "hold_placebo": 0.34759358288770054,
+      "z": 3.4318837606387227,
+      "verdict": "MEMISAHKAN",
+      "fold_deltas": [
+        0.01769464105156726,
+        0.12129590671395085,
+        0.18148148148148147,
+        0.1799847211611918
+      ],
+      "positive_folds": 4,
+      "graded_folds": 4
+    },
+    "yahoo:RBOB": {
+      "bars": 13371,
+      "first": 1712721600,
+      "last": 1788248627,
+      "n_real": 379,
+      "hold_real": 0.44591029023746703,
+      "n_placebo": 369,
+      "hold_placebo": 0.3089430894308943,
+      "z": 3.8617172576464838,
+      "verdict": "MEMISAHKAN",
+      "fold_deltas": [
+        0.19030898876404495,
+        0.04502189225204645,
+        0.15308464849354375,
+        0.17149122807017542
+      ],
+      "positive_folds": 4,
+      "graded_folds": 4
+    },
+    "yahoo:IDX": {
+      "bars": 5012,
+      "first": 1692324000,
+      "last": 1788248649,
+      "n_real": 139,
+      "hold_real": 0.43884892086330934,
+      "n_placebo": 134,
+      "hold_placebo": 0.26865671641791045,
+      "z": 2.9372342613364033,
+      "verdict": "MEMISAHKAN",
+      "fold_deltas": [
+        0.030909090909090886,
+        0.2201375859912445,
+        0.042682926829268275,
+        0.36812144212523723
+      ],
+      "positive_folds": 4,
+      "graded_folds": 4
+    },
+    "yahoo:EURFX": {
+      "bars": 13726,
+      "first": 1712721600,
+      "last": 1788248648,
+      "n_real": 356,
+      "hold_real": 0.47752808988764045,
+      "n_placebo": 345,
+      "hold_placebo": 0.30144927536231886,
+      "z": 4.776518258420176,
+      "verdict": "MEMISAHKAN",
+      "fold_deltas": [
+        0.11578947368421055,
+        0.24455857177794083,
+        0.12296177492649024,
+        0.2272727272727273
+      ],
+      "positive_folds": 4,
+      "graded_folds": 4
+    },
+    "yahoo:GBPFX": {
+      "bars": 13729,
+      "first": 1712721600,
+      "last": 1788248611,
+      "n_real": 399,
+      "hold_real": 0.47368421052631576,
+      "n_placebo": 384,
+      "hold_placebo": 0.3671875,
+      "z": 3.0169149254168066,
+      "verdict": "MEMISAHKAN",
+      "fold_deltas": [
+        0.12820512820512825,
+        0.05235940530058175,
+        0.09081346423562409,
+        0.16781214203894618
+      ],
+      "positive_folds": 4,
+      "graded_folds": 4
+    },
+    "mt5:XAUUSD": {
+      "bars": 20000,
+      "first": 1681459200,
+      "last": 1788242400,
+      "n_real": 555,
+      "hold_real": 0.5027027027027027,
+      "n_placebo": 517,
+      "hold_placebo": 0.2901353965183752,
+      "z": 7.098253284959669,
+      "verdict": "MEMISAHKAN",
+      "fold_deltas": [
+        0.20939038243089736,
+        0.23126954346466538,
+        0.20825553817429482,
+        0.20523494525547448
+      ],
+      "positive_folds": 4,
+      "graded_folds": 4
+    },
+    "mt5:XAGUSD": {
+      "bars": 20000,
+      "first": 1681434000,
+      "last": 1788242400,
+      "n_real": 524,
+      "hold_real": 0.4637404580152672,
+      "n_placebo": 496,
+      "hold_placebo": 0.34274193548387094,
+      "z": 3.9347510830716885,
+      "verdict": "MEMISAHKAN",
+      "fold_deltas": [
+        0.13898428936792107,
+        0.12243401759530792,
+        0.0714962121212121,
+        0.1490237949969494
+      ],
+      "positive_folds": 4,
+      "graded_folds": 4
+    },
+    "mt5:XPTUSD": {
+      "bars": 15083,
+      "first": 1707087600,
+      "last": 1788242400,
+      "n_real": 442,
+      "hold_real": 0.49547511312217196,
+      "n_placebo": 422,
+      "hold_placebo": 0.3080568720379147,
+      "z": 5.61202712043102,
+      "verdict": "MEMISAHKAN",
+      "fold_deltas": [
+        0.17960634226353195,
+        0.22677322677322675,
+        0.1964563862928349,
+        0.16176777152386912
+      ],
+      "positive_folds": 4,
+      "graded_folds": 4
+    }
+  }
+}
