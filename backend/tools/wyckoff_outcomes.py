@@ -55,6 +55,8 @@ DIRECTION = {"spring": +1, "sos": +1, "upthrust": -1, "sow": -1}
 HORIZON = 96  # bars of forward move, the reach horizon the layers use
 K = 4         # four phase kinds judged
 MIN_GROUP = 30
+FOLDS = 8     # walk-forward time folds
+MIN_FOLD = 20
 
 SYMBOLS = ("XAUUSD", "XAGUSD", "XPTUSD", "EURUSD", "GBPUSD", "USDJPY",
            "AUDUSD", "US30", "USOIL")
@@ -67,7 +69,7 @@ def _move(close: np.ndarray, atr: np.ndarray, i: int):
 
 
 def study(symbols: list[str], interval: str = "1h") -> dict:
-    by_kind: dict[str, list[float]] = {k: [] for k in DIRECTION}
+    by_kind: dict[str, list[tuple[int, float]]] = {k: [] for k in DIRECTION}
     per_symbol: dict[str, dict] = {}
     for symbol in symbols:
         try:
@@ -93,8 +95,10 @@ def study(symbols: list[str], interval: str = "1h") -> dict:
             m = _move(close, atr, p.at)
             if m is None:
                 continue
-            # Excess move in the claimed direction, over the symbol's own drift.
-            by_kind[p.kind].append(DIRECTION[p.kind] * (m - drift))
+            # Excess move in the claimed direction, over the symbol's own drift,
+            # tagged with the bar time for the walk-forward fold.
+            by_kind[p.kind].append(
+                (candles[p.at].time, DIRECTION[p.kind] * (m - drift)))
         per_symbol[symbol] = {"n_events": len(events), "drift_atr": drift}
 
     critical = _critical_t(K)
@@ -106,10 +110,12 @@ def study(symbols: list[str], interval: str = "1h") -> dict:
         "min_group": MIN_GROUP,
         "control": "excess move = forward move - symbol drift",
         "phases": {},
+        "walk_forward": {},
         "cells": per_symbol,
     }
     for kind in DIRECTION:
-        vals = by_kind[kind]
+        pairs = by_kind[kind]
+        vals = [v for _, v in pairs]
         if len(vals) < MIN_GROUP:
             out["phases"][kind] = {"n": len(vals), "verdict": "n kecil"}
             continue
@@ -123,6 +129,21 @@ def study(symbols: list[str], interval: str = "1h") -> dict:
         out["phases"][kind] = {
             "n": len(a), "mean_excess_move_atr": mean, "t": t,
             "verdict": verdict,
+        }
+        # Walk-forward: eight time folds, the sign of the mean excess in each.
+        ordered = sorted(pairs, key=lambda p: p[0])
+        size = max(1, len(ordered) // FOLDS)
+        fold_signs = []
+        for f in range(FOLDS):
+            part = ordered[f * size:(f + 1) * size if f < FOLDS - 1 else len(ordered)]
+            if len(part) < MIN_FOLD:
+                fold_signs.append(None)
+                continue
+            fold_signs.append(float(np.mean([v for _, v in part])))
+        out["walk_forward"][kind] = {
+            "fold_signs": fold_signs,
+            "positive_folds": sum(1 for s in fold_signs if s is not None and s > 0),
+            "graded_folds": sum(1 for s in fold_signs if s is not None),
         }
     return out
 

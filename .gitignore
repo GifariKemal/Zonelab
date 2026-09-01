@@ -86,3 +86,4 @@ frontend/test-results/
 
 # Error logs, the .err sibling of *.log
 *.err
+backend/.autotrade.log.*
