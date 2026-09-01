@@ -187,3 +187,34 @@ selama ini diaproksimasi OHLC oleh Python.
 - Hanya detektor supply_demand (bukan order_block/fvg).
 - Tanpa checklist rules (killzone/OTE/CISD/bias).
 - Sizing pakai risk%, bukan lot tetap.
+
+---
+
+# Order Block (detektor kedua, independen)
+
+`OrderBlockDetector.mqh` + `ZonelabOB.mq5` + `tools/ea_parity_ob.py`.
+
+Port faithful `app/detect/imbalance.py::detect_order_block`: lilin berlawanan
+terakhir sebelum gerakan impulsif. Box = whole range lilin (high-low), gate
+`displacement_atr=1.5` selama `displacement_bars=5`, tanpa dedupe (OB tidak dedupe).
+
+## Verifikasi
+
+1. **Parity OK** - 1033 order block, 0 mismatch (reference port vs numpy).
+2. **Compile 0 error 0 warning.**
+
+## Hasil (XAUUSD H1, real tick, profit_zone target)
+
+| Detektor | PF | Net profit | Trades | Win rate | Max DD |
+|---|---|---|---|---|---|
+| **S&D** | **1,71** | +49,1% | 108 | 36,1% | 11,6% |
+| Order Block | 1,06 | +14,7% | 451 | 41,0% | 21,0% |
+
+Order block jauh lebih lemah dari S&D di H1. Alasannya: OB menghasilkan kandidat
+jauh lebih banyak (setiap lilin berlawanan), jadi "zona lawan terdekat" hampir
+selalu dekat, target kecil, reward dimakan spread (PF 1,06). Ini masalah yang
+sama dengan S&D di M15.
+
+**Kaveat performa:** OB ~10x lebih lambat dari S&D (banyak kandidat), dan window
+tumbuh (InpBars=20000) membuat backtest M15 butuh >15 menit. Kalau mau backtest
+OB di timeframe rendah, turunkan InpBars atau pakai window tetap.
