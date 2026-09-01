@@ -9,7 +9,8 @@ port faithful dari `backend/app/detect/supply_demand.py` + `app/plan.py`.
   lifecycle, geometri box). Konvensi index sama dengan Python: index 0 = bar
   tertua.
 - `ZonelabSD.mq5` - EA main. Entry limit di proximal (demand long, supply short),
-  stop di distal - 0.25 ATR, target 2R, sizing risk%. Satu order per zona.
+  stop di distal - 0.25 ATR, target zona lawan terdekat (profit_zone), sizing
+  risk%. Satu order per zona, dengan dedupe + window penuh.
 - `tester.ini` - config Strategy Tester (M15, real ticks Model=4).
 - `run_backtest.bat` - script untuk menjalankan tester.
 
@@ -110,6 +111,21 @@ mengurangi edge, dan makin panjang lookback makin buruk. Konsisten dengan
 arah menghapus trade lokasi yang valid tanpa menambah edge arah. `InpUseTrendFilter`
 default OFF karena terukur merugikan.
 
+### Target profit_zone (zona lawan terdekat) - cocok dengan Zonelab, membantu H1
+
+Target diganti dari 2R konvensional ke zona lawan terdekat (`profit_zone`,
+sama dengan `app/plan.py`). Hasilnya timeframe-dependent:
+
+| TF | Target 2R | Target profit_zone |
+|---|---|---|
+| M15 | PF 1,09 (+32,5%) | PF 1,00 (-1,75%) |
+| **H1** | PF 1,32 (+23,2%) | **PF 1,71 (+49,1%)** |
+
+Di H1, profit_zone naik ke PF 1,71 (drawdown 11,6%). Di M15 justru rugi (PF 1,00),
+karena zona M15 kecil sehingga "jalan di depan" sering pendek, reward kecil
+dimakan spread. Ini konfirmasi `docs/CALIBRATION.md`: `profit_zone_rr` adalah
+satu-satunya faktor yang bertahan, dan efeknya nyata di timeframe yang tepat.
+
 ## Kesimpulan jujur
 
 Win rate supply/demand di target 2R secara struktural 35-40%, bukan cacat presisi.
@@ -139,5 +155,5 @@ selama ini diaproksimasi OHLC oleh Python.
 ## Batasan v1
 
 - Hanya detektor supply_demand (bukan order_block/fvg).
-- Target 2R konvensional, bukan zona lawan terdekat (profit_zone = v2).
 - Tanpa checklist rules (killzone/OTE/CISD/bias).
+- Sizing pakai risk%, bukan lot tetap.

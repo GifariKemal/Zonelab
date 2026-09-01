@@ -42,8 +42,10 @@ struct SDZone
    double       top, bottom, proximal, distal;
    double       departure_atr;
    double       profit_margin;
+   double       profit_zone_rr; // -1 = None (tidak ada zona lawan)
    int          state;
    datetime     time_from;     // epoch bar pertama base
+   datetime     time_to;       // epoch break, atau bar terakhir kalau belum broken
    int          base_from, base_to, leg_out_from, leg_out_to;
   };
 
@@ -160,7 +162,7 @@ int SDRuns(const int &labels[],int n,int &r_label[],int &r_start[],int &r_end[])
 //--- Replay lifecycle dari bar `start`. Mengembalikan state. -----------------
 int SDLifecycle(const double &high[],const double &low[],const double &close[],
                 int n,double top,double bottom,double distal,bool is_demand,
-                int start,double mitigation_pct)
+                int start,double mitigation_pct,int &break_idx)
   {
    double height=MathMax(top-bottom,SD_EPS);
    double penetration=0.0;
@@ -186,6 +188,7 @@ int SDLifecycle(const double &high[],const double &low[],const double &close[],
       was_inside=inside;
      }
 
+   break_idx=break_index;
    if(break_index!=-1)
       return SD_STATE_BROKEN;
    if(penetration>=mitigation_pct)
@@ -324,8 +327,9 @@ int SDDetect(const double &open[],const double &high[],const double &low[],
       if(profit_margin<p.min_profit_margin)
          continue;
 
+      int break_idx=-1;
       int state=SDLifecycle(high,low,close,n,top,bottom,distal,is_demand,
-                            leg_out_to+1,p.mitigation_pct);
+                            leg_out_to+1,p.mitigation_pct,break_idx);
 
       ArrayResize(zones,count+1);
       zones[count].kind=kind;
@@ -336,8 +340,10 @@ int SDDetect(const double &open[],const double &high[],const double &low[],
       zones[count].distal=distal;
       zones[count].departure_atr=departure_atr;
       zones[count].profit_margin=profit_margin;
+      zones[count].profit_zone_rr=-1.0;   // diisi nanti oleh SDMarkProfitZones
       zones[count].state=state;
       zones[count].time_from=time[base_from];
+      zones[count].time_to=(break_idx!=-1)?time[break_idx]:time[n-1];
       zones[count].base_from=base_from;
       zones[count].base_to=base_to;
       zones[count].leg_out_from=leg_out_from;
@@ -345,5 +351,102 @@ int SDDetect(const double &open[],const double &high[],const double &low[],
       count++;
      }
    return count;
+  }
+
+//--- Stempel profit_zone_rr (jarak ke zona lawan terdekat, satuan tinggi). ---
+// Port faithful dari app/profit_zone.py::profit_zone_at. -1.0 = None.
+void SDMarkProfitZones(SDZone &zones[],int count,datetime when)
+  {
+   for(int zi=0;zi<count;zi++)
+     {
+      double height=zones[zi].top-zones[zi].bottom;
+      if(height<=SD_EPS)
+        {
+         zones[zi].profit_zone_rr=-1.0;
+         continue;
+        }
+      bool want_up=(zones[zi].side==SD_DEMAND);
+      double nearest=0.0;
+      bool found=false;
+      for(int j=0;j<count;j++)
+        {
+         if(zones[j].side==zones[zi].side)
+            continue;
+         if(zones[j].time_from>when)
+            continue;
+         if(zones[j].state==SD_STATE_BROKEN && zones[j].time_to<=when)
+            continue;
+         double gap=want_up ? (zones[j].proximal-zones[zi].proximal)
+                            : (zones[zi].proximal-zones[j].proximal);
+         if(gap>0 && (!found || gap<nearest))
+           {
+            nearest=gap;
+            found=true;
+           }
+        }
+      if(!found)
+         zones[zi].profit_zone_rr=-1.0;
+      else
+         zones[zi].profit_zone_rr=MathRound((nearest/height)*100.0)/100.0;
+     }
+  }
+
+//--- Dedupe zona bertindih se-sisi. Port _dedupe di supply_demand.py. ---------
+int SDStatePriority(int state)
+  {
+   if(state==SD_STATE_FRESH)     return 3;
+   if(state==SD_STATE_TESTED)    return 2;
+   if(state==SD_STATE_MITIGATED) return 1;
+   return 0;
+  }
+
+int SDDedupe(SDZone &zones[],int count,double max_overlap)
+  {
+   if(count<=1)
+      return count;
+
+   // Urutkan (priority, departure_atr) menurun. Bubble sort, count kecil.
+   for(int i=0;i<count;i++)
+      for(int j=i+1;j<count;j++)
+        {
+         int pi=SDStatePriority(zones[i].state);
+         int pj=SDStatePriority(zones[j].state);
+         if(pj>pi || (pj==pi && zones[j].departure_atr>zones[i].departure_atr))
+           {
+            SDZone t=zones[i]; zones[i]=zones[j]; zones[j]=t;
+           }
+        }
+
+   SDZone kept[];
+   int kept_count=0;
+   for(int i=0;i<count;i++)
+     {
+      bool redundant=false;
+      for(int k=0;k<kept_count;k++)
+        {
+         if(kept[k].side!=zones[i].side)
+            continue;
+         double overlap=MathMin(zones[i].top,kept[k].top)-MathMax(zones[i].bottom,kept[k].bottom);
+         if(overlap<=0)
+            continue;
+         double smaller=MathMin(zones[i].top-zones[i].bottom, kept[k].top-kept[k].bottom);
+         if(smaller>SD_EPS && overlap/smaller>max_overlap)
+           {
+            redundant=true;
+            break;
+           }
+        }
+      if(!redundant)
+        {
+         ArrayResize(kept,kept_count+1);
+         kept[kept_count]=zones[i];
+         kept_count++;
+        }
+     }
+
+   ArrayResize(zones,kept_count);
+   for(int i=0;i<kept_count;i++)
+      zones[i]=kept[i];
+   return kept_count;
   }
 //+------------------------------------------------------------------+

@@ -25,11 +25,11 @@ input double InpMinProfitMargin  = 0.0;
 input double InpZoneMinAtr       = 0.05;
 input double InpMaxBaseDrift     = 0.6;
 input double InpMitigationPct    = 0.5;
+input double InpMergeOverlapPct  = 0.6;
 //--- parameter trade ---
 input double InpStopBufferAtr    = 0.25;
-input double InpRewardR          = 2.0;
 input double InpRiskPercent      = 1.0;
-input int    InpBars             = 3000;
+input int    InpBars             = 20000;  // besar = window tumbuh dari awal test (cocok dengan full-series Zonelab)
 input int    InpMagic            = 20260831;
 
 CTrade trade;
@@ -146,6 +146,8 @@ void DetectAndTrade()
 
    SDZone zones[];
    int zcount = SDDetect(open_, high_, low_, close_, time_, atr, n, p, zones);
+   zcount = SDDedupe(zones, zcount, InpMergeOverlapPct);
+   SDMarkProfitZones(zones, zcount, time_[n-1]);
    g_zones_total += zcount;
 
    double bid = SymbolInfoDouble(_Symbol, SYMBOL_BID);
@@ -173,7 +175,14 @@ void DetectAndTrade()
       double risk   = MathAbs(entry - stop);
       if(risk <= SD_EPS)
          continue;
-      double target = entry + way * InpRewardR * risk;
+      // Target = zona lawan terdekat (profit_zone), bukan 2R konvensional.
+      // Kalau tidak ada zona lawan di depan, tidak ada target -> skip trade.
+      if(zones[i].profit_zone_rr <= 0.0)
+        {
+         MarkOrdered(id);
+         continue;
+        }
+      double target = entry + way * zones[i].profit_zone_rr * (zones[i].top - zones[i].bottom);
 
       // Guard: buy limit harus di bawah ask, sell limit di atas bid.
       if(is_demand && entry >= ask)
