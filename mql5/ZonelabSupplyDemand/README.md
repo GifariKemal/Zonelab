@@ -215,6 +215,23 @@ jauh lebih banyak (setiap lilin berlawanan), jadi "zona lawan terdekat" hampir
 selalu dekat, target kecil, reward dimakan spread (PF 1,06). Ini masalah yang
 sama dengan S&D di M15.
 
-**Kaveat performa:** OB ~10x lebih lambat dari S&D (banyak kandidat), dan window
-tumbuh (InpBars=20000) membuat backtest M15 butuh >15 menit. Kalau mau backtest
-OB di timeframe rendah, turunkan InpBars atau pakai window tetap.
+### Kenapa lemah + apakah bisa di-improve (sudah diuji)
+
+Akar masalah bukan win rate (OB menang 41%, lebih tinggi dari S&D 36%), tapi
+reward-nya kecil: block padat (4x lebih banyak dari S&D) jadi "jalan di depan"
+pendek, RR rata-rata cuma ~1,5:1 (S&D ~2,7:1). Sweep yang diuji:
+
+| OB config | PF | Net profit | Trades | Win rate |
+|---|---|---|---|---|
+| 1,5 ATR + profit_zone | **1,06** | +14,7% | 451 | 41,0% |
+| 2,5 ATR + profit_zone | 1,08 | +11,4% | 231 | 30,7% |
+| 2,5 ATR + fixed 2R | 0,91 | -12,7% | 253 | 30,8% |
+
+Tidak ada tuning yang menaikkan PF secara berarti (gate ketat cuma 1,06 ke 1,08,
+fixed 2R malah rugi). Kesimpulan: OB valid dan benar (parity 0 mismatch), tapi
+edge-nya fundamental lemah - box satu lilin adalah level yang lebih lemah dari
+base multi-bar S&D. Bukan bug, bukan anomaly.
+
+**Kaveat performa:** OB ~10x lebih lambat dari S&D (banyak kandidat). Window
+tumbuh (InpBars=20000) membuat backtest M15 butuh >15 menit, jadi default
+InpBars diturunkan ke 3000 (window tetap).

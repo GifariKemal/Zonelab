@@ -20,8 +20,10 @@ input int    InpDisplacementBars = 5;
 input double InpMitigationPct    = 0.5;
 //--- parameter trade ---
 input double InpStopBufferAtr    = 0.25;
+input int    InpTargetMode       = 0;    // 0 = profit_zone, 1 = fixed R
+input double InpRewardR          = 2.0;
 input double InpRiskPercent      = 1.0;
-input int    InpBars             = 20000;  // besar = window tumbuh dari awal test
+input int    InpBars             = 3000;   // fixed window: OB terlalu padat untuk window tumbuh
 input int    InpMagic            = 20260901;
 
 CTrade trade;
@@ -155,14 +157,22 @@ void DetectAndTrade()
       if(risk<=SD_EPS)
          continue;
 
-      // Target = zona lawan terdekat (profit_zone).
-      if(zones[i].profit_zone_rr<=0.0)
+      // Target: profit_zone (zona lawan terdekat) atau fixed R.
+      double target;
+      if(InpTargetMode==1)
         {
-         g_orders_skipped_notarget++;
-         MarkOrdered(id);
-         continue;
+         target=entry+way*InpRewardR*risk;
         }
-      double target=entry+way*zones[i].profit_zone_rr*(zones[i].top-zones[i].bottom);
+      else
+        {
+         if(zones[i].profit_zone_rr<=0.0)
+           {
+            g_orders_skipped_notarget++;
+            MarkOrdered(id);
+            continue;
+           }
+         target=entry+way*zones[i].profit_zone_rr*(zones[i].top-zones[i].bottom);
+        }
 
       // Guard: buy limit di bawah ask, sell limit di atas bid.
       if(is_demand && entry>=ask)
