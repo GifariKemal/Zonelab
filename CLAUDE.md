@@ -96,7 +96,7 @@ Tiga jebakan yang sudah memakan waktu nyata di sini:
 Gate yang harus hijau sebelum bilang selesai:
 
 ```bash
-cd backend  && .venv/Scripts/python.exe -m pytest        # 1014 passed
+cd backend  && .venv/Scripts/python.exe -m pytest        # 1104 passed
 cd backend  && .venv/Scripts/python.exe -m pyflakes app tools tests
 cd frontend && npm run check                            # exit 0
 cd frontend && npm run build                            # exit 0
@@ -113,10 +113,18 @@ cd frontend && npm run build                            # exit 0
 > atau apa pun yang digambar, tambahkan minimal ini, dan baca exit code-nya:
 >
 > ```bash
-> cd frontend && node e2e/wiring.mjs .playwright-shots   # tiap layer terwire
-> cd frontend && node e2e/labels.mjs .playwright-shots   # peta tabrakan label
-> cd frontend && node e2e/sweep.mjs  .playwright-shots   # sapuan fitur penuh
+> cd frontend && node e2e/wiring.mjs .playwright-shots           # tiap layer terwire
+> cd frontend && node e2e/labels.mjs .playwright-shots           # peta tabrakan label
+> cd frontend && node e2e/sweep.mjs  .playwright-shots           # sapuan fitur penuh
+> cd frontend && node e2e/expectation-path.mjs .playwright-shots # garis path menggambar
 > ```
+>
+> **Dan itu terjadi lagi.** Pada 31 Agustus 2026 layer `wyckoff` masuk registry
+> membawa slider "Trading range width", sensus slider di `e2e/sweep.mjs` tidak
+> ikut diperbarui, dan harness itu exit 1 selama **24 commit** berikutnya sampai
+> 1 September. Keempat gate di atas hijau sepanjang waktu itu. Pola yang persis
+> sama dengan catatan 29 Agustus di atas, di harness yang berbeda: menambah layer
+> berarti menyentuh `wiring.mjs` DAN sensus slider `sweep.mjs`.
 >
 > Untuk perubahan backend yang menyentuh API, restart dulu server di 8100
 > (`start.bat` menjalankan uvicorn TANPA `--reload`, jadi ia membawa kode lama

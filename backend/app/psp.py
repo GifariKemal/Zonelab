@@ -23,7 +23,7 @@
 
 
 A PSP is an anticipatory structural point that appears after SSMT divergence
-and purges liquidity. It is the "crack in correlation" — the exact moment
+and purges liquidity. It is the "crack in correlation" - the exact moment
 where the triad confirms the direction.
 
 The practitioner's definition:

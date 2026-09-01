@@ -177,14 +177,14 @@ def main() -> int:
                     continue
                 if r["touched"] == 0:
                     print(f"{sym:<8} {tf:<4} {r.get('bars',0):>6} {r.get('zones',0):>6} "
-                          f"{'0':>8}  {'—':>6} {'—':>8} {'—':>8} {'—':>8} {'—':>8}")
+                          f"{'0':>8}  {'-':>6} {'-':>8} {'-':>8} {'-':>8} {'-':>8}")
                     continue
                 mit = r.get("mitigation", {})
                 print(
                     f"{sym:<8} {tf:<4} {r['bars']:>6} {r['zones']:>6} "
                     f"{r['touched']:>8} {r['stop_hit_pct']:>5.1f}% "
-                    f"{mit.get('0.5R', '—'):>8} {mit.get('1R', '—'):>8} "
-                    f"{mit.get('2R', '—'):>8} {mit.get('3R', '—'):>8}"
+                    f"{mit.get('0.5R', '-'):>8} {mit.get('1R', '-'):>8} "
+                    f"{mit.get('2R', '-'):>8} {mit.get('3R', '-'):>8}"
                 )
     else:
         r = report(args.symbol, args.interval, args.bars)

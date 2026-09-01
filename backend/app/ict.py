@@ -195,13 +195,13 @@ def evaluate(
     day_names = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday",
                  "Saturday", "Sunday"]
     day_quality = {
-        0: "Q1 accumulation — ALLOWED only if 2-stage, tCISD, and manipulation all confirmed. Risk × 0.5",
-        1: "Q2 manipulation — high risk, wait for Q3",
-        2: "Q3 distribution — highest probability",
-        3: "Q4 distribution/reversal — high probability",
-        4: "Friday own profile — medium",
-        5: "weekend — no trading",
-        6: "weekend — no trading",
+        0: "Q1 accumulation - ALLOWED only if 2-stage, tCISD, and manipulation all confirmed. Risk × 0.5",
+        1: "Q2 manipulation - high risk, wait for Q3",
+        2: "Q3 distribution - highest probability",
+        3: "Q4 distribution/reversal - high probability",
+        4: "Friday own profile - medium",
+        5: "weekend - no trading",
+        6: "weekend - no trading",
     }
     # `always_open` DATANG DARI DERET INSTRUMENNYA, bukan dari daftar ticker.
     # Kalender di atas adalah minggu futures, dan sampai 30 Agustus 2026 ia
@@ -284,9 +284,9 @@ def evaluate(
     ))
     # Structural rule from Quarterly Theory: after every 'A' (accumulation)
     # in the profile, manipulation MUST happen before any entry. "Perhatiin
-    # sesudah A PASTI manipulation terdahulu." AMDX, XAMD, AAMD — all three
+    # sesudah A PASTI manipulation terdahulu." AMDX, XAMD, AAMD - all three
     # profiles have A before M. If the profile has an A and manipulation
-    # hasn't been seen, the setup is a trap — the market hasn't completed
+    # hasn't been seen, the setup is a trap - the market hasn't completed
     # its accumulation phase.
     a_to_m = True
     a_to_m_detail = ""
@@ -299,7 +299,7 @@ def evaluate(
             a_to_m = False
             a_to_m_detail = (
                 f"profile {profile} has accumulation but no manipulation "
-                f"yet — setup is a trap until the sweep happens"
+                f"yet - setup is a trap until the sweep happens"
             )
         else:
             a_to_m = None

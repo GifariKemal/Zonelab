@@ -417,7 +417,7 @@ def divergences_for(
 
 
 # --------------------------------------------------------------------------
-# POSKO 618 — fractal gap/SSMT mapping
+# POSKO 618 - fractal gap/SSMT mapping
 # --------------------------------------------------------------------------
 
 
@@ -446,7 +446,7 @@ def divergences_for(
 
 
 # --------------------------------------------------------------------------
-# POSKO 618 — 2-stage SSMT helper
+# POSKO 618 - 2-stage SSMT helper
 # --------------------------------------------------------------------------
 
 
@@ -478,7 +478,7 @@ def two_stage(
 
 
 # --------------------------------------------------------------------------
-# POSKO 618 — inter-market SSMT
+# POSKO 618 - inter-market SSMT
 # --------------------------------------------------------------------------
 
 
@@ -490,7 +490,7 @@ def intermarket(
 
     The practitioner's rule: when precious metals AND FX both show SSMT in the
     same direction, it is inter-market confirmation. "precious metals semua
-    ngesweep london low, FX semua failure swing" — both bearish.
+    ngesweep london low, FX semua failure swing" - both bearish.
 
     Returns a list of dicts, each with `a` and `b` keys pointing to the
     matching divergences from each group. The groups are compared by side and
@@ -508,7 +508,7 @@ def intermarket(
 
 
 # --------------------------------------------------------------------------
-# POSKO 618 — regular SMT (non-sequential)
+# POSKO 618 - regular SMT (non-sequential)
 # --------------------------------------------------------------------------
 
 
@@ -520,7 +520,7 @@ class SMTEvent:
     Regular SMT differs from sequential SSMT in one property: the comparison is
     against the RUNNING extreme (all-time high/low within the window), not
     against the immediately previous quarter. This makes it a liquidity
-    reading rather than a trend confirmation — "Regular SMT mengandungi
+    reading rather than a trend confirmation - "Regular SMT mengandungi
     liquiditas yang sangat besar yang tinggi kemungkinan di akan di-purge."
 
     The practitioner's rule: one asset makes a higher high (or lower low), the
@@ -544,7 +544,7 @@ class SMTEvent:
 def smt(
     series: dict[str, list[Candle]], degree: str
 ) -> tuple[list[SMTEvent], dict[str, float]]:
-    """Every regular SMT at `degree` — non-sequential, per instrument pair.
+    """Every regular SMT at `degree` - non-sequential, per instrument pair.
 
     Regular SMT compares the current quarter's extreme to the RUNNING extreme
     (all-time high/low within the window), NOT to the previous quarter. One

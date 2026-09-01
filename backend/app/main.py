@@ -441,7 +441,7 @@ async def triad_read(
     """One triad, three symbols, and which of them is the Truth Asset.
 
     A triad is three correlated instruments read together. The Truth Asset is
-    the one that is consolidating while the others are choppy — it shows the
+    the one that is consolidating while the others are choppy - it shows the
     real premium and discount.
 
     Fetches all three symbols on a shared grid via `load_aligned`, so the
@@ -485,7 +485,7 @@ async def triad_read(
     base = symbol.split(":")[-1]
     symbols = [base, *[p for p in family[1:] if p != base]]
     # Binance and Yahoo only carry a handful of the twenty instruments. The
-    # triad partners — DXY, EURUSD, WTI, NAS100, etc. — are not among them,
+    # triad partners - DXY, EURUSD, WTI, NAS100, etc. - are not among them,
     # so a triad read on those providers would always fail. MT5 carries all
     # twenty and is the fallback.
     triad_provider = provider

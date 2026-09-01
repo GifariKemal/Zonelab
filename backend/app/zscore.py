@@ -1,4 +1,4 @@
-"""Z-Score Cointegration — institutional correlation fracture detection.
+"""Z-Score Cointegration - institutional correlation fracture detection.
 
 Visual SSMT divergence is necessary but not sufficient. A true institutional
 correlation fracture occurs when the spread between two correlated assets
@@ -10,7 +10,7 @@ FORMULA:
     spread = log(price_A) - log(price_B)   (log spread, scale-invariant)
     Z = (spread - rolling_mean) / rolling_std
 
-    Valid SSMT requires |Z| >= 2.0 — the spread is at least 2 standard
+    Valid SSMT requires |Z| >= 2.0 - the spread is at least 2 standard
     deviations from its rolling mean, proving the divergence is statistically
     significant and not just noise.
 

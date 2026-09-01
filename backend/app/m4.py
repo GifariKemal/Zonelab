@@ -1,22 +1,22 @@
-"""M4 Freedom Model — state machine for daily execution.
+"""M4 Freedom Model - state machine for daily execution.
 
 Four states, one trade per day. The engine moves through the states based on
 New York wall-clock time and market conditions. Once a trade is placed, the
 engine is disabled until the next session.
 
-STATE 1 — Pre-09:00 NY: Lock the HTF narrative/bias.
+STATE 1 - Pre-09:00 NY: Lock the HTF narrative/bias.
   Bullish if price is BELOW the stacked True Opens (TDO/TWO/TMO).
   Bearish if price is ABOVE. This is the bias for the rest of the day.
 
-STATE 2 — 09:00-10:30 NY: The "Q3-of-Q3" Killzone.
+STATE 2 - 09:00-10:30 NY: The "Q3-of-Q3" Killzone.
   REJECT ALL ENTRY SIGNALS before 09:30 NY. After 09:30, scan for
-  the Judas Swing — the counter-move (sweep) before the true Q3 expansion.
+  the Judas Swing - the counter-move (sweep) before the true Q3 expansion.
 
-STATE 3 — The Trigger: Scan for exactly ONE Sequential SMT across the
+STATE 3 - The Trigger: Scan for exactly ONE Sequential SMT across the
   Triad. Requires displacement (FVG inside the break leg), not drift.
   Once found, move to execution.
 
-STATE 4 — Execution: Maximum ONE trade per day. Win or lose, disable
+STATE 4 - Execution: Maximum ONE trade per day. Win or lose, disable
   the engine after the trade is complete.
 
 This module is the state definitions and the time-based transitions. The
@@ -40,7 +40,7 @@ class M4State(Enum):
     LOCKED = auto()       # Before 09:30 NY - HTF narrative locked
     JUDAS = auto()        # 09:30-10:30 NY - scan for Judas Swing
     TRIGGER = auto()      # Scan for SSMT + tCISD
-    EXECUTED = auto()     # Trade placed — engine disabled
+    EXECUTED = auto()     # Trade placed - engine disabled
 
 
 @dataclass(frozen=True)
@@ -109,23 +109,23 @@ def current() -> M4Status:
         return M4Status(state=M4State.LOCKED, ny_time=time_str,
                         ny_hour=hour, ny_minute=minute,
                         bias="unknown",
-                        bias_reason="pre-09:30 — bias locked from True Opens")
+                        bias_reason="pre-09:30 - bias locked from True Opens")
 
     if hour < JUDAS_CLOSE_HOUR or (hour == JUDAS_CLOSE_HOUR and minute < JUDAS_CLOSE_MINUTE):
         return M4Status(state=M4State.JUDAS, ny_time=time_str,
                         ny_hour=hour, ny_minute=minute,
                         bias="unknown",
-                        bias_reason="09:30-10:30 — Judas window, reject entries before 09:30")
+                        bias_reason="09:30-10:30 - Judas window, reject entries before 09:30")
 
     if hour < SESSION_CLOSE_HOUR:
         return M4Status(state=M4State.TRIGGER, ny_time=time_str,
                         ny_hour=hour, ny_minute=minute,
                         bias="unknown",
-                        bias_reason="post-10:30 — scan for SSMT + tCISD trigger")
+                        bias_reason="post-10:30 - scan for SSMT + tCISD trigger")
 
     return M4Status(state=M4State.LOCKED, ny_time=time_str,
                     ny_hour=hour, ny_minute=minute,
-                    bias="unknown", bias_reason="post-16:00 — session closed")
+                    bias="unknown", bias_reason="post-16:00 - session closed")
 
 
 def bias_from_opens(price: float, true_opens: list[float]) -> tuple[Literal["bullish", "bearish", "unknown"], str]:

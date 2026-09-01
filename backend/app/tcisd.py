@@ -1,4 +1,4 @@
-"""tCISD Entry Trigger — mathematical precision entry mechanics.
+"""tCISD Entry Trigger - mathematical precision entry mechanics.
 
 The practitioner's rule, as taught in POSKO 618:
 
@@ -13,7 +13,7 @@ The practitioner's rule, as taught in POSKO 618:
 
 This replaces the generic "entry at zone proximal" logic with a specific
 SSMT → tCISD → retest sequence. The tCISD level is the most important
-price on the chart — it is the level where the algorithm proved it could
+price on the chart - it is the level where the algorithm proved it could
 reverse the move.
 
 WHAT THIS IS NOT. It is not a detector. It is an entry RULE that takes
@@ -37,7 +37,7 @@ class TCISDEntry:
     candle_at: int
     #: The bar index where price closed through tCISD.
     broken_at: int
-    #: The stop loss — the SSMT invalidation extreme.
+    #: The stop loss - the SSMT invalidation extreme.
     stop: float
     #: Direction: 'buy' means the tCISD is above current price (retest long).
     direction: str  # 'buy' or 'sell'
@@ -55,7 +55,7 @@ def find(
     `ssmt_candle_idx` is the index of the candle that created the SSMT
     (the one that took the previous quarter's extreme).
     `ssmt_side` is 'high' for bullish SSMT, 'low' for bearish.
-    `sweep_extreme` is the extreme that was swept — the stop loss level.
+    `sweep_extreme` is the extreme that was swept - the stop loss level.
 
     Returns a TCISDEntry if the full sequence is found, or None if the
     tCISD sequence is incomplete or invalid.
@@ -98,9 +98,9 @@ def find(
     if broken_at is None:
         return None  # tCISD never broken
 
-    # Step 4: Check for retest — price must come back to tCISD with a
+    # Step 4: Check for retest - price must come back to tCISD with a
     # rejection wick. The wick is the proof that the level is respected.
-    # A DEEP MOMENTUM THRUST through the level is NOT a retest — the
+    # A DEEP MOMENTUM THRUST through the level is NOT a retest - the
     # close must stay on the correct side and the wick must be small
     # relative to the candle's range (rejection, not continuation).
     for i in range(broken_at + 1, len(candles)):
@@ -110,7 +110,7 @@ def find(
                 # Wick validation: the rejection must be decisive.
                 # The candle must close in the upper half of its range
                 # (body above midpoint), and the wick below must be
-                # less than 50% of the total range — a small wick,
+                # less than 50% of the total range - a small wick,
                 # not a deep thrust.
                 candle_range = c.high - c.low
                 if candle_range <= 0:

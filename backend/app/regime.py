@@ -1,8 +1,8 @@
-"""Macro Volatility Regime — the VIX/ATR percentile filter.
+"""Macro Volatility Regime - the VIX/ATR percentile filter.
 
 The M4 Quarterly model fails in historically low volatility. When the
 market is range-bound or quiet, the manipulation/distribution cycle
-breaks down — there is no liquidity to sweep and no expansion to ride.
+breaks down - there is no liquidity to sweep and no expansion to ride.
 
 This module provides two regime filters:
 
@@ -39,10 +39,10 @@ def regime(atr_values: np.ndarray) -> str:
     """The current volatility regime based on ATR percentile.
 
     Returns:
-      'chop'   — current ATR is in the bottom 20th percentile.
+      'chop'   - current ATR is in the bottom 20th percentile.
                  Low volatility. Reduce risk or halt.
-      'normal' — current ATR is in the middle 60%.
-      'wild'   — current ATR is in the top 20th percentile.
+      'normal' - current ATR is in the middle 60%.
+      'wild'   - current ATR is in the top 20th percentile.
                  High volatility. Normal execution, wider stops.
     """
     if len(atr_values) < MIN_ATR_HISTORY:

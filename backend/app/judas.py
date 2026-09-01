@@ -1,4 +1,4 @@
-"""NY Judas Swing — Templates A, B, C, D for the 09:30 EST counter-move.
+"""NY Judas Swing - Templates A, B, C, D for the 09:30 EST counter-move.
 
 The practitioner's rule: at 09:30 EST (inside the 09:00-10:30 Killzone), the
 algorithm must validate the counter-directional Judas Swing based on the

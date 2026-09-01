@@ -275,6 +275,15 @@ const REVEALED_SLIDERS = [
   // third is exactly what this layer is not allowed to do.
   "Bands drawn",
   "Pools drawn",
+  // The Wyckoff layer's only slider, and it arrived without this line. The
+  // layer shipped on 31 August 2026 in a6577e0 and this list was last touched on
+  // 28 August, so this census read "extra [Trading range width]" and `sweep.mjs`
+  // exited 1 from that commit onward - through every commit after it - while the
+  // four gates named at the top of CLAUDE.md stayed green. That is the second
+  // time a new layer has been added to the registry and left a browser harness
+  // red: the first was 29 August, named in CLAUDE.md, and the lesson written
+  // there did not reach this file.
+  "Trading range width",
 ];
 const sliders = page.locator('input[type="range"]');
 const sliderLabels = async () =>
