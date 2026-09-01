@@ -1,0 +1,437 @@
+{
+  "preregistered": "tools/gap_outcomes.py, 2026-09-01",
+  "question": "apakah objek gap yang digambar memisahkan apa pun",
+  "horizon_bars": 96,
+  "placebo": "random sign, uniform 1.5 to 5.0 ATR, seed 20260901",
+  "questions_judged": 8,
+  "critical_t": 2.7343687865331816,
+  "min_group": 30,
+  "populations": {
+    "breakaway": {
+      "return_bars": {
+        "n": 0,
+        "verdict": "n kecil"
+      },
+      "direction": {
+        "n": 0,
+        "verdict": "n kecil"
+      },
+      "target": {
+        "n": 0,
+        "verdict": "n kecil"
+      },
+      "return_binary": {
+        "n": 0,
+        "verdict": "n kecil"
+      },
+      "return_shifted": {
+        "n": 0,
+        "verdict": "n kecil"
+      }
+    },
+    "measuring": {
+      "return_bars": {
+        "n": 1923,
+        "mean": -2.700988039521581,
+        "t": -3.6532091283400696,
+        "n_effective": 2088.139381932529,
+        "verdict": "MEMISAHKAN",
+        "by_symbol": {
+          "AUDUSD": -6.1654,
+          "EURUSD": -0.049,
+          "GBPUSD": -3.6111,
+          "US30": -2.461,
+          "USDJPY": -3.8455,
+          "USOIL": -1.8459,
+          "XAGUSD": -2.3146,
+          "XAUUSD": -0.1679,
+          "XPTUSD": -7.145
+        }
+      },
+      "direction": {
+        "n": 1923,
+        "mean": -0.09433442404429666,
+        "t": -0.5635805012460366,
+        "n_effective": 1868.7385082997853,
+        "verdict": "",
+        "by_symbol": {
+          "AUDUSD": -0.0629,
+          "EURUSD": 0.2964,
+          "GBPUSD": -0.1323,
+          "US30": -0.0885,
+          "USDJPY": -0.4196,
+          "USOIL": -0.0771,
+          "XAGUSD": 0.4652,
+          "XAUUSD": -0.6699,
+          "XPTUSD": -0.3379
+        }
+      },
+      "target": {
+        "n": 1678,
+        "mean": -0.02026221692491061,
+        "t": -1.160260616536957,
+        "n_effective": 1668.4435041982142,
+        "verdict": "",
+        "by_symbol": {
+          "AUDUSD": -0.0354,
+          "EURUSD": -0.0864,
+          "GBPUSD": -0.0205,
+          "US30": 0.0,
+          "USDJPY": -0.0093,
+          "USOIL": 0.0136,
+          "XAGUSD": -0.1166,
+          "XAUUSD": 0.032,
+          "XPTUSD": -0.1
+        }
+      },
+      "return_binary": {
+        "n": 1923,
+        "mean": 0.01768070722828913,
+        "t": 2.5156463408345506,
+        "n_effective": 1994.9126074684673,
+        "verdict": "TIDAK DINILAI, kena ceiling di horizon ini",
+        "by_symbol": {
+          "AUDUSD": 0.015,
+          "EURUSD": 0.0098,
+          "GBPUSD": 0.0247,
+          "US30": 0.0213,
+          "USDJPY": 0.0244,
+          "USOIL": 0.0193,
+          "XAGUSD": -0.0112,
+          "XAUUSD": 0.0219,
+          "XPTUSD": 0.0305
+        }
+      },
+      "return_shifted": {
+        "n": 1923,
+        "mean": 0.31201248049922,
+        "t": 26.917496655519717,
+        "n_effective": 1830.807189788888,
+        "verdict": "TIDAK DINILAI, kontrolnya bias jarak",
+        "by_symbol": {
+          "AUDUSD": 0.3158,
+          "EURUSD": 0.3431,
+          "GBPUSD": 0.3272,
+          "US30": 0.3369,
+          "USDJPY": 0.3659,
+          "USOIL": 0.2978,
+          "XAGUSD": 0.2472,
+          "XAUUSD": 0.3285,
+          "XPTUSD": 0.3053
+        }
+      }
+    },
+    "opening": {
+      "return_bars": {
+        "n": 13372,
+        "mean": -0.13827400538438528,
+        "t": -0.6441235882299491,
+        "n_effective": 13603.822271291165,
+        "verdict": "",
+        "by_symbol": {
+          "AUDUSD": 0.1542,
+          "EURUSD": 0.2251,
+          "GBPUSD": 0.4386,
+          "US30": -0.3403,
+          "USDJPY": 0.751,
+          "USOIL": -0.2496,
+          "XAGUSD": -0.9308,
+          "XAUUSD": -0.4154,
+          "XPTUSD": -1.6491
+        }
+      },
+      "direction": {
+        "n": 0,
+        "verdict": "n kecil"
+      },
+      "target": {
+        "n": 0,
+        "verdict": "n kecil"
+      },
+      "return_binary": {
+        "n": 13372,
+        "mean": -0.00037391564463057136,
+        "t": -0.1859241343199056,
+        "n_effective": 13479.903680443362,
+        "verdict": "TIDAK DINILAI, kena ceiling di horizon ini",
+        "by_symbol": {
+          "AUDUSD": -0.0007,
+          "EURUSD": -0.0027,
+          "GBPUSD": -0.0027,
+          "US30": 0.0007,
+          "USDJPY": -0.0102,
+          "USOIL": -0.0016,
+          "XAGUSD": 0.0062,
+          "XAUUSD": 0.0021,
+          "XPTUSD": 0.0155
+        }
+      },
+      "return_shifted": {
+        "n": 13372,
+        "mean": 0.3227639844451092,
+        "t": 73.30239111590603,
+        "n_effective": 12802.743718463134,
+        "verdict": "TIDAK DINILAI, kontrolnya bias jarak",
+        "by_symbol": {
+          "AUDUSD": 0.3056,
+          "EURUSD": 0.3158,
+          "GBPUSD": 0.3131,
+          "US30": 0.3627,
+          "USDJPY": 0.2933,
+          "USOIL": 0.3391,
+          "XAGUSD": 0.3263,
+          "XAUUSD": 0.3235,
+          "XPTUSD": 0.3029
+        }
+      }
+    },
+    "ifvg": {
+      "return_bars": {
+        "n": 49914,
+        "mean": -0.3129182193372601,
+        "t": -1.3810511874952822,
+        "n_effective": 33081.16098662821,
+        "verdict": "",
+        "by_symbol": {
+          "AUDUSD": -0.5864,
+          "EURUSD": -0.7069,
+          "GBPUSD": -0.1492,
+          "US30": -0.1694,
+          "USDJPY": 0.2992,
+          "USOIL": -0.4388,
+          "XAGUSD": 0.2693,
+          "XAUUSD": -0.3527,
+          "XPTUSD": -1.5475
+        }
+      },
+      "direction": {
+        "n": 49914,
+        "mean": -0.027025569698831086,
+        "t": -0.7227388711010381,
+        "n_effective": 39448.28862314537,
+        "verdict": "",
+        "by_symbol": {
+          "AUDUSD": -0.2137,
+          "EURUSD": -0.1578,
+          "GBPUSD": -0.2191,
+          "US30": -0.1163,
+          "USDJPY": 0.2223,
+          "USOIL": 0.0018,
+          "XAGUSD": 0.0417,
+          "XAUUSD": 0.2302,
+          "XPTUSD": 0.0052
+        }
+      },
+      "target": {
+        "n": 0,
+        "verdict": "n kecil"
+      },
+      "return_binary": {
+        "n": 49914,
+        "mean": 0.0025243418680129825,
+        "t": 1.0593415129847839,
+        "n_effective": 29904.505067799033,
+        "verdict": "TIDAK DINILAI, kena ceiling di horizon ini",
+        "by_symbol": {
+          "AUDUSD": 0.0059,
+          "EURUSD": 0.0075,
+          "GBPUSD": 0.0011,
+          "US30": 0.0026,
+          "USDJPY": -0.0026,
+          "USOIL": 0.0027,
+          "XAGUSD": -0.0025,
+          "XAUUSD": 0.003,
+          "XPTUSD": 0.0071
+        }
+      },
+      "return_shifted": {
+        "n": 49914,
+        "mean": 0.25818407661177223,
+        "t": 92.71261934704572,
+        "n_effective": 35398.280637415235,
+        "verdict": "TIDAK DINILAI, kontrolnya bias jarak",
+        "by_symbol": {
+          "AUDUSD": 0.2545,
+          "EURUSD": 0.2631,
+          "GBPUSD": 0.269,
+          "US30": 0.2372,
+          "USDJPY": 0.278,
+          "USOIL": 0.237,
+          "XAGUSD": 0.2599,
+          "XAUUSD": 0.2646,
+          "XPTUSD": 0.3092
+        }
+      }
+    },
+    "breaker": {
+      "return_bars": {
+        "n": 63002,
+        "mean": -0.3886384559220342,
+        "t": -1.2795110236610794,
+        "n_effective": 20107.967673415933,
+        "verdict": "",
+        "by_symbol": {
+          "AUDUSD": -1.8291,
+          "EURUSD": -1.0185,
+          "GBPUSD": -1.157,
+          "US30": -0.5385,
+          "USDJPY": 0.576,
+          "USOIL": -0.4506,
+          "XAGUSD": 1.0519,
+          "XAUUSD": 1.5493,
+          "XPTUSD": -2.7224
+        }
+      },
+      "direction": {
+        "n": 63002,
+        "mean": -0.06170918885631917,
+        "t": -1.0631367510347565,
+        "n_effective": 14754.768628998807,
+        "verdict": "",
+        "by_symbol": {
+          "AUDUSD": -0.2696,
+          "EURUSD": -0.0362,
+          "GBPUSD": -0.3055,
+          "US30": -0.1906,
+          "USDJPY": -0.0529,
+          "USOIL": 0.0134,
+          "XAGUSD": 0.1466,
+          "XAUUSD": 0.1581,
+          "XPTUSD": -0.0315
+        }
+      },
+      "target": {
+        "n": 0,
+        "verdict": "n kecil"
+      },
+      "return_binary": {
+        "n": 63002,
+        "mean": 0.004856988667026443,
+        "t": 1.509638865323741,
+        "n_effective": 18745.46020055867,
+        "verdict": "TIDAK DINILAI, kena ceiling di horizon ini",
+        "by_symbol": {
+          "AUDUSD": 0.0176,
+          "EURUSD": 0.0078,
+          "GBPUSD": 0.0102,
+          "US30": 0.0044,
+          "USDJPY": 0.002,
+          "USOIL": 0.0053,
+          "XAGUSD": -0.0114,
+          "XAUUSD": -0.0075,
+          "XPTUSD": 0.0237
+        }
+      },
+      "return_shifted": {
+        "n": 63002,
+        "mean": 0.229897463572585,
+        "t": 84.66781821170238,
+        "n_effective": 36595.1034261011,
+        "verdict": "TIDAK DINILAI, kontrolnya bias jarak",
+        "by_symbol": {
+          "AUDUSD": 0.2395,
+          "EURUSD": 0.2366,
+          "GBPUSD": 0.2339,
+          "US30": 0.2066,
+          "USDJPY": 0.2335,
+          "USOIL": 0.2092,
+          "XAGUSD": 0.224,
+          "XAUUSD": 0.2403,
+          "XPTUSD": 0.2932
+        }
+      }
+    }
+  },
+  "cells": {
+    "XAUUSD": {
+      "bars": 34011,
+      "drift_atr": 1.1531299316562822,
+      "breakaway": 0,
+      "measuring": 138,
+      "opening": 1464,
+      "ifvg": 4965,
+      "breaker": 6567,
+      "window_range_over_atr_min": 2.63
+    },
+    "XAGUSD": {
+      "bars": 34003,
+      "drift_atr": 0.7848621006363545,
+      "breakaway": 0,
+      "measuring": 179,
+      "opening": 1464,
+      "ifvg": 5224,
+      "breaker": 6853,
+      "window_range_over_atr_min": 2.456
+    },
+    "XPTUSD": {
+      "bars": 15086,
+      "drift_atr": 1.0586110898902124,
+      "breakaway": 0,
+      "measuring": 132,
+      "opening": 651,
+      "ifvg": 2281,
+      "breaker": 3104,
+      "window_range_over_atr_min": 2.085
+    },
+    "EURUSD": {
+      "bars": 35570,
+      "drift_atr": -0.2132747262684448,
+      "breakaway": 0,
+      "measuring": 102,
+      "opening": 1471,
+      "ifvg": 5441,
+      "breaker": 7047,
+      "window_range_over_atr_min": 2.552
+    },
+    "GBPUSD": {
+      "bars": 35570,
+      "drift_atr": -0.08744124649192095,
+      "breakaway": 0,
+      "measuring": 162,
+      "opening": 1471,
+      "ifvg": 5452,
+      "breaker": 6980,
+      "window_range_over_atr_min": 2.349
+    },
+    "USDJPY": {
+      "bars": 35570,
+      "drift_atr": 1.0977211248876386,
+      "breakaway": 0,
+      "measuring": 124,
+      "opening": 1471,
+      "ifvg": 5365,
+      "breaker": 7006,
+      "window_range_over_atr_min": 2.261
+    },
+    "AUDUSD": {
+      "bars": 35570,
+      "drift_atr": -0.11570419418923732,
+      "breakaway": 0,
+      "measuring": 134,
+      "opening": 1471,
+      "ifvg": 5815,
+      "breaker": 7365,
+      "window_range_over_atr_min": 2.371
+    },
+    "US30": {
+      "bars": 33466,
+      "drift_atr": 0.6472243503451609,
+      "breakaway": 0,
+      "measuring": 282,
+      "opening": 1480,
+      "ifvg": 5461,
+      "breaker": 6582,
+      "window_range_over_atr_min": 2.326
+    },
+    "USOIL": {
+      "bars": 57747,
+      "drift_atr": 0.2810196902183752,
+      "breakaway": 0,
+      "measuring": 676,
+      "opening": 2472,
+      "ifvg": 10043,
+      "breaker": 11688,
+      "window_range_over_atr_min": 2.498
+    }
+  }
+}

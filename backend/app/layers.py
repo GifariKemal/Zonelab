@@ -204,10 +204,19 @@ LAYERS: tuple[Layer, ...] = (
             "extreme, with its halfway projection target."
         ),
         evidence=(
-            "Unmeasured. Detection is geometry on two bars; the breakaway/measuring "
-            "classification and the halfway projection are doctrine, stated as "
-            "rules rather than results. Drawn for fidelity only, and nothing here "
-            "has been walked forward."
+            "MEASURED 1 September 2026, docs/gap_outcomes.json, and the "
+            "classification is the headline: NOT ONE breakaway gap exists on "
+            "nine instruments over their full history. flat_atr is 2,0 and a "
+            "20-bar window's range never gets that small - minimum observed "
+            "2,085, median near 4,7 - so every gap this engine has drawn is a "
+            "measuring gap and the BK tag has never appeared. Of the rest: the "
+            "continuation direction does not beat the instrument's own drift "
+            "(t=-0,56 clustered, bar 2,73) and the halfway target is not "
+            "reached more than the same bracket one horizon earlier (t=-1,16). "
+            "The band IS reached sooner than the equidistant level on the "
+            "other side, -2,70 bars at t=-3,65, negative on all nine - but "
+            "that control cannot separate a gap from any recently traded "
+            "level. A reading, never a bias."
         ),
     ),
     Layer(

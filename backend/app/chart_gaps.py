@@ -8,7 +8,31 @@ the move that carries it.
 DETECTION IS GEOMETRY, CLASSIFICATION IS DOCTRINE. Finding a gap is arithmetic on
 two bars. Calling it breakaway or measuring is a claim about the trend around it,
 and no source publishes a measurable rule for "flat" or "mid-trend". This module
-states its rules as rules, and none of it has been measured against outcomes.
+states its rules as rules.
+
+AND THE BREAKAWAY BRANCH NEVER FIRES. Measured 1 September 2026 over the full
+history of nine instruments, `docs/gap_outcomes.json`: not one breakaway gap, on
+any of them. The reason is arithmetic rather than market structure. `flat_atr` is
+2,0, and a 20-bar window's total range never gets that small - the minimum ratio
+observed across the nine is 2,085 on platinum, and the median sits near 4,7. A
+20-bar random walk spreads to roughly four or five times its own mean true range,
+so a threshold of 2,0 asks for a window twice as tight as noise. Every gap this
+module has ever emitted is therefore classified `measuring`, and the "BK" tag on
+the canvas has never been drawn.
+
+The number is NOT retuned here. It is a stated rule and fitting it to the data
+that just measured it is the one move this repo does not make. What is fixed is
+the silence: the layer's evidence now says the branch is empty, so a reader is
+not offered a distinction the engine cannot produce.
+
+MEASURED, and the rest of it is null. Also from `docs/gap_outcomes.json`: the
+direction claim (a gap is a continuation object) does not beat the instrument's
+own drift, t=-0,56 clustered against a Bonferroni bar of 2,73; and the measuring
+projection below is not reached more often than the same bracket one horizon
+earlier, t=-1,16. What DOES separate is the band being reached sooner than the
+equidistant level on the other side, -2,70 bars at t=-3,65, negative on all nine
+instruments - though that control cannot tell a gap apart from any other level
+price has recently traded at.
 
 CLASSIFICATION IS NO-LOOKAHEAD. A gap is labelled from the bars BEFORE it only:
 a breakaway gap fires when the preceding window is flat and the gap breaks out of
@@ -75,6 +99,11 @@ def chart_gaps(
     single-bar ranges; a trend moves, so its height is many. Both are chosen
     numbers, not measured ones. `lookback` is how many bars before the gap define
     its context.
+
+    AT THE SHIPPED 2,0 THE BREAKAWAY BRANCH IS UNREACHABLE on every instrument
+    measured, and the header says by how much. A caller who wants the branch to
+    fire has to pass a larger `flat_atr` deliberately; nothing in this repo has
+    measured which value is right, so none is offered as a default.
     """
     if len(candles) < lookback + 2:
         return []
