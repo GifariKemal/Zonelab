@@ -49,6 +49,7 @@ from .models import (
     DrawRequest,
     DrawResponse,
     Drawing,
+    PSPModel,
     RangeLiquidityReport,
     SMTDivergence,
     SSMTDivergence,
@@ -59,6 +60,8 @@ from .models import (
 from .overlays import liquidity_report, news_overlay
 from .plan import build as plan_for
 from .pools import killzones_at
+from .psp import after_ssmt as psp_after_ssmt
+from .psp import in_same_candle
 from .ssmt import divergences_for
 from .ssmt import smt as smt_read
 from .ssmt import smt_positions_for
@@ -632,8 +635,38 @@ async def _draw_ssmt(
     if skipped:
         stats["skipped"] = skipped
     found: list[SSMTDivergence] = []
+    # PSP RIDES THIS FETCH. It needs the SSMT events and the partner bars, and
+    # both are already here: a second block would have paid for the aligned
+    # basket twice to read the same thing. Filled only when the layer is asked
+    # for, so a chart with `ssmt` alone carries no PSP cost at all.
+    want_psp = "psp" in set(request.layers)
+    psp_rows: list[PSPModel] = []
+    partners = [series[k] for k in series if k != request.symbol]
+    index_of = {c.time: i for i, c in enumerate(rows)}
     for degree in dict.fromkeys(params.ssmt_degrees):
         events, _ = ssmt_read(series, degree)
+        if want_psp:
+            for event in events:
+                # Only the half that belongs to this axis, the same convention
+                # `divergences_for` uses and the same one the measurement used.
+                if event.took != request.symbol:
+                    continue
+                at = index_of.get(event.knowable_at)
+                if at is None:
+                    continue
+                got = psp_after_ssmt(rows, at)
+                if got is None:
+                    continue
+                psp_rows.append(
+                    PSPModel(
+                        at=rows[got.at].time,
+                        level=got.level,
+                        direction=got.direction,
+                        ssmt_at=rows[at].time,
+                        bars_after_ssmt=got.bars_after_ssmt,
+                        triad_crack=in_same_candle(got, rows, partners),
+                    )
+                )
         # `rows` are the CHART's own bars, and they are what the premium/discount
         # stamp is read against. Deliberately not the aligned grid the divergence
         # was computed on: the reading is "where did this extreme sit in the
@@ -644,6 +677,18 @@ async def _draw_ssmt(
                 events, request.symbol, rows, request.structure.swing_n
             )
         )
+    if want_psp:
+        # One row per bar: two degrees can point at the same sweep, and the same
+        # sweep drawn twice is one fact reported as two.
+        seen: dict[int, PSPModel] = {}
+        for row in psp_rows:
+            seen.setdefault(row.at, row)
+        ordered = sorted(seen.values(), key=lambda r: r.at)
+        cap = request.psp.max_events
+        drawing.psp = ordered[-cap:] if cap > 0 else ordered
+        stats["psp_found"] = len(seen)
+        stats["psp_drawn"] = len(drawing.psp)
+
     # Oldest first, so the newest segment is drawn last and sits on top where
     # two divergences share an extreme.
     found.sort(key=lambda d: (d.time_from, d.degree, d.partner))
@@ -827,7 +872,9 @@ async def draw(request: DrawRequest, http: Request) -> DrawResponse:
     # The two blocks read the SAME three params, so turning both on asks for the
     # same basket twice - and gets it, from `get_candles`'s memo, at the price of
     # one dict lookup. The alternative was a second copy of the basket settings.
-    if "ssmt" in wanted and rows:
+    # PSP reads the SSMT events, so asking for it asks for the same fetch. The
+    # block fills whichever of the two layers was requested and no more.
+    if ("ssmt" in wanted or "psp" in wanted) and rows:
         meta["ssmt"] = await _draw_ssmt(rows, request, drawing, used)
 
     # Plans and advice are computed for what SURVIVED to the screen, and that is

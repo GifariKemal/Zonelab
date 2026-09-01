@@ -927,6 +927,12 @@ export interface WyckoffParams {
   lookback: number;
 }
 
+/** Precision swing points. One knob: how many of the newest to draw. The window
+ *  and the level are deliberately not knobs. */
+export interface PSPParams {
+  max_events: number;
+}
+
 export const LIQUIDITY_PERIODS = ["day", "week", "friday", "monday"] as const;
 export const TIER_REDUCTIONS = ["envelope", "ce_span", "newest", "eh_span"] as const;
 
@@ -1153,6 +1159,22 @@ export interface ChartGap {
   target: number | null;
 }
 
+/** A precision swing point: a sweep of the open three bars back, rejected in the
+ *  same bar, inside the three bars after an SSMT settles. Measured null across
+ *  48 cells in docs/psp_outcomes.json, on both whether it separates and whether
+ *  the SSMT in front of it adds anything. A reading, never a bias. */
+export interface PSPReading {
+  at: number;
+  level: number;
+  /** "buy" swept below and closed back above, "sell" is the mirror. */
+  direction: string;
+  ssmt_at: number;
+  bars_after_ssmt: number;
+  /** A partner printed the opposite candle sign on this bar. Reported, never
+   *  filtered on: the rate is the same in both arms of the measurement. */
+  triad_crack: boolean;
+}
+
 /** A Wyckoff phase reading: spring, upthrust, sign of strength or weakness over
  *  a rolling trading range. A reading, never a bias. */
 export interface WyckoffPhase {
@@ -1213,6 +1235,9 @@ export interface DrawResponse {
     chart_gaps: ChartGap[];
     /** Wyckoff phase readings. Empty unless the wyckoff layer was requested. */
     wyckoff: WyckoffPhase[];
+    /** Precision swing points after an SSMT. Empty unless the psp layer was
+     *  requested, and empty when the SSMT partners could not be loaded. */
+    psp: PSPReading[];
   };
   /** One per drawn zone, in the same order as `drawing.zones`. */
   plans: TradePlan[];
@@ -1509,6 +1534,7 @@ export interface LayerParams {
   expectation: ExpectationParams;
   chart_gaps: ChartGapParams;
   wyckoff: WyckoffParams;
+  psp: PSPParams;
 }
 
 /** THE DEFAULT CHART IS ONE DETECTOR. Everything else is opt-in, and that is a
@@ -1609,6 +1635,7 @@ export const DEFAULT_LAYER_PARAMS: LayerParams = {
   },
   chart_gaps: {},
   wyckoff: { lookback: 20 },
+  psp: { max_events: 40 },
 };
 
 

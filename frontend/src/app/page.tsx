@@ -798,6 +798,7 @@ export default function Page() {
                 gapStacks={data?.drawing.gap_stacks ?? []}
                 chartGaps={data?.drawing.chart_gaps ?? []}
                 wyckoff={data?.drawing.wyckoff ?? []}
+                psp={data?.drawing.psp ?? []}
                 news={data?.drawing.news ?? []}
                 interval={interval}
                 zone={clock}

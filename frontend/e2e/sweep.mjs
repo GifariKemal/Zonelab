@@ -284,6 +284,9 @@ const REVEALED_SLIDERS = [
   // red: the first was 29 August, named in CLAUDE.md, and the lesson written
   // there did not reach this file.
   "Trading range width",
+  // The PSP layer's only slider, added with the layer on 1 September 2026 and in
+  // the same commit, which is the whole lesson of the line above it.
+  "Swing points drawn",
 ];
 const sliders = page.locator('input[type="range"]');
 const sliderLabels = async () =>

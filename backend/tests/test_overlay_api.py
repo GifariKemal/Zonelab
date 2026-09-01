@@ -82,8 +82,8 @@ def test_the_layer_catalogue_is_advertised_in_draw_order_and_says_what_each_is()
     config = client.get("/api/config").json()
     assert [layer["id"] for layer in config["layers"]] == [
         "supply_demand", "fvg", "order_block", "ifvg", "breaker",
-        "structure", "session", "vortex", "gaps", "chart_gaps", "wyckoff", "cisd", "dfr", "ssmt", "pools", "liquidity",
-        "projections", "expectation", "news", "checklist",
+        "structure", "session", "vortex", "gaps", "chart_gaps", "psp", "wyckoff", "cisd", "dfr", "ssmt", "pools",
+        "liquidity", "projections", "expectation", "news", "checklist",
     ]
     for layer in config["layers"]:
         assert layer["kind"] in ("detector", "overlay", "report"), layer
@@ -885,10 +885,16 @@ def test_every_registered_layer_is_actually_dispatched():
     from app.layers import LAYERS
     from app.overlays import BAR_OVERLAYS
 
-    # The three that cannot be dispatched synchronously: each needs a network
+    # The four that cannot be dispatched synchronously: each needs a network
     # call, so `main.draw` handles them and `build` cannot. Named rather than
-    # inferred, so adding a fourth is a decision someone writes down.
-    ASYNC_DISPATCHED = {"ssmt", "news", "checklist"}
+    # inferred, so adding a fifth is a decision someone writes down.
+    #
+    # `psp` is the fourth, added 1 September 2026. It reads the SSMT events and
+    # the partner bars, so it rides the aligned fetch `_draw_ssmt` already makes
+    # rather than paying for the same basket twice. This test is what caught it
+    # being registered before it was dispatched, which is the job it was written
+    # for.
+    ASYNC_DISPATCHED = {"ssmt", "news", "checklist", "psp"}
 
     dispatched = set(_HANDLERS) | set(BAR_OVERLAYS) | ASYNC_DISPATCHED
     orphans = sorted(layer.id for layer in LAYERS if layer.id not in dispatched)

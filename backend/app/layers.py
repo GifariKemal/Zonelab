@@ -211,6 +211,31 @@ LAYERS: tuple[Layer, ...] = (
         ),
     ),
     Layer(
+        id="psp",
+        label="Precision swing point",
+        kind="overlay",
+        params="psp",
+        note=(
+            "A sweep of the open three bars back, rejected in the same bar, "
+            "inside the three bars after an SSMT settles. Needs the SSMT "
+            "partners, so it draws nothing when they cannot be loaded."
+        ),
+        evidence=(
+            "MEASURED NULL, and both halves of the claim were asked. "
+            "docs/psp_outcomes.json graded 48 cells - four pairs, three bracket "
+            "widths, both directions, two hypotheses - and not one separated. "
+            "The largest |z| seen was 2,10 against a Bonferroni bar of 3,28, "
+            "and the run is powered to about 10,6 points of hit rate at these "
+            "n. H1 asked whether a PSP after an SSMT beats a bar with no PSP; "
+            "H2 asked whether the SSMT in front of it adds anything over a PSP "
+            "standing alone. Both null. The triad crack rate is identical in "
+            "both arms (0,2644 against 0,2644 on gold against silver), so the "
+            "SSMT window does not select for the crack either. Drawn as a "
+            "reading, and barred from the decision path by "
+            "tests/test_psp_not_wired_to_decisions.py."
+        ),
+    ),
+    Layer(
         id="wyckoff",
         label="Wyckoff phases",
         kind="overlay",
@@ -220,7 +245,11 @@ LAYERS: tuple[Layer, ...] = (
             "trading range."
         ),
         evidence=(
-            "Unmeasured. The determinable subset of the Wyckoff schematic - the "
+            "MEASURED NULL. docs/wyckoff_outcomes.json: four phases against "
+            "the instrument's own drift over nine instruments, clustered t "
+            "between -0,95 and +0,27 against a Bonferroni bar of 2,50, and "
+            "13 to 20 of 36 per-symbol folds positive. The determinable "
+            "subset of the Wyckoff schematic - the "
             "full schematic needs volume and discretion, see "
             "docs/superpowers/specs/2026-08-31-wyckoff-design.md. These four "
             "readings map onto the structure primitives (sweep, break) that H6 "

@@ -1450,6 +1450,34 @@ export const Toolbox = memo(function Toolbox({
           </>
         );
 
+      case "psp":
+        return (
+          <>
+            <Slider
+              label="Swing points drawn"
+              hint="Newest precision swing points kept on the canvas."
+              note="The window and the level are not knobs. Three bars after the SSMT, and the open of the bar three back, are the owner's own numbers - a slider on them would invite the search this repo measures against."
+              suffix="events"
+              min={0}
+              max={200}
+              step={10}
+              value={params.psp.max_events}
+              onChange={(v) => onParams("psp", { max_events: v })}
+            />
+            <Note>
+              A sweep of the open three bars back, rejected inside the same bar,
+              in the three bars after an SSMT settles. It needs the SSMT
+              partners, so it draws nothing when they cannot be loaded. Measured
+              NULL across 48 cells in docs/psp_outcomes.json, on both questions:
+              whether it separates at all, and whether the SSMT in front of it
+              adds anything over a swing point standing alone. A brighter tag
+              means a partner printed the opposite candle sign, the crack in
+              correlation - reported, never filtered on, because its rate is the
+              same in both arms.
+            </Note>
+          </>
+        );
+
       case "wyckoff":
         return (
           <>
@@ -2259,6 +2287,7 @@ const LAYER_SWATCH: Record<string, readonly string[]> = {
   expectation: [ink("levels", 0.95)],
   chart_gaps: [ink("levels", 0.95)],
   wyckoff: [ink("structure", 0.85)],
+  psp: [ink("ssmt", 0.85)],
   news: ["var(--accent)"],
 };
 

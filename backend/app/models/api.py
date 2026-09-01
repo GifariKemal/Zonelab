@@ -15,6 +15,7 @@ from .params import (
     DFRParams,
     CISDParams,
     ChartGapParams,
+    PSPParams,
     ChecklistParams,
     ExpectationParams,
     GapParams,
@@ -239,6 +240,13 @@ class DrawRequest(BaseModel):
     chart_gaps: ChartGapParams = Field(
         default_factory=ChartGapParams,
         description="Breakaway and measuring gaps. No knobs.",
+    )
+    psp: PSPParams = Field(
+        default_factory=PSPParams,
+        description=(
+            "Precision swing points after an SSMT. Measured null in "
+            "docs/psp_outcomes.json and drawn as a reading."
+        ),
     )
     wyckoff: WyckoffParams = Field(
         default_factory=WyckoffParams,

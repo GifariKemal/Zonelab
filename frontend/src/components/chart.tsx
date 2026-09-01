@@ -36,6 +36,7 @@ import type {
   TrueOpenLevel,
   VortexDial,
   WyckoffPhase,
+  PSPReading,
   Zone,
 } from "@/lib/types";
 import { clockStamp, clockTick, ZONE_TAG, type ClockZone, type TickKind } from "@/lib/clock";
@@ -52,6 +53,7 @@ import { SMTSeriesPrimitive } from "./smt-primitive";
 import { FibonacciSeriesPrimitive } from "./fibonacci-primitive";
 import { VortexSeriesPrimitive } from "./vortex-primitive";
 import { WyckoffSeriesPrimitive } from "./wyckoff-primitive";
+import { PSPSeriesPrimitive } from "./psp-primitive";
 import { claimedLabels, StructureSeriesPrimitive } from "./structure-primitive";
 import { ZoneSeriesPrimitive } from "./zone-primitive";
 
@@ -105,6 +107,8 @@ interface Props {
   chartGaps: ChartGap[];
   /** Wyckoff phase readings, off the wyckoff layer. A reading, never a bias. */
   wyckoff: WyckoffPhase[];
+  /** Precision swing points, off the psp layer. Measured null, drawn anyway. */
+  psp: PSPReading[];
   news: NewsEvent[];
   /** The chart's own timeframe. Zones stamped with anything else came from a
    *  higher timeframe and are drawn heavier. */
@@ -209,6 +213,7 @@ export function Chart({
   gapStacks,
   chartGaps,
   wyckoff,
+  psp,
   news,
   interval,
   zone,
@@ -232,6 +237,7 @@ export function Chart({
   const expectationPrimitive = useRef<ExpectationSeriesPrimitive | null>(null);
   const chartGapPrimitive = useRef<ChartGapSeriesPrimitive | null>(null);
   const wyckoffPrimitive = useRef<WyckoffSeriesPrimitive | null>(null);
+  const pspPrimitive = useRef<PSPSeriesPrimitive | null>(null);
   const levelsPrimitive = useRef<LevelsSeriesPrimitive | null>(null);
 
   /** Structure on the bar under the crosshair. A bar can carry TWO events - an
@@ -411,6 +417,8 @@ export function Chart({
     candleSeries.attachPrimitive(chartGapPrim);
     const wyckoffPrim = new WyckoffSeriesPrimitive();
     candleSeries.attachPrimitive(wyckoffPrim);
+    const pspPrim = new PSPSeriesPrimitive();
+    candleSeries.attachPrimitive(pspPrim);
 
     /** How many zones the price scale is currently hiding.
      *
@@ -494,6 +502,7 @@ export function Chart({
     expectationPrimitive.current = expectationPrim;
     chartGapPrimitive.current = chartGapPrim;
     wyckoffPrimitive.current = wyckoffPrim;
+    pspPrimitive.current = pspPrim;
     levelsPrimitive.current = levelsPrim;
 
     if (process.env.NODE_ENV !== "production") {
@@ -557,6 +566,7 @@ export function Chart({
       expectationPrimitive.current = null;
       chartGapPrimitive.current = null;
       wyckoffPrimitive.current = null;
+      pspPrimitive.current = null;
       levelsPrimitive.current = null;
     };
   }, []);
@@ -759,6 +769,10 @@ export function Chart({
   useEffect(() => {
     wyckoffPrimitive.current?.setPhases(wyckoff);
   }, [wyckoff]);
+
+  useEffect(() => {
+    pspPrimitive.current?.setEvents(psp);
+  }, [psp]);
 
   useEffect(() => {
     primitive.current?.setSelected(selectedId);

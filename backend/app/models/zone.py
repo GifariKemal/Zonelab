@@ -18,6 +18,7 @@ from .cycle import (
 from .expectation import ExpectationFan
 from .chart_gaps import ChartGapModel
 from .wyckoff import WyckoffPhaseModel
+from .psp import PSPModel
 
 
 class Zone(BaseModel):
@@ -402,5 +403,14 @@ class Drawing(BaseModel):
             "Wyckoff phase readings over a rolling trading range: spring, "
             "upthrust, sign of strength, sign of weakness. A reading, never a "
             "bias. Empty unless requested. Unmeasured."
+        ),
+    )
+    psp: list[PSPModel] = Field(
+        default_factory=list,
+        description=(
+            "Precision swing points inside the three bars after an SSMT. Empty "
+            "unless the psp layer was requested, and empty when the ssmt "
+            "partner series could not be loaded. Measured null in "
+            "docs/psp_outcomes.json, drawn as a reading."
         ),
     )

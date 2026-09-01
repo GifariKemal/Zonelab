@@ -53,6 +53,10 @@ const MINIMUM = {
   session: { session: { quarters: ["day"], true_opens: ["day"] } },
   dfr: { dfr: { degrees: ["day"] } },
   ssmt: { checklist: { ssmt_symbols: ["XAGUSD"], ssmt_degrees: ["day"] } },
+  // PSP reads the SSMT events, so it needs the same partners the ssmt layer
+  // does. Without them it correctly draws nothing, and this harness would then
+  // be reporting a missing partner as a dead layer.
+  psp: { checklist: { ssmt_symbols: ["XAGUSD"], ssmt_degrees: ["day"] } },
 };
 
 /** Which response array each layer fills. `checklist` is a report, not a shape. */
@@ -76,6 +80,7 @@ const DRAWS = {
   expectation: "expectation",
   chart_gaps: "chart_gaps",
   wyckoff: "wyckoff",
+  psp: "psp",
 };
 
 const results = [];
@@ -203,6 +208,7 @@ const OWNERS = [
   ["liquidity", "Named levels", "Periods"],
   ["projections", "Deviation projections", "Sessions"],
   ["expectation", "Expectation fan", "Expected path line"],
+  ["psp", "Precision swing point", "Swing points drawn"],
   ["wyckoff", "Wyckoff phases", "Trading range width"],
   ["news", "Economic calendar", "Impact"],
 ];

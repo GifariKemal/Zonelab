@@ -50,6 +50,7 @@ from app.models import (
     ExpectationParams,
     ChartGapParams,
     WyckoffParams,
+    PSPParams,
 )
 
 TYPES_TS = Path(__file__).resolve().parents[2] / "frontend" / "src" / "lib" / "types.ts"
@@ -71,6 +72,7 @@ OWNERS = {
     "expectation": ExpectationParams,
     "chart_gaps": ChartGapParams,
     "wyckoff": WyckoffParams,
+    "psp": PSPParams,
 }
 
 

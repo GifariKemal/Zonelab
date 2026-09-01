@@ -811,6 +811,22 @@ class WyckoffParams(ParamBlock):
     )
 
 
+class PSPParams(ParamBlock):
+    """Precision swing points. One knob, how many of the newest to draw."""
+
+    max_events: int = Field(
+        default=40,
+        ge=0,
+        le=500,
+        description=(
+            "Newest PSP events drawn, 0 for no cap. The window and the level "
+            "are NOT knobs: three bars and the open of the bar three back are "
+            "the owner's own numbers, and a slider on them would invite the "
+            "search this repo measures against."
+        ),
+    )
+
+
 class ExpectationParams(ParamBlock):
     """The expectation overlay. Reads a precomputed table, so it costs no
     provider call and carries one knob.
