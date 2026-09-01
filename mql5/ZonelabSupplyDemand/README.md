@@ -96,6 +96,20 @@ luar sampel. 4,0 adalah perbaikan in-sample yang belum lolos walk-forward -
 bisa jadi overfit ke 8 bulan ini. Default tetap 2,0; naikkan ke 4,0 hanya kalau
 mau mengejar robustness dengan risiko overfit.
 
+### Filter arah (trend/momentum) - TIDAK membantu
+
+| Filter | PF | Net profit | Trades | Win rate |
+|---|---|---|---|---|
+| Tanpa filter | **1,32** | **+23,2%** | 118 | **39,0%** |
+| Trend SMA 100 | 1,20 | +10,3% | 90 | 37,8% |
+| Trend SMA 200 | 1,18 | +8,5% | 81 | 37,0% |
+
+Filter arah (demand hanya saat uptrend, supply hanya saat downtrend) justru
+mengurangi edge, dan makin panjang lookback makin buruk. Konsisten dengan
+`docs/CALIBRATION.md` H6-H10: edge zona berbasis LOKASI, bukan arah. Filter
+arah menghapus trade lokasi yang valid tanpa menambah edge arah. `InpUseTrendFilter`
+default OFF karena terukur merugikan.
+
 ## Kesimpulan jujur
 
 Win rate supply/demand di target 2R secara struktural 35-40%, bukan cacat presisi.

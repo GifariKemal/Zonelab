@@ -31,6 +31,9 @@ input double InpRewardR          = 2.0;
 input double InpRiskPercent      = 1.0;
 input int    InpBars             = 3000;
 input int    InpMagic            = 20260831;
+//--- filter arah (trend/momentum) ---
+input bool   InpUseTrendFilter   = false;  // hanya trade searah trend (terukur TIDAK membantu)
+input int    InpTrendPeriod      = 100;    // SMA lookback buat arah trend
 
 CTrade trade;
 
@@ -45,6 +48,7 @@ int g_zones_fresh = 0;
 int g_orders_placed = 0;
 int g_orders_failed = 0;
 int g_orders_skipped_price = 0;
+int g_orders_skipped_trend = 0;
 
 bool AlreadyOrdered(string id)
   {
@@ -85,6 +89,7 @@ void OnDeinit(const int reason)
    Print("orders placed: ", g_orders_placed);
    Print("orders failed: ", g_orders_failed);
    Print("orders skipped (price): ", g_orders_skipped_price);
+   Print("orders skipped (trend): ", g_orders_skipped_trend);
    Print("orders already ordered: ", g_ordered_count);
   }
 
@@ -174,6 +179,24 @@ void DetectAndTrade()
       if(risk <= SD_EPS)
          continue;
       double target = entry + way * InpRewardR * risk;
+
+      // Filter arah (trend/momentum): demand (long) hanya saat uptrend
+      // (close di atas SMA), supply (short) hanya saat downtrend.
+      if(InpUseTrendFilter)
+        {
+         int tp = MathMin(InpTrendPeriod, n);
+         double sum = 0.0;
+         for(int j = n - tp; j < n; j++)
+            sum += close_[j];
+         double sma = sum / tp;
+         double lastClose = close_[n - 1];
+         if((is_demand && lastClose < sma) || (!is_demand && lastClose > sma))
+           {
+            g_orders_skipped_trend++;
+            MarkOrdered(id);
+            continue;
+           }
+        }
 
       // Guard: buy limit harus di bawah ask, sell limit di atas bid.
       if(is_demand && entry >= ask)
