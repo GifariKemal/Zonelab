@@ -240,6 +240,33 @@ BTC tidak punya edge mean-reversion di level untuk detektor mana pun.
 | XAU H1 | 1,71 | 1,06 |
 | BTC H1 | 0,82 | 0,93 |
 
+---
+
+# Fair Value Gap / Imbalance (detektor ketiga, independen)
+
+`FVGDetector.mqh` + `ZonelabFVG.mq5` + `tools/ea_parity_fvg.py`.
+
+Port faithful `app/detect/imbalance.py::detect_fvg`: 3 bar berurutan yang wick
+luarnya tak bertemu. Box = band gap, gate `min_gap_atr=0.1`. Parity OK (769 gap,
+0 mismatch), compile 0 error.
+
+## Hasil (XAUUSD H1, real tick)
+
+| Target | PF | Net profit | Win rate |
+|---|---|---|---|
+| profit_zone | 0,90 | -15,7% | 35,2% |
+| fixed ATR 2.0 | ~0,6 | -35,2% | - |
+
+FVG, ditradingkan sebagai reversal (beli gap, harap mantul), RUGI di semua target.
+Alasannya: (1) gap padat, jadi profit_zone (zona lawan terdekat) selalu dekat,
+reward kecil; (2) gap itu sendiri kecil (0,1-1 ATR), jadi reward dimakan spread +
+stop buffer; (3) FVG adalah objek **continuation**, bukan reversal (CALIBRATION.md
+H5) - men-trade-nya sebagai reversal berarti melawan karakternya.
+
+Kesimpulan: FVG punya reaksi lokasi (beat placebo frictionless di CALIBRATION.md)
+tapi TIDAK punya edge P&L yang tradeable. Konsisten dengan literatur: "the
+reaction is real, the edge is not established."
+
 **Kaveat performa:** OB ~10x lebih lambat dari S&D (banyak kandidat). Window
 tumbuh (InpBars=20000) membuat backtest M15 butuh >15 menit, jadi default
 InpBars diturunkan ke 3000 (window tetap).
