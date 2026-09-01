@@ -126,6 +126,59 @@ def detect(
     return None
 
 
+#: The level a rolling PSP sweeps: the OPEN of the bar this many back. Chosen by
+#: the owner on 1 September 2026 out of three readings of his own phrase, "PSP
+#: sell diatas pembukaan candle 3 ... itu dilihat ya tadi 3 candle last", before
+#: the measurement that used it existed.
+LEVEL_BACK = 3
+
+#: Bars after an SSMT becomes knowable in which a PSP counts, `detect`'s own
+#: default and the same three candles.
+WINDOW = 3
+
+
+def at_bar(candles: list[Candle], i: int, level_back: int = LEVEL_BACK):
+    """A PSP on bar `i` against the open of the bar `level_back` back.
+
+    ONE PREDICATE, USED TWICE. `tools/psp_outcomes.py` measured the object with
+    this function and `app/main.py` draws it with this function, so the thing on
+    the chart and the thing in the evidence file cannot drift apart. A second
+    copy of the arithmetic would have measured the copy.
+
+    `detect` is called with a one-bar window because the level moves with the
+    bar: a fixed list of levels cannot express "the open of three bars ago" for
+    a whole span at once.
+    """
+    if i < level_back or i >= len(candles):
+        return None
+    return detect(candles, i - 1, [candles[i - level_back].open], lookback=1)
+
+
+def after_ssmt(
+    candles: list[Candle], knowable: int, window: int = WINDOW
+) -> "PSPEvent | None":
+    """The first PSP in the `window` bars after `knowable`, or None.
+
+    `knowable` is the index of the bar an SSMT settled on. The window starts at
+    the NEXT bar: the bar the divergence became readable on is not a bar the
+    reading could have been acted on.
+    """
+    for k in range(1, window + 1):
+        i = knowable + k
+        if i >= len(candles):
+            break
+        got = at_bar(candles, i)
+        if got is not None:
+            return PSPEvent(
+                at=i,
+                level=got.level,
+                direction=got.direction,
+                ssmt_at=knowable,
+                bars_after_ssmt=k,
+            )
+    return None
+
+
 def polarity(candle: Candle) -> int:
     """+1 bullish, -1 bearish, 0 for a candle with no side.
 

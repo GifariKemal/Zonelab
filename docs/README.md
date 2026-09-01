@@ -1,6 +1,6 @@
 # Peta direktori docs
 
-Direktori ini berisi 13 dokumen prosa dan 32 file bukti mentah. Tanpa peta,
+Direktori ini berisi 13 dokumen prosa dan 33 file bukti mentah. Tanpa peta,
 pembaca yang membukanya melihat 30 file dan tidak bisa tahu prosa mana membaca
 data mana. Itu satu-satunya alasan file ini ada.
 
@@ -73,6 +73,7 @@ Tanda hubung lawan garis bawah adalah artefak sejarah dan bukan makna:
 | `conditioned_structure.json` | `tools.conditioned_structure` | - | `structure` dan `projections` sebagai PENGKONDISI kohort zona, 8 instrumen, n=1855, 30 grup, null |
 | `wyckoff_outcomes.json` | `tools.wyckoff_outcomes` | - | forward move arah 4 fase Wyckoff lawan drift per-instrumen, 9 instrumen, null |
 | `csid_ob_outcomes.json` | `tools.csid_ob_outcomes` | - | CISD di dalam order block lawan drift (arah), 9 instrumen, null, hampir degenerat |
+| `psp_outcomes.json` | `tools.psp_outcomes` | - | PSP sesudah SSMT lawan bar tanpa PSP (H1) dan lawan PSP tanpa SSMT (H2). 48 sel, 4 pasangan, 3 lebar bracket, dua arah. NULL semua, |z| terbesar 2,10 lawan bar Bonferroni 3,28 |
 | `instrument_scan.json` | `tools.instrument_scan` | - | hold rate zona lawan placebo geser di 12 instrumen, 9 di antaranya belum pernah punya satu angka pun. TANPA BIAYA, jadi klaim lokasi dan bukan klaim edge tradeable. 10 dari 12 MEMISAHKAN, 4/4 lipatan. Null: NAS100 (z +2,66) dan WTI (z +1,54) |
 | `csid_ob_intrabar.json` | `tools.csid_ob_intrabar` | - | CISD fresh (recency 50 bar) di dalam order block lawan resolved R (intrabar 5m, biaya), 8174 trade, delta -0,136 R t=-7,04, walk-forward 8/8 negatif, MEMISAHKAN tanda terbalik |
 
