@@ -267,6 +267,29 @@ Kesimpulan: FVG punya reaksi lokasi (beat placebo frictionless di CALIBRATION.md
 tapi TIDAK punya edge P&L yang tradeable. Konsisten dengan literatur: "the
 reaction is real, the edge is not established."
 
+---
+
+# Confluence (kombinasi detektor)
+
+`tools/confluence_test.py`. Uji apakah S&D + OB/FVG di harga yang sama menaikkan
+hold rate. Hasil: **tidak membantu, karena OB/FVG terlalu padat.**
+
+- S&D 653 zona, OB 4128 block, FVG 3092 gap = 7220 box.
+- **Setiap zona S&D (555/555) tumpang tindih dengan OB/FVG**, baik di overlap
+  penuh maupun band ketat 0,3 ATR. n "alone" = 0.
+
+OB/FVG terlalu padat untuk jadi filter confluence di definisi apa pun. Konsisten
+dengan CALIBRATION.md H2 (nesting HTF = 0 benefit): confluence lokasi tidak
+menambah edge di atas S&D.
+
+## Kesimpulan akhir seluruh roadmap
+
+Dari 3 detektor lokasi yang dibangun independen, parity-proven, dan di-backtest
+real-tick: **S&D adalah satu-satunya yang punya edge tradeable (PF 1,71 H1,
+walk-forward ~1,98).** OB (PF 1,06) dan FVG (PF 0,90) valid tapi lemah/rugi, dan
+terlalu padat untuk jadi confluence. Edge supply/demand hanya di emas, di H1,
+dengan S&D.
+
 **Kaveat performa:** OB ~10x lebih lambat dari S&D (banyak kandidat). Window
 tumbuh (InpBars=20000) membuat backtest M15 butuh >15 menit, jadi default
 InpBars diturunkan ke 3000 (window tetap).
