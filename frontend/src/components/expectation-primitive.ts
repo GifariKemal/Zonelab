@@ -29,8 +29,15 @@ import { claimedLabels, labelFree, LABEL_GUTTER } from "./structure-primitive";
  * of the R-to-price rule drifting out of step.
  *
  * The `show_path` median line is the "forecast" the owner asked to keep separate:
- * it draws the median as a single line and is OFF by default, because a lone line
- * reads as a prediction and this engine does not predict.
+ * it draws the measured median forward path as one polyline extending right from
+ * the last bar, and is OFF by default, because a lone line reads as a prediction
+ * and this engine does not predict.
+ *
+ * SHIPPED DEAD FOR ONE DAY. Between 31 August and 1 September 2026 the toggle,
+ * the params block, the note and an `e2e/wiring.mjs` assertion all existed while
+ * `showPath` was assigned and never read: nothing drew. The harness was green
+ * because it asserted the KNOB's label string, not a drawn pixel. The gate now
+ * counts the path's own points.
  */
 
 const INK = "levels";
@@ -44,11 +51,18 @@ interface Row {
   bold: boolean;
 }
 
+/** One point of the drawn path, already in media pixels. */
+interface PathXY {
+  x: number;
+  y: number;
+}
+
 class ExpectationRenderer implements IPrimitivePaneRenderer {
   constructor(
     private readonly rows: readonly Row[],
     private readonly caption: string | null,
     private readonly captionY: number | null,
+    private readonly path: readonly PathXY[],
   ) {}
 
   draw(target: CanvasRenderingTarget2D): void {
@@ -79,6 +93,21 @@ class ExpectationRenderer implements IPrimitivePaneRenderer {
         ctx.stroke();
       }
       ctx.setLineDash([]);
+
+      // The median forward path, one polyline to the right of the last bar. It
+      // is the only thing here that moves in time, so it is drawn solid and
+      // thin, under the fan's own reading.
+      if (this.path.length > 1) {
+        ctx.strokeStyle = ink(INK, 0.65);
+        ctx.beginPath();
+        this.path.forEach((p, i) => {
+          const px = Math.round(p.x * kx);
+          const py = Math.round(p.y * ky) + 0.5;
+          if (i === 0) ctx.moveTo(px, py);
+          else ctx.lineTo(px, py);
+        });
+        ctx.stroke();
+      }
 
       // One caption, against the shared claim map so it cannot sit on another
       // layer's name. Dropped rather than overprinted.
@@ -111,11 +140,13 @@ export class ExpectationSeriesPrimitive implements ISeriesPrimitive<Time> {
   private rows: Row[] = [];
   private caption: string | null = null;
   private captionY: number | null = null;
+  private path: PathXY[] = [];
 
   private readonly views: readonly IPrimitivePaneView[] = [
     {
       zOrder: () => "normal",
-      renderer: () => new ExpectationRenderer(this.rows, this.caption, this.captionY),
+      renderer: () =>
+        new ExpectationRenderer(this.rows, this.caption, this.captionY, this.path),
     },
   ];
 
@@ -132,6 +163,7 @@ export class ExpectationSeriesPrimitive implements ISeriesPrimitive<Time> {
     this.rows = [];
     this.caption = null;
     this.captionY = null;
+    this.path = [];
   }
 
   setFan(fan: ExpectationFan | null, showPath: boolean): void {
@@ -146,6 +178,7 @@ export class ExpectationSeriesPrimitive implements ISeriesPrimitive<Time> {
     this.rows = [];
     this.caption = null;
     this.captionY = null;
+    this.path = [];
     if (!series || !fan || fan.anchor == null || fan.atr == null) return;
 
     const price = (q: number) => fan.anchor! + q * fan.atr!;
@@ -174,6 +207,28 @@ export class ExpectationSeriesPrimitive implements ISeriesPrimitive<Time> {
       ? `${fan.matched_key} n=${n}`
       : `base n=${n}`;
     this.caption = `E[R] ${median >= 0 ? "+" : ""}${median.toFixed(2)} · ${tag}`;
+
+    // The path is placed on the time axis, one point per measured horizon, at
+    // the chart's own bar spacing so it lands where those bars would land. The
+    // anchor is the last bar, and horizon 0 is the anchor price itself so the
+    // line starts on the candle rather than floating beside it.
+    if (this.showPath && fan.path.length > 1 && this.chart) {
+      const scale = this.chart.timeScale();
+      const bars = series.data();
+      const last = bars.length ? bars[bars.length - 1] : null;
+      const lastX = last ? scale.timeToCoordinate(last.time) : null;
+      const spacing = scale.options().barSpacing;
+      const y0 = series.priceToCoordinate(fan.anchor);
+      if (lastX !== null && y0 !== null) {
+        const pts: PathXY[] = [{ x: lastX, y: y0 }];
+        for (const p of fan.path) {
+          const y = series.priceToCoordinate(price(p.q50));
+          if (y === null) continue;
+          pts.push({ x: lastX + p.h * spacing, y });
+        }
+        this.path = pts;
+      }
+    }
   }
 
   paneViews(): readonly IPrimitivePaneView[] {

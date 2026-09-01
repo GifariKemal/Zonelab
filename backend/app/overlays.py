@@ -28,6 +28,7 @@ from .models import (
     Drawing,
     EventHorizonLevel,
     ExpectationFan,
+    PathPoint,
     GapStack,
     LiquidityPool,
     NamedLevel,
@@ -494,11 +495,21 @@ def _expectation(
         ),
         anchor=anchor,
         atr=atr,
+        # THE PATH IS BAR-COUNTED, so it only means what it says on the interval
+        # it was measured on. On any other interval it is not published, and the
+        # stats block below says which interval would carry it.
+        path=(
+            [PathPoint(**pt) for pt in exp.path(cell)]
+            if request.interval == exp.path_interval()
+            else []
+        ),
     )
     return {
         "measured": True,
         "matched": key,
         "buckets": len(exp.buckets(cell)),
+        "path_points": len(drawing.expectation.path),
+        "path_interval": exp.path_interval(),
     }
 
 

@@ -25,6 +25,8 @@ from pathlib import Path
 
 import numpy as np
 
+from app.indicators import wilder_atr
+
 #: Which column of the measured rows the overlay conditions on. `dfr_side` is the
 #: one clause of the seventeen that separated, and its sign is INVERTED - see
 #: `app/ict.py:MEASURED_AGAINST` and `docs/checklist_outcomes.json`.
@@ -36,6 +38,22 @@ CONDITIONER = "dfr_side"
 MIN_GROUP = 30
 
 QUANTILES = (5, 25, 50, 75, 95)
+
+#: The forward path the overlay draws as one line: the MEDIAN cumulative move,
+#: in ATR, at each horizon up to `PATH_HORIZON` bars, sampled every `PATH_STEP`.
+#: It is UNCONDITIONAL - the whole population of bars, not the first-touch
+#: population the fan is built from - because a path is a claim about time and
+#: the first-touch rows carry no trajectory, only a resolved R. Two different
+#: quantities, and the overlay labels them apart.
+PATH_HORIZON = 96
+PATH_STEP = 4
+
+#: The bar interval the path is measured on, and the ONLY interval it may be
+#: drawn on. `h` counts BARS, so 96 of them is four days at 1h and one day at
+#: 15m: the same table rendered on a 15m chart would put a four-day median move
+#: over a one-day span. The interval travels with the table so the overlay can
+#: refuse the mismatch instead of drawing it.
+PATH_INTERVAL = "1h"
 
 #: The measured verdict of the conditioner, copied from the source rather than
 #: recomputed here.
@@ -49,6 +67,32 @@ def quantile_set(vals: list[float]) -> dict:
     v = np.asarray(vals, dtype=np.float64)
     return {"n": int(len(v)),
             **{f"q{q}": float(np.percentile(v, q)) for q in QUANTILES}}
+
+
+def path(candles: list) -> list[dict]:
+    """The median forward move in ATR at each horizon, from the whole series.
+
+    Median rather than mean: a handful of gap bars move the mean and not the
+    middle, and the line is read as "where price usually got to", which is the
+    median's question. Each horizon is measured from every bar that has one, so
+    the windows overlap - the line is a description of the sample, and no
+    significance is claimed for it anywhere.
+    """
+    if len(candles) < PATH_HORIZON + 30:
+        return []
+    high = np.array([c.high for c in candles], dtype=np.float64)
+    low = np.array([c.low for c in candles], dtype=np.float64)
+    close = np.array([c.close for c in candles], dtype=np.float64)
+    atr = wilder_atr(high, low, close, 14)
+    out: list[dict] = []
+    for h in range(PATH_STEP, PATH_HORIZON + 1, PATH_STEP):
+        base = atr[:-h]
+        ok = base > 0
+        if not ok.any():
+            continue
+        moves = (close[h:] - close[:-h])[ok] / base[ok]
+        out.append({"h": h, "q50": float(np.median(moves)), "n": int(ok.sum())})
+    return out
 
 
 def table(rows: list[dict]) -> dict:
@@ -69,8 +113,24 @@ def table(rows: list[dict]) -> dict:
         cells[symbol] = {
             "base_rate": quantile_set([r["r"] for r in mine]),
             "buckets": buckets,
+            "path": _path_for(symbol),
         }
     return cells
+
+
+def _path_for(symbol: str) -> list[dict]:
+    """The forward path for one symbol, or an empty list when it cannot load.
+
+    Imported lazily so `--selfcheck` and any unit test can exercise the bucket
+    arithmetic without a provider on the other end.
+    """
+    try:
+        from tools.quant import clean
+
+        candles, _, _ = clean(symbol, PATH_INTERVAL)
+    except Exception:
+        return []
+    return path(candles or [])
 
 
 def build(rows: list[dict]) -> dict:
@@ -80,6 +140,8 @@ def build(rows: list[dict]) -> dict:
         "outcome": "resolved R multiple (intrabar, 5m)",
         "min_group": MIN_GROUP,
         "verdict": VERDICT,
+        "path_horizon": PATH_HORIZON,
+        "path_interval": PATH_INTERVAL,
         "cells": table(rows),
     }
 
@@ -115,6 +177,22 @@ def selfcheck() -> int:
     # The floor omits a thin bucket rather than drawing it from noise.
     thin = table([{"symbol": "X", "r": 0.0, CONDITIONER: True}])
     assert thin["X"]["buckets"] == {}, "a one-trade bucket must be omitted"
+    # The path: a straight synthetic ramp of +1 per bar with a unit ATR must give
+    # a median move of exactly h at horizon h, so an off-by-one in the slicing or
+    # a mean-for-median swap fails here rather than on the chart.
+    from app.models import Candle
+
+    # No wick, so the true range of every bar is exactly the +1 step and the
+    # ATR is exactly 1. Then the median move at horizon h must be exactly h.
+    ramp = [Candle(time=i * 3600, open=float(i), high=float(i),
+                   low=float(i), close=float(i), volume=0.0)
+            for i in range(400)]
+    pts = path(ramp)
+    assert pts, "a 400-bar series must produce a path"
+    assert [p["h"] for p in pts] == list(range(PATH_STEP, PATH_HORIZON + 1, PATH_STEP))
+    for p in pts:
+        assert abs(p["q50"] - p["h"]) < 0.05, (p["h"], p["q50"])
+    assert path(ramp[:50]) == [], "too short a series must yield no path"
     # Quantiles are monotone.
     b = cell["base_rate"]
     assert b["q5"] <= b["q25"] <= b["q50"] <= b["q75"] <= b["q95"]

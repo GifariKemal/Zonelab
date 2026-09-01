@@ -22,6 +22,20 @@ class QuantileSet(BaseModel):
     q95: float
 
 
+class PathPoint(BaseModel):
+    """One point of the median forward path: `h` bars ahead, `q50` ATR of move.
+
+    A different quantity from the fan. The fan is resolved R over the first-touch
+    population; this is the median cumulative move of the WHOLE series at a fixed
+    horizon. Drawn as one line and off by default, because a lone line reads as a
+    forecast and nothing here forecasts.
+    """
+
+    h: int
+    q50: float
+    n: int
+
+
 class ExpectationFan(BaseModel):
     """One expectation reading for the chart's cell.
 
@@ -51,3 +65,5 @@ class ExpectationFan(BaseModel):
     note: str = ""
     anchor: float | None = None
     atr: float | None = None
+    #: The median forward path, empty when the cell has none measured.
+    path: list[PathPoint] = []

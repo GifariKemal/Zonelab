@@ -1439,10 +1439,13 @@ export const Toolbox = memo(function Toolbox({
             />
             <Note>
               The fan is a measurement of resolved R and is on with the layer. The
-              path is the median of that fan drawn as one line, and it is off by
-              default because a lone line reads as a forecast, and this engine
-              does not forecast - it draws the average historical trajectory,
-              labelled as such. One R is one ATR, the plan&apos;s own stop scale.
+              path is the median forward move of this symbol drawn as one line,
+              and it is off by default because a lone line reads as a forecast,
+              and this engine does not forecast - it draws the median historical
+              trajectory, labelled as such. One R is one ATR, the plan&apos;s own
+              stop scale. The path counts BARS, so it is measured and drawn on
+              the 1h chart only; on any other timeframe the backend sends none
+              rather than stretching a four-day median across one day.
             </Note>
           </>
         );

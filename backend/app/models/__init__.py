@@ -66,6 +66,7 @@ from .zone import (
 from .expectation import (
     QuantileSet,
     ExpectationFan,
+    PathPoint,
 )
 from .chart_gaps import ChartGapModel
 from .wyckoff import WyckoffPhaseModel
@@ -146,6 +147,7 @@ __all__ = [
     "Drawing",
     "QuantileSet",
     "ExpectationFan",
+    "PathPoint",
     "ChartGapModel",
     "WyckoffPhaseModel",
     "SupplyDemandParams",

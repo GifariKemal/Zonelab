@@ -126,6 +126,10 @@ interface Props {
  *  words. It is the library that decides which marks are dates and which are
  *  times, and it decides that on the UTC calendar - see the caveat on
  *  `clockTick`. This map only carries the decision across. */
+/** Bars of empty margin kept at the right edge, and the value the expectation
+ *  path temporarily widens away from. */
+const RIGHT_OFFSET = 6;
+
 const TICK_KIND: Record<TickMarkType, TickKind> = {
   [TickMarkType.Year]: "year",
   [TickMarkType.Month]: "month",
@@ -313,7 +317,7 @@ export function Chart({
         // Bars open on the interval grid, so the seconds are always :00 and
         // saying so costs axis width for no information.
         secondsVisible: false,
-        rightOffset: 6,
+        rightOffset: RIGHT_OFFSET,
         ticksVisible: true,
       },
       crosshair: {
@@ -731,6 +735,22 @@ export function Chart({
   useEffect(() => {
     expectationPrimitive.current?.setFan(expectation, expectationShowPath);
   }, [expectation, expectationShowPath]);
+
+  // THE PATH NEEDS ROOM THAT DOES NOT EXIST BY DEFAULT. `rightOffset` is 6 bars,
+  // and the measured path reaches 96, so 90 of its points would land past the
+  // pane edge and the line would read as a stub. The margin is widened to the
+  // path's own reach while it is on and put back when it is off, so the feature
+  // pays for its own space instead of the chart carrying empty margin for a
+  // layer nobody switched on.
+  useEffect(() => {
+    if (!chartApi) return;
+    const reach = expectation?.path?.length
+      ? expectation.path[expectation.path.length - 1].h
+      : 0;
+    chartApi.timeScale().applyOptions({
+      rightOffset: expectationShowPath && reach ? reach + 4 : RIGHT_OFFSET,
+    });
+  }, [chartApi, expectation, expectationShowPath]);
 
   useEffect(() => {
     chartGapPrimitive.current?.setGaps(chartGaps);

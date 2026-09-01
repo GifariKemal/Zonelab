@@ -39,3 +39,13 @@ def buckets(cell: dict) -> dict[str, dict]:
 
 def base_rate(cell: dict) -> dict | None:
     return cell.get("base_rate") if cell else None
+
+
+def path(cell: dict) -> list[dict]:
+    """The median forward path for a cell, empty when it was never measured."""
+    return cell.get("path", []) if cell else []
+
+
+def path_interval() -> str:
+    """The bar interval the path was measured on. Empty when the table is old."""
+    return _load().get("path_interval", "")
