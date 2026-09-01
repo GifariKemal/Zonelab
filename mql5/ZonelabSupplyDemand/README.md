@@ -126,6 +126,36 @@ karena zona M15 kecil sehingga "jalan di depan" sering pendek, reward kecil
 dimakan spread. Ini konfirmasi `docs/CALIBRATION.md`: `profit_zone_rr` adalah
 satu-satunya faktor yang bertahan, dan efeknya nyata di timeframe yang tepat.
 
+### Walk-forward out-of-sample (H1 + profit_zone)
+
+| Periode | PF | Net profit | Trades |
+|---|---|---|---|
+| Jan-Apr | 1,99 | +27,5% | 51 |
+| Mei-Agu | 1,98 | +29,7% | 56 |
+| Full 8 bln | 1,71 | +49,1% | 108 |
+
+Dua paruh independen sama-sama PF ~1,98. Edge stabil di waktu, bukan kebetulan
+satu periode. Belum lolos walk-forward 9-slice ala `tools/walkforward.py`
+(p=0,0078), tapi split-half ini petunjuk kuat bahwa edge-nya bukan window-fit.
+
+### Kenapa BTC gagal (dan itu bukan bug)
+
+| Pair | Target 2R | Target profit_zone |
+|---|---|---|
+| XAU H1 | PF 1,32 | **PF 1,71** |
+| BTC H1 | PF 1,00 | PF 0,82 |
+
+Walk-forward di BTC menunjukkan gate departure **tetap memisahkan** (7-8/8 di
+reward rendah, sama seperti emas), jadi detektornya kerja di BTC. Yang beda:
+**win rate BTC di 2R cuma 33% (pas di titik impas 33,3%), sedangkan emas 35-39%
+(di atas impas).** Selisih 2-6 poin itu seluruh ceritanya.
+
+Akar masalahnya bukan parameter, tapi karakter pasar: emas punya struktur level
+institusional (high/low sesi, angka bulat, pool likuiditas) yang membuat harga
+mean-revert di level; BTC (kripto ritel 24/7) lebih momentum/trend, jadi level
+lebih sering tembus. Supply/demand adalah edge mean-reversion di level - ia
+bekerja di emas dan tidak di BTC. Ini konsisten dengan `docs/CALIBRATION.md`.
+
 ## Kesimpulan jujur
 
 Win rate supply/demand di target 2R secara struktural 35-40%, bukan cacat presisi.
