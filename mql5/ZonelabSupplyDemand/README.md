@@ -272,15 +272,35 @@ reaction is real, the edge is not established."
 # Confluence (kombinasi detektor)
 
 `tools/confluence_test.py`. Uji apakah S&D + OB/FVG di harga yang sama menaikkan
-hold rate. Hasil: **tidak membantu, karena OB/FVG terlalu padat.**
+hold rate. Hasil: **tidak membantu di ambang mana pun yang punya kontras.**
 
-- S&D 653 zona, OB 4128 block, FVG 3092 gap = 7220 box.
-- **Setiap zona S&D (555/555) tumpang tindih dengan OB/FVG**, baik di overlap
-  penuh maupun band ketat 0,3 ATR. n "alone" = 0.
+Versi pertama paragraf ini (1 September 2026) menulis bahwa overlap penuh dan
+band 0,3 ATR dua-duanya sudah diuji. Yang dijalankan cuma satu; `overlap()` ada
+di file itu dan tidak pernah dipanggil. Diperbaiki dan dijalankan ulang hari yang
+sama, sekarang dengan sapuan ambang, karena 555 lawan 0 mengukur KEPADATAN dan
+bukan daya saring - tanpa kontras tidak ada yang bisa dibandingkan.
 
-OB/FVG terlalu padat untuk jadi filter confluence di definisi apa pun. Konsisten
-dengan CALIBRATION.md H2 (nesting HTF = 0 benefit): confluence lokasi tidak
-menambah edge di atas S&D.
+XAUUSD H1, 20 000 bar, 555 zona ter-resolve. S&D 653 zona, OB 4128 block, FVG
+3091 gap.
+
+| Definisi | confluent n | held | alone n | held | delta | z |
+|---|---|---|---|---|---|---|
+| overlap box penuh | 555 | 50,3% | 0 | - | degenerat | - |
+| proximal 0,300 ATR | 555 | 50,3% | 0 | - | degenerat | - |
+| proximal 0,100 ATR | 533 | 49,5% | 22 | 68,2% | -18,7% | -1,71 |
+| proximal 0,050 ATR | 509 | 49,9% | 46 | 54,3% | -4,4% | -0,58 |
+| proximal 0,020 ATR | 424 | 50,2% | 131 | 50,4% | -0,1% | -0,03 |
+| proximal 0,010 ATR | 341 | 51,0% | 214 | 49,1% | +2,0% | +0,45 |
+| proximal 0,005 ATR | 281 | 50,5% | 274 | 50,0% | +0,5% | +0,13 |
+
+Overlap penuh memang degenerat, jadi klaim lamanya benar - tapi baru sekarang
+direproduksi. Begitu ambangnya diketatkan sampai kontras muncul, selisihnya
+runtuh ke nol (z antara -0,58 dan +0,45 di empat ambang terketat). Satu-satunya
+delta besar ada di n=22 dan arahnya TERBALIK (zona sendirian bertahan lebih
+sering), tidak signifikan, dan tidak boleh dibaca sebagai temuan.
+
+Konsisten dengan CALIBRATION.md H2 (nesting HTF = 0 benefit): confluence lokasi
+tidak menambah edge di atas S&D.
 
 ## Kesimpulan akhir seluruh roadmap
 
