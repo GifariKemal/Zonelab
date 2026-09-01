@@ -65,3 +65,47 @@ def test_no_gap_when_bars_overlap():
 
 def test_atr_is_zero_for_one_bar():
     assert _atr([_c(1000, 100, 101, 99, 100)]) == 0.0
+
+
+def test_a_gap_down_band_is_the_hole_not_the_previous_bar():
+    # THE HOLE, AND ONLY THE HOLE. Until 1 September 2026 a gap down published
+    # `top=prev.high`, which folded the whole previous bar's range into the band
+    # and drew it that tall on the chart. Four tests passed over it because none
+    # of them read `top` or `bottom`.
+    bars = _flat_run(25)                     # each bar 99.5 .. 100.5
+    bars.append(_c(1000 + 25 * 60, 95.0, 95.5, 94.0, 94.5))
+    gap = chart_gaps(bars)[0]
+    assert gap.up is False
+    assert gap.bottom == 95.5                # the gap bar's high
+    assert gap.top == 99.5                   # the previous bar's LOW
+    assert gap.top - gap.bottom == 4.0       # not 5.0, the previous range
+
+
+def test_a_gap_up_band_is_the_hole():
+    bars = _flat_run(25)
+    bars.append(_c(1000 + 25 * 60, 105.0, 106.0, 104.5, 105.5))
+    gap = chart_gaps(bars)[0]
+    assert gap.up is True
+    assert gap.bottom == 100.5               # the previous bar's high
+    assert gap.top == 104.5                  # the gap bar's low
+
+
+def test_a_breakaway_gap_publishes_no_measuring_target():
+    # The halfway rule is a measuring gap's claim. Drawing it on a breakaway put
+    # a dashed projection on the chart that no source publishes.
+    bars = _flat_run(25)
+    bars.append(_c(1000 + 25 * 60, 105.0, 106.0, 104.5, 105.5))
+    gap = chart_gaps(bars)[0]
+    assert gap.kind == "breakaway"
+    assert gap.target is None
+
+
+def test_a_measuring_gap_keeps_its_halfway_target():
+    bars = [
+        _c(1000 + i * 60, 100.0 + i, 100.0 + i + 1.0, 100.0 + i - 0.5, 100.0 + i + 0.8)
+        for i in range(25)
+    ]
+    bars.append(_c(1000 + 25 * 60, 130.0, 131.0, 129.5, 130.5))
+    gap = chart_gaps(bars)[0]
+    assert gap.kind == "measuring"
+    assert gap.target == gap.move_start + 2 * (129.5 - gap.move_start)

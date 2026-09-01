@@ -28,7 +28,8 @@ interface Row {
   x: number;
   yTop: number;
   yBottom: number;
-  yTarget: number;
+  //: null for a breakaway gap, which publishes no halfway projection.
+  yTarget: number | null;
   tag: string;
 }
 
@@ -62,9 +63,11 @@ class ChartGapRenderer implements IPrimitivePaneRenderer {
         ctx.strokeStyle = ink(INK, 0.55);
         ctx.strokeRect(x - bandW / 2, top, bandW, bandH);
 
-        // The measuring target, dashed, to the label gutter.
-        const yT = Math.round(row.yTarget * ky) + 0.5;
-        if (yT >= 0 && yT <= height) {
+        // The measuring target, dashed, to the label gutter. A breakaway gap
+        // sends none, and then nothing is drawn.
+        const yT =
+          row.yTarget === null ? null : Math.round(row.yTarget * ky) + 0.5;
+        if (yT !== null && yT >= 0 && yT <= height) {
           ctx.setLineDash([2 * kx, 3 * kx]);
           ctx.strokeStyle = ink(INK, 0.40);
           ctx.beginPath();
@@ -79,13 +82,15 @@ class ChartGapRenderer implements IPrimitivePaneRenderer {
         const pad = Math.round(3 * kx);
         const w = ctx.measureText(row.tag).width + pad * 2;
         const h = Math.round(12 * ky);
-        const box = { x: x / kx, y: (row.yTarget * ky - h / 2) / ky, w: w / kx, h: h / ky };
-        if (row.yTarget * ky >= 0 && row.yTarget * ky <= height && labelFree(box, claimedLabels)) {
+        // With no target the tag rides the band itself rather than vanishing.
+        const tagY = row.yTarget === null ? (top + bottom) / 2 / ky : row.yTarget;
+        const box = { x: x / kx, y: (tagY * ky - h / 2) / ky, w: w / kx, h: h / ky };
+        if (tagY * ky >= 0 && tagY * ky <= height && labelFree(box, claimedLabels)) {
           claimedLabels.push(box);
           ctx.fillStyle = "rgba(11, 13, 16, 0.78)";
-          ctx.fillRect(x, Math.round(row.yTarget * ky) - h / 2, w, h);
+          ctx.fillRect(x, Math.round(tagY * ky) - h / 2, w, h);
           ctx.fillStyle = ink(INK, 0.9);
-          ctx.fillText(row.tag, x + pad, Math.round(row.yTarget * ky));
+          ctx.fillText(row.tag, x + pad, Math.round(tagY * ky));
         }
       }
       ctx.restore();
@@ -133,8 +138,12 @@ export class ChartGapSeriesPrimitive implements ISeriesPrimitive<Time> {
       const x = scale.timeToCoordinate(g.at as Time);
       const yTop = series.priceToCoordinate(g.top);
       const yBottom = series.priceToCoordinate(g.bottom);
-      const yTarget = series.priceToCoordinate(g.target);
-      if (x === null || yTop === null || yBottom === null || yTarget === null) continue;
+      // A breakaway gap publishes no target, so none is drawn: the halfway rule
+      // is a measuring gap's claim, and inventing the line for the other kind
+      // put a projection on the chart that no doctrine asked for.
+      const yTarget =
+        g.target == null ? null : series.priceToCoordinate(g.target);
+      if (x === null || yTop === null || yBottom === null) continue;
       this.rows.push({
         x,
         yTop,

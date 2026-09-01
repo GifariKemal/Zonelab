@@ -1126,10 +1126,23 @@ export interface ExpectationFan {
   note: string;
   anchor: number | null;
   atr: number | null;
+  /** The median forward path: `q50` ATR of cumulative move `h` bars ahead. A
+   *  different quantity from the fan (which is resolved R), and empty when the
+   *  cell has none measured. */
+  path: PathPoint[];
+}
+
+/** One point of the median forward path. */
+export interface PathPoint {
+  h: number;
+  q50: number;
+  n: number;
 }
 
 /** A breakaway or measuring gap: a trend gap, not a session gap. `target` is the
- *  measuring projection - the practitioner's halfway rule, stated not fitted. */
+ *  measuring projection - the practitioner's halfway rule, stated not fitted -
+ *  and it is null for a breakaway gap, which opens a move rather than halving
+ *  one. `top`/`bottom` are the hole only, never the previous bar's whole range. */
 export interface ChartGap {
   up: boolean;
   top: number;
@@ -1137,7 +1150,7 @@ export interface ChartGap {
   at: number;
   kind: string;
   move_start: number;
-  target: number;
+  target: number | null;
 }
 
 /** A Wyckoff phase reading: spring, upthrust, sign of strength or weakness over

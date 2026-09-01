@@ -40,9 +40,13 @@ class ChartGap:
     """One price gap and its trend reading.
 
     `up` True means the next bar's low is above the previous bar's high, i.e. a
-    gap up. `top` and `bottom` are the unfilled band's edges. `at` is the index
-    of the second bar (the one that gapped). `move_start` is the price the prior
-    leg began at, used by the measuring projection; `target` is that projection.
+    gap up. `top` and `bottom` are the unfilled band's edges, and they are the
+    HOLE only: for a gap down that is `prev.low` down to `cur.high`, not
+    `prev.high`, which would swallow the whole previous bar's range into the gap
+    it is not part of. `at` is the index of the second bar (the one that gapped).
+    `move_start` is the price the prior leg began at, used by the measuring
+    projection; `target` is that projection, and it is None for a breakaway gap
+    because the halfway rule is a claim about a measuring gap only.
     """
 
     up: bool
@@ -51,7 +55,7 @@ class ChartGap:
     at: int
     kind: Kind
     move_start: float
-    target: float
+    target: float | None
 
     @property
     def knowable_at(self) -> int:
@@ -109,10 +113,21 @@ def chart_gaps(
             move_start = w_high
             target = cur.high - (move_start - cur.high)
 
+        # A breakaway gap opens a move, it does not halve one, so the halfway
+        # projection is not its claim and is not published for it. Drawn for both
+        # kinds until 1 September 2026, which put a fabricated target on every
+        # breakaway band on the chart.
+        # A breakaway gap opens a move, it does not halve one, so the halfway
+        # projection is not its claim and is not published for it. Drawn for both
+        # kinds until 1 September 2026, which put a fabricated target on every
+        # breakaway band on the chart.
+        if kind == "breakaway":
+            target = None
+
         out.append(
             ChartGap(
                 up=up,
-                top=cur.low if up else prev.high,
+                top=cur.low if up else prev.low,
                 bottom=prev.high if up else cur.high,
                 at=i,
                 kind=kind,

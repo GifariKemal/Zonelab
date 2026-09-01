@@ -18,4 +18,5 @@ class ChartGapModel(BaseModel):
     at: int
     kind: str  # "breakaway" or "measuring"
     move_start: float
-    target: float
+    #: The measuring halfway projection, None for a breakaway gap.
+    target: float | None = None
