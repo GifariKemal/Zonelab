@@ -1,6 +1,6 @@
 # Peta direktori docs
 
-Direktori ini berisi 13 dokumen prosa dan 34 file bukti mentah. Tanpa peta,
+Direktori ini berisi 13 dokumen prosa dan 35 file bukti mentah. Tanpa peta,
 pembaca yang membukanya melihat 30 file dan tidak bisa tahu prosa mana membaca
 data mana. Itu satu-satunya alasan file ini ada.
 
@@ -73,6 +73,7 @@ Tanda hubung lawan garis bawah adalah artefak sejarah dan bukan makna:
 | `conditioned_structure.json` | `tools.conditioned_structure` | - | `structure` dan `projections` sebagai PENGKONDISI kohort zona, 8 instrumen, n=1855, 30 grup, null |
 | `wyckoff_outcomes.json` | `tools.wyckoff_outcomes` | - | forward move arah 4 fase Wyckoff lawan drift per-instrumen, 9 instrumen, null |
 | `csid_ob_outcomes.json` | `tools.csid_ob_outcomes` | - | CISD di dalam order block lawan drift (arah), 9 instrumen, null, hampir degenerat |
+| `olhc_outcomes.json` | `tools.olhc_outcomes` | PRAREGISTRASI-YATIM.md | modul yatim terakhir yang belum punya angka. classify() terbukti pelabelan ulang (open_pos, close_pos) sehingga pertanyaan urutannya ditarik; klaim arahnya null, t=+0,29 dan +0,005 |
 | `gap_outcomes.json` | `tools.gap_outcomes` | - | lima objek gap yang digambar dan belum pernah diukur: breakaway, measuring, opening, ifvg, breaker. breakaway n=0 (cabangnya tak tercapai). measuring unggul lawan mirror (-2,70 bar, t=-3,65) tapi GUGUR lawan kontrol matched (-0,69 bar, t=-1,06). ifvg dan breaker dicapai LEBIH LAMBAT dari kontrol matched (+0,65 t=+3,63 dan +1,24 t=+5,83), tanda terbalik. Tiga kontrol yang gugur ikut dilaporkan |
 | `psp_outcomes.json` | `tools.psp_outcomes` | - | PSP sesudah SSMT lawan bar tanpa PSP (H1) dan lawan PSP tanpa SSMT (H2). 48 sel, 4 pasangan, 3 lebar bracket, dua arah. NULL semua, |z| terbesar 2,10 lawan bar Bonferroni 3,28 |
 | `instrument_scan.json` | `tools.instrument_scan` | - | hold rate zona lawan placebo geser di 12 instrumen, 9 di antaranya belum pernah punya satu angka pun. TANPA BIAYA, jadi klaim lokasi dan bukan klaim edge tradeable. 10 dari 12 MEMISAHKAN, 4/4 lipatan. Null: NAS100 (z +2,66) dan WTI (z +1,54) |

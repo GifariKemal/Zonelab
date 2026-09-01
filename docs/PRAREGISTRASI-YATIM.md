@@ -323,3 +323,86 @@ Batas yang tetap berlaku dari Bagian 7: hanya baris `ote` yang arah-sadar
 posisi mentah dan mencampur kedua sisi, jadi tidak boleh dibaca sebagai
 "premium bagus". Baris `equilibrium` dan `none` di bawah 30 anggota di seluruh
 dua belas sel.
+
+
+## 11. `app/olhc.py`, praregistrasi keempat, 1 September 2026
+
+Modul ini tidak ada di Bagian 1. Audit 28 Agustus menemukan enam modul yatim dan
+`olhc` bukan salah satunya, jadi ia tidak punya kolom di `tools/conditioned.py`,
+tidak punya file bukti, dan cuma punya satu unit test. Praregistrasi ini ditulis
+di docstring `tools/olhc_outcomes.py` sebelum satu angka dihitung; ringkasannya
+di sini supaya register modul yatim tetap satu tempat.
+
+### Yang ditanyakan, dan yang ditarik kembali
+
+Dua hipotesis ditulis: apakah bentuk penolakan lilin menyatakan ekstrem mana
+yang lebih dulu dikunjungi (H_ORDER, diuji lawan bar 5 menit di dalam jamnya),
+dan apakah arah yang diklaimnya mengalahkan drift instrumennya sendiri
+(H_DIRECTION).
+
+**H_ORDER ditarik, dan alasannya aljabar bukan data.** Pada bar dengan range R:
+
+    lower_wick / R = min(open_pos, close_pos)
+    upper_wick / R = 1 - max(open_pos, close_pos)
+
+sehingga seluruh aturannya runtuh jadi
+
+    accumulation  <=>  close_pos >= 0,5  dan  min(o, c) > 1 - max(o, c)
+
+`classify()` adalah **pelabelan ulang** pasangan (posisi open, posisi close) dan
+tidak membawa apa pun di luar itu. Diverifikasi dua cara: aljabar di atas, dan
+20.000 bar acak di `--selfcheck` yang menuntut `classify` sama persis dengan
+bentuk tertutup itu. Gerbangnya dibuktikan menggigit: mengubah ambang wick di
+`app/olhc.py` menjadi `lower_wick > upper_wick * 1.5` membuatnya gagal.
+
+Konsekuensinya fatal buat pertanyaannya. Kontrol yang benar harus menahan posisi
+open DAN close sekaligus, dan di dalam stratum seperti itu setiap bar punya
+kelas yang sama menurut konstruksi. Tidak ada versi H_ORDER yang menahan
+confound-nya dan masih punya dua lengan.
+
+Dua angka urutan tetap dihitung dan dilaporkan, tidak satu pun dinilai:
+
+| Perbandingan | accumulation | distribution | Yang sebenarnya diukur |
+|---|---|---|---|
+| tanpa kontrol | +0,295 | +0,309 | posisi close, yang sudah ada di aturannya |
+| stratifikasi close saja | -0,257 (z=-93,6) | -0,254 (z=-87,1) | posisi open, yang juga sudah ada di aturannya |
+
+z sebesar -93 pada klaim perilaku adalah bentuk sebuah identitas, bukan sebuah
+edge. Ia dibiarkan di output pada ukuran itu supaya pembaca berikutnya melihat
+kenapa.
+
+### Hasil H_DIRECTION, yang aljabarnya tidak menyelesaikan
+
+`PYTHONPATH=. python -m tools.olhc_outcomes`, sembilan instrumen, 1h, horizon 96
+bar, SE di-cluster pada (simbol, blok window), |t| kritis 2,24 untuk K=2:
+
+| Kelas | n | mean excess (ATR) | t | n efektif | Putusan |
+|---|---:|---:|---:|---:|---|
+| accumulation | 59.035 | +0,0439 | +0,294 | 2.711 | GAGAL |
+| distribution | 51.367 | +0,0007 | +0,005 | 2.781 | GAGAL |
+
+`distribution` praktis nol persis: +0,0007 ATR di 51 ribu event.
+
+### Putusan
+
+`app/olhc.py` tetap yatim, sekarang dengan dua alasan berangka. Ia tidak membawa
+informasi di luar posisi open dan close, dan arah yang diklaimnya tidak
+mengalahkan drift. Bukti: `docs/olhc_outcomes.json`.
+
+### Sisa daftar, diperiksa ulang 1 September 2026
+
+| Modul | Keadaan |
+|---|---|
+| `app/judas.py` | terukur 28 Agu, `judas_template` \|t\| tertinggi 0,23 |
+| `app/m4.py` | terukur 28 Agu lewat `in_judas_window`, t=0,27 |
+| `app/psp.py` | terukur 28 Agu (t=0,09) dan diukur ulang 1 Sep, 48 sel nol, `docs/psp_outcomes.json`. Sekarang DIGAMBAR sebagai bacaan dan dipagari test |
+| `app/tcisd.py`, `app/zscore.py`, `app/regime.py` | terjawab sebelum Bagian 3, lihat Bagian 5 |
+| `app/ladder.py` | tidak dapat diuji sebagai sinyal, dan membaca `for_cycle` mengonfirmasinya: ia menerima nama cycle plus satu boolean dan mengembalikan label rute, nol input pasar |
+| `app/olhc.py` | terukur di bagian ini |
+
+> [!NOTE]
+> Provenance yang lebih lemah, dan disebut supaya tidak terlupakan: angka tCISD,
+> z-score dan regime di Bagian 5 berasal dari transkrip sesi, bukan dari file
+> bukti yang bisa dijalankan ulang. Ketiganya tidak punya tool di `backend/tools/`
+> yang menghasilkannya. Itu di bawah standar yang dipakai setiap baris lain di
+> dokumen ini.

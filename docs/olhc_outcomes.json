@@ -1,0 +1,144 @@
+{
+  "preregistered": "tools/olhc_outcomes.py, 2026-09-01",
+  "identity": "classify() is a deterministic relabelling of (open_pos, close_pos): lower_wick/R = min(o,c) and upper_wick/R = 1-max(o,c), so no control can hold both fixed and still vary the class. The order question is withdrawn, see section 3.",
+  "question": "apakah bentuk penolakan lilin menyatakan ekstrem mana yang lebih dulu",
+  "coarse": "1h",
+  "fine": "5m",
+  "horizon_bars": 96,
+  "strata": 10,
+  "cells_judged": 2,
+  "critical_z": 2.2414,
+  "kinds": {
+    "accumulation": {
+      "order_close_only": {
+        "n_event": 25160,
+        "n_control": 49460,
+        "n_used": 25160,
+        "n_skipped_thin_stratum": 0,
+        "delta": -0.257,
+        "z": -93.614,
+        "verdict": "TIDAK DINILAI, open position belum dikontrol dan tidak bisa dikontrol tanpa mengosongkan kontrasnya"
+      },
+      "order_unmatched": {
+        "event_rate": 0.7048,
+        "control_rate": 0.4095,
+        "delta": 0.2954,
+        "verdict": "TIDAK DINILAI, close position belum dikontrol"
+      },
+      "direction": {
+        "n": 59035,
+        "mean_excess_move_atr": 0.0439,
+        "t": 0.294,
+        "n_effective": 2711.0,
+        "verdict": "null"
+      }
+    },
+    "distribution": {
+      "order_close_only": {
+        "n_event": 22147,
+        "n_control": 52473,
+        "n_used": 22147,
+        "n_skipped_thin_stratum": 0,
+        "delta": -0.2541,
+        "z": -87.124,
+        "verdict": "TIDAK DINILAI, open position belum dikontrol dan tidak bisa dikontrol tanpa mengosongkan kontrasnya"
+      },
+      "order_unmatched": {
+        "event_rate": 0.708,
+        "control_rate": 0.3993,
+        "delta": 0.3086,
+        "verdict": "TIDAK DINILAI, close position belum dikontrol"
+      },
+      "direction": {
+        "n": 51367,
+        "mean_excess_move_atr": 0.0007,
+        "t": 0.005,
+        "n_effective": 2781.0,
+        "verdict": "null"
+      }
+    }
+  },
+  "cells": {
+    "XAUUSD": {
+      "bars": 20000,
+      "drift_atr": 1.6619673159330781,
+      "accumulation": 6737,
+      "distribution": 5768,
+      "neutral": 7495,
+      "orderable": 8310,
+      "unorderable": 30
+    },
+    "XAGUSD": {
+      "bars": 20000,
+      "drift_atr": 1.247324704185291,
+      "accumulation": 7046,
+      "distribution": 5699,
+      "neutral": 7255,
+      "orderable": 8308,
+      "unorderable": 38
+    },
+    "XPTUSD": {
+      "bars": 15087,
+      "drift_atr": 1.0586110898902124,
+      "accumulation": 5168,
+      "distribution": 4349,
+      "neutral": 5570,
+      "orderable": 8310,
+      "unorderable": 65
+    },
+    "EURUSD": {
+      "bars": 20000,
+      "drift_atr": 0.24319446791113938,
+      "accumulation": 6521,
+      "distribution": 6258,
+      "neutral": 7221,
+      "orderable": 8287,
+      "unorderable": 54
+    },
+    "GBPUSD": {
+      "bars": 20000,
+      "drift_atr": 0.26412850067756094,
+      "accumulation": 6404,
+      "distribution": 6253,
+      "neutral": 7343,
+      "orderable": 8288,
+      "unorderable": 59
+    },
+    "USDJPY": {
+      "bars": 20000,
+      "drift_atr": 0.5289778656930821,
+      "accumulation": 7495,
+      "distribution": 5250,
+      "neutral": 7255,
+      "orderable": 8256,
+      "unorderable": 89
+    },
+    "AUDUSD": {
+      "bars": 20000,
+      "drift_atr": 0.18259530358002538,
+      "accumulation": 6452,
+      "distribution": 6109,
+      "neutral": 7439,
+      "orderable": 8272,
+      "unorderable": 70
+    },
+    "US30": {
+      "bars": 20000,
+      "drift_atr": 1.099505611022011,
+      "accumulation": 6908,
+      "distribution": 5917,
+      "neutral": 7175,
+      "orderable": 8256,
+      "unorderable": 83
+    },
+    "USOIL": {
+      "bars": 20000,
+      "drift_atr": 0.03257188856040936,
+      "accumulation": 6578,
+      "distribution": 6054,
+      "neutral": 7368,
+      "orderable": 8333,
+      "unorderable": 74
+    }
+  }
+}

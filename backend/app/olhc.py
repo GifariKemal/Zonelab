@@ -15,6 +15,30 @@ split:
 This is the single-candle cousin of the structure sweep-reversal in
 `app/detect/structure.py` and of the rejection-wick test in `app/tcisd.py`. It
 is a reading, never a bias.
+
+MEASURED 1 September 2026, `docs/olhc_outcomes.json`, and there are two findings.
+
+FIRST, THIS FUNCTION CARRIES NOTHING BEYOND THE OPEN AND THE CLOSE. On a bar of
+range R the two wicks are not free:
+
+    lower_wick / R = min(open_pos, close_pos)
+    upper_wick / R = 1 - max(open_pos, close_pos)
+
+so the rule below is exactly
+
+    accumulation  <=>  close_pos >= 0.5  and  min(o, c) > 1 - max(o, c)
+
+`classify` is a relabelling of the pair (open position, close position). That is
+not a defect - a name for a shape is useful - but it does mean no study can ask
+what the WICK adds, because holding both positions fixed fixes the class too.
+The identity is gated in `tools/olhc_outcomes.py --selfcheck` over 20 000 random
+bars, so it fails loudly if this function ever stops being that relabelling.
+
+SECOND, THE DIRECTION IT NAMES IS NULL. Against the instrument's own drift over
+nine instruments at 1h, clustered on overlapping forward windows: accumulation
+t=+0,29 on 59 035 events, distribution t=+0,005 on 51 367, against a Bonferroni
+bar of 2,24. The module stays unwired, now for a measured reason rather than an
+overlooked one.
 """
 
 from __future__ import annotations
