@@ -114,10 +114,16 @@ cd frontend && npm run build                            # exit 0
 >
 > ```bash
 > cd frontend && node e2e/wiring.mjs .playwright-shots           # tiap layer terwire
-> cd frontend && node e2e/labels.mjs .playwright-shots           # peta tabrakan label
+> cd frontend && node e2e/labels.mjs .playwright-shots           # peta tabrakan label (deterministik)
 > cd frontend && node e2e/sweep.mjs  .playwright-shots           # sapuan fitur penuh
 > cd frontend && node e2e/expectation-path.mjs .playwright-shots # garis path menggambar
 > ```
+>
+> `labels.mjs` dipatok ke provider `synthetic` sejak 1 September 2026. Sebelum
+> itu ia membaca ekor MT5 hidup dan berubah hasil antar run di tree yang sama:
+> lima run memberi 7/9, 8/9, 8/9, 7/9, 9/9 tanpa satu baris kode berubah, dan
+> box straddle yang dituduhkan ke sebuah branch muncul juga di tree tanpa branch
+> itu. Kalau ia merah sekarang, itu berarti sesuatu.
 >
 > **Dan itu terjadi lagi.** Pada 31 Agustus 2026 layer `wyckoff` masuk registry
 > membawa slider "Trading range width", sensus slider di `e2e/sweep.mjs` tidak

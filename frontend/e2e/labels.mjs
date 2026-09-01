@@ -27,9 +27,34 @@
  * fires exactly when a pass claims before the frame's first pass, which is the
  * attach-order bug above, and it is silent in every healthy frame.
  *
- * Nine layers on purpose. The collision map was measured at 98 price-anchored
- * objects with nine layers at 500 bars, 86 pairs closer than 12px and 27 closer
- * than 1px - a thin chart would exercise nothing.
+ * Nine layers on purpose: a thin chart would exercise nothing. The density is
+ * printed on every run rather than quoted from one, because a quoted number
+ * goes stale the moment the input changes - which is exactly what happened when
+ * this file moved off the live feed. It was calibrated at 98 price-anchored
+ * objects, 86 pairs within 12px and 27 within 1px on live MT5; read the line the
+ * run prints for what the pinned input gives today.
+ *
+ * PINNED TO THE SYNTHETIC PROVIDER, AND THAT IS THE POINT OF THIS PARAGRAPH.
+ * Until 1 September 2026 this harness read the live MT5 tail, and a harness
+ * whose input moves is a harness whose verdict moves. Measured that day: five
+ * runs, two of them on the committed tree through `git stash`, gave 7/9, 8/9,
+ * 8/9, 7/9 and 9/9 without one line of code changing between them. The
+ * straddling box it reported at `{x:3, y:-9}` appeared on a tree that did not
+ * contain the branch it was being blamed on. A gate that flips between runs
+ * cannot convict anything, and it nearly convicted the wrong change.
+ *
+ * The cause is not subtle once stated: labels land where price is, new bars
+ * arrive between runs, and `claimedLabels` is first-come-first-served - so a
+ * geometry that shifts by one bar changes which label wins its claim and
+ * whether any of them lands across a pane edge. The fix is to stop asking the
+ * market. `provider: "synthetic"` returns the same bars every call, verified
+ * byte-identical across two requests, and this file is about LABEL GEOMETRY
+ * rather than about market truth.
+ *
+ * WHAT THAT COSTS, stated rather than glossed: a collision that only occurs on
+ * one particular real-data configuration is no longer caught here. The live
+ * feed is still exercised by `e2e/sweep.mjs`, `e2e/wiring.mjs` and
+ * `e2e/zone-audit.mjs`, none of which assert on exact geometry.
  */
 import { chromium } from "playwright";
 import { mkdir } from "node:fs/promises";
@@ -55,6 +80,10 @@ const LAYERS = [
 ];
 
 const results = [];
+// Reported lines that are NOT checks. Kept out of `results` because the summary
+// counts that array, so a note pushed into it becomes a passing assertion: the
+// density line below read "10/10 passed" for one edit, on nine actual checks.
+const notes = [];
 const check = (name, pass, detail = "") =>
   results.push(`${pass ? "PASS" : "FAIL"}  ${name}${detail ? ` :: ${detail}` : ""}`);
 
@@ -99,6 +128,14 @@ await page.addInitScript((layers) => {
       );
       body.session = { ...(body.session ?? {}), quarters: ["week", "day"], max_quarters: 0 };
       body.dfr = { ...(body.dfr ?? {}), degrees: ["week", "day"], max_ranges: 6 };
+      // The three inputs that decide the geometry, pinned here rather than
+      // inherited from whatever the picker happens to hold. Symbol and bars
+      // matter because a different window is a different set of labels; the
+      // provider matters because it is the only one that answers the same way
+      // twice.
+      body.provider = "synthetic";
+      body.symbol = "XAUUSD";
+      body.bars = 500;
       init = { ...init, body: JSON.stringify(body) };
     }
     return real(url, init);
@@ -135,6 +172,23 @@ const { labels, pane } = await page.evaluate(() => ({
 }));
 
 check("the claim list is populated", labels.length > 0, `${labels.length} labels`);
+
+// HOW CROWDED THIS CHART ACTUALLY IS, reported rather than asserted, because it
+// is the reason the assertions below mean anything. A collision map on a thin
+// chart passes without exercising the mechanism, so the density belongs in the
+// output where a reader can see it fall.
+let near12 = 0;
+let near1 = 0;
+for (let i = 0; i < labels.length; i++) {
+  for (let j = i + 1; j < labels.length; j++) {
+    const gap = Math.abs(labels[i].y - labels[j].y);
+    if (gap < 12) near12 += 1;
+    if (gap < 1) near1 += 1;
+  }
+}
+notes.push(
+  `note  density :: ${labels.length} claims, ${near12} pairs within 12px vertically, ${near1} within 1px`,
+);
 
 // THE ONE THAT MATTERS. Same predicate as `labelFree`, restated here on purpose:
 // a harness that imported the function under test would agree with it by
