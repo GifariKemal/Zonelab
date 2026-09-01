@@ -3,12 +3,16 @@
   "question": "apakah objek gap yang digambar memisahkan apa pun",
   "horizon_bars": 96,
   "placebo": "random sign, uniform 1.5 to 5.0 ATR, seed 20260901",
-  "questions_judged": 8,
-  "critical_t": 2.7343687865331816,
+  "questions_judged": 12,
+  "critical_t": 2.8652602385321337,
   "min_group": 30,
   "populations": {
     "breakaway": {
       "return_bars": {
+        "n": 0,
+        "verdict": "n kecil"
+      },
+      "return_bars_matched": {
         "n": 0,
         "verdict": "n kecil"
       },
@@ -46,6 +50,24 @@
           "XAGUSD": -2.3146,
           "XAUUSD": -0.1679,
           "XPTUSD": -7.145
+        }
+      },
+      "return_bars_matched": {
+        "n": 1923,
+        "mean": -0.6921476859074362,
+        "t": -1.0586697404261656,
+        "n_effective": 1986.290620986541,
+        "verdict": "",
+        "by_symbol": {
+          "AUDUSD": -0.3759,
+          "EURUSD": -0.7549,
+          "GBPUSD": 0.4506,
+          "US30": -0.8972,
+          "USDJPY": -2.374,
+          "USOIL": -0.923,
+          "XAGUSD": 1.6124,
+          "XAUUSD": -1.7664,
+          "XPTUSD": -1.1756
         }
       },
       "direction": {
@@ -104,20 +126,20 @@
       },
       "return_shifted": {
         "n": 1923,
-        "mean": 0.31201248049922,
-        "t": 26.917496655519717,
-        "n_effective": 1830.807189788888,
+        "mean": 0.30577223088923555,
+        "t": 26.713759726895443,
+        "n_effective": 1938.7580434454292,
         "verdict": "TIDAK DINILAI, kontrolnya bias jarak",
         "by_symbol": {
-          "AUDUSD": 0.3158,
-          "EURUSD": 0.3431,
-          "GBPUSD": 0.3272,
-          "US30": 0.3369,
-          "USDJPY": 0.3659,
-          "USOIL": 0.2978,
-          "XAGUSD": 0.2472,
-          "XAUUSD": 0.3285,
-          "XPTUSD": 0.3053
+          "AUDUSD": 0.2632,
+          "EURUSD": 0.2647,
+          "GBPUSD": 0.3457,
+          "US30": 0.3298,
+          "USDJPY": 0.3821,
+          "USOIL": 0.3022,
+          "XAGUSD": 0.2753,
+          "XAUUSD": 0.2847,
+          "XPTUSD": 0.2901
         }
       }
     },
@@ -138,6 +160,24 @@
           "XAGUSD": -0.9308,
           "XAUUSD": -0.4154,
           "XPTUSD": -1.6491
+        }
+      },
+      "return_bars_matched": {
+        "n": 13372,
+        "mean": 0.19772659288064612,
+        "t": 0.9802893915525787,
+        "n_effective": 13059.153005568396,
+        "verdict": "",
+        "by_symbol": {
+          "AUDUSD": -0.5082,
+          "EURUSD": 0.3049,
+          "GBPUSD": 0.0109,
+          "US30": 1.1769,
+          "USDJPY": 1.588,
+          "USOIL": 0.5142,
+          "XAGUSD": -0.0809,
+          "XAUUSD": -0.7354,
+          "XPTUSD": -1.8794
         }
       },
       "direction": {
@@ -168,20 +208,20 @@
       },
       "return_shifted": {
         "n": 13372,
-        "mean": 0.3227639844451092,
-        "t": 73.30239111590603,
-        "n_effective": 12802.743718463134,
+        "mean": 0.3218665868979958,
+        "t": 72.35315065414959,
+        "n_effective": 12451.259221446162,
         "verdict": "TIDAK DINILAI, kontrolnya bias jarak",
         "by_symbol": {
-          "AUDUSD": 0.3056,
-          "EURUSD": 0.3158,
-          "GBPUSD": 0.3131,
-          "US30": 0.3627,
-          "USDJPY": 0.2933,
-          "USOIL": 0.3391,
-          "XAGUSD": 0.3263,
-          "XAUUSD": 0.3235,
-          "XPTUSD": 0.3029
+          "AUDUSD": 0.2824,
+          "EURUSD": 0.3226,
+          "GBPUSD": 0.337,
+          "US30": 0.3505,
+          "USDJPY": 0.2831,
+          "USOIL": 0.3294,
+          "XAGUSD": 0.3379,
+          "XAUUSD": 0.3269,
+          "XPTUSD": 0.3215
         }
       }
     },
@@ -202,6 +242,24 @@
           "XAGUSD": 0.2693,
           "XAUUSD": -0.3527,
           "XPTUSD": -1.5475
+        }
+      },
+      "return_bars_matched": {
+        "n": 49914,
+        "mean": 0.647133068878471,
+        "t": 3.6317718227434397,
+        "n_effective": 38773.610306372524,
+        "verdict": "MEMISAHKAN, TANDA TERBALIK",
+        "by_symbol": {
+          "AUDUSD": 0.2573,
+          "EURUSD": 0.1368,
+          "GBPUSD": 0.6566,
+          "US30": 1.1677,
+          "USDJPY": 0.5428,
+          "USOIL": 0.8476,
+          "XAGUSD": 0.9695,
+          "XAUUSD": 1.3594,
+          "XPTUSD": -1.3445
         }
       },
       "direction": {
@@ -246,20 +304,20 @@
       },
       "return_shifted": {
         "n": 49914,
-        "mean": 0.25818407661177223,
-        "t": 92.71261934704572,
-        "n_effective": 35398.280637415235,
+        "mean": 0.25527908001763033,
+        "t": 90.8970832322814,
+        "n_effective": 34924.82762606855,
         "verdict": "TIDAK DINILAI, kontrolnya bias jarak",
         "by_symbol": {
-          "AUDUSD": 0.2545,
-          "EURUSD": 0.2631,
-          "GBPUSD": 0.269,
-          "US30": 0.2372,
-          "USDJPY": 0.278,
-          "USOIL": 0.237,
-          "XAGUSD": 0.2599,
-          "XAUUSD": 0.2646,
-          "XPTUSD": 0.3092
+          "AUDUSD": 0.2569,
+          "EURUSD": 0.2605,
+          "GBPUSD": 0.2701,
+          "US30": 0.2387,
+          "USDJPY": 0.2629,
+          "USOIL": 0.239,
+          "XAGUSD": 0.2473,
+          "XAUUSD": 0.2668,
+          "XPTUSD": 0.2901
         }
       }
     },
@@ -280,6 +338,24 @@
           "XAGUSD": 1.0519,
           "XAUUSD": 1.5493,
           "XPTUSD": -2.7224
+        }
+      },
+      "return_bars_matched": {
+        "n": 63002,
+        "mean": 1.2386749626995968,
+        "t": 5.825412509887348,
+        "n_effective": 28773.35380707828,
+        "verdict": "MEMISAHKAN, TANDA TERBALIK",
+        "by_symbol": {
+          "AUDUSD": 0.2658,
+          "EURUSD": 1.0723,
+          "GBPUSD": 1.4986,
+          "US30": 2.6718,
+          "USDJPY": 0.4179,
+          "USOIL": 1.7801,
+          "XAGUSD": 1.6334,
+          "XAUUSD": 1.7384,
+          "XPTUSD": -1.825
         }
       },
       "direction": {
@@ -324,20 +400,20 @@
       },
       "return_shifted": {
         "n": 63002,
-        "mean": 0.229897463572585,
-        "t": 84.66781821170238,
-        "n_effective": 36595.1034261011,
+        "mean": 0.2303736389320974,
+        "t": 85.3136452181633,
+        "n_effective": 36958.95223016599,
         "verdict": "TIDAK DINILAI, kontrolnya bias jarak",
         "by_symbol": {
-          "AUDUSD": 0.2395,
-          "EURUSD": 0.2366,
-          "GBPUSD": 0.2339,
-          "US30": 0.2066,
-          "USDJPY": 0.2335,
-          "USOIL": 0.2092,
-          "XAGUSD": 0.224,
-          "XAUUSD": 0.2403,
-          "XPTUSD": 0.2932
+          "AUDUSD": 0.2361,
+          "EURUSD": 0.2316,
+          "GBPUSD": 0.2387,
+          "US30": 0.2132,
+          "USDJPY": 0.2391,
+          "USOIL": 0.2119,
+          "XAGUSD": 0.2231,
+          "XAUUSD": 0.2324,
+          "XPTUSD": 0.2935
         }
       }
     }

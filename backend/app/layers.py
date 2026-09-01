@@ -106,6 +106,12 @@ LAYERS: tuple[Layer, ...] = (
         evidence=(
             "H8 measured it as a direction claim and it came out SIGNIFICANTLY "
             "NEGATIVE: knowing a box had inverted made a directional guess worse. "
+            "Measured again 1 September 2026 on a different question and "
+            "inverted again: docs/gap_outcomes.json finds the band reached "
+            "+0,65 bars LATER than a band matched on distance, height and side "
+            "at a gap-free bar, t=+3,63, positive on eight of nine instruments. "
+            "Price leaves an inverted gap and comes back slower than to an "
+            "arbitrary level the same distance away. "
             "Drawn for fidelity, never as a reading."
         ),
     ),
@@ -115,7 +121,10 @@ LAYERS: tuple[Layer, ...] = (
         kind="detector",
         params="imbalance",
         note="An order block that suffered the same event.",
-        evidence="Same as the inverted gap, and the same H8 negative result.",
+        evidence="Same as the inverted gap, and the same H8 negative result. "
+            "Inverted again on time-to-touch, harder: docs/gap_outcomes.json "
+            "finds it reached +1,24 bars LATER than a matched band at a "
+            "gap-free bar, t=+5,83, positive on eight of nine instruments.",
     ),
     Layer(
         id="structure",
@@ -214,9 +223,13 @@ LAYERS: tuple[Layer, ...] = (
             "(t=-0,56 clustered, bar 2,73) and the halfway target is not "
             "reached more than the same bracket one horizon earlier (t=-1,16). "
             "The band IS reached sooner than the equidistant level on the "
-            "other side, -2,70 bars at t=-3,65, negative on all nine - but "
-            "that control cannot separate a gap from any recently traded "
-            "level. A reading, never a bias."
+            "other side, -2,70 bars at t=-3,65, negative on all nine - and "
+            "that result DID NOT SURVIVE its own control. Against a band "
+            "matched on distance, height and SIDE at a gap-free bar the gap is "
+            "reached -0,69 bars sooner at t=-1,06, null, and the nine-of-nine "
+            "consistency falls to seven. The mirror was measuring which side "
+            "of price the band sat on. Nothing here separates. A reading, "
+            "never a bias."
         ),
     ),
     Layer(

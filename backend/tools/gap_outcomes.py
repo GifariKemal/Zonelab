@@ -122,9 +122,42 @@ where price has just been; its reflection sits where price has not. Levels price
 recently traded at are revisited sooner than levels it never reached, for
 reasons that have nothing to do with gaps. So a `return_bars` result says the
 band is reached sooner than the equidistant level on the other side, and it does
-NOT say that being a gap is what did it. Separating those two needs a control
-band that is also recently traded, which this run does not have. Stated here
-rather than discovered later.
+NOT say that being a gap is what did it.
+
+## 8. Second pre-registration, 1 September 2026, written after the first run
+
+THIS SECTION WAS ADDED AFTER SEEING SECTION 6's RESULT, and saying so is the
+point of dating it. The first run judged eight questions and one separated:
+`measuring` `return_bars` at -2,70 bars, t=-3,65, negative on all nine
+instruments. Section 7 above had already named the confound that could produce
+it without any gap being involved. The owner asked for that control, so here it
+is, and it is asked of EVERY population that had a `return_bars` cell - not only
+the one that won, because testing the confound on the winner alone is choosing
+the sample after the fact.
+
+H_MATCHED: is the band reached sooner than a synthetic band matched on
+DISTANCE, HEIGHT and SIDE, placed at a bar with no gap near it?
+
+  control bar   drawn from the eligible bars within 3000 of the event, outside
+                +/- HORIZON of it so the two windows cannot overlap, and never
+                within WINDOW bars of any gap
+  distance      the same multiple of ATR from that bar's close as the event's
+                band midpoint is from its own
+  height        the same multiple of ATR
+  side          the same side of price
+
+What this control holds fixed that the mirror did not: the band sits on the same
+side of price, so "price came from there" is true of both arms. What it still
+cannot hold fixed: a gap band is a HOLE bracketed by traded prices, and no
+synthetic band has that property. That residual is not fixable by construction
+and is not claimed to be.
+
+A second limitation, and it runs one way only. The control bar is kept away from
+CHART GAPS but not from inverted gaps or breakers, and those are dense - roughly
+one bar in six carries one. So a share of the `ifvg` and `breaker` controls are
+anchored on a bar that has the very object under test. That dilutes the contrast
+toward zero, which makes a non-null result on those two conservative rather than
+flattered.
 """
 
 from __future__ import annotations
@@ -149,6 +182,9 @@ HORIZON = 96
 SHIFT_LO, SHIFT_HI = 1.5, 5.0
 SEED = 20260901
 MIN_GROUP = 30
+#: How far from the event a matched control bar may be drawn, so the two sit in
+#: the same epoch without their forward windows overlapping.
+MATCH_SPAN = 3000
 
 SYMBOLS = ("XAUUSD", "XAGUSD", "XPTUSD", "EURUSD", "GBPUSD", "USDJPY",
            "AUDUSD", "US30", "USOIL")
@@ -157,16 +193,19 @@ POPULATIONS = ("breakaway", "measuring", "opening", "ifvg", "breaker")
 #: Which questions read a NEGATIVE mean as the claim holding. Bars-to-touch is
 #: the only one: sooner is smaller. Getting this backwards labelled the single
 #: non-null result in the whole run as an inverted sign.
-LOWER_IS_THE_CLAIM = ("return_bars",)
+LOWER_IS_THE_CLAIM = ("return_bars", "return_bars_matched")
 
 #: Which populations carry a direction claim, and are therefore asked H_DIRECTION.
 DIRECTIONAL = ("breakaway", "measuring", "ifvg", "breaker")
+
+#: Bars either side of a gap that a matched control may not be anchored on.
+WINDOW = 3
 
 #: The questions that count towards K. The two reported-only ones do not spend
 #: the Bonferroni budget: `return_binary` hits a ceiling at this horizon and
 #: `return_shifted` uses a control confounded by distance. Both are kept in the
 #: output because the reason each was set aside is a number, not an opinion.
-JUDGED = ("return_bars", "direction", "target")
+JUDGED = ("return_bars", "return_bars_matched", "direction", "target")
 REPORTED = ("return_binary", "return_shifted")
 
 
@@ -253,6 +292,33 @@ def bands_for(candles) -> dict[str, list[Band]]:
     return out
 
 
+def matched_band(close_j: float, unit_j: float, gap_d: float, gap_h: float):
+    """A synthetic band at `close_j`, holding signed distance and height in ATR.
+
+    `gap_d` is the event band's midpoint minus its own close, in ATR, so its
+    SIGN carries the side. `gap_h` is the height in ATR. Returns (top, bottom).
+    """
+    mid = close_j + gap_d * unit_j
+    half = gap_h * unit_j / 2.0
+    return mid + half, mid - half
+
+
+def eligible_bars(candles, atr, gap_bars: set[int]) -> np.ndarray:
+    """Bars a matched control may be anchored on.
+
+    Excluded: the warm-up, anything without a full forward window, a zero ATR,
+    and any bar within `WINDOW` of a gap - a control that sits on top of a gap
+    is not a control for gaps.
+    """
+    near = set()
+    for at in gap_bars:
+        near.update(range(at - WINDOW, at + WINDOW + 1))
+    return np.array([
+        i for i in range(20, len(candles) - HORIZON - 1)
+        if atr[i] > 0 and i not in near
+    ], dtype=np.int64)
+
+
 def study(symbols: list[str], interval: str = "1h") -> dict:
     rng = np.random.default_rng(SEED)
     rows: dict[str, dict[str, list]] = {
@@ -286,6 +352,8 @@ def study(symbols: list[str], interval: str = "1h") -> dict:
 
         found = bands_for(candles)
         counts = {pop: len(v) for pop, v in found.items()}
+        gap_bars = {b.at for pop in ("breakaway", "measuring") for b in found[pop]}
+        pool = eligible_bars(candles, atr, gap_bars)
         # HOW FLAT DOES A 20-BAR WINDOW EVER GET, in units of its own mean true
         # range. `chart_gaps` calls a gap breakaway only when that ratio is at
         # or under 2,0, so this number decides whether the branch can fire at
@@ -328,6 +396,27 @@ def study(symbols: list[str], interval: str = "1h") -> dict:
                 # `bars_to_touch` censors AT the window width, so "touched" is
                 # strictly inside it. Written `<=` first, which made every band
                 # count as touched and every difference exactly zero.
+                # H_MATCHED, paired against a synthetic band at a gap-free bar
+                # holding distance, height and side fixed.
+                mid = (band.top + band.bottom) / 2.0
+                gap_d = (mid - here) / unit          # signed, in ATR
+                gap_h = (band.top - band.bottom) / unit
+                near = pool[
+                    (pool >= at - MATCH_SPAN) & (pool <= at + MATCH_SPAN)
+                    & ((pool <= at - HORIZON) | (pool >= at + HORIZON))
+                ]
+                if len(near):
+                    j = int(near[rng.integers(len(near))])
+                    top_j, bottom_j = matched_band(
+                        float(close[j]), float(atr[j]), gap_d, gap_h
+                    )
+                    bars_matched = bars_to_touch(
+                        high, low, top_j, bottom_j, j + 1, j + 1 + HORIZON
+                    )
+                    rows[pop]["return_bars_matched"].append(
+                        (symbol, at, float(bars_real - bars_matched))
+                    )
+
                 rows[pop]["return_binary"].append((
                     symbol, at,
                     float(bars_real < HORIZON) - float(bars_mirror < HORIZON),
@@ -438,6 +527,20 @@ def selfcheck() -> int:
     assert bars_to_touch(high, low, 12.0, 11.0, 1, 5) == 0
     assert bars_to_touch(high, low, 12.0, 11.0, 0, 5) == 1
     assert bars_to_touch(high, low, 100.0, 99.0, 0, 5) == 5
+    # The matched band keeps distance, height and SIDE, in ATR units, at a
+    # different close and a different ATR. A sign dropped here would move the
+    # control to the other side of price and quietly answer the mirror question
+    # all over again.
+    top, bottom = matched_band(close_j=200.0, unit_j=4.0, gap_d=-1.5, gap_h=0.5)
+    assert abs((top + bottom) / 2 - (200.0 - 1.5 * 4.0)) < 1e-9, (top, bottom)
+    assert abs((top - bottom) - 0.5 * 4.0) < 1e-9
+    assert (top + bottom) / 2 < 200.0, "a negative distance stays below price"
+    up_top, up_bottom = matched_band(200.0, 4.0, +1.5, 0.5)
+    assert (up_top + up_bottom) / 2 > 200.0, "a positive distance stays above"
+    # Scale-free: double the ATR, double the offset and the height.
+    t2, b2 = matched_band(200.0, 8.0, -1.5, 0.5)
+    assert abs((t2 + b2) / 2 - (200.0 - 1.5 * 8.0)) < 1e-9
+    assert abs((t2 - b2) - 0.5 * 8.0) < 1e-9
     # A bar whose HIGH exactly equals the band's bottom has touched it. Strict
     # inequalities here would drop every exact-touch return, and an exact touch
     # of a level is the event this whole family is about.
