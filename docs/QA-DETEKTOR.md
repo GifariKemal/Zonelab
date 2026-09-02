@@ -774,32 +774,33 @@ ekspektasi per trade dengan asumsi setiap trade diambil, dan di bawah asumsi itu
 urutan tidak punya arti sama sekali.
 
 Praregistrasi di `tools/order_key.py`, hasil di `docs/order_key.json`. Populasi
-dipinjam dari `checklist_outcomes.rows_for` apa adanya, 1.847 trade, 8
-instrumen, 1 jam, resolusi 5 menit, sudah dibebani biaya `exness_raw`.
+dipinjam dari `checklist_outcomes.rows_for` apa adanya, **1.843 trade**, 8
+instrumen, 1 jam, resolusi 5 menit, biaya `exness_raw`, ekor dipatok di
+`as_of` 1788220800 (2026-09-01T00:00:00Z).
 
 ### Uji A, monoton, critical t 2,69
 
-| Kunci | rho demeaned | t | walk-forward |
-|---|---|---|---|
-| `k_near_close` | -0,1073 | **-4,64** | 2/8 |
-| `k_cheap` | +0,0432 | +1,86 | 5/8 |
-| `k_random`, kontrol | +0,0373 | +1,60 | 4/8 |
-| `k_near_target` | +0,0065 | +0,28 | 3/8 |
-| `k_departure` | -0,0239 | -1,03 | 3/8 |
-| `k_met` | -0,0356 | -1,53 | 2/8 |
-| `k_reward_r` | -0,0419 | -1,80 | 2/8 |
+| Kunci | rho demeaned | t |
+|---|---|---|
+| `k_near_close` | -0,1093 | **-4,72** |
+| `k_cheap` | +0,0434 | +1,86 |
+| `k_random`, kontrol | +0,0364 | +1,56 |
+| `k_near_target` | +0,0072 | +0,31 |
+| `k_departure` | -0,0257 | -1,10 |
+| `k_met` | -0,0357 | -1,53 |
+| `k_reward_r` | -0,0424 | -1,82 |
 
 ### Uji B, lift dua teratas
 
 | Kunci | delta R hari | t | delta R pekan | t | wf pekan |
 |---|---|---|---|---|---|
-| `k_near_close` | -0,056 | -0,90 | -0,0966 | **-3,86** | **0/8** |
-| `k_near_target` | -0,146 | -2,46 | -0,0774 | -2,91 | 2/8 |
-| `k_reward_r` | +0,074 | +1,28 | +0,061 | +2,22 | 6/8 |
-| `k_departure` | +0,004 | +0,08 | +0,046 | +1,78 | 6/8 |
-| `k_met` | -0,006 | -0,12 | +0,038 | +1,44 | 5/8 |
-| `k_cheap` | -0,020 | -0,32 | -0,024 | -0,88 | 2/8 |
-| `k_random` | +0,043 | +0,88 | +0,010 | +0,36 | 4/8 |
+| `k_near_close` | -0,0559 | -0,90 | -0,0977 | **-3,90** | **0/8** |
+| `k_near_target` | -0,1463 | -2,46 | -0,0791 | -2,96 | 2/8 |
+| `k_reward_r` | +0,0735 | +1,28 | +0,0594 | +2,17 | 5/8 |
+| `k_departure` | +0,0043 | +0,08 | +0,0450 | +1,72 | 6/8 |
+| `k_met` | -0,0063 | -0,12 | +0,0388 | +1,48 | 6/8 |
+| `k_cheap` | -0,0204 | -0,32 | -0,0249 | -0,93 | 2/8 |
+| `k_random` | +0,0429 | +0,88 | +0,0095 | +0,35 | 4/8 |
 
 ### Vonis
 
@@ -809,16 +810,16 @@ pun di daftar tertutup ini.
 
 **Yang menyeberang ambang justru satu-satunya yang negatif, dan ia sedang
 produksi.** `k_near_close`, tie-breaker di baris 395, memberi rho demeaned
--0,107 pada t = -4,64, |t| terbesar di seluruh run, dengan tanda yang salah.
-Uji B pengelompokan pekan mengonfirmasi: -0,0966 R, t = -3,86, walk-forward
-**0 dari 8** fold. Mendahulukan kandidat yang paling dekat memilih trade yang
+-0,1093 pada t = -4,72, |t| terbesar di seluruh run, dengan tanda yang
+salah. Uji B pengelompokan pekan mengonfirmasi: -0,0977 R, t = -3,90,
+walk-forward **0 dari 8** fold. Mendahulukan kandidat yang paling dekat memilih trade yang
 lebih buruk.
 
 `k_near_target`, tie-breaker di baris 496, ikut menyeberang negatif di
-pengelompokan pekan: -0,077 pada t = -2,91, walk-forward 2 dari 8.
+pengelompokan pekan: -0,0791 pada t = -2,96, walk-forward 2 dari 8.
 
-`k_reward_r` yang paling dekat lulus dan tetap gagal: lift +0,061 pekan pada
-t = 2,22 melawan 2,69, walk-forward 6 dari 8 melawan 7 yang dibutuhkan. Uji
+`k_reward_r` yang paling dekat lulus dan tetap gagal: lift +0,0594 pekan pada
+t = 2,17 melawan 2,69, walk-forward 5 dari 8 melawan 7 yang dibutuhkan. Uji
 A-nya justru negatif. Dua uji yang tidak sepakat adalah alasan mengukur lagi,
 dan praregistrasinya sudah menulis itu di depan.
 
@@ -832,19 +833,45 @@ yang sama dan menambahkan kunci yang isinya outcome-nya sendiri:
 |---|---|
 | A, monoton | rho 1,0000, t tak hingga, walk-forward 8/8, `passes` |
 | B, per simbol per hari | +0,4411 R, t = 9,42, walk-forward 8/8, `passes` |
-| B, per simbol per pekan | +0,6236 R, t = 26,92, walk-forward 8/8, `passes` |
+| B, per simbol per pekan | +0,6240 R, t = 26,78, walk-forward 8/8, `passes` |
 
-Kontrolnya juga bersih di arah sebaliknya: `k_random` t = 1,60 / 0,88 / 0,36,
+Kontrolnya juga bersih di arah sebaliknya: `k_random` t = 1,56 / 0,88 / 0,35,
 ketiganya di bawah 2,69.
 
-### Dua batas yang dinyatakan
+### Populasinya dipatok, dan patokannya diperiksa
 
-**Populasinya belum dipatok.** Dua run di tree yang sama memberi n = 1847 lalu
-n = 1850, karena `rows_for` membaca ekor MT5 yang hidup. Verdict-nya identik dan
-|t| terbesarnya bergeser -4,64 ke -4,66, jadi kesimpulannya stabil di dua run.
-Dua run bukan bukti stabil, dan sebelum angka ini jadi gate ia harus dipatok,
-persis alasan `e2e/labels.mjs` dipatok ke synthetic pada 1 September.
+Dua run pertama di tree yang sama memberi n = 1847 lalu n = 1850: `rows_for`
+membaca ekor MT5 yang hidup dan bar baru tutup di antara keduanya. Verdict-nya
+kebetulan bertahan dan |t| terbesarnya bergeser -4,64 ke -4,66. "Kebetulan
+bertahan" adalah persis yang `e2e/labels.mjs` lakukan sampai ia memberi 7/9,
+8/9, 8/9, 7/9, 9/9 di tree yang sama tanpa satu baris kode berubah.
 
-**Rata-rata populasinya nol.** `exp_r_all` = -0,0003 R. Urutan tidak bisa
+Ada DUA jalur muat, dan itu yang paling mudah salah:
+
+| Jalur | Dipakai oleh | Dipatok di |
+|---|---|---|
+| `tools.history.load` | `intrabar.resolved`, `quant.clean` | `load()` sendiri, membungkus lima jalur return |
+| `app.providers.get_candles` | grid SSMT lewat `checklist_outcomes._aligned` | `_aligned` mengembalikan `history.cut(...)` |
+
+`load_aligned` tidak menyentuh `tools.history` sama sekali, jadi mematok satu
+saja menghasilkan studi yang TERLIHAT reproducible, dan itu lebih buruk
+daripada studi yang jujur bergerak.
+
+Buktinya bukan argumen. Dua run berturut-turut setelah patokan menghasilkan
+JSON yang **identik byte-per-byte**, md5 `423bb8a99c5494500fd9d80d5473f13f`
+keduanya, dengan hitungan per simbol yang sama persis di kedelapan instrumen.
+
+`AS_OF` default **0**, jadi tidak satu pun jalur live berubah.
+`tests/test_history_pin.py` mengunci ketiganya dan dua suntikan sudah
+membuktikannya bisa merah: `load()` berhenti memanggil `cut` menjatuhkan
+`test_load_applies_the_pin`, dan default global yang ditinggal menyala
+menjatuhkan `test_default_is_the_live_tail`. Yang kedua yang paling mudah
+hilang, karena rig yang menyalakan global lalu crash meninggalkan proses dengan
+patokan menyala, dan di proses yang juga melayani API itu berarti chart
+kehilangan bar terbarunya tanpa satu error pun.
+
+### Satu batas yang tetap berdiri
+
+**Rata-rata populasinya nol.** `exp_r_all` = +0,0010 R. Urutan tidak bisa
 menyelamatkan populasi yang datar, paling jauh ia berhenti memperburuknya, dan
--0,0966 R per grup itu besar justru karena rata-ratanya nol.
+-0,0977 R per grup itu besar justru karena rata-ratanya nol.

@@ -210,6 +210,7 @@ from app.ssmt import two_stage
 from tools.calibrate import POPULATION
 from tools.conditioned import ALPHA, MIN_GROUP, _critical_t
 from tools.execute import POI_SLACK_BARS, STAGE_PAIRS
+from tools import history
 from tools.intrabar import FINER, resolved
 
 #: Malam yang MUNGKIN dilewati, dipakai untuk membebani swap ke
@@ -264,7 +265,15 @@ def _aligned(symbols: list[str], interval: str, bars: int):
     global _LOOP
     if _LOOP is None:
         _LOOP = asyncio.new_event_loop()
-    return _LOOP.run_until_complete(load_aligned(symbols, interval, bars))
+    series, stats = _LOOP.run_until_complete(
+        load_aligned(symbols, interval, bars))
+    # JALUR MUAT KEDUA, dan ia tidak lewat `tools.history`. `load_aligned`
+    # memanggil `app.providers.get_candles` langsung, jadi patokan di
+    # `history.load` tidak menyentuhnya sama sekali dan grid SSMT tetap
+    # bergerak sementara sisanya beku. Dua sisi yang dipatok setengah lebih
+    # buruk daripada dua sisi yang sama-sama hidup, karena yang pertama
+    # TERLIHAT reproducible.
+    return {s: history.cut(rows) for s, rows in series.items()}, stats
 
 
 def _welch(a: np.ndarray, b: np.ndarray) -> tuple[float, float]:

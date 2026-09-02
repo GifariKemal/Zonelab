@@ -148,16 +148,22 @@ adalah alasan untuk mengukur lagi, bukan untuk memilih yang hasilnya disukai.
 - Ia tidak menguji kombinasi kunci. Dua kunci yang digabung adalah ruang
   pencarian, dan ruang pencarian butuh praregistrasi sendiri.
 
-POPULASINYA BELUM DIPATOK, dan itu diukur bukan dikhawatirkan. Dua run di tree
-yang sama pada 2 September 2026 memberi n = 1847 lalu n = 1850, karena
+POPULASINYA DIPATOK, dan patokan itu ada karena drift-nya terukur. Dua run
+pertama di tree yang sama pada 2 September 2026 memberi n = 1847 lalu n = 1850:
 `rows_for` membaca ekor MT5 yang hidup dan bar baru tutup di antara keduanya.
-Verdict-nya identik dan |t| terbesarnya bergeser -4,64 ke -4,66, jadi
-kesimpulannya stabil di dua run. Dua run BUKAN bukti stabil. Sebelum angka ini
-dipakai sebagai gate ia harus dipatok, dengan alasan yang sama yang membuat
-`e2e/labels.mjs` dipatok ke provider synthetic pada 1 September: harness itu
-memberi 7/9, 8/9, 8/9, 7/9, 9/9 di tree yang sama tanpa satu baris kode berubah,
-dan sebuah box straddle yang dituduhkan ke sebuah branch muncul juga di tree
-tanpa branch itu.
+Verdict-nya kebetulan bertahan dan |t| terbesarnya bergeser -4,64 ke -4,66.
+"Kebetulan bertahan" adalah persis yang `e2e/labels.mjs` lakukan sampai ia
+memberi 7/9, 8/9, 8/9, 7/9, 9/9 di tree yang sama tanpa satu baris kode berubah.
+
+`--as-of` menyalakan `tools.history.AS_OF`, default `PINNED_AS_OF`. Itu memotong
+KEDUA jalur muat: `history.load`, yang melayani `intrabar.resolved` dan
+`quant.clean`, DAN grid SSMT yang `checklist_outcomes._aligned` ambil lewat
+`app.providers` tanpa menyentuh `tools.history` sama sekali. Memotong satu saja
+menghasilkan studi yang TERLIHAT reproducible, yang lebih buruk daripada studi
+yang jujur bergerak.
+
+`--as-of 0` mengembalikan ekor hidup, dan angkanya tidak boleh dibandingkan
+dengan angka yang dipatok.
 
 ===========================================================================
 7. SELF-CHECK
@@ -195,6 +201,7 @@ from math import sqrt
 
 import numpy as np
 
+from tools import history
 from tools.checklist_outcomes import (
     FOLDS,
     SYMBOLS,
@@ -354,6 +361,7 @@ def graded(rows: list[dict], interval: str, fine: str,
         "question": ("kunci urut mana yang sebaiknya memilih dua order, "
                      "tools/execute.py baris 395 dan 496"),
         "take": TAKE,
+        "as_of": history.AS_OF,
         "population": {
             "n": len(rows), "symbols": sorted({r["symbol"] for r in rows}),
             "interval": interval, "fine": fine,
@@ -511,6 +519,8 @@ def main() -> int:
     parser.add_argument("--fine", default="")
     parser.add_argument("--selftest", action="store_true")
     parser.add_argument("--cache", default="")
+    parser.add_argument("--as-of", type=int, default=history.PINNED_AS_OF,
+                        help="epoch patokan ekor; 0 berarti ekor hidup")
     parser.add_argument("--oracle", default="",
                         help="path cache; nilai kunci yang melihat masa depan")
     args = parser.parse_args()
@@ -521,6 +531,13 @@ def main() -> int:
         return _oracle(args.oracle)
     fine = args.fine or FINER.get(args.interval, "5m")
     symbols = [s.strip().upper() for s in args.symbols.split(",") if s.strip()]
+    # DIPASANG SEBELUM SATU BAR PUN DIMUAT. Sebuah patokan yang dipasang
+    # setelah pemuatan pertama memberi populasi campuran, dan campurannya
+    # bergantung urutan simbol.
+    history.AS_OF = args.as_of
+    print(f"as_of {history.AS_OF} "
+          f"({'ekor hidup' if not history.AS_OF else 'dipatok'})",
+          file=sys.stderr)
     with contextlib.redirect_stdout(sys.stderr):
         out = study(symbols, args.interval, fine, args.cache)
     json.dump(out, sys.stdout, indent=2, default=str)
