@@ -269,6 +269,24 @@ def bar_overlays(
                 )
         bands.sort(key=lambda b: (b.time_to, b.degree))
         stats["dfr_found"] = len(bands)
+        # ALASAN, BUKAN CUMA HITUNGAN NOL. `ssmt` sudah menulis `reason` di
+        # `main.py:619` dan rail-nya merendernya; empat layer di engine ini
+        # menggambar nol dengan setelan default - `session`, `dfr`, `ssmt`, `psp`
+        # - dan sampai 2 September 2026 hanya satu di antaranya mengatakan
+        # kenapa. Sebuah layer yang menyala dan tidak mengubah apa pun di kanvas
+        # tidak bisa dibedakan dari layer yang rusak, dan pembaca yang
+        # melihatnya menyimpulkan yang kedua.
+        #
+        # Kalimatnya tinggal DI SINI dan bukan di TypeScript, karena kondisinya
+        # tinggal di sini. Dua salinan satu aturan adalah bagaimana yang satu
+        # melayang tanpa satu test pun bisa melihatnya.
+        # DIBERI NAMA, karena stats  menyatu ke  yang
+        # dipakai BERSAMA oleh setiap overlay. Sebuah kunci `reason` telanjang
+        # di situ akan ditimpa overlay berikutnya yang menulisnya, dan yang
+        # terbaca di rail jadi alasan milik layer lain.
+        if not request.dfr.degrees:
+            stats["dfr_reason"] = "pilih minimal satu degree"
+
         keep = request.dfr.max_ranges
         drawing.dfr = bands[-keep:] if keep > 0 else bands
         stats["dfr"] = len(drawing.dfr)
@@ -729,12 +747,20 @@ def _session_ranges(
 def _projections(
     rows: list[Candle], request: DrawRequest, drawing: Drawing
 ) -> dict[str, object]:
-    """Deviation stacks off the newest session range, in the asked-for directions.
+    """Deviation stacks off the newest range of EACH asked-for session.
 
-    ONE RANGE PER SESSION, the newest, and that is a display decision rather than
-    a doctrinal one: six levels times two directions times two sessions is 24
-    lines, and this project has measured what happens to a chart past about a
-    third ink coverage. His own charts carry two stacks at a time.
+    ONE RANGE PER SESSION, the newest, and until 2 September 2026 this said so
+    while doing something else: the slice was `[-1:]` over the FLATTENED list,
+    so it kept a single range across every selected session and picking London
+    plus New York drew whichever of the two closed last. The docstring was the
+    correct specification and the code was the bug, which is the harder
+    direction to notice - the reader checks the comment, agrees, and moves on.
+
+    The ink budget the old comment worried about is real and now bounded by the
+    session list instead of by a slice: six levels times two directions times
+    four sessions is 48 lines, and this project has measured what happens to a
+    chart past about a third ink coverage. The default carries two sessions,
+    which is what his own charts show at a time.
     """
     stats: dict[str, object] = {}
     params = request.projections
@@ -749,7 +775,13 @@ def _projections(
     directions = [1, -1] if params.direction == 0 else [params.direction]
     levels = tuple(params.levels)
     out: list[RangeProjection] = []
-    for session, high, low in _session_ranges(rows, known)[-1:] if known else []:
+    # Terbaru PER SESI. `_session_ranges` mengembalikan urut waktu, jadi entri
+    # terakhir tiap sesi adalah yang terbaru, dan dict menjaga urutan sisipnya
+    # sehingga urutan gambarnya tetap urutan waktu.
+    newest: dict[str, tuple[str, pools_read.Pool, pools_read.Pool]] = {}
+    for row in _session_ranges(rows, known) if known else []:
+        newest[row[0]] = row
+    for session, high, low in newest.values():
         for direction in directions:
             found = proj.projection(
                 rows,
@@ -826,6 +858,17 @@ def session_grid(
 
     found.sort(key=lambda q: q.time_from)
     stats["quarters_found"] = len(found)
+    # Sama seperti `dfr` di atas. `session` punya DUA daftar yang bisa kosong
+    # sendiri-sendiri, dan keduanya disebut namanya: seorang pembaca yang
+    # memilih grid tapi bukan true open sedang melihat separuh layer dan berhak
+    # tahu separuh mana.
+    if not params.quarters and not params.true_opens:
+        stats["reason"] = "pilih minimal satu degree untuk grid atau true open"
+    elif not params.quarters:
+        stats["reason"] = "tidak ada degree untuk grid kuarter, hanya true open"
+    elif not params.true_opens:
+        stats["reason"] = "tidak ada degree untuk true open, hanya grid kuarter"
+
     if params.max_quarters and len(found) > params.max_quarters:
         found = found[-params.max_quarters:]
     drawing.quarters = found

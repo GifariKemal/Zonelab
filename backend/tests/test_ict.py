@@ -201,6 +201,7 @@ def test_the_journal_lines_all_carry_a_number_or_a_name():
 
 def test_a_clause_measured_against_is_warned_about_differently_than_an_unmeasured_one(
     capsys,
+    monkeypatch,
 ):
     """Dua peringatan, dua arti, dan menyamakannya adalah kerugian nyata.
 
@@ -221,6 +222,20 @@ def test_a_clause_measured_against_is_warned_about_differently_than_an_unmeasure
     from app.ict import MEASURED_AGAINST, Rules
     from tools.execute import warn_required
 
+    # TIDAK ADA LAGI KLAUSA NYATA YANG BELUM DIUKUR, dan itu perubahan
+    # 2 September 2026: `MEASURED_AGAINST` naik dari dua entri ke tujuh belas,
+    # jadi setiap klausa `DOCTRINE_CLAUSES` sekarang membawa angkanya dan cabang
+    # "belum diukur" tidak punya kandidat. Versi test ini memakai `killzone`
+    # sebagai contoh yang belum diukur; ia sudah diukur sekarang, n=611,
+    # delta -0,0075 pada t=-0,155.
+    #
+    # Cabangnya TETAP DIUJI, karena ia harus tetap bekerja untuk klausa yang
+    # ditambahkan besok tanpa pengukuran. Satu entri dilepas sementara alih-alih
+    # mencari klausa nyata yang tidak ada: yang diuji mekanismenya, dan
+    # mekanisme itu tidak peduli klausa mana yang kosong.
+    without = {k: v for k, v in MEASURED_AGAINST.items() if k != "killzone"}
+    monkeypatch.setattr("app.ict.MEASURED_AGAINST", without)
+    monkeypatch.setattr("tools.execute.MEASURED_AGAINST", without)
     warn_required(Rules(required=("killzone", "ote")))
     out = capsys.readouterr().out
 

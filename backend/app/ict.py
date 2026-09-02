@@ -119,8 +119,21 @@ DOCTRINE_CLAUSES: frozenset[str] = frozenset([
 #: menyalakan gerbang yang sudah dibuktikan merugikan, dengan mengira ia sekadar
 #: belum terbukti.
 #:
-#: Sumbernya `docs/PRAREGISTRASI-YATIM.md` Bagian 7, ditulis sebelum angkanya
-#: dihitung. Sebuah klausa masuk daftar ini hanya lewat praregistrasi.
+#: Sumbernya `docs/PRAREGISTRASI-YATIM.md` Bagian 7 dan
+#: `docs/checklist_outcomes.json`, keduanya ditulis sebelum angkanya dihitung.
+#: Sebuah klausa masuk daftar ini hanya lewat praregistrasi.
+#:
+#: DAFTARNYA JADI TUJUH BELAS PADA 2 SEPTEMBER 2026, dari dua. Sampai hari itu
+#: lima belas klausa yang SUDAH diukur di `checklist_outcomes.json` masih
+#: diperingatkan sebagai "belum diukur" oleh `tools/execute.py:warn_required`,
+#: dan docstring fungsi itu sendiri sudah menjelaskan kenapa itu kalimat yang
+#: salah: "Operator yang membaca 'belum diukur' akan menyalakannya sebagai
+#: taruhan; yang membaca angkanya tidak akan."
+#:
+#: Ambangnya kritis Bonferroni 3,267 atas 46 grup. SATU dari tujuh belas
+#: melewatinya, `dfr_side`, dan ia melewatinya ke arah SEBALIKNYA. Dua klausa
+#: KONSTAN di 1855 trade, jadi keduanya tidak bisa jadi kriteria apa pun: kolom
+#: yang tidak pernah berubah tidak membawa satu bit informasi.
 MEASURED_AGAINST: dict[str, str] = {
     "ote": ("direplikasi di 12 instrumen 1h: NOL sel lolos, |t| tertinggi 2,04 "
             "lawan kritis 3,20. Negatif di 10 dari 12 sel tapi tidak signifikan "
@@ -135,6 +148,69 @@ MEASURED_AGAINST: dict[str, str] = {
         "setelah di-demean per instrumen. Urutannya monoton ke arah salah: "
         "False +0,148 > None +0,059 > True -0,066. Bukti di "
         "docs/checklist_outcomes.json"),
+    # ---- Lima belas sisanya, diukur di docs/checklist_outcomes.json,
+    # ---- n=1855 trade, 8 instrumen, zona 1h diselesaikan di bar 5 menit,
+    # ---- biaya exness_raw, kritis Bonferroni 3,267 atas 46 grup.
+    "min_rr": (
+        "TIDAK MEMISAHKAN. Sel terkuatnya klausa GAGAL, n=1380, delta -0,2149 "
+        "pada t=-2,988 lawan kritis 3,267, dan 8 dari 8 instrumen setanda. "
+        "Magnitudonya yang terbesar di antara ketujuh belas dan ia tetap tidak "
+        "melewati ambang, jadi yang dilaporkan besarnya DAN kegagalannya"),
+    "manipulation_seen": (
+        "TIDAK MEMISAHKAN. Klausa GAGAL, n=1032, delta -0,135 pada t=-2,890 "
+        "lawan kritis 3,267, 8 dari 8 instrumen setanda"),
+    "manipulation_after_accumulation": (
+        "TIDAK MEMISAHKAN, dan angkanya IDENTIK dengan manipulation_seen: "
+        "n=1032, delta -0,135, t=-2,890. Dua klausa yang selalu memberi angka "
+        "yang sama adalah satu klausa yang dihitung dua kali, dan itu "
+        "menggelembungkan denominator skor tanpa menambah informasi"),
+    "discount_or_premium": (
+        "TIDAK MEMISAHKAN. Klausa TERPENUHI, n=682, delta -0,0976 pada "
+        "t=-2,044, 6 dari 8 instrumen setanda"),
+    "poi_clean": (
+        "TIDAK MEMISAHKAN. Klausa GAGAL, n=1098, delta -0,0818 pada t=-1,727, "
+        "7 dari 8 instrumen setanda"),
+    "cisd_in_band": (
+        "TIDAK MEMISAHKAN di sini, n=58, delta +0,2205 pada t=1,291 dan hanya "
+        "2 dari 4 instrumen setanda. Populasinya kecil, dan itu batas metode. "
+        "Objek yang sama MEMISAHKAN kuat di pertanyaan yang berbeda: CISD di "
+        "dalam order block memberi delta -0,136 R pada t=-7,07 dengan 8 dari 8 "
+        "fold (docs/csid_ob_intrabar.json), jadi yang gagal di sini klausanya, "
+        "bukan objeknya"),
+    "manipulation_quarter": (
+        "TIDAK MEMISAHKAN. Sel terkuatnya UNKNOWN, n=501, delta +0,0619 pada "
+        "t=1,099, 4 dari 8 instrumen setanda"),
+    "ssmt": (
+        "TIDAK MEMISAHKAN sebagai klausa, n=921, delta +0,0447 pada t=0,982, "
+        "5 dari 8 instrumen setanda. Layer-nya sendiri juga null: 0 dari 24 sel "
+        "dengan tanda 12 lawan 12 (docs/ssmt_outcomes.json), dan menradingkannya "
+        "dengan biaya memberi exp R -0,1318 lawan kontrol -0,1076 "
+        "(docs/event_backtest.json)"),
+    "bias_agrees": (
+        "TIDAK MEMISAHKAN. Klausa GAGAL, n=921, delta -0,0427 pada t=-0,936, "
+        "5 dari 8 instrumen setanda"),
+    "day_of_week": (
+        "TIDAK MEMISAHKAN. Klausa GAGAL, n=110, delta -0,0409 pada t=-0,329, "
+        "6 dari 8 instrumen setanda"),
+    "killzone": (
+        "TIDAK MEMISAHKAN. Klausa GAGAL, n=611, delta -0,0075 pada t=-0,155, "
+        "4 dari 8 instrumen setanda - praktis nol"),
+    "htf_nested": (
+        "TIDAK MEMISAHKAN. Klausa GAGAL, n=835, delta -0,0063 pada t=-0,138, "
+        "4 dari 8 instrumen setanda - praktis nol"),
+    "poi_families": (
+        "TIDAK MEMISAHKAN, dan ia yang paling dekat ke nol dari ketujuh belas: "
+        "n=292, delta +0,0016 pada t=0,025, 5 dari 8 instrumen setanda"),
+    "two_stage_confirmed": (
+        "KONSTAN di 1855 trade, jadi ia tidak bisa jadi kriteria apa pun. Kolom "
+        "yang tidak pernah berubah tidak memisahkan apa pun secara definisi, dan "
+        "ia tetap menambah satu ke denominator skor checklist"),
+    "draw_agrees": (
+        "KONSTAN di 1855 trade, dan ini BATAS METODE yang dinyatakan di depan: "
+        "`app/ict.py` menolak menyimpulkan draw dan tidak ada manusia yang "
+        "menominasikannya di dalam harness, jadi konstan None sudah bisa diduga "
+        "sebelum diukur. Praregistrasinya menyebutnya supaya 'konstan' "
+        "dilaporkan sebagai batas metode dan bukan sebagai nol yang mengesankan"),
 }
 
 #: KENAPA KLAUSANYA TIDAK DIBALIK SAJA. Karena pemisahan di atas BELUM

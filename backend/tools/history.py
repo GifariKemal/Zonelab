@@ -85,7 +85,48 @@ def irregular_prefix(candles: list[Candle], interval: str) -> int:
     return len(candles)
 
 
+#: EKOR YANG DIPATOK. 0 berarti ekor hidup, dan itu default supaya tidak satu
+#: pun jalur live berubah perilaku karena file ini.
+#:
+#: Rig pengukuran menyalakannya, dan alasannya diukur: `tools/order_key.py`
+#: dijalankan dua kali di tree yang sama pada 2 September 2026 dan memberi
+#: n = 1847 lalu n = 1850, karena bar baru tutup di antara dua run. Verdict-nya
+#: kebetulan bertahan, tapi "kebetulan bertahan" adalah apa yang dikatakan
+#: `e2e/labels.mjs` juga sampai ia memberi 7/9, 8/9, 8/9, 7/9, 9/9 di tree yang
+#: sama tanpa satu baris kode berubah.
+#:
+#: MEMOTONG, BUKAN MEMILIH. Yang dibuang hanya bar yang tutup SETELAH patokan,
+#: jadi sebuah run yang dipatok melihat deret yang identik hari ini dan tahun
+#: depan. Konsekuensinya `bars` jadi batas atas dan bukan janji, dan itu memang
+#: arti dari mematok.
+AS_OF = 0
+
+#: Nilai yang dipakai rig pengukuran saat dipatok. Mengubahnya MENGUBAH ANGKA
+#: setiap studi yang memakainya, jadi ia dieja di satu tempat dan tanggalnya
+#: ikut disebut di laporan mana pun yang mengutipnya.
+PINNED_AS_OF = 1788220800  # 2026-09-01T00:00:00Z
+
+
+def cut(candles: list[Candle], as_of: int | None = None) -> list[Candle]:
+    """Bar yang tutup di atau sebelum `as_of`. `0` mengembalikan apa adanya."""
+    at = AS_OF if as_of is None else as_of
+    if not at:
+        return candles
+    return [c for c in candles if c.time <= at]
+
+
 def load(symbol: str, interval: str, bars: int, refresh: bool = False) -> list[Candle]:
+    """`_load` dengan ekornya dipotong di `AS_OF`.
+
+    Pemotongannya di SINI dan bukan di tiap pemanggil, karena lima jalur return
+    di bawah melayani empat venue dan sebuah cache, dan sebuah patokan yang
+    dipasang per pemanggil adalah patokan yang akan bocor di pemanggil yang
+    ditambahkan besok.
+    """
+    return cut(_load(symbol, interval, bars, refresh))
+
+
+def _load(symbol: str, interval: str, bars: int, refresh: bool = False) -> list[Candle]:
     # An explicit `yahoo:` prefix rather than a new argument, for the same
     # reason the Dukascopy route is a test on the symbol: it keeps
     # `load(symbol, interval, bars)` intact for the two dozen callers, and it

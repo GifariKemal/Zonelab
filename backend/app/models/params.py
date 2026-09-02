@@ -518,8 +518,15 @@ class ProjectionParams(ParamBlock):
     """Standard deviation projections off a named session range."""
 
     sessions: list[str] = Field(
-        default_factory=lambda: ["london"],
-        description="Which session ranges to project from. asia, london.",
+        default_factory=lambda: ["london", "ny_am"],
+        description=(
+            "Which session ranges to project from, one stack per session, "
+            "newest range of each. Known names: asia, london, ny_am, "
+            "london_close - the same four `app/pools.py:SESSIONS` cuts, so a "
+            "projection can never be measured over a window the pool rays do "
+            "not draw. The description used to list only two of the four and "
+            "the default carried one, which is why New York never appeared."
+        ),
     )
     direction: int = Field(
         default=0,

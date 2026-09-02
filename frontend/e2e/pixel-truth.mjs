@@ -333,7 +333,30 @@ for (const [n, zone] of drawing.zones.entries()) {
       // The two horizontal borders are 3px apart on a thin zone, so their
       // windows overlap and the bottom scan can lock onto the top border.
       // Halve the window rather than report that as a 6px drawing error.
-      const vSpan = Math.max(1, Math.min(6, Math.floor(boxH / 2)));
+      //
+      // AN INVERTED BOX HAS A SECOND STROKE 3.5px INSIDE THE FIRST, and until
+      // 2 September 2026 this scan did not know that. `zone-primitive.ts:360`
+      // draws `strokeRect(x + 3.5, y + 3.5, w - 7, h - 7)` for any zone with an
+      // `inverted_at`, deliberately: on a box three pixels tall the caption is
+      // dropped for want of room, so a box inside a box is the only cue left
+      // that the band changed role.
+      //
+      // The scan picks the STRONGEST row in its window, and the inner stroke
+      // wins that contest for a reason that has nothing to do with the drawing
+      // being wrong: it lands whole on one row while the outer border sits at a
+      // half-pixel offset and splits its ink across two. Read off the canvas at
+      // the failing zone: dy -3.6 rgb(210,127,119) against dy -0.6 rgb(231,139,
+      // 129) and dy +0.4 rgb(201,121,114), with the fill at rgb(128,80,77)
+      // between them. The probe reported -3.58px and the drawing was correct to
+      // half a pixel.
+      //
+      // So the window is narrowed BELOW the inset for these two kinds. Not
+      // "prefer the row nearest the expectation" - that would let the answer
+      // choose the measurement. This uses a structural fact about the renderer:
+      // the outer stroke IS the box, the inner one is 3.5px in by construction.
+      const inverted = zoneIn.inverted_at !== null && zoneIn.inverted_at !== undefined;
+      const vLimit = inverted ? 3 : 6;
+      const vSpan = Math.max(1, Math.min(vLimit, Math.floor(boxH / 2)));
       const topHit = peak(expTop, vSpan, rowFrac);
       const bottomHit = peak(expBottom, vSpan, rowFrac);
       // Scan the middle of the box only, clear of the horizontal borders which

@@ -24,6 +24,10 @@ tanggal itu. Klaim yang tidak punya angka ditulis sebagai belum diukur.
 - [8. ATR stop: bar terakhir lawan zona](#8-atr-stop-bar-terakhir-lawan-zona)
 - [9. Walk-forward, empat periode](#9-walk-forward-empat-periode)
 - [10. Apa yang masih belum diukur](#10-apa-yang-masih-belum-diukur)
+- [11. Objek yang bergerak setelah lahir](#11-objek-yang-bergerak-setelah-lahir)
+- [12. Kunci urut yang memilih dua order](#12-kunci-urut-yang-memilih-dua-order)
+- [13. Border box inverted terbaca separuh](#13-border-box-inverted-terbaca-separuh)
+- [14. Backtester Python untuk yang tidak bisa di MT5](#14-backtester-python-untuk-yang-tidak-bisa-di-mt5)
 
 ## 1. Ringkasan vonis
 
@@ -675,10 +679,8 @@ Yang runtuh, dinyatakan langsung:
 - **`ifvg` dan `breaker` belum terbukti tergambar di tempat yang benar**, bukan
   karena terbukti salah melainkan karena border-nya tidak terbaca di kepadatan
   yang mereka hasilkan sendiri. Itu pertanyaan terbuka, bukan lulus.
-- **`breaker` masih merah di pixel-truth**, dan sebabnya ambiguitas probe yang
-  sudah diukur, bukan gambar yang meleset. Menyelesaikannya butuh probe yang
-  bisa memilih di antara dua garis tercat tanpa memakai ekspektasi sebagai
-  petunjuk, dan itu belum dirancang.
+- **`breaker` masih merah di pixel-truth**, dan pada 2 September 2026
+  pertanyaannya jadi jauh lebih sempit. Lihat bagian 13.
 - **Empat periode tidak cukup untuk menyatakan sebuah sel LOLOS**, hanya untuk
   menyatakannya gagal. Menjawab pertanyaan sebaliknya butuh lebih banyak
   periode, dan history BTC 1h di terminal ini hanya sampai Februari 2022.
@@ -689,4 +691,344 @@ Yang runtuh, dinyatakan langsung:
   dibacanya ada di tier "near". Jalur menggambar tier "far" tidak tercakup.
 - `--dash-sd` dan `--dash-ob` sama-sama `0`, jadi box S&D dan box OB di harga
   yang sama hanya dibedakan caption, yang hilang di bawah tinggi 15 px.
-- IFVG dan breaker **tidak punya port MQL5 sama sekali**.
+- `ssmt` dan `psp` tetap tidak diport, dan alasannya terukur, bukan
+  kekurangan waktu. Keduanya tercatat di `UNPORTED` dengan angkanya.
+
+## 11. Objek yang bergerak setelah lahir
+
+Sepuluh objek pertama yang diport punya satu sifat bersama yang tidak pernah
+ada yang menuliskannya: semuanya **beku saat lahir**. Sebuah zona punya top dan
+bottom yang tetap begitu bar pembentuknya ada. Sebuah level pool adalah high
+sesi, dan sesi yang sudah tutup tidak berubah high-nya. Karena itu setiap
+harness di repo ini menanyakan satu pertanyaan yang sama, dan pertanyaan itu
+memang cukup: apakah nilainya sama.
+
+Event horizon tidak beku. Ia rata-rata antara `lower.top` dan `upper.bottom`
+dari dua gap yang bertetangga **menurut harga**, jadi gap baru yang menyisip di
+antara dua gap lama memindahkan level yang sudah tergambar tanpa satu harga pun
+berubah. `keep=5` membuang gap tertua di saat yang sama, sehingga sebuah level
+bisa lenyap tanpa harganya pernah disentuh. Dua sisi bisa sepakat sempurna soal
+himpunan akhir dan tetap berbeda pendapat di setiap bar sebelumnya.
+
+`compare_horizons` karena itu menanyakan pertanyaan yang berbeda: bukan
+"apakah nilainya sama", tapi "apakah nilainya sama **pada bar yang sama**".
+Satu himpunan level per `as_of`, disampel tiap 200 bar.
+
+### Hasil, XAUUSD H1, 2.760 bar
+
+| Objek | Python | MQL5 | Mismatch |
+|---|---|---|---|
+| `gaps`, NDOG dan NWOG | 130 | 130 | 0 |
+| event horizons, 14 bar sampel | 56 level | 56 level | 0 |
+
+### Kedua gate dibuktikan bisa merah
+
+**Suntikan 1, bukti ketepatan dilonggarkan.** `time_[i_close]+step==close_at`
+diganti `<=`. Hasil: 3 mismatch, **semuanya di field `approximate`**, nol di
+harga dan nol di timestamp. Yang dibuktikan bukan sekadar bahwa gate-nya
+menyala, melainkan bahwa flag itu benar-benar dibandingkan. Flag ini yang
+membedakan "tepi pita ini bar 17:00 dan bar 18:00 yang sesungguhnya" dari "ini
+bar terdekat yang bisa saya temukan", dan `gaps.py` mencatat 29 pita karangan
+di binance BTCUSDT 1h pada 19 Agustus 2026 yang semuanya terkirim berflag
+exact.
+
+**Suntikan 2, kebocoran lookahead murni.** Filter `as_of` di
+`SDEventHorizons` dimatikan, sehingga tiap bar sampel melihat seluruh riwayat
+gap termasuk yang belum terjadi. Hasil: **57 mismatch**.
+
+Yang penting bukan angka 57. Yang penting adalah apa yang dilakukan komparator
+lain terhadap dump yang persis sama:
+
+| Komparator | Pertanyaan yang ia ajukan | Vonis atas dump bocor yang sama |
+|---|---|---|
+| birth-settled, satu daftar `as_of=None` | apakah nilainya sama | **HIJAU**, 0 dari 15 blok berbeda |
+| `compare_horizons`, per bar | apakah nilainya sama pada bar yang sama | **MERAH**, 57 mismatch |
+
+Kebocoran lookahead itu tidak terlihat sama sekali oleh pertanyaan yang dipakai
+sepuluh objek sebelumnya, karena dengan `as_of=None` sisi Python juga memakai
+seluruh riwayat, jadi kedua sisi bocor dengan cara yang sama dan cocok
+sempurna. Bentuk harness-nya yang menangkap, bukan field-nya.
+
+### Sensus bentuk sekarang menemukan dirinya sendiri
+
+`tests/test_mql5_contract.py` dulu mengimpor keempat dict registry satu per
+satu dan mengejanya lagi di kalimat assert-nya. Bentuk keenam yang mendarat di
+`mqh_parity` akan membuat setiap layer di dalamnya kembali terhitung tidak
+tercatat, dan penulis yang menambahkan dict-nya ke impor tapi lupa ke assert
+akan mendapat gate hijau atas sensus yang bolong. Itu pola yang sudah dua kali
+membuat harness di repo ini merah tanpa ada yang tahu: `e2e/wiring.mjs` selama
+dua commit, dan sensus slider `e2e/sweep.mjs` selama 24. Sekarang test itu
+menemukan sendiri setiap dict bernama `PORTED*` plus `UNPORTED` lewat `dir()`.
+
+## 12. Kunci urut yang memilih dua order
+
+`tools/execute.py` mengurutkan kandidat di baris 395 dan 496, dan di keduanya
+kunci utamanya `-Setup.met`, skor checklist ICT. `--max-orders` default 2, jadi
+urutan itu memilih dua kandidat mana yang benar-benar dikirim ketika lebih dari
+dua lolos gerbang.
+
+Pertanyaan itu belum pernah bisa terlihat oleh harness mana pun di sini.
+`max_orders` hanya muncul di `execute.py` dan `autotrade.py`, keduanya jalur
+live. Tidak satu pun rig pengukuran memperhitungkannya: semuanya menghitung
+ekspektasi per trade dengan asumsi setiap trade diambil, dan di bawah asumsi itu
+urutan tidak punya arti sama sekali.
+
+Praregistrasi di `tools/order_key.py`, hasil di `docs/order_key.json`. Populasi
+dipinjam dari `checklist_outcomes.rows_for` apa adanya, **1.843 trade**, 8
+instrumen, 1 jam, resolusi 5 menit, biaya `exness_raw`, ekor dipatok di
+`as_of` 1788220800 (2026-09-01T00:00:00Z).
+
+### Uji A, monoton, critical t 2,69
+
+| Kunci | rho demeaned | t |
+|---|---|---|
+| `k_near_close` | -0,1093 | **-4,72** |
+| `k_cheap` | +0,0434 | +1,86 |
+| `k_random`, kontrol | +0,0364 | +1,56 |
+| `k_near_target` | +0,0072 | +0,31 |
+| `k_departure` | -0,0257 | -1,10 |
+| `k_met` | -0,0357 | -1,53 |
+| `k_reward_r` | -0,0424 | -1,82 |
+
+### Uji B, lift dua teratas
+
+| Kunci | delta R hari | t | delta R pekan | t | wf pekan |
+|---|---|---|---|---|---|
+| `k_near_close` | -0,0559 | -0,90 | -0,0977 | **-3,90** | **0/8** |
+| `k_near_target` | -0,1463 | -2,46 | -0,0791 | -2,96 | 2/8 |
+| `k_reward_r` | +0,0735 | +1,28 | +0,0594 | +2,17 | 5/8 |
+| `k_departure` | +0,0043 | +0,08 | +0,0450 | +1,72 | 6/8 |
+| `k_met` | -0,0063 | -0,12 | +0,0388 | +1,48 | 6/8 |
+| `k_cheap` | -0,0204 | -0,32 | -0,0249 | -0,93 | 2/8 |
+| `k_random` | +0,0429 | +0,88 | +0,0095 | +0,35 | 4/8 |
+
+### Vonis
+
+**Nol kunci lulus.** Bukan hanya nol yang lulus kedua uji: nol juga yang lulus
+salah satunya. Tidak ada dasar terukur untuk mengganti `met` dengan kunci mana
+pun di daftar tertutup ini.
+
+**Yang menyeberang ambang justru satu-satunya yang negatif, dan ia sedang
+produksi.** `k_near_close`, tie-breaker di baris 395, memberi rho demeaned
+-0,1093 pada t = -4,72, |t| terbesar di seluruh run, dengan tanda yang
+salah. Uji B pengelompokan pekan mengonfirmasi: -0,0977 R, t = -3,90,
+walk-forward **0 dari 8** fold. Mendahulukan kandidat yang paling dekat memilih trade yang
+lebih buruk.
+
+`k_near_target`, tie-breaker di baris 496, ikut menyeberang negatif di
+pengelompokan pekan: -0,0791 pada t = -2,96, walk-forward 2 dari 8.
+
+`k_reward_r` yang paling dekat lulus dan tetap gagal: lift +0,0594 pekan pada
+t = 2,17 melawan 2,69, walk-forward 5 dari 8 melawan 7 yang dibutuhkan. Uji
+A-nya justru negatif. Dua uji yang tidak sepakat adalah alasan mengukur lagi,
+dan praregistrasinya sudah menulis itu di depan.
+
+### Rig-nya dibuktikan bisa melaporkan LULUS
+
+Studi yang melaporkan nol pemenang tanpa pernah menunjukkan pemenang seperti apa
+yang bisa ia lihat sedang melaporkan diamnya sendiri. `--oracle` memuat populasi
+yang sama dan menambahkan kunci yang isinya outcome-nya sendiri:
+
+| Uji | Hasil oracle |
+|---|---|
+| A, monoton | rho 1,0000, t tak hingga, walk-forward 8/8, `passes` |
+| B, per simbol per hari | +0,4411 R, t = 9,42, walk-forward 8/8, `passes` |
+| B, per simbol per pekan | +0,6240 R, t = 26,78, walk-forward 8/8, `passes` |
+
+Kontrolnya juga bersih di arah sebaliknya: `k_random` t = 1,56 / 0,88 / 0,35,
+ketiganya di bawah 2,69.
+
+### Populasinya dipatok, dan patokannya diperiksa
+
+Dua run pertama di tree yang sama memberi n = 1847 lalu n = 1850: `rows_for`
+membaca ekor MT5 yang hidup dan bar baru tutup di antara keduanya. Verdict-nya
+kebetulan bertahan dan |t| terbesarnya bergeser -4,64 ke -4,66. "Kebetulan
+bertahan" adalah persis yang `e2e/labels.mjs` lakukan sampai ia memberi 7/9,
+8/9, 8/9, 7/9, 9/9 di tree yang sama tanpa satu baris kode berubah.
+
+Ada DUA jalur muat, dan itu yang paling mudah salah:
+
+| Jalur | Dipakai oleh | Dipatok di |
+|---|---|---|
+| `tools.history.load` | `intrabar.resolved`, `quant.clean` | `load()` sendiri, membungkus lima jalur return |
+| `app.providers.get_candles` | grid SSMT lewat `checklist_outcomes._aligned` | `_aligned` mengembalikan `history.cut(...)` |
+
+`load_aligned` tidak menyentuh `tools.history` sama sekali, jadi mematok satu
+saja menghasilkan studi yang TERLIHAT reproducible, dan itu lebih buruk
+daripada studi yang jujur bergerak.
+
+Buktinya bukan argumen. Dua run berturut-turut setelah patokan menghasilkan
+JSON yang **identik byte-per-byte**, md5 `423bb8a99c5494500fd9d80d5473f13f`
+keduanya, dengan hitungan per simbol yang sama persis di kedelapan instrumen.
+
+`AS_OF` default **0**, jadi tidak satu pun jalur live berubah.
+`tests/test_history_pin.py` mengunci ketiganya dan dua suntikan sudah
+membuktikannya bisa merah: `load()` berhenti memanggil `cut` menjatuhkan
+`test_load_applies_the_pin`, dan default global yang ditinggal menyala
+menjatuhkan `test_default_is_the_live_tail`. Yang kedua yang paling mudah
+hilang, karena rig yang menyalakan global lalu crash meninggalkan proses dengan
+patokan menyala, dan di proses yang juga melayani API itu berarti chart
+kehilangan bar terbarunya tanpa satu error pun.
+
+### Satu batas yang tetap berdiri
+
+**Rata-rata populasinya nol.** `exp_r_all` = +0,0010 R. Urutan tidak bisa
+menyelamatkan populasi yang datar, paling jauh ia berhenti memperburuknya, dan
+-0,0977 R per grup itu besar justru karena rata-ratanya nol.
+
+## 13. Border box inverted terbaca separuh
+
+`e2e/pixel-truth.mjs` menyatakan sebuah edge LEGIBLE kalau coverage barisnya
+lebih dari 0,6, dan `breaker` gagal di situ dengan bottom 2 dari 5. Catatan
+lamanya menyebut kandidat sebabnya "pembelahan setengah piksel yang menahan
+coverage per-baris di 0,58 lawan ambang 0,60", dinyatakan sebagai kandidat dan
+bukan pengukuran. Sekarang ada pengukurannya, dan kandidat itu jatuh.
+
+### Angkanya, dan selisihnya bukan 0,02
+
+| Kind | Inverted | n edge | Median | Min | Maks | Di bawah 0,6 |
+|---|---|---|---|---|---|---|
+| `fvg` | tidak | 24 | **1,0000** | 0,9542 | 1,0000 | 0 dari 24 |
+| `ifvg` | ya | 16 | **0,5797** | 0,5417 | 0,7406 | 9 dari 16 |
+
+Box non-inverted terbaca coverage penuh. Box inverted terbaca separuh. Jarak
+antar keduanya 0,42, dua puluh kali lipat dari margin 0,02 yang catatan lama
+sebutkan, jadi ini bukan kasus yang menyerempet ambang.
+
+Dan `breaker` menunjukkan pola yang sama dengan satu tambahan: sisi yang
+coverage-nya rendah selalu sisi PROXIMAL, top di zona demand dan bottom di zona
+supply.
+
+| Sisi | Top coverage | Bottom coverage |
+|---|---|---|
+| demand | 0,578 - 0,617 | 0,620 - 0,723 |
+| supply | 0,620 - 0,698 | 0,578 - 0,698 |
+
+### Empat sebab dicoba, empat gugur
+
+Masing-masing dibunuh oleh eksperimen langsung, bukan oleh argumen:
+
+| Kandidat | Cara dibunuh |
+|---|---|
+| Caption menimpa border | Caption digambar di TENGAH box (`box.top + h / 2`), bukan di edge |
+| `crowded` memotong alpha border jadi separuh | Diukur: **0 dari 40** zona di keempat kind punya `crowded_at` |
+| Stroke dalam 3,5px milik box inverted membagi tinta | Dibuang lewat suntikan, lalu diukur ulang: median **0,5797**, min **0,5417**, identik empat desimal dengan sebelumnya |
+| Kanvas lebih lebar dari pane, jadi kolom kosong ikut dihitung | Diukur: pane 750 px, kanvas terbesar 750 px, sama |
+
+Yang TERAMATI langsung: baris border box inverted membawa pola nyala-mati
+periodik, dibaca kolom demi kolom (`1011101110111011...`). Jadi barisnya memang
+tidak penuh. Yang belum ketemu apa yang mematikan kolom-kolom itu.
+
+### Satu klaim komentar yang jatuh
+
+`zone-primitive.ts:163` menjelaskan kenapa `--dash-ifvg` dan `--dash-brk` ([4 3])
+sengaja tidak dipakai, dan alasannya berdiri: [4 3] sudah dipakai border untuk
+menyatakan "box ini masih bisa bergerak", dan satu pola tidak bisa berarti dua
+hal di satu box. Itu keputusan yang terdokumentasi, bukan token yang mati.
+
+Kalimat berikutnya di komentar yang sama TIDAK berdiri: "the harness reads the
+solid border underneath it exactly as before". Harness-nya tidak membaca border
+solid di bawah untuk `ifvg`. Ia membaca 0,5797.
+
+### Konsekuensi untuk gate-nya
+
+Ambang 0,6 tidak bisa dicapai border putus-putus mana pun: dash [4 3] punya duty
+4/7 = 0,5714 secara aritmetika. Jadi selama penyebab di atas belum ketemu, gate
+ini tidak bisa hijau untuk kind inverted APA PUN alasannya, dan menurunkan
+ambangnya akan melemahkan gate untuk kind non-inverted yang sekarang lulus di
+1,0000 dengan margin lebar.
+
+DIBIARKAN MERAH, dan itu keputusan. Gate yang diturunkan supaya hijau adalah
+gate yang berhenti mengukur. Yang berubah hari ini bukan warnanya, melainkan
+bahwa pertanyaannya sekarang sempit dan empat jawaban yang salah sudah tidak
+perlu dicoba lagi.
+
+## 14. Backtester Python untuk yang tidak bisa di MT5
+
+Diminta pemiliknya: "yang gagal, null tidak terukur, ataupun gk bisa di MT-5
+kamu bisa bikin backtester sendiri via python". `ssmt` dan `psp` adalah dua
+layer ICT tanpa port MQL5.
+
+> [!IMPORTANT]
+> **Keduanya bukan "belum terukur".** `ssmt` null di 0 dari 24 sel dengan tanda
+> terbagi 12 lawan 12 (`docs/ssmt_outcomes.json`); `psp` null di 48 dari 48 sel
+> dengan |z| terbesar 2,104 lawan bar Bonferroni 3,279
+> (`docs/psp_outcomes.json`). Keduanya diukur sebagai BACAAN. Yang belum
+> ditanyakan: kalau aturan entry, stop dan target dipasang di atasnya dan biaya
+> broker dibebankan, berapa R yang keluar. Bacaan null yang tetap tradable dan
+> bacaan null yang tidak tradable adalah dua fakta, bukan satu.
+
+Praregistrasi `tools/event_backtest.py`, hasil `docs/event_backtest.json`.
+Entry di open bar 1 jam berikutnya, stop 1,0 ATR, target 2R, resolusi bar 5
+menit, horizon 96 bar, biaya `exness_raw` dikurangkan dari R. Stop dan target
+kena di satu bar halus: stop menang, asumsi pesimis yang dinyatakan. Kontrol
+jitter waktu per-event, arah dan instrumen sama, entry digeser 5 sampai 40 bar
+dengan seed deterministik.
+
+### Hasil, 6.600 trade, tiga instrumen
+
+| Arm | n | Exp R real | Exp R kontrol | Delta R | t | Walk-forward |
+|---|---|---|---|---|---|---|
+| `ssmt` | 1597 | -0,1318 | -0,1076 | -0,0242 | -0,51 | 4/8 |
+| `psp_after_ssmt` | 728 | -0,1233 | -0,1070 | -0,0163 | -0,23 | 4/8 |
+| `psp_alone` | 4275 | -0,0725 | -0,0755 | +0,0030 | +0,10 | 4/8 |
+
+Critical t ber-Bonferroni 2,394 atas tiga arm. **Nol lulus.** Ketiga arm
+ekspektasinya NEGATIF setelah biaya, dan dua dari tiga kalah dari kontrol
+jitter-nya sendiri - artinya bukan cuma tidak menghasilkan, ia juga tidak
+mengalahkan arah-plus-volatilitas di periode yang sama.
+
+**Premis pairing gagal lagi, dan kali ini ke arah yang salah.** `psp_alone`
+mencetak -0,0725 R sementara `psp_after_ssmt` mencetak -0,1233 R: PSP yang
+didahului SSMT lebih BURUK daripada PSP sendirian. `docs/psp_outcomes.json`
+menemukan `triad_crack_rate` identik untuk keduanya; di sini keduanya tidak
+identik, yang di depan justru merugikan.
+
+`ETHUSD` DILEWATI dan itu tercatat di output. Ia muncul di `TCISD_PARTNER`
+hanya sebagai partner BTCUSD, satu arah, dan menambahkan kebalikannya berarti
+MEMILIH partner - yang praregistrasi bagian 2 larang. Populasi tiga instrumen
+dengan alasan tertulis lebih baik daripada empat instrumen yang satu
+partnernya dipilih oleh orang yang sedang membaca hasilnya.
+
+### Rig-nya dibuktikan bisa hijau
+
+| Arm | n | Delta R | t | Walk-forward | Lulus |
+|---|---|---|---|---|---|
+| `oracle_lookahead` | 1081 | **+0,5693** | **+9,08** | **8/8** | ya |
+
+Arah dibaca dari close 12 bar ke depan. Ia harus lulus, dan ia lulus.
+
+### Dua cacat di rig ini sendiri, dan cara keduanya ketemu
+
+**Arm `psp` sendirian tidak pernah ada.** `app/psp.py:WINDOW` adalah 3 dan
+`PAIR_WINDOW` versi pertama juga 3, jadi setiap PSP yang `after_ssmt` temukan
+lolos syarat "dalam 3 bar" SECARA KONSTRUKSI. Kedua arm mengukur populasi yang
+identik: n 728 keduanya, ekspektasi -0,123291 keduanya, hitungan per simbol sama
+persis. Premis pairing tidak diuji sama sekali. Dua kolom angka yang identik
+satu-satunya alasan itu ketahuan.
+
+**Dan yang lebih berbahaya: oracle run melaporkan `ssmt` LULUS di atas trade
+palsu.** Run pertama `--bars 6000` memberi n=7709 untuk `ssmt` sementara run
+20.000 bar memberi n=1597. Bar lebih sedikit menghasilkan event lima kali lebih
+banyak adalah angka yang tidak mungkin, dan itu yang membuatnya terlihat.
+
+Sebabnya: `_aligned` selalu meminta 99.999 bar sementara `coarse` dipotong ke
+`--bars`, jadi setiap event yang MENDAHULUI bar pertama membuat `bisect_left`
+mengembalikan 0 dan trade-nya dibuka di bar 1. Ribuan event berbeda jadi satu
+trade yang sama dengan kunci berbeda, dan `ssmt` "lulus" dengan t = +14,06 di
+atas tumpukan itu.
+
+Yang menangkapnya gate yang ditulis untuk tujuan lain: tanpa oracle check angka
+`ssmt` yang salah tidak akan pernah terlihat, karena run penuh kebetulan kurang
+terpengaruh dan tetap melaporkan tidak lulus. Sebuah gate yang ada untuk
+membuktikan rig bisa hijau justru yang membuktikan rig bocor.
+
+### Yang tidak dijawab
+
+- Tidak ada model book. Ia mengasumsikan setiap trade diambil, asumsi yang
+  `docs/order_key.json` catat berlaku di setiap rig pengukuran di repo ini.
+- Tidak ada slippage per tick; biayanya satu angka per instrumen dari tabel
+  `exness_raw`.
+- Satu degree saja (day). SSMT di degree lain adalah populasi lain.
+- Status `psp` TIDAK berubah: `tests/test_psp_not_wired_to_decisions.py` tetap
+  melarangnya menyentuh jalur order, apa pun angka di atas.

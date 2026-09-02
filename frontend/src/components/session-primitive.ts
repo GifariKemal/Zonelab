@@ -123,12 +123,20 @@ function ink(alpha: number): string {
  *  level lands on none of those four instants, which on this engine's own data
  *  never happens - and if it ever does, a vague tag beats a wrong name. */
 const OPEN_TAG: Record<string, string> = {
-  // TQO for the four-year cycle. "Q" for quadrennial rather than for quarterly,
-  // and the collision is worth naming because the practitioner who asked for
-  // this degree used "quarterly cycle" for the calendar-quarter grid that the
-  // `year` degree already draws as TYO. Two different cycles, one letter each,
-  // and the gutter has room for neither spelled out.
-  quadrennial: "TQO",
+  // T4YO, DAN INI KOREKSI. Tag ini "TQO" sampai 2 September 2026, dan komentar
+  // di tempatnya sudah menyebut tabrakannya sebagai risiko: praktisi yang minta
+  // degree ini memakai "quarterly cycle" untuk grid kuarter kalender yang
+  // degree `year` sudah gambar sebagai TYO. Risiko itu jadi kenyataan begitu
+  // referensi kedua masuk. `quarter-sequence.vercel.app` memakai tabel
+  // `TO_NAME` di mana TQO adalah cycle 91 hari dan yang empat tahun dinamai
+  // T4YO - jadi satu tag yang sama menamai dua cycle yang berbeda di dua chart
+  // yang pembacanya sama orang.
+  //
+  // Referensi yang diikuti, bukan kita, karena TQO di sana punya rumah yang
+  // masuk akal (Q untuk quarterly) sementara di sini ia harus dijelaskan tiap
+  // kali. Dan itu membebaskan TQO untuk degree QUARTERLY kalau nanti diport -
+  // engine ini belum punya cycle 91 hari sama sekali.
+  quadrennial: "T4YO",
   year: "TYO",
   month: "TMO",
   week: "TWO",

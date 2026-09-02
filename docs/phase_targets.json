@@ -1,0 +1,223 @@
+{
+  "preregistered": "tools/phase_targets.py, 2026-09-02",
+  "rule": {
+    "given_by": "pemiliknya, 2026-09-02",
+    "lines": [
+      "Accumulation/Consolidation DFR -> Manipulation Targets",
+      "Manipulation DFR -> Distribution Targets"
+    ],
+    "evidence_supplied": "satu chart TradingView, BTC 1h Binance, Tango618"
+  },
+  "population": {
+    "series": [
+      "mt5:XAUUSD 1h 20000",
+      "mt5:BTCUSD 1h 20000",
+      "mt5:ETHUSD 1h 20000",
+      "mt5:EURUSD 1h 20000"
+    ],
+    "degrees": [
+      "day",
+      "week"
+    ],
+    "n_levels": 22550,
+    "n_cycles": 1284
+  },
+  "groups_judged": 6,
+  "alpha_corrected": 0.008333333333333333,
+  "critical_t": 2.638257273476751,
+  "effect_min_pp": 3.0,
+  "cells": {
+    "accum_to_manip|day": {
+      "arm": "accum_to_manip",
+      "degree": "day",
+      "n_cycles": 1109,
+      "n_levels": 6376,
+      "delta_pp": -0.2780282536819958,
+      "t": -0.7685259497194407,
+      "walk_forward": {
+        "graded": 8,
+        "positive": 2,
+        "p": 0.96484375,
+        "deltas": [
+          0.0,
+          0.0,
+          0.24,
+          0.725,
+          -0.09,
+          -0.09,
+          -1.781,
+          -1.229
+        ]
+      },
+      "judged": true,
+      "passes": false,
+      "profiles": {
+        "AMDX": 474,
+        "XAMD": 1021
+      }
+    },
+    "accum_to_manip|week": {
+      "arm": "accum_to_manip",
+      "degree": "week",
+      "n_cycles": 175,
+      "n_levels": 1144,
+      "delta_pp": -0.9285714285714286,
+      "t": -1.1506109136575324,
+      "walk_forward": {
+        "graded": 8,
+        "positive": 2,
+        "p": 0.96484375,
+        "deltas": [
+          0.0,
+          -3.409,
+          -1.136,
+          3.977,
+          -4.563,
+          2.273,
+          -1.326,
+          -3.409
+        ]
+      },
+      "judged": true,
+      "passes": false,
+      "profiles": {
+        "AMDX": 45,
+        "XAMD": 170
+      }
+    },
+    "manip_to_distrib|day": {
+      "arm": "manip_to_distrib",
+      "degree": "day",
+      "n_cycles": 1109,
+      "n_levels": 6376,
+      "delta_pp": -1.8635407273820261,
+      "t": -4.35223782303873,
+      "walk_forward": {
+        "graded": 8,
+        "positive": 0,
+        "p": 1.0,
+        "deltas": [
+          -0.899,
+          -1.63,
+          -0.12,
+          -2.325,
+          -2.578,
+          -1.499,
+          -3.231,
+          -2.638
+        ]
+      },
+      "judged": true,
+      "passes": false,
+      "profiles": {
+        "AMDX": 474,
+        "XAMD": 1021
+      }
+    },
+    "manip_to_distrib|week": {
+      "arm": "manip_to_distrib",
+      "degree": "week",
+      "n_cycles": 175,
+      "n_levels": 1138,
+      "delta_pp": -0.6428571428571428,
+      "t": -0.6716357719516968,
+      "walk_forward": {
+        "graded": 8,
+        "positive": 3,
+        "p": 0.85546875,
+        "deltas": [
+          4.545,
+          -1.136,
+          -3.977,
+          -1.705,
+          -1.19,
+          1.136,
+          -3.409,
+          0.568
+        ]
+      },
+      "judged": true,
+      "passes": false,
+      "profiles": {
+        "AMDX": 45,
+        "XAMD": 170
+      }
+    },
+    "q1_to_manip|day": {
+      "arm": "q1_to_manip",
+      "degree": "day",
+      "n_cycles": 1109,
+      "n_levels": 6376,
+      "delta_pp": -0.44334235046588516,
+      "t": -1.4224457848421281,
+      "walk_forward": {
+        "graded": 8,
+        "positive": 4,
+        "p": 0.63671875,
+        "deltas": [
+          0.54,
+          0.181,
+          1.439,
+          0.242,
+          -1.319,
+          -1.139,
+          -2.385,
+          -1.109
+        ]
+      },
+      "judged": true,
+      "passes": false,
+      "profiles": {
+        "AMDX": 474,
+        "XAMD": 1021
+      }
+    },
+    "q1_to_manip|week": {
+      "arm": "q1_to_manip",
+      "degree": "week",
+      "n_cycles": 173,
+      "n_levels": 1140,
+      "delta_pp": -0.16859344894026973,
+      "t": -0.28477662344505644,
+      "walk_forward": {
+        "graded": 8,
+        "positive": 2,
+        "p": 0.96484375,
+        "deltas": [
+          -1.136,
+          2.381,
+          0.0,
+          0.0,
+          -3.03,
+          -1.136,
+          2.976,
+          -1.136
+        ]
+      },
+      "judged": true,
+      "passes": false,
+      "profiles": {
+        "AMDX": 45,
+        "XAMD": 168
+      }
+    }
+  },
+  "q1_versus_accumulation": {
+    "day": {
+      "n_cycles": 1109,
+      "delta_pp": -2.7051397655545535,
+      "t": -3.8976859961154444,
+      "differs_at_all": 310,
+      "note": "positif berarti membaca DFR dari kuarter AKUMULASI mengalahkan membacanya dari Q1 selalu"
+    },
+    "week": {
+      "n_cycles": 173,
+      "delta_pp": -2.601156069364162,
+      "t": -1.31555434316248,
+      "differs_at_all": 65,
+      "note": "positif berarti membaca DFR dari kuarter AKUMULASI mengalahkan membacanya dari Q1 selalu"
+    }
+  },
+  "passes": [],
+  "verdict": "TIDAK ADA ARM YANG LULUS DI DEGREE MANA PUN"
+}

@@ -617,7 +617,14 @@ async def _draw_ssmt(
     params = request.checklist
     stats: dict[str, object] = {"drawn": 0}
     if not (params.ssmt_symbols and params.ssmt_degrees):
-        stats["reason"] = "pick at least one instrument and one degree"
+        # SATU BAHASA DI SATU RAIL. Kalimat ini English sejak layer-nya dikirim,
+        # lalu `session` dan `dfr` menyusul dengan kalimat Bahasa Indonesia pada
+        # 2 September 2026, dan rail-nya menampilkan ketiganya berdampingan.
+        # Diselaraskan ke Bahasa Indonesia karena dua dari tiga sudah begitu.
+        # Aman diubah: `e2e/rails.mjs` membaca string ini DARI API lalu
+        # memeriksa ia muncul di DOM, jadi tidak ada harness yang mengeja
+        # kalimatnya.
+        stats["reason"] = "pilih minimal satu instrument dan satu degree"
         return stats
 
     source = params.ssmt_provider or used
