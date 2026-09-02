@@ -51,7 +51,12 @@ import pytest
 
 from app.detect import DETECTORS
 from app.drawing import _HANDLERS, HTF_LAYERS
-from app.models import Drawing, DrawRequest, SupplyDemandParams
+from app.models import (
+    Drawing,
+    DrawRequest,
+    ImbalanceParams,
+    SupplyDemandParams,
+)
 from app.overlays import bar_overlays
 from app.providers import get_candles
 from app.quarters import true_opens
@@ -356,25 +361,43 @@ def test_an_equal_high_shelf_never_moves(series):
 # -------------------------------------------------------------------- zones
 
 
-def _zones(window):
-    zones, _ = DETECTORS["supply_demand"](
-        window, SupplyDemandParams(max_zones_per_side=0, show_broken=True)
+def _zones(window, layer="supply_demand"):
+    #: Which parameter block each detector reads. `app/layers.py` is the
+    #: authority and this mirrors it for two entries; a sixth detector added
+    #: there and not here fails loudly with a KeyError rather than being
+    #: silently skipped.
+    params = (
+        SupplyDemandParams(max_zones_per_side=0, show_broken=True)
+        if layer == "supply_demand"
+        else ImbalanceParams(max_zones_per_side=0, show_broken=True)
     )
+    zones, _ = DETECTORS[layer](window, params)
     return {z.id: z for z in zones}
 
 
-def test_a_zone_never_moves_and_its_lifecycle_never_runs_backwards(series):
+@pytest.mark.parametrize("layer", sorted(HTF_LAYERS))
+def test_a_zone_never_moves_and_its_lifecycle_never_runs_backwards(series, layer):
     """Geometry is frozen; the lifecycle may only advance.
 
     Both halves are needed. Freezing everything would forbid a fresh zone ever
     becoming tested, which is the engine working. Freezing nothing would let a
     box move.
+
+    PARAMETRISED SINCE 1 September 2026, and it matters which way. Until then
+    this ran on `supply_demand` alone, so the only base-timeframe repaint
+    evidence for `fvg`, `order_block`, `ifvg` and `breaker` was that they share
+    `replay_lifecycle` - which is reasoning about shared code, and the part
+    that is NOT shared is exactly the risky part: each detector decides its own
+    `born` bar, and a `born` one bar early lets the candle that created a box
+    count as the first test of it. The list comes from `HTF_LAYERS` for the
+    same reason the projection test reads it: a sixth detector joins both
+    tests in the commit that adds it, or neither.
     """
-    full = _zones(series)
-    assert full, "the fixture has to produce some zones"
+    full = _zones(series, layer)
+    assert full, f"the fixture has to produce some {layer} zones"
     moved, regressed = [], []
     for how, window in windows(series):
-        for zid, zone in _zones(window).items():
+        for zid, zone in _zones(window, layer).items():
             done = full.get(zid)
             if done is None:
                 continue

@@ -58,6 +58,24 @@ class Layer:
     #: What has been MEASURED about it. "Nothing" is a valid and common answer,
     #: and saying so is the point of the field.
     evidence: str
+    #: Which body of doctrine this layer comes from, or None for the ones that
+    #: come from somewhere else entirely. It is a HEADING and nothing more: the
+    #: toggle stays on each layer, so a family cannot switch anything on or off
+    #: as a bloc.
+    #:
+    #: It lives on the Layer and not in a dict beside LAYERS, for the reason
+    #: written at the bottom of `app/detect/__init__.py`: a second list of layer
+    #: ids drifts from the first one silently, and a layer filed under the wrong
+    #: heading still draws, still returns 200, and looks correct.
+    #:
+    #: `docs/ADOPSI.md` is the authority on which is which, and it separates ICT
+    #: from SMC from Quarterly Theory explicitly - Quarterly Theory is Daye's,
+    #: and its own section says harmonics are "bukan bagian ICT, SMC, atau
+    #: Quarterly Theory". Supply and demand is the Seiden lineage, the trend
+    #: gaps are Edwards-Magee, Wyckoff is Wyckoff, and the dial reads no price
+    #: at all. None of those five belong under an ICT heading, so none of them
+    #: carry one.
+    family: str | None = None
 
 
 LAYERS: tuple[Layer, ...] = (
@@ -80,6 +98,7 @@ LAYERS: tuple[Layer, ...] = (
     ),
     Layer(
         id="fvg",
+        family="ICT",
         label="Fair value gap",
         kind="detector",
         params="imbalance",
@@ -91,6 +110,7 @@ LAYERS: tuple[Layer, ...] = (
     ),
     Layer(
         id="order_block",
+        family="ICT",
         label="Order block",
         kind="detector",
         params="imbalance",
@@ -99,6 +119,7 @@ LAYERS: tuple[Layer, ...] = (
     ),
     Layer(
         id="ifvg",
+        family="ICT",
         label="Inverted fair value gap",
         kind="detector",
         params="imbalance",
@@ -117,6 +138,7 @@ LAYERS: tuple[Layer, ...] = (
     ),
     Layer(
         id="breaker",
+        family="ICT",
         label="Breaker block",
         kind="detector",
         params="imbalance",
@@ -128,6 +150,7 @@ LAYERS: tuple[Layer, ...] = (
     ),
     Layer(
         id="structure",
+        family="ICT",
         label="Market structure",
         kind="overlay",
         params="structure",
@@ -145,6 +168,7 @@ LAYERS: tuple[Layer, ...] = (
     ),
     Layer(
         id="session",
+        family="Quarterly Theory",
         label="Cycle grid",
         kind="overlay",
         params="session",
@@ -188,6 +212,7 @@ LAYERS: tuple[Layer, ...] = (
     ),
     Layer(
         id="gaps",
+        family="ICT",
         label="Opening gaps",
         kind="overlay",
         params="gaps",
@@ -234,6 +259,7 @@ LAYERS: tuple[Layer, ...] = (
     ),
     Layer(
         id="psp",
+        family="ICT",
         label="Precision swing point",
         kind="overlay",
         params="psp",
@@ -280,6 +306,7 @@ LAYERS: tuple[Layer, ...] = (
     ),
     Layer(
         id="cisd",
+        family="ICT",
         label="Change in state of delivery",
         kind="overlay",
         params="cisd",
@@ -297,6 +324,7 @@ LAYERS: tuple[Layer, ...] = (
     ),
     Layer(
         id="dfr",
+        family="Quarterly Theory",
         label="Defining range",
         kind="overlay",
         params="dfr",
@@ -323,6 +351,7 @@ LAYERS: tuple[Layer, ...] = (
     ),
     Layer(
         id="ssmt",
+        family="ICT",
         label="SSMT divergence",
         kind="overlay",
         # SHARES THE CHECKLIST'S BLOCK rather than duplicating three fields, the
@@ -351,6 +380,7 @@ LAYERS: tuple[Layer, ...] = (
     ),
     Layer(
         id="pools",
+        family="ICT",
         label="Liquidity pools",
         kind="overlay",
         params="pools",
@@ -369,6 +399,7 @@ LAYERS: tuple[Layer, ...] = (
     ),
     Layer(
         id="liquidity",
+        family="ICT",
         label="Named levels",
         kind="overlay",
         params="liquidity",
@@ -386,6 +417,7 @@ LAYERS: tuple[Layer, ...] = (
     ),
     Layer(
         id="projections",
+        family="ICT",
         label="Deviation projections",
         kind="overlay",
         params="projections",
@@ -484,7 +516,7 @@ DETECTOR_IDS: frozenset[str] = frozenset(
 DEFAULT_LAYERS: tuple[str, ...] = ("supply_demand",)
 
 
-def catalogue() -> list[dict[str, str]]:
+def catalogue() -> list[dict[str, str | None]]:
     """The registry as the API serves it, so the UI has ONE source of truth.
 
     The frontend used to hardcode which ids were detectors, which were overlays,
@@ -499,6 +531,7 @@ def catalogue() -> list[dict[str, str]]:
             "params": layer.params,
             "note": layer.note,
             "evidence": layer.evidence,
+            "family": layer.family,
         }
         for layer in LAYERS
     ]

@@ -253,6 +253,7 @@ def main() -> None:
     print(f"{'=' * 78}")
     print(f"  {'series':<16}{'gaps':>8}{'blocks':>9}{'bad':>6}")
     imb_bad, imb_total = [], 0
+    imb_out: list[dict] = []
     for symbol, interval in SERIES:
         try:
             candles = history.load(symbol, interval, args.bars)
@@ -261,6 +262,11 @@ def main() -> None:
         row = audit_imbalance(candles, f"{symbol}-{interval}")
         imb_bad.extend(row["violations"])
         imb_total += row["fvg"] + row["ob"]
+        # Sampai 1 September 2026 baris ini dihitung lalu dibuang: `out` cuma
+        # menerima baris supply/demand, jadi fvg dan order block tidak punya
+        # satu angka tersimpan pun untuk dibandingkan dengan run berikutnya.
+        # Yang tercetak di layar hilang begitu terminal ditutup.
+        imb_out.append({**row, "kind": "imbalance"})
         print(f"  {row['label']:<16}{row['fvg']:>8}{row['ob']:>9}{len(row['violations']):>6}")
     print(f"\n  {imb_total} boxes checked, {len(imb_bad)} rule violations")
     for line in imb_bad[:10]:
@@ -288,7 +294,11 @@ def main() -> None:
 
     if args.json:
         with open(args.json, "w") as handle:
-            json.dump(out, handle, indent=1, default=float)
+            # Tetap sebuah list, dan tiap baris menyebut jenisnya sendiri.
+            # Mengubah bentuk atasnya jadi dict akan memutus pembacaan file
+            # lama tanpa menambah satu angka pun.
+            rows = [{**r, "kind": "supply_demand"} for r in out] + imb_out
+            json.dump(rows, handle, indent=1, default=float)
         print(f"\nwrote {args.json}")
 
 

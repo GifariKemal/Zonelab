@@ -156,13 +156,30 @@ class DFRRenderer implements IPrimitivePaneRenderer {
           const w = ctx.measureText(row.tag).width + pad * 2;
           const h = Math.round(12 * ky);
           const x = width - gutter + pad;
-          const box = { x: x / kx, y: (row.y * ky - h / 2) / ky, w: w / kx, h: h / ky };
+          // CENTRED ON THE ROW, so the filter above is half a row too generous:
+          // it keeps a row whose CENTRE is on the pane, and then this box puts
+          // h/2 of itself above or below that centre. A row at y = 5 passes
+          // `r.y >= 0` and starts its plate at -1.
+          //
+          // Measured 1 September 2026 at a pinned bar grid: a claim at
+          // y = -0.73 with a 12px row, reported by `e2e/labels.mjs` as one
+          // straddling box, at 1 of 8 pinned grids swept. It was mistaken twice
+          // before being found - first for a zone caption, then for the
+          // projections tag in `levels-primitive.ts` - because dropping either
+          // layer changes which label wins its claim, and `claimedLabels` is
+          // first-come-first-served. Identified in the end by stack trace.
+          //
+          // Same clamp as the ray names in `levels-primitive.ts`, and the label
+          // moves rather than the line: a tag half a row off its own level still
+          // names that level, and a tag cut by the pane edge names nothing.
+          const cy = Math.min(Math.max(row.y * ky, h / 2), height - h / 2);
+          const box = { x: x / kx, y: (cy - h / 2) / ky, w: w / kx, h: h / ky };
           if (!labelFree(box, claimedLabels)) continue;
           claimedLabels.push(box);
           ctx.fillStyle = "rgba(11, 13, 16, 0.78)";
-          ctx.fillRect(x, Math.round(row.y * ky) - h / 2, w, h);
+          ctx.fillRect(x, Math.round(cy) - h / 2, w, h);
           ctx.fillStyle = `rgba(${INK}, 0.95)`;
-          ctx.fillText(row.tag, x + pad, Math.round(row.y * ky));
+          ctx.fillText(row.tag, x + pad, Math.round(cy));
         }
       }
       ctx.restore();

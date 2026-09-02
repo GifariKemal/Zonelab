@@ -184,3 +184,63 @@ def test_every_degree_has_an_ink_weight_on_the_canvas():
     assert not missing, f"degrees with no ink weight, so their labels draw off-pane: {missing}"
     extra = sorted(keys - set(ALL_DEGREES))
     assert not extra, f"ink weights for degrees that do not exist: {extra}"
+
+
+def test_one_place_owns_the_demand_and_supply_colours():
+    """Every hard-coded copy of the zone colour pair must equal globals.css.
+
+    `globals.css` already carries the warning: "FIVE PLACES HOLD THIS PAIR and
+    they must move together, or zones and candles end up different reds". On
+    2026-08-21 the pair moved from #2ea36f/#d4574f to #1f8f5f/#ef8f86 in
+    globals.css and zone-primitive.ts, and `e2e/pixel-truth.mjs` kept the old
+    values. That harness computes its edge-detection threshold FROM the colour,
+    so a stale copy does not fail the run - it mis-calibrates the probe and the
+    run stays green. It sat wrong for eleven days.
+
+    The warning was already written and was not enough, which is the whole
+    point of turning it into a test. `pixel-truth.mjs` now reads the tokens off
+    the page instead of holding a copy, so it is checked here for the ABSENCE
+    of one; the rest are checked for agreement.
+    """
+    web = TYPES_TS.parents[2]
+    css = (web / "src" / "app" / "globals.css").read_text(encoding="utf-8")
+    want = {
+        name: re.search(rf"--{name}:\s*(#[0-9a-f]{{6}});", css).group(1)
+        for name in ("demand", "supply")
+    }
+
+    primitive = (
+        web / "src" / "components" / "zone-primitive.ts"
+    ).read_text(encoding="utf-8")
+    block = primitive[primitive.index("const RGB = {") :][:200]
+    for name, hex_value in want.items():
+        triple = [int(hex_value[i : i + 2], 16) for i in (1, 3, 5)]
+        found = re.search(rf"{name}:\s*\[(\d+),\s*(\d+),\s*(\d+)\]", block)
+        assert found, f"zone-primitive.ts has no RGB triple for {name}"
+        assert [int(g) for g in found.groups()] == triple, (
+            f"zone-primitive.ts {name} is {found.groups()}, "
+            f"globals.css says {hex_value} = {triple}"
+        )
+
+    for relative in (
+        "src/components/chart.tsx",
+        "src/components/zone-panel.tsx",
+    ):
+        source = (web / relative).read_text(encoding="utf-8")
+        stale = [
+            found
+            for found in re.findall(r"#[0-9a-f]{6}", source)
+            # Only the two roles this pair fills. Any other hex in these files
+            # is a different colour with a different owner.
+            if found in {"#2ea36f", "#d4574f"}
+        ]
+        assert not stale, f"{relative} still carries the pre-2026-08-21 pair: {stale}"
+
+    harness = (web / "e2e" / "pixel-truth.mjs").read_text(encoding="utf-8")
+    assert 'hex("--demand")' in harness and 'hex("--supply")' in harness, (
+        "pixel-truth.mjs must READ the palette off the page; a copy here goes "
+        "stale silently because the harness derives its threshold from it"
+    )
+    assert not re.search(r"RGB\s*=\s*\{\s*demand:\s*\[", harness), (
+        "pixel-truth.mjs has a hard-coded RGB table again"
+    )

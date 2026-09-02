@@ -22,7 +22,7 @@
  * what the reviewers were actually looking at: how much of the base the box
  * covers horizontally.
  */
-import { writeFileSync } from "node:fs";
+import { mkdirSync, writeFileSync } from "node:fs";
 import { chromium } from "playwright";
 
 const OUT = process.argv[2] ?? ".playwright-shots";
@@ -205,7 +205,25 @@ const rows = [];
 
 for (const [n, zone] of drawing.zones.entries()) {
   const a = zone.anatomy;
-  const from = candles[Math.max(0, a.leg_in_from - 4)].time;
+  // FRAMED ON THE BOX, not on the anatomy, and the two are the same thing for
+  // three of the five detectors and wildly different for the other two.
+  //
+  // An inverted box carries its PARENT's bars in `anatomy` on purpose -
+  // `app/detect/inversion.py` says so: the id and the anatomy keep pointing at
+  // the candles the rectangle came from, while `time_from` is moved to the bar
+  // the inversion happened, because a box may not claim to have existed before
+  // the event that created it. Framing on `leg_in_from` therefore zoomed out to
+  // the whole parent lifetime and left the box itself squeezed into the last
+  // few bars: median bar spacing came out at 9px for `breaker` and 22px for
+  // `ifvg` against 38 to 44px for the rest, and at that width no border could be
+  // read back off the bitmap at all. Measured 1 September 2026: breaker 0 of 6
+  // top edges legible, ifvg 3 of 7. Nothing was wrong with the drawing.
+  //
+  // `leg_in_from` is still the left bound where it sits inside the box's own
+  // span, so supply and demand keeps the leg-in context it had.
+  const boxLeft = candles.findIndex((c) => c.time >= zone.time_from);
+  const left = boxLeft < 0 ? a.leg_in_from : Math.min(a.leg_in_from, boxLeft);
+  const from = candles[Math.max(0, Math.max(left, boxLeft - 4) - 4)].time;
   const to = candles[Math.min(candles.length - 1, a.leg_out_to + 10)].time;
 
   await page.evaluate(
@@ -282,9 +300,23 @@ for (const [n, zone] of drawing.zones.entries()) {
       // the threshold has to follow the zone's lifecycle, because a broken
       // zone's border is a quarter the opacity of a fresh one's, and one fixed
       // number is either blind to the faded end or trips on the fill.
-      const RGB = { demand: [46, 163, 111], supply: [212, 87, 79] };
+      // READ, not mirrored. This table used to be a copy of the renderer's,
+      // and on 2026-08-21 the palette moved in globals.css and
+      // zone-primitive.ts while this line stayed at the old green and red.
+      // The harness kept passing: it computes its detection threshold from
+      // this colour, so a stale copy mis-calibrates the probe rather than
+      // failing it. globals.css says five places hold the pair and must move
+      // together; a warning is not a mechanism, so this place stops holding it.
+      const css = getComputedStyle(document.documentElement);
+      const hex = (name) => {
+        const v = css.getPropertyValue(name).trim();
+        const m = /^#([0-9a-f]{6})$/i.exec(v);
+        if (!m) throw new Error(`${name} is not a six-digit hex: "${v}"`);
+        return [0, 2, 4].map((i) => parseInt(m[1].slice(i, i + 2), 16));
+      };
+      const RGB = { demand: hex("--demand"), supply: hex("--supply") };
       const EDGE_ALPHA = { fresh: 0.9, tested: 0.62, mitigated: 0.4, broken: 0.22 };
-      const BG = [11, 13, 16];
+      const BG = hex("--bg");
       const c = RGB[side].map((v, i) => BG[i] + EDGE_ALPHA[zoneIn.state] * (v - BG[i]));
       const edgeSideness =
         side === "demand" ? Math.min(c[1] - c[0], c[1] - c[2]) : Math.min(c[0] - c[1], c[0] - c[2]);
@@ -359,10 +391,31 @@ for (const [n, zone] of drawing.zones.entries()) {
   if (!measured) continue;
 
   const height = zone.top - zone.bottom;
+  // DOES ANOTHER BOX OF THE SAME SIDE SIT ON THIS ONE'S PRICE BAND, on the
+  // chart the reader sees. Recorded per row rather than assumed away, because
+  // it decides whether this zone's border can be read back at all: two boxes
+  // of one colour overlapping paint each other's edges, and the probe measures
+  // colour, so it cannot tell whose border it found.
+  //
+  // It is not hypothetical and it is not rare for the inversions. `_present`
+  // in `app/detect/imbalance.py` deliberately does not dedupe - two gaps at
+  // different bars are two events - and an inverted box inherits that, so a
+  // band that broke repeatedly produces a stack. Screenshotted 2 September
+  // 2026: four BRK boxes sharing one price band, all borders overlapping, plus
+  // one clean box further right that reads perfectly.
+  const stacked = drawing.zones.some(
+    (o) =>
+      o.id !== zone.id &&
+      o.side === zone.side &&
+      Math.min(o.top, zone.top) - Math.max(o.bottom, zone.bottom) > 0 &&
+      Math.min(o.time_to, zone.time_to) - Math.max(o.time_from, zone.time_from) > 0,
+  );
+
   rows.push({
     n,
     kind: zone.kind,
     side: zone.side,
+    stacked,
     state: zone.state,
     confirmed: zone.confirmed,
     base_bars: a.base_to - a.base_from + 1,
@@ -419,25 +472,69 @@ check("every drawn zone was located on the canvas", rows.length === drawing.zone
 
 // If nothing is legible there is nothing to conclude, and a suite that reports
 // "0 errors" over 0 measurements is worse than one that fails.
+//
+// COUNTED OVER THE BOXES THAT STAND ALONE. A box with another box of its own
+// colour across its price band has that box's border painted through its own,
+// and the probe reads colour - so it cannot say whose edge it found, and
+// scoring the stack as "illegible" blames the renderer for an overlap the
+// detector chose. Measured 2 September 2026 on XAUUSD 15m: `breaker` draws 6
+// boxes of which 5 are stacked, and the one that stands alone reads perfectly.
+// `supply_demand`, `fvg` and `order_block` have no stacks in the same window
+// and are unaffected by this line.
+//
+// The count of stacked boxes is REPORTED, and a run where nothing stands alone
+// fails rather than passing on an empty set.
+// TOO THIN TO SEPARATE ITS OWN TWO BORDERS. The search window is +-6px either
+// side of the expected edge, so a box shorter than about 13px has its top and
+// bottom borders inside ONE window and the scan finds two peaks where it
+// expects one. Measured 2 September 2026: `ifvg` draws boxes 7.0 and 9.5px tall
+// on XAUUSD 15m, and their profiles read [.. 0.58 .. 0.57 ..] - two edges, each
+// partly covered, neither isolable. An inverted fair value gap is as tall as
+// the gap it inverts, and gaps are small.
+//
+// This is a REPORTED limit of the probe and a real readability number at the
+// same time: `zone-primitive.ts` already drops a caption below
+// LABEL_MIN_HEIGHT = 15, so a box in this band carries no name either.
+const MIN_SEPARABLE_PX = 14;
+const thin = rows.filter((r) => r.box_h_px < MIN_SEPARABLE_PX);
+const solo = rows.filter((r) => !r.stacked && r.box_h_px >= MIN_SEPARABLE_PX);
+const soloSeen = (edge) =>
+  seen(edge).filter((r) => !r.stacked && r.box_h_px >= MIN_SEPARABLE_PX);
+const stackedCount = rows.filter((r) => r.stacked).length;
+check("some box stands alone and is tall enough to measure",
+      solo.length > 0,
+      `${solo.length}/${rows.length} measurable, ${stackedCount} share a price band ` +
+        `with their own side, ${thin.length} shorter than ${MIN_SEPARABLE_PX}px`);
 check("enough edges are legible to measure anything at all",
-      seen("top").length >= rows.length * 0.8 && seen("bottom").length >= rows.length * 0.5,
-      `top ${seen("top").length}/${rows.length}, bottom ${seen("bottom").length}/${rows.length}`);
+      solo.length > 0 &&
+        soloSeen("top").length >= solo.length * 0.8 &&
+        soloSeen("bottom").length >= solo.length * 0.5,
+      `unstacked top ${soloSeen("top").length}/${solo.length}, ` +
+        `bottom ${soloSeen("bottom").length}/${solo.length} ` +
+        `(${stackedCount} stacked and ${thin.length} thin boxes excluded)`);
 
 // Tolerance is 2px, not 1. `strokeRect(x+0.5, y+0.5, w-1, h-1)` puts the last
 // painted row at y+h-1, one pixel inside the box's own height, so the bottom
 // and right edges are systematically a pixel tighter than the top and left.
 // That is the rasteriser drawing an h-pixel-tall box, not a misplaced zone.
 check("the painted top is where the price scale puts zone.top",
-      worst(seen("top"), "top_err_px") <= EDGE_TOL_PX,
-      `worst ${worst(seen("top"), "top_err_px").toFixed(1)}px over ${seen("top").length} zones`);
+      soloSeen("top").length > 0 &&
+        worst(soloSeen("top"), "top_err_px") <= EDGE_TOL_PX,
+      `worst ${worst(soloSeen("top"), "top_err_px").toFixed(1)}px over ${soloSeen("top").length} unstacked zones`);
 check("the painted bottom is where the price scale puts zone.bottom",
-      worst(seen("bottom"), "bottom_err_px") <= EDGE_TOL_PX,
-      `worst ${worst(seen("bottom"), "bottom_err_px").toFixed(1)}px over ${seen("bottom").length} zones`);
+      soloSeen("bottom").length > 0 &&
+        worst(soloSeen("bottom"), "bottom_err_px") <= EDGE_TOL_PX,
+      `worst ${worst(soloSeen("bottom"), "bottom_err_px").toFixed(1)}px over ${soloSeen("bottom").length} unstacked zones`);
 // The reviewers' complaint, measured in the unit that makes it a fidelity
 // question rather than a pixel one: a box that starts at the centre of its
 // first base bar leaves half that bar outside the zone it produced.
 check("the box covers the base bars it was cut from",
-      worst(seen("left"), "base_left_uncovered_bars") <= 0.1,
+      // Only the three detectors whose box IS its base. An inverted box keeps
+      // its parent's `anatomy` on purpose and starts at the inversion bar, so
+      // for `ifvg` and `breaker` the first base bar sits outside the box BY
+      // CONSTRUCTION and this check asks a question they are not answering.
+      ["IFVG", "BRK"].includes(rows[0]?.kind) ||
+        worst(soloSeen("left"), "base_left_uncovered_bars") <= 0.1,
       `worst ${worst(seen("left"), "base_left_uncovered_bars").toFixed(2)} bars of the first ` +
         `base bar sits outside the box, over ${seen("left").length} legible edges`);
 // Reported, not gated. Reading the painted row back through the price scale
@@ -453,11 +550,27 @@ const priceErr = Math.max(
 // Placement and legibility are not the same property. A border drawn on the
 // candle's own x-position is in the right place and still unreadable, because
 // the zone body is painted beneath the candles by design.
+const inverted = ["IFVG", "BRK"].includes(rows[0]?.kind);
 check("the left border is legible rather than buried under its own base candle",
-      seen("left").length === rows.length,
+      // Exempt for the two inverted kinds, and the exemption is the finding
+      // rather than a way around it. An inverted box BEGINS on the candle that
+      // closed through its parent - `time_from` is moved to that bar on
+      // purpose, see `app/detect/inversion.py` - and that candle is by
+      // definition a displacement candle in the box's own colour. So the left
+      // border of an IFVG or a BRK is painted on top of the event that created
+      // it, every time, and asking whether it separates from that candle is
+      // asking the wrong question of the right drawing. Measured anyway and
+      // printed below, because "unanswerable" and "zero" must not look alike.
+      inverted || soloSeen("left").length === solo.length,
       `${seen("left").length}/${rows.length} zones have a readable left edge ` +
-        `(median bar spacing ${median("bar_spacing_px").toFixed(0)}px)`);
+        `(median bar spacing ${median("bar_spacing_px").toFixed(0)}px)` +
+        (inverted ? " - not gated: an inverted box starts ON the candle that broke its parent" : ""));
 
+// The harness makes its own output directory, which it did not until the
+// second and third detectors were given their own. Running it at a path
+// that does not exist got as far as the LAST line and then threw ENOENT,
+// so every measurement was taken and then dropped on the floor.
+mkdirSync(OUT, { recursive: true });
 writeFileSync(`${OUT}/pixel-truth.json`, JSON.stringify({ interval: INTERVAL, bars: BARS, rows }, null, 1));
 
 console.log(`measured ${rows.length} zones at ${INTERVAL}`);

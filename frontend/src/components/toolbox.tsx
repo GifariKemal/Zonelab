@@ -5,6 +5,7 @@ import { memo, useEffect, useRef, useState, useSyncExternalStore } from "react";
 
 import type {
   DrawResponse,
+  LayerInfo,
   LayerParams,
   ServerConfig,
 } from "@/lib/types";
@@ -1512,9 +1513,49 @@ export const Toolbox = memo(function Toolbox({
   // is on - not four times.
   const drawn = new Set<string>();
   const menu = config?.layers ?? [];
-  // Whatever kinds the server sent, in the order it sent them. NOT a list of
-  // three typed here: a new kind groups itself.
-  const kinds = [...new Set(menu.map((l) => l.kind))];
+  // Whatever families the server sent, in the order it sent them, and then
+  // whatever kinds are left over. NOT a list typed here: a family added to
+  // `app/layers.py` groups itself, and a layer moved between families moves in
+  // the menu without an edit over here.
+  //
+  // A family is a HEADING. The switch stays on each layer, so turning a whole
+  // doctrine on with one click is deliberately not possible - twelve layers
+  // arriving at once is the "sixteen layers is a focus problem" note two
+  // hundred lines down, not a convenience.
+  const families = menu
+    .map((l) => l.family)
+    .filter((f): f is string => Boolean(f))
+    .filter((f, i, all) => all.indexOf(f) === i);
+  // Only the ungrouped ones fall through to the kind headings, or a layer would
+  // be drawn twice and carry two switches for one id.
+  const kinds = [...new Set(menu.filter((l) => !l.family).map((l) => l.kind))];
+
+  // ONE copy of the row. Both groupings call it, and writing the JSX twice is
+  // how the family rows would quietly lose the evidence disclosure that the
+  // kind rows keep.
+  const layerRow = (layer: LayerInfo) => {
+    const live = on(layer.id);
+    const own = live && !drawn.has(layer.params) ? knobs(layer.params) : null;
+    if (live) drawn.add(layer.params);
+    return (
+      <div key={layer.id} className={live ? "border-l border-accent/40 pl-2" : ""}>
+        <Toggle
+          label={layer.label}
+          value={live}
+          onChange={() => toggle(layer.id)}
+          swatch={LAYER_SWATCH[layer.id]}
+        />
+        <p className="mt-0.5 text-[11px] leading-relaxed text-text-dim">{layer.note}</p>
+        {/* EVERY row carries this, and the summary says "Bukti" rather than
+            "Apa ini" so the reader can tell there is a measurement statement to
+            read. Two of these layers came out significantly NEGATIVE as
+            direction claims and most have no measurement at all; a row reduced
+            to a bare switch would present all of them as equally endorsed. */}
+        <Hint k={`layer.${layer.id}`} summary="Bukti" evidence={layer.evidence} />
+        {own ? <div className="mt-3 space-y-3">{own}</div> : null}
+      </div>
+    );
+  };
 
   // Every LIVE detector's counters, found by the layer's own registry id because
   // that is the key the backend writes them under. Driven by `config.layers` for
@@ -1582,42 +1623,23 @@ export const Toolbox = memo(function Toolbox({
         />
       ) : null}
 
+      {/* Family first. `docs/ADOPSI.md` is what decides membership, and it
+          separates ICT from SMC from Quarterly Theory rather than folding them
+          together, so the menu does too. */}
+      {families.map((family) => (
+        <Group key={family} title={family}>
+          {menu.filter((layer) => layer.family === family).map(layerRow)}
+        </Group>
+      ))}
+
       {kinds.map((kind) => (
         // ponytail: `${kind}s` rather than a kind-to-heading map. Three kinds
         // ship and all three pluralise this way; a map would be one more list
         // that has to be edited when the backend grows a fourth.
         <Group key={kind} title={`${kind}s`}>
           {menu
-            .filter((layer) => layer.kind === kind)
-            .map((layer) => {
-              const live = on(layer.id);
-              const own = live && !drawn.has(layer.params) ? knobs(layer.params) : null;
-              if (live) drawn.add(layer.params);
-              return (
-                <div
-                  key={layer.id}
-                  className={live ? "border-l border-accent/40 pl-2" : ""}
-                >
-                  <Toggle
-                    label={layer.label}
-                    value={live}
-                    onChange={() => toggle(layer.id)}
-                    swatch={LAYER_SWATCH[layer.id]}
-                  />
-                  <p className="mt-0.5 text-[11px] leading-relaxed text-text-dim">
-                    {layer.note}
-                  </p>
-                  {/* EVERY row carries this, and the summary says "Bukti" rather
-                      than "Apa ini" so the reader can tell there is a measurement
-                      statement to read. Two of these layers came out
-                      significantly NEGATIVE as direction claims and most have no
-                      measurement at all; a row reduced to a bare switch would
-                      present all thirteen as equally endorsed. */}
-                  <Hint k={`layer.${layer.id}`} summary="Bukti" evidence={layer.evidence} />
-                  {own ? <div className="mt-3 space-y-3">{own}</div> : null}
-                </div>
-              );
-            })}
+            .filter((layer) => !layer.family && layer.kind === kind)
+            .map(layerRow)}
         </Group>
       ))}
 

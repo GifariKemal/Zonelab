@@ -1498,11 +1498,22 @@ export interface LayerInfo {
    *  that made all thirteen look equally endorsed would be the most misleading
    *  thing on the screen. */
   evidence: string;
+  /** Which body of doctrine this layer comes from, or null. A HEADING only: the
+   *  switch stays on each layer, so a family cannot turn anything on or off as
+   *  a bloc. Read as an opaque string for the same reason `kind` is, and the
+   *  backend decides membership - `docs/ADOPSI.md` separates ICT from SMC from
+   *  Quarterly Theory, and a copy of that judgement over here would drift. */
+  family: string | null;
 }
 
 export interface ServerConfig {
   providers: { id: string; available: boolean; needs_key: boolean }[];
   default_provider: string;
+  /** Fixed clock for the synthetic provider, 0 meaning the wall clock.
+   *  A harness that asserts geometry reads this to say whether its run
+   *  was reproducible: at 0 the series moves one bar every time a bar
+   *  closes. */
+  synthetic_now: number;
   symbols: { id: string; providers: string[] }[];
   intervals: string[];
   /** Researched broker profiles the plan can be priced at. Empty pick is the

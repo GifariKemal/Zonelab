@@ -194,10 +194,20 @@ const setLayer = async (id, want) => {
 
 check("the API advertises a layer registry", registry.length > 0, `${registry.length}`);
 
-// Every row offered, in the ORDER THE SERVER SENT, which is the draw order and
-// is load-bearing: supply and demand runs first because it owns two passes
-// nothing else has. A menu that sorted alphabetically would look identical and
-// would be lying about what paints over what.
+// Every row offered, and draw order preserved WITHIN each heading.
+//
+// Draw order is load-bearing: supply and demand runs first because it owns two
+// passes nothing else has, and a menu that sorted alphabetically would look
+// identical while lying about what paints over what. So the set is compared
+// whole, and the order is compared inside each group.
+//
+// GROUPED SINCE 1 September 2026. `app/layers.py` gives each layer a `family`
+// and the menu renders ICT first, then Quarterly Theory, then whatever has no
+// family under its `kind`. That reorders the page against the registry on
+// purpose, and this check caught it the same hour: a flat index-for-index
+// comparison reported 20 of 21 labels in the wrong place when nothing was
+// wrong. What must not happen is a layer going missing, appearing twice, or
+// two layers of one family swapping - and that is what is asserted now.
 const registryLabels = registry.map((l) => l.label);
 // Every switch on the page in DOM order, then narrowed to the layer rows. A
 // live layer nests its own knobs - which include switches of their own - INSIDE
@@ -208,11 +218,23 @@ const allSwitchLabels = () =>
     els.map((e) => e.getAttribute("aria-label")));
 const menuLabels = (await allSwitchLabels()).filter((l) =>
   registryLabels.includes(l));
+const missing = registryLabels.filter((l) => !menuLabels.includes(l));
+const extra = menuLabels.filter((l) => !registryLabels.includes(l));
+// Relative order inside a group: take the registry's labels for that family,
+// keep only the ones the menu shows, and require the menu to show them in that
+// same sequence.
+const outOfOrder = [...new Set(registry.map((l) => l.family ?? `kind:${l.kind}`))]
+  .filter((group) => {
+    const want = registry
+      .filter((l) => (l.family ?? `kind:${l.kind}`) === group)
+      .map((l) => l.label);
+    const got = menuLabels.filter((l) => want.includes(l));
+    return want.length !== got.length || want.some((l, i) => got[i] !== l);
+  });
 check(
-  "every layer the API advertises is offered, in draw order",
-  menuLabels.length === registryLabels.length &&
-    registryLabels.every((l, i) => menuLabels[i] === l),
-  `menu [${menuLabels}] registry [${registryLabels}]`,
+  "every layer the API advertises is offered, in draw order within its heading",
+  missing.length === 0 && extra.length === 0 && outOfOrder.length === 0,
+  `missing [${missing}] extra [${extra}] out of order [${outOfOrder}]`,
 );
 
 // Every row can be asked what is known about it. Several of these have measured

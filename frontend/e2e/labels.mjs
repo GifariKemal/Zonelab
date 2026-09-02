@@ -47,9 +47,29 @@
  * arrive between runs, and `claimedLabels` is first-come-first-served - so a
  * geometry that shifts by one bar changes which label wins its claim and
  * whether any of them lands across a pane edge. The fix is to stop asking the
- * market. `provider: "synthetic"` returns the same bars every call, verified
- * byte-identical across two requests, and this file is about LABEL GEOMETRY
- * rather than about market truth.
+ * market, and `provider: "synthetic"` is that fix.
+ *
+ * HOW FAR THAT FIX GOES, CORRECTED THE SAME DAY IT WAS WRITTEN. The paragraph
+ * here used to say synthetic "returns the same bars every call, verified
+ * byte-identical across two requests". The verification is real and the
+ * conclusion was too strong, and the two can be told apart by measuring: two
+ * calls in a row ARE byte-identical, and a third one seventy seconds later had
+ * moved a full fifteen minute bar, first bar 1787629500 to 1787630400. The
+ * provider anchors its grid to the wall clock, which `app/providers/synthetic.py`
+ * has always said in `generate()`'s own docstring, and two requests in a row
+ * always land in the same bar - so that check could not fail for the reason it
+ * existed. The pin narrowed the window from every run to every fifteen minutes.
+ * It did not close it.
+ *
+ * A RUN THAT HAS TO BE REPRODUCIBLE pins the clock outright, which
+ * `generate()` has always supported and the API path did not until now:
+ *
+ *     ZONELAB_SYNTHETIC_NOW=1788256800 .venv/Scripts/python.exe \
+ *         -m uvicorn app.main:app --host 127.0.0.1 --port 8100
+ *
+ * The banner below reports which of the two applied, so a red run can be
+ * repeated instead of argued about. This file is about LABEL GEOMETRY rather
+ * than about market truth either way.
  *
  * WHAT THAT COSTS, stated rather than glossed: a collision that only occurs on
  * one particular real-data configuration is no longer caught here. The live
@@ -333,6 +353,20 @@ check(
 
 await page.screenshot({ path: `${SHOTS}/labels-eleven-layers.png` });
 await browser.close();
+
+// WHICH CLOCK THIS RUN SAW, printed above the verdicts because it decides
+// whether a red run can be repeated. At 0 the synthetic grid follows the wall
+// clock and moves one bar every time a bar closes, so two runs either side of
+// a boundary are two different charts and only one of them can be reproduced.
+const pin = Number(
+  (await (await fetch("http://127.0.0.1:8100/api/config")).json()).synthetic_now,
+);
+console.log(
+  pin
+    ? `clock PINNED at ${pin}, this run is reproducible`
+    : "clock LIVE, the grid moves one bar every 15m - set ZONELAB_SYNTHETIC_NOW " +
+      "to repeat a red run exactly",
+);
 
 console.log(results.join("\n"));
 const failed = results.filter((r) => r.startsWith("FAIL")).length;
