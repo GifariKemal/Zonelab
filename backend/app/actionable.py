@@ -68,11 +68,99 @@ def blockers(response: dict, now: int | None = None) -> list[str]:
         # last one. Recomputed from `as_of` rather than trusted, because the
         # stamped figure is as old as the response and this question is about now.
         as_of = int(meta.get("as_of") or 0)
-        lag = max(0, (now if now is not None else int(_time.time())) - (as_of + step))
-        if lag > step:
+        at = now if now is not None else int(_time.time())
+        lag = max(0, at - (as_of + step))
+        missed, basis = _missed_bars(candles, as_of, step, at)
+        if missed > 0:
             out.append(
-                f"feed is {lag}s behind on a {step}s interval, so at least one "
-                "bar has closed since this was drawn"
+                f"feed is {lag}s behind on a {step}s interval and {missed} bar"
+                f"{'s have' if missed != 1 else ' has'} closed since this was "
+                f"drawn ({basis})"
             )
 
     return out
+
+
+#: Berapa minggu ke belakang dicek untuk memutuskan sebuah slot kosong terjadwal.
+#:
+#: BUKAN ambang yang di-tune. Ia jendela lookback, dan arahnya konservatif:
+#: sebuah slot dianggap PUNYA PRESEDEN kalau ada bar di sana pada MINGGU MANA
+#: PUN dari empat itu, jadi satu minggu normal saja sudah cukup untuk membuat
+#: diamnya dihitung sebagai kehilangan. Yang dilewati hanya slot yang keempat
+#: minggu itu SEMUANYA diam, yaitu jeda yang benar-benar terjadwal.
+PRECEDENT_WEEKS = 4
+_WEEK = 7 * 86_400
+#: Slot maksimum yang diperiksa. Diam selama berbulan-bulan tidak perlu
+#: dihitung per slot untuk diketahui bermasalah, dan loop tanpa batas di jalur
+#: keputusan adalah cara sebuah cek berubah jadi hang.
+_MAX_SLOTS = 500
+
+
+def _missed_bars(candles: list, as_of: int, step: int, now: int) -> tuple[int, str]:
+    """Berapa bar yang PASAR HASILKAN dan gambar ini tidak punya.
+
+    KENAPA INI BUKAN SELISIH JAM DINDING. Sampai 2 September 2026 cek ini
+    membandingkan `now` ke `as_of + step` dan memblokir begitu selisihnya
+    melewati satu interval. Untuk instrumen 24/7 itu benar. Untuk emas itu salah
+    setiap hari: XAUUSD di broker ini berhenti 90 menit, bar 30 menitnya melompat
+    dari 20:30 ke 22:00 UTC (16:30 ke 18:00 New York), jadi satu jam penuh
+    setelah break setiap hari gambar gold yang SEHAT ditolak. Terukur pada 2
+    September 2026 pukul 22:26 UTC: blocker berbunyi "feed is 5200s behind on a
+    1800s interval" sementara terminalnya connected, tick terakhirnya berumur 3
+    detik, dan `history.load` mengembalikan bar tutup terakhir yang benar.
+
+    "Basi" berarti pasar menghasilkan bar yang gambar ini tidak punya. Saat sesi
+    tutup pasar tidak menghasilkan apa pun, jadi tidak ada yang hilang, dan
+    pertanyaannya harus dihitung dalam BAR bukan dalam detik.
+
+    PRESEDEN DIBACA DARI DERETNYA SENDIRI, bukan dari kalender broker. Sebuah
+    slot dihitung hilang kalau deret ini pernah punya bar di jam-hari yang sama
+    pada salah satu dari `PRECEDENT_WEEKS` minggu sebelumnya. Kalender sesi tidak
+    tersedia di sini - `blockers` cuma menerima response API - dan deret itu
+    sendiri adalah catatan paling jujur tentang kapan instrumennya berdagang.
+
+    Mengembalikan `(jumlah, dasar)`, dan `dasar` masuk ke teks penolakan supaya
+    catatan journal mengatakan cek mana yang menjawab.
+
+    YANG TIDAK DITANGANI, dinyatakan bukan disembunyikan: hari libur. Sebuah
+    libur punya preseden di minggu-minggu normal, jadi blocker ini tetap
+    berbunyi. Itu arah yang aman untuk sebuah penolakan, dan memperbaikinya
+    butuh kalender libur yang tidak ada di response ini.
+    """
+    if step <= 0 or as_of <= 0 or now <= as_of + step:
+        return 0, "jam dinding"
+    times = [int(c["time"]) for c in candles if isinstance(c, dict)
+             and isinstance(c.get("time"), (int, float))]
+    # Slot yang seharusnya sudah TUTUP: buka di `as_of + k*step`, tutup di
+    # `as_of + (k+1)*step`, dan tutupnya sudah lewat.
+    slots = []
+    k = 1
+    # KETAT, bukan `<=`. Bar yang buka di `as_of + step` tutup TEPAT di
+    # `as_of + 2*step`, dan detik itu adalah saat terakhir sebelum close
+    # berikutnya, bukan close yang terlewat. `<=` di sini menolak setiap chart
+    # di detik terakhir setiap bar.
+    while as_of + (k + 1) * step < now and len(slots) < _MAX_SLOTS:
+        slots.append(as_of + k * step)
+        k += 1
+    if not slots:
+        return 0, "jam dinding"
+    if len(slots) >= _MAX_SLOTS:
+        return len(slots), f"lebih dari {_MAX_SLOTS} bar, tidak diperiksa per slot"
+
+    span = (max(times) - min(times)) if len(times) > 1 else 0
+    if span < _WEEK + step:
+        # Tanpa satu minggu riwayat, preseden tidak bisa diuji dan aturan lama
+        # yang dipakai. Dinyatakan di teksnya supaya tidak terbaca sebagai
+        # jawaban yang lebih kuat daripada yang sebenarnya.
+        return len(slots), "jam dinding, riwayat kurang dari satu minggu"
+
+    known = set(times)
+    weeks = min(PRECEDENT_WEEKS, max(1, span // _WEEK))
+    missed = 0
+    for slot in slots:
+        if any(slot - w * _WEEK in known for w in range(1, weeks + 1)):
+            missed += 1
+    return missed, (
+        f"{missed} dari {len(slots)} slot punya preseden di {weeks} minggu "
+        "sebelumnya"
+    )
