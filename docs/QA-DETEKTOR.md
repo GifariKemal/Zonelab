@@ -28,6 +28,7 @@ tanggal itu. Klaim yang tidak punya angka ditulis sebagai belum diukur.
 - [12. Kunci urut yang memilih dua order](#12-kunci-urut-yang-memilih-dua-order)
 - [13. Border box inverted terbaca separuh](#13-border-box-inverted-terbaca-separuh)
 - [14. Backtester Python untuk yang tidak bisa di MT5](#14-backtester-python-untuk-yang-tidak-bisa-di-mt5)
+- [15. Lubang sensus port, dan penutupnya](#15-lubang-sensus-port-dan-penutupnya)
 
 ## 1. Ringkasan vonis
 
@@ -1032,3 +1033,78 @@ membuktikan rig bisa hijau justru yang membuktikan rig bocor.
 - Satu degree saja (day). SSMT di degree lain adalah populasi lain.
 - Status `psp` TIDAK berubah: `tests/test_psp_not_wired_to_decisions.py` tetap
   melarangnya menyentuh jalur order, apa pun angka di atas.
+
+## 15. Lubang sensus port, dan penutupnya
+
+`tests/test_mql5_contract.py` menuntut setiap layer punya catatan status port,
+supaya "presisinya belum diukur" dan "presisinya terukur dan lolos" tidak
+terlihat sama dari luar. Sampai 2 September 2026 ia menyaring
+`layer.family == "ICT"`.
+
+> [!WARNING]
+> **Penyaring family itu sendiri yang membuat lubangnya bertahan.** Sembilan
+> dari 21 layer di luar family ICT, jadi kesembilannya tidak pernah dituntut
+> punya entri, dan untuk kesembilannya keadaan yang test itu ada untuk mencegah
+> berlaku penuh. Test-nya hijau sepanjang waktu itu.
+
+Yang paling mahal di antaranya: `session` dan `dfr`, keduanya family Quarterly
+Theory. **Empat klausa checklist berdiri di atas keduanya** -
+`manipulation_quarter`, `manipulation_seen`,
+`manipulation_after_accumulation` dan `dfr_side` - dan `dfr_side` adalah
+satu-satunya dari tujuh belas klausa yang melewati ambang Bonferroni 3,267.
+Klausa yang paling berhak dapat pengukuran adalah klausa yang satu-satunya
+memisahkan, dan justru objeknya yang belum pernah dibandingkan.
+
+### Dua port baru, bentuk ketujuh dan kedelapan
+
+`mql5/ZonelabSupplyDemand/QuarterlyDetector.mqh`, degree `day` saja karena
+`app/conditions.py:at_bar` default `degree="day"` dan keempat klausa itu
+membaca state yang dihasilkannya.
+
+| Objek | Python | MQL5 | Mismatch |
+|---|---|---|---|
+| grid kuarter, degree day | 737 | 737 | 0 |
+| DFR + profil + manipulasi, per cycle | 185 cycle | 185 cycle | 0 |
+
+Grid kuarter dibandingkan sebagai jam murni, tanpa satu harga pun, dan itu uji
+yang berbeda dari `compare_clock`: konversi jam yang benar dengan pelabelan
+yang meleset satu kuarter memberi jam yang cocok dan grid yang salah. DST-nya
+yang membuat ini bukan aritmetika - hari peralihan punya kuarter lima atau
+tujuh jam di dalamnya, jadi grid yang dibangun dengan span/4 meleset satu jam
+dua kali setahun.
+
+DFR, profil, dan manipulasi dibandingkan bersama karena ketiganya dikunci ke
+satu cycle dan yang kedua PRASYARAT yang ketiga: `manipulation_done` memanggil
+`profile` lebih dulu. Tiga file terpisah akan membuat satu cycle yang profilnya
+beda melaporkan tiga kegagalan yang terlihat tidak berhubungan.
+
+**Absen dibandingkan sebagai absen.** Tiap objek punya kolom `has_*` sendiri,
+jadi "belum knowable" dan "tidak ada bar" tidak runtuh jadi satu baris yang
+hilang. Itu bukan kelengkapan: `profile` yang mengembalikan None saat Q1 masih
+terbentuk adalah seluruh aturan anti-lookahead modul itu, dan baris yang hilang
+tidak bisa membedakannya dari cycle yang datanya bolong.
+
+### Sensus sekarang 21 dari 21
+
+Enam layer sisa masuk `UNPORTED` dengan alasannya masing-masing, dan tidak satu
+pun alasannya "belum sempat":
+
+| Layer | Alasan |
+|---|---|
+| `vortex` | DIKECUALIKAN, bukan gagal: dial-nya `digital_root(r * k)`, aritmetika kalender, tidak ada harga yang masuk. Port akan membandingkan dua kalkulator kalender |
+| `chart_gaps` | Family Edwards-Magee. Kelas breakaway-nya terukur TIDAK PERNAH menyala: `flat_atr` 2,0 di bawah minimum yang pernah terjadi 2,085 |
+| `wyckoff` | MEASURED NULL, t antara -0,95 dan +0,27 lawan bar 2,50 |
+| `expectation` | Tampilan pengukuran, bukan objek pasar. Yang ia gambar hasil checklist itu sendiri |
+| `news` | Tidak bisa diukur dari sumbernya: hanya pekan berjalan yang dipublikasikan, sisanya 404 |
+| `checklist` | Bukan bentuk, ia `report`, dan tidak menggambar satu piksel pun |
+
+Dan penyaring family-nya dibuang: test itu sekarang menuntut **setiap** layer,
+jadi layer baru di family apa pun membuatnya merah alih-alih lewat tanpa suara.
+
+### Yang masih terbuka setelah ini
+
+- Degree lain untuk `session` dan `dfr` (week, month, session, micro, nano)
+  belum diport. Tidak ada klausa yang membacanya, jadi ia populasi lain.
+- Aturan pertiga yang seluruh DFR berdiri di atasnya masih SINGLE-SOURCED.
+  Yang diukur di bagian ini kesetaraan dua implementasi, bukan kebenaran
+  aturannya, dan angka 0 mismatch tidak memperbaiki provenance.

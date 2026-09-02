@@ -95,6 +95,17 @@ PORTED_GAPS = {
 #: kecocokan sempurna atas sisa yang kebetulan tertulis.
 HORIZON_EVERY = 200
 
+#: Bentuk KETUJUH DAN KEDELAPAN, dan keduanya di luar family ICT. Sampai
+#: 2 September 2026 sensus port di file ini HANYA menutup family ICT, jadi
+#: presisi `session` dan `dfr` lawan MQL5 bukan terukur-dan-lolos maupun
+#: terukur-dan-gagal: belum pernah ditanyakan sekali pun. Empat klausa
+#: checklist berdiri di atas keduanya, dan `dfr_side` satu-satunya dari tujuh
+#: belas yang melewati ambang Bonferroni 3,267.
+PORTED_QUARTERLY = {
+    "session": "zonelab_parity_quarters.csv",
+    "dfr": "zonelab_parity_quarterly.csv",
+}
+
 #: Layer ICT yang SENGAJA belum diport, dengan alasannya masing-masing.
 #: `tests/test_mql5_contract.py` menuntut ketiga dict ini bersama-sama menutup
 #: setiap layer berkeluarga ICT di `app.layers.LAYERS`, jadi layer baru harus
@@ -103,6 +114,50 @@ HORIZON_EVERY = 200
 #: bahwa ia tidak diukur - karena "belum diukur" dan "diukur dan lolos" tidak
 #: boleh terlihat sama dari luar.
 UNPORTED: dict[str, str] = {
+    # ---- Enam layer di luar family ICT, ditambahkan 2 September 2026 supaya
+    # ---- sensus ini menutup SETIAP layer dan bukan hanya family ICT. Sampai
+    # ---- hari itu kelimanya plus `checklist` tidak tercatat di mana pun, jadi
+    # ---- "presisinya belum diukur" dan "presisinya terukur dan lolos"
+    # ---- terlihat sama dari luar untuk enam objek sekaligus.
+    "vortex": (
+        "DIKECUALIKAN, bukan gagal, dan bedanya penting. Dial-nya "
+        "digital_root(r * k), aritmetika atas kalender: sebuah sel jatuh di "
+        "{3, 6, 9} tepat ketika 3 membagi r * k, jadi tidak ada yang bisa "
+        "diukur di sini dan tidak ada harga yang masuk ke perhitungannya. "
+        "Port MQL5 akan membandingkan dua kalkulator kalender"
+    ),
+    "chart_gaps": (
+        "Family Edwards-Magee, bukan ICT, dan klasifikasinya sudah terukur di "
+        "docs/gap_outcomes.json 1 September 2026: TIDAK SATU gap breakaway ada "
+        "di sembilan instrumen sepanjang riwayatnya, karena flat_atr 2,0 di "
+        "bawah minimum yang pernah terjadi 2,085. Sebuah port yang mereplikasi "
+        "kelas yang tidak pernah menyala mereplikasi cabang mati"
+    ),
+    "wyckoff": (
+        "MEASURED NULL, docs/wyckoff_outcomes.json: empat fase lawan drift "
+        "instrumennya sendiri di sembilan instrumen, t antara -0,95 dan +0,27 "
+        "lawan bar Bonferroni 2,50, dan 13 sampai 20 dari 36 fold per-simbol "
+        "positif. Bukan family ICT"
+    ),
+    "expectation": (
+        "TAMPILAN PENGUKURAN, bukan objek pasar, jadi tidak ada yang bisa "
+        "dibandingkan lawan MQL5: yang ia gambar adalah hasil checklist itu "
+        "sendiri. Sebuah port akan mereplikasi tampilan angka Python di dalam "
+        "MQL5, yang bukan pertanyaan presisi"
+    ),
+    "news": (
+        "TIDAK BISA DIUKUR DARI SUMBER INI, dan itu batas feed bukan pilihan: "
+        "hanya PEKAN BERJALAN yang dipublikasikan - nextweek, lastweek, "
+        "thismonth dan thisyear semuanya 404 - jadi tidak ada riwayat untuk "
+        "membandingkan apa pun. MQL5 juga tidak punya kalender yang sama"
+    ),
+    "checklist": (
+        "BUKAN BENTUK, ia report: `Layer.kind` di registry menyebutnya begitu "
+        "dan ia tidak menggambar satu piksel pun. Ketujuh belas klausanya "
+        "TERUKUR di docs/checklist_outcomes.json - satu memisahkan, ke arah "
+        "sebaliknya - dan sensus per klausa plus status port objek yang tiap "
+        "klausa baca ada di `app/ict.py:CLAUSE_OBJECT`"
+    ),
     "ssmt": (
         "500 sampai 700 baris untuk grid quarter dan intersection multi-symbol, "
         "di atas objek yang sudah diukur NULL di 0 dari 24 sel dengan tanda "
@@ -617,6 +672,165 @@ def compare_horizons(name: str, candles, gaps_py, rows_mq: list[dict],
     return mismatches
 
 
+def compare_quarters(name: str, quarters_py, rows_mq: list[dict]) -> int:
+    """Komparator BENTUK KETUJUH: grid jam, tanpa satu harga pun.
+
+    Kuarter adalah fakta tentang jam dinding New York dan bukan tentang harga,
+    jadi yang dibandingkan label plus kedua batasnya. `compare_clock` sudah
+    membandingkan konversi jamnya; ini membandingkan GRID yang dibangun di
+    atasnya, dan keduanya bisa gagal sendiri-sendiri: konversi yang benar
+    dengan pelabelan yang meleset satu kuarter memberi jam yang cocok dan grid
+    yang salah.
+
+    DST-nya yang membuat ini bukan aritmetika. Hari peralihan punya kuarter
+    lima atau tujuh jam di dalamnya, jadi grid yang dibangun dengan span/4
+    meleset satu jam dua kali setahun - dan kedua sisi harus meleset dengan
+    cara yang sama atau tidak meleset sama sekali.
+    """
+    py = sorted(quarters_py, key=lambda q: (q.start, q.label))
+    mq = sorted(rows_mq, key=lambda r: (int(r["start"]), r["label"]))
+
+    print("\n=== " + name + " ===")
+    print(f"  Python  : {len(py)}")
+    print(f"  MQL5    : {len(mq)}")
+
+    mismatches = 0
+    if len(py) != len(mq):
+        print(f"  COUNT MISMATCH: {len(py)} != {len(mq)}")
+        mismatches += 1
+
+    for qp, qm in zip(py, mq):
+        problems = []
+        if qp.label != qm["label"]:
+            problems.append(f"label {qp.label} != {qm['label']}")
+        for field in ("start", "end"):
+            a, b = getattr(qp, field), int(qm[field])
+            if a != b:
+                problems.append(f"{field} {a} != {b}")
+        if problems:
+            mismatches += 1
+            if mismatches <= 10:
+                print(f"  MISMATCH #{mismatches} {qp.label} {qp.start}:")
+                for problem in problems:
+                    print(f"    {problem}")
+    if mismatches == 0:
+        print("  OK")
+    return mismatches
+
+
+def compare_quarterly(name: str, candles, rows_mq: list[dict], fractal: int) -> int:
+    """Komparator BENTUK KEDELAPAN: tiga objek per cycle, masing-masing bisa absen.
+
+    DFR, profil AMDX/XAMD, dan manipulation_done dibandingkan bersama karena
+    ketiganya dikunci ke satu cycle dan yang kedua adalah PRASYARAT ketiga -
+    `manipulation_done` memanggil `profile` lebih dulu. Membandingkannya di tiga
+    file terpisah akan membuat satu cycle yang profilnya beda melaporkan tiga
+    kegagalan yang terlihat tidak berhubungan.
+
+    ABSEN DIBANDINGKAN SEBAGAI ABSEN. Tiap objek punya kolom `has_*`-nya
+    sendiri, jadi "belum knowable" dan "tidak ada bar" tidak bisa runtuh jadi
+    satu baris yang hilang. Dua sisi yang setuju soal harga tapi berbeda soal
+    APAKAH objeknya ada sedang tidak setuju tentang hal yang paling penting:
+    `profile` yang mengembalikan None saat Q1 masih terbentuk adalah seluruh
+    aturan anti-lookahead modul itu, dan sebuah baris yang hilang tidak bisa
+    membedakannya dari cycle yang datanya bolong.
+    """
+    from app.quarterly import defining_range, manipulation_done, profile
+    from app.quarters import quarters as quarter_grid
+
+    starts = [
+        q.start for q in quarter_grid("day", candles[0].time, candles[-1].time)
+        if q.label == "Q1"
+    ]
+    by_cycle = {int(r["cycle_start"]): r for r in rows_mq}
+
+    print("\n=== " + name + " ===")
+    print(f"  Python  : {len(starts)} cycle")
+    print(f"  MQL5    : {len(by_cycle)} cycle")
+
+    mismatches = 0
+    only_py = sorted(set(starts) - set(by_cycle))
+    only_mq = sorted(set(by_cycle) - set(starts))
+    for label, missing in (("hanya Python", only_py), ("hanya MQL5", only_mq)):
+        if missing:
+            mismatches += len(missing)
+            print(f"  {len(missing)} cycle {label}: {missing[:5]}")
+
+    def near(a: float, b: float) -> bool:
+        return abs(a - b) <= 1e-9 * max(1.0, abs(a))
+
+    for cycle in sorted(set(starts) & set(by_cycle)):
+        row = by_cycle[cycle]
+        problems = []
+
+        dfr = defining_range(candles, "day", cycle)
+        got = row["has_dfr"] == "1"
+        if (dfr is not None) != got:
+            problems.append(f"has_dfr {dfr is not None} != {got}")
+        elif dfr is not None:
+            for field, key in (("start", "dfr_start"), ("end", "dfr_end")):
+                if getattr(dfr, field) != int(row[key]):
+                    problems.append(f"{key} {getattr(dfr, field)} != {row[key]}")
+            for field, key in (("high", "dfr_high"), ("low", "dfr_low")):
+                if not near(getattr(dfr, field), float(row[key])):
+                    problems.append(f"{key} {getattr(dfr, field)} != {row[key]}")
+
+        shape = profile(candles, "day", cycle)
+        got = row["has_profile"] == "1"
+        if (shape is not None) != got:
+            problems.append(f"has_profile {shape is not None} != {got}")
+        elif shape is not None:
+            if shape.name != row["profile"]:
+                problems.append(f"profile {shape.name} != {row['profile']}")
+            if shape.manipulation != row["manipulation"]:
+                problems.append(
+                    f"manipulation {shape.manipulation} != {row['manipulation']}"
+                )
+            if shape.knowable_at != int(row["knowable_at"]):
+                problems.append(
+                    f"knowable_at {shape.knowable_at} != {row['knowable_at']}"
+                )
+            for field, key in (
+                ("q1_high", "q1_high"), ("q1_low", "q1_low"),
+                ("prev_q4_high", "prev_q4_high"), ("prev_q4_low", "prev_q4_low"),
+            ):
+                if not near(getattr(shape, field), float(row[key])):
+                    problems.append(f"{key} {getattr(shape, field)} != {row[key]}")
+
+        done = manipulation_done(candles, "day", cycle, fractal)
+        got = row["has_manip"] == "1"
+        if (done is not None) != got:
+            problems.append(f"has_manip {done is not None} != {got}")
+        elif done is not None:
+            pairs = (
+                (done.quarter.start, "manip_quarter_start"),
+                (done.quarter.end, "manip_quarter_end"),
+                (done.swept.start, "swept_start"),
+                (done.swept.end, "swept_end"),
+                (done.sweep_time, "sweep_time"),
+                (done.direction, "direction"),
+            )
+            for value, key in pairs:
+                if value != int(row[key]):
+                    problems.append(f"{key} {value} != {row[key]}")
+            if done.profile != row["profile"]:
+                problems.append(f"manip profile {done.profile} != {row['profile']}")
+            for value, key in ((done.level, "level"),
+                               (done.swing_level, "swing_level")):
+                if not near(value, float(row[key])):
+                    problems.append(f"{key} {value} != {row[key]}")
+
+        if problems:
+            mismatches += 1
+            if mismatches <= 10:
+                print(f"  MISMATCH #{mismatches} cycle {cycle}:")
+                for problem in problems:
+                    print(f"    {problem}")
+    if mismatches == 0:
+        print("  OK")
+    return mismatches
+
+
 def dump(symbol: str, period: str) -> None:
     """Jalankan ZonelabParityDump di terminal untuk satu simbol dan timeframe.
 
@@ -853,6 +1067,23 @@ def main() -> None:
         read_zones(root / "zonelab_parity_horizons.csv"),
         KEEP_DEFAULT,
         HORIZON_EVERY,
+    )
+
+    from app.quarters import quarters as quarter_grid
+
+    total += compare_quarters(
+        "quarters (degree day)",
+        quarter_grid("day", candles[0].time, candles[-1].time),
+        read_zones(root / "zonelab_parity_quarters.csv"),
+    )
+    # Lebar fraktal yang sama dengan `InpManipFractal` di dump EA. Dieja di
+    # kedua sisi karena `manipulation_done` memakainya sebagai default dan
+    # sebuah default yang berbeda memberi event SWEEP yang berbeda.
+    total += compare_quarterly(
+        "quarterly (dfr, profil, manipulasi)",
+        candles,
+        read_zones(root / "zonelab_parity_quarterly.csv"),
+        2,
     )
 
     print(f"\nTOTAL MISMATCH: {total}")

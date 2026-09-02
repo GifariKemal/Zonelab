@@ -130,11 +130,22 @@ def test_every_registered_detector_is_ported_or_written_down_as_not():
         f"nama dict di mqh_parity berubah, sensus ini jadi hampa: {sorted(lists)}"
     )
     accounted = set().union(*lists.values())
-    ict = {layer.id for layer in LAYERS if layer.family == "ICT"}
+    # SETIAP LAYER, BUKAN HANYA FAMILY ICT, dan itu lubang yang ditutup
+    # 2 September 2026. Versi sebelumnya menyaring `layer.family == "ICT"`,
+    # jadi sembilan layer di luar family itu tidak pernah dituntut punya entri:
+    # `session` dan `dfr` family Quarterly Theory sementara EMPAT klausa
+    # checklist berdiri di atas keduanya dan `dfr_side` satu-satunya dari tujuh
+    # belas yang melewati ambang, plus enam layer tanpa family sama sekali.
+    #
+    # Untuk kesembilan itu "presisinya belum diukur" dan "presisinya terukur
+    # dan lolos" terlihat sama dari luar, yang adalah persis keadaan yang
+    # docstring di bawah ini ada untuk mencegah - dan penyaring family-nya
+    # sendiri yang membuatnya bertahan.
+    every = {layer.id for layer in LAYERS}
 
-    unaccounted = sorted(ict - accounted)
+    unaccounted = sorted(every - accounted)
     assert not unaccounted, (
-        f"layer ICT yang tidak ada di satu pun dari {sorted(lists)}, jadi "
+        f"layer yang tidak ada di satu pun dari {sorted(lists)}, jadi "
         "presisinya tidak diukur dan tidak ada yang mencatatnya: "
         f"{unaccounted}"
     )

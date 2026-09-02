@@ -31,6 +31,7 @@
 #include "LiquidityDetector.mqh"
 #include "ProjectionsDetector.mqh"
 #include "GapsDetector.mqh"
+#include "QuarterlyDetector.mqh"
 
 input int    InpBars               = 3000;
 //--- supply/demand (SDParams, default shipped) ---
@@ -66,6 +67,8 @@ input string InpBoundary           = "cycle";
 //--- gaps ---
 input int    InpGapKeep            = 5;
 input int    InpHorizonEvery       = 200;   // sampel as_of tiap N bar
+//--- quarterly ---
+input int    InpManipFractal       = 2;     // lebar fraktal SDBreaks
 
 // Cukup untuk harga broker mana pun: emas 2 desimal, kripto 2, forex 5.
 // Sepuluh desimal menulis nilai double-nya persis, bukan pembulatan.
@@ -358,6 +361,92 @@ int WriteHorizons(string filename,const SDGap &gaps[],int ngap,
    return rows;
   }
 
+
+//+------------------------------------------------------------------+
+//| BENTUK KEDELAPAN: grid kuarter, DFR, profil, dan manipulasi.
+//|
+//| Family Quarterly Theory, dan sampai 2 September 2026 sensus port di
+//| `tools/mqh_parity.py` HANYA menutup family ICT - jadi presisi keempat
+//| objek ini lawan MQL5 belum pernah ditanyakan sekali pun, sementara
+//| empat klausa checklist berdiri di atasnya dan salah satunya
+//| (`dfr_side`) satu-satunya dari tujuh belas yang melewati ambang.
+//+------------------------------------------------------------------+
+int WriteQuarters(string filename,const SDQuarter &qs[],int count)
+  {
+   int h=FileOpen(filename,FILE_WRITE|FILE_CSV|FILE_ANSI|FILE_COMMON,",");
+   if(h==INVALID_HANDLE) return -1;
+   FileWrite(h,"label","start","end");
+   for(int i=0;i<count;i++)
+      FileWrite(h,qs[i].label,
+                IntegerToString((long)qs[i].start),
+                IntegerToString((long)qs[i].end));
+   FileClose(h);
+   return count;
+  }
+
+//: Satu baris per cycle, dan setiap kolom yang bisa tidak ada dilaporkan
+//: sebagai kolom `has_*` tersendiri. Sebuah cycle yang DFR-nya tidak
+//: terbentuk berbeda dari cycle yang DFR-nya nol lebar, dan menuliskan
+//: keduanya sebagai baris yang hilang akan membuat komparator tidak bisa
+//: membedakan mana yang belum knowable dan mana yang tidak ada bar-nya.
+int WriteQuarterly(string filename,const double &high[],const double &low[],
+                   const double &close[],const datetime &time_[],int n,
+                   int fractal)
+  {
+   int h=FileOpen(filename,FILE_WRITE|FILE_CSV|FILE_ANSI|FILE_COMMON,",");
+   if(h==INVALID_HANDLE) return -1;
+   FileWrite(h,"cycle_start",
+             "has_dfr","dfr_start","dfr_end","dfr_high","dfr_low",
+             "has_profile","profile","manipulation","knowable_at",
+             "q1_high","q1_low","prev_q4_high","prev_q4_low",
+             "has_manip","manip_quarter_start","manip_quarter_end",
+             "swept_start","swept_end","level","swing_level","direction",
+             "sweep_time");
+   if(n==0) { FileClose(h); return 0; }
+
+   SDQuarter all[];
+   int nq=SDQuartersDay(time_[0],time_[n-1],all);
+   int rows=0;
+   for(int i=0;i<nq;i++)
+     {
+      if(all[i].label!="Q1")
+         continue;
+      datetime cs=all[i].start;
+      SDDfr dfr;
+      bool has_dfr=SDDefiningRange(high,low,time_,n,cs,dfr);
+      SDProfileRead pr;
+      bool has_pr=SDProfileAt(high,low,time_,n,cs,pr);
+      SDManipulation mp;
+      bool has_mp=SDManipulationDone(high,low,close,time_,n,cs,fractal,mp);
+      FileWrite(h,IntegerToString((long)cs),
+                has_dfr?"1":"0",
+                IntegerToString((long)(has_dfr?dfr.start:0)),
+                IntegerToString((long)(has_dfr?dfr.end:0)),
+                DoubleToString(has_dfr?dfr.high:0.0,DUMP_DIGITS),
+                DoubleToString(has_dfr?dfr.low:0.0,DUMP_DIGITS),
+                has_pr?"1":"0",
+                has_pr?pr.name:"",
+                has_pr?pr.manipulation:"",
+                IntegerToString((long)(has_pr?pr.knowable_at:0)),
+                DoubleToString(has_pr?pr.q1_high:0.0,DUMP_DIGITS),
+                DoubleToString(has_pr?pr.q1_low:0.0,DUMP_DIGITS),
+                DoubleToString(has_pr?pr.prev_q4_high:0.0,DUMP_DIGITS),
+                DoubleToString(has_pr?pr.prev_q4_low:0.0,DUMP_DIGITS),
+                has_mp?"1":"0",
+                IntegerToString((long)(has_mp?mp.quarter_start:0)),
+                IntegerToString((long)(has_mp?mp.quarter_end:0)),
+                IntegerToString((long)(has_mp?mp.swept_start:0)),
+                IntegerToString((long)(has_mp?mp.swept_end:0)),
+                DoubleToString(has_mp?mp.level:0.0,DUMP_DIGITS),
+                DoubleToString(has_mp?mp.swing_level:0.0,DUMP_DIGITS),
+                IntegerToString(has_mp?mp.direction:0),
+                IntegerToString((long)(has_mp?mp.sweep_time:0)));
+      rows++;
+     }
+   FileClose(h);
+   return rows;
+  }
+
 //+------------------------------------------------------------------+
 int OnInit()
   {
@@ -493,11 +582,18 @@ int OnInit()
    WriteGaps("zonelab_parity_gaps.csv",gaps,ngap);
    int nhz=WriteHorizons("zonelab_parity_horizons.csv",gaps,ngap,time_,n,
                          InpGapKeep,InpHorizonEvery);
+
+   SDQuarter qgrid[];
+   int nqg=(n>0)?SDQuartersDay(time_[0],time_[n-1],qgrid):0;
+   WriteQuarters("zonelab_parity_quarters.csv",qgrid,nqg);
+   int nqt=WriteQuarterly("zonelab_parity_quarterly.csv",
+                          high_,low_,close_,time_,n,InpManipFractal);
+
    WriteBreaks("zonelab_parity_structure.csv",
                brk_swing,nbs,"swing",brk_internal,nbi,"internal");
 
-   PrintFormat("PARITYDUMP symbol=%s period=%d bars=%d sd=%d sd_dedup=%d ob=%d fvg=%d ifvg=%d brk=%d cisd=%d struct=%d+%d clock=%d pools=%d liq=%d proj=%d gaps=%d hz=%d",
-               _Symbol,(int)_Period,n,nsd,nsd_dedup,nob,nfvg,nifvg,nbrk,ncisd,nbs,nbi,nclock,npool,nlvl,nproj,ngap,nhz);
+   PrintFormat("PARITYDUMP symbol=%s period=%d bars=%d sd=%d sd_dedup=%d ob=%d fvg=%d ifvg=%d brk=%d cisd=%d struct=%d+%d clock=%d pools=%d liq=%d proj=%d gaps=%d hz=%d qgrid=%d qt=%d",
+               _Symbol,(int)_Period,n,nsd,nsd_dedup,nob,nfvg,nifvg,nbrk,ncisd,nbs,nbi,nclock,npool,nlvl,nproj,ngap,nhz,nqg,nqt);
    return INIT_SUCCEEDED;
   }
 
