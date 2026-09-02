@@ -36,7 +36,7 @@ import numpy as np
 
 from app import journal
 from app.actionable import blockers
-from app.cisd import cisds
+from app.cisd import RECENT_CISD_BARS, cisds, recent_in_band
 from app.clock import NY, trades_when_shut
 from app.conditions import at_bar
 from app.confluence import mark_nesting
@@ -51,7 +51,7 @@ from app.ict import (
     setup as ict_setup,
 )
 from app.indicators import wilder_atr
-from app.models import LotSpec, SupplyDemandParams, ZoneSide
+from app.models import ImbalanceParams, LotSpec, SupplyDemandParams, ZoneSide
 from app.plan import DEPARTURE_GATE_ATR, build
 from app.portfolio import Book, Held, admits, aligned
 from app.poi import confluence, other_boxes
@@ -176,6 +176,32 @@ def by_method_ranked(row: tuple) -> tuple:
     symbol, _interval, zone, _plan, _checklist = row
     return (symbol, zone.id)
 
+#: Layer yang boleh dipasangi order, dan daftarnya sependek buktinya.
+#:
+#: `candidates()` memanggil `DETECTORS["supply_demand"]` sejak awal dan tidak
+#: pernah punya cara memilih yang lain, jadi jalur order TERTUTUP untuk setiap
+#: detektor ICT karena alasan struktural, satu lapis di atas cacat
+#: `mark_profit_zones` yang ditutup 2 September 2026. Menutup cacat itu perlu
+#: tapi belum cukup: zona ICT punya target sekarang, dan tetap tidak pernah
+#: masuk loop ini.
+#:
+#: DAFTARNYA DIBATASI KE YANG DIUKUR LEWAT RIG BERBIAYA, `docs/detectors_costed.json`.
+#: Hanya dua detektor pernah lewat situ. `order_block` PASS: gerbang departure
+#: 2,0 ATR memisahkan, -0,0429 R di atas lawan -0,1192 R di bawah, selisih
+#: +0,0764 dengan Welch t = +6,95, 17 dari 18 sel positif, walk-forward 8 dari 8.
+#: `fvg` GAGAL dan gagalnya negatif serta signifikan: -0,1005 dengan t = -4,48
+#: dan hanya 3 dari 17 sel positif, artinya untuk FVG gerbang itu TERBALIK.
+#: Karena itu `fvg` tidak ada di sini meskipun zonanya sudah punya target.
+#:
+#: TIDAK SATU PUN DARI KETIGANYA POSITIF SENDIRI. supply_demand di atas gerbang
+#: -0,0153 R, order_block -0,0429 R dengan t sendiri -6,21 yang berarti negatif
+#: signifikan. Satu-satunya populasi lolos gerbang yang titik estimasinya
+#: positif adalah order_block SETELAH `--no-cisd-in-band`, +0,0244 R, dan itu
+#: pun belum pernah diuji lawan nol. Jadi memilih `order_block` di sini tanpa
+#: filter itu memilih populasi yang lebih buruk daripada default.
+ORDERABLE_LAYERS = ("supply_demand", "order_block")
+
+
 def candidates(
     symbol: str,
     interval: str,
@@ -185,6 +211,8 @@ def candidates(
     lot: LotSpec | None = None,
     rules: Rules | None = None,
     partners: dict[str, list] | None = None,
+    layer: str = "supply_demand",
+    no_cisd_in_band: bool = False,
 ):
     """Every untouched gate-clearing zone with a readable target and its checklist.
 
@@ -209,9 +237,18 @@ def candidates(
     high = np.array([c.high for c in candles])
     low = np.array([c.low for c in candles])
     close = np.array([c.close for c in candles])
-    params = SupplyDemandParams(max_zones_per_side=0)
+    if layer not in ORDERABLE_LAYERS:
+        raise ValueError(
+            f"layer {layer!r} tidak ada di ORDERABLE_LAYERS {ORDERABLE_LAYERS}; "
+            "lihat komentar di sana untuk angka yang membatasi daftarnya"
+        )
+    params = (
+        SupplyDemandParams(max_zones_per_side=0)
+        if layer == "supply_demand"
+        else ImbalanceParams(max_zones_per_side=0)
+    )
     atr = float(wilder_atr(high, low, close, params.atr_period)[-1])
-    zones, _ = DETECTORS["supply_demand"](candles, params)
+    zones, _ = DETECTORS[layer](candles, params)
     last = candles[-1]
     step = INTERVALS[interval]
     times = [c.time for c in candles]
@@ -261,6 +298,7 @@ def candidates(
     fees = schedule(symbol, False, "exness_raw")
     nights = (HORIZON * step) / 86_400
     too_costly: list[tuple[str, float]] = []
+    cisd_in_band: list[str] = []
 
     # ONE DEGREE UP, and the zones are detected THERE rather than on these bars.
     # An H4 demand zone must not die because one M15 candle closed under it: the
@@ -272,7 +310,11 @@ def candidates(
     if higher_name:
         higher_bars = resample(candles, higher_name, interval)
         if len(higher_bars) >= params.atr_period + 3:
-            higher_zones, _ = DETECTORS["supply_demand"](higher_bars, params)
+            # LAYER YANG SAMA, karena `mark_nesting` menjawab "zona ini
+            # bersarang di zona derajat atas", dan menyandingkan order block
+            # lokal ke box supply/demand di atasnya akan menjawab pertanyaan
+            # yang berbeda dengan nama yang sama.
+            higher_zones, _ = DETECTORS[layer](higher_bars, params)
             for hz in higher_zones:
                 hz.timeframe = higher_name
             mark_nesting(zones, higher_zones)
@@ -343,6 +385,44 @@ def candidates(
         if zone.first_test_time is not None:
             continue
         if (zone.departure_atr or 0.0) < DEPARTURE_GATE_ATR:
+            continue
+
+        # FILTER CISD-DI-DALAM-BLOCK, dan ia POPULASI bukan penolakan.
+        #
+        # Sekelas dengan departure di bawah gerbang dan biaya di atas rasio:
+        # sebuah order block yang memuat level CISD baru di dalam band-nya bukan
+        # anggota populasi yang angka order_block dihitung padanya. Diukur pada
+        # resolusi 5 menit dengan biaya, n=8.170: dengan CISD baru di dalam
+        # -0,1119 R, tanpa +0,0244 R, delta -0,1363 dengan Welch t = -7,07 lawan
+        # kritis 2,24 dan KEDELAPAN fold walk-forward bertanda sama. Itu
+        # pemisahan terkuat yang repo ini punya.
+        #
+        # DAN INI YANG HARUS DIBACA SEBELUM MEMPERCAYAINYA: DI BAR KEPUTUSAN IA
+        # HAMPIR TIDAK PERNAH MENGIKAT. Studinya mengevaluasi kondisinya di BAR
+        # SENTUHAN (`now = times[row["at"]]`, `csid_ob_intrabar.py:147`), saat
+        # harga sudah datang ke block. Loop ini mengevaluasinya di bar
+        # KEPUTUSAN, saat harga masih jauh, dan sebuah CISD yang lahir dalam 50
+        # bar terakhir duduk dekat harga sekarang sementara setiap zona yang
+        # masih `fresh` justru yang jauh dari harga. Diukur pada XAUUSD 30m 2
+        # September 2026: 4 CISD dalam 50 bar terakhir di 4304-4360 dengan harga
+        # 4358, 20 order block fresh lolos gerbang di 3991-4139, dan NOL
+        # persinggungan. Tanpa batas kebaruan 18 dari 20 kena, yang persis
+        # kondisi degenerate 95 persen yang studinya tolak.
+        # Jadi angka -0,1363 R itu BELUM terpasang di jalur order, dan flag ini
+        # tidak boleh dibaca sebagai sudah. Yang benar mengevaluasinya di saat
+        # pending terisi, dan hook itu belum ada. Flag-nya tetap di sini karena
+        # ia benar untuk pemanggil yang memang punya bar sentuhan, dan karena
+        # `cycle` mencetak saat ia tidak mengikat alih-alih diam.
+        #
+        # DEFAULTNYA MATI, dan itu bukan kehati-hatian kosong. Filter ini diukur
+        # pada `order_block` saja. Memasangnya ke `supply_demand` berarti
+        # memakai angka satu detektor untuk menyaring detektor lain, dan versi
+        # supply/demand dari pertanyaan yang sama sudah diukur NULL sendiri
+        # (`cisd_in_band`, t=-1,29, `docs/checklist_outcomes.json`).
+        if no_cisd_in_band and recent_in_band(
+            zone.bottom, zone.top, cisd_events, last.time, step
+        ):
+            cisd_in_band.append(zone.id)
             continue
         long_side = zone.side is ZoneSide.DEMAND
         # Monday risk multiplier: 0.5x risk on Monday (Q1 accumulation).
@@ -433,6 +513,20 @@ def candidates(
         print(f"  {len(too_costly)} zona ditolak gerbang biaya "
               f"(cost_r > {COST_TO_RISK_MAX}), terburuk {worst[1]:.3f} "
               f"pada {worst[0]}")
+    if no_cisd_in_band and not cisd_in_band and out:
+        # SEBUAH GERBANG YANG DIMINTA DAN TIDAK MENGIKAT HARUS BERSUARA. Diam di
+        # sini terbaca sama dengan "sudah disaring", dan itu kelas cacat yang
+        # repo ini paling sering ketemu: laporan hijau di atas harness yang
+        # tidak pernah memeriksa apa pun.
+        print(f"  filter CISD-di-dalam-band DIMINTA TAPI TIDAK MENGIKAT: 0 dari "
+              f"{len(out)} kandidat memuat CISD dalam {RECENT_CISD_BARS} bar. "
+              f"Di bar keputusan kondisinya hampir selalu salah, lihat "
+              f"komentarnya di gerbang itu")
+    if cisd_in_band:
+        print(f"  {len(cisd_in_band)} zona ditolak filter CISD-di-dalam-band "
+              f"(baru dalam {RECENT_CISD_BARS} bar): "
+              f"{', '.join(cisd_in_band[:4])}"
+              f"{' ...' if len(cisd_in_band) > 4 else ''}")
     out.sort(key=by_method)
     return out, response, float(close[-1])
 
@@ -483,6 +577,8 @@ def gather(
     lots: dict[str, LotSpec] | None,
     rules: Rules,
     partners: list[str] | None = None,
+    layer: str = "supply_demand",
+    no_cisd_in_band: bool = False,
 ) -> tuple[list[tuple], list[tuple[str, str, list[str]]], dict[str, list]]:
     """Candidates across every pair and timeframe, ranked once, globally.
 
@@ -519,7 +615,8 @@ def gather(
         for interval in intervals:
             lot = (lots or {}).get(symbol.split(":")[-1])
             pairs, response, price = candidates(
-                symbol, interval, bars, equity, risk_pct, lot, rules, series
+                symbol, interval, bars, equity, risk_pct, lot, rules, series,
+                layer=layer, no_cisd_in_band=no_cisd_in_band,
             )
             reasons = blockers(response)
             print(f"{symbol} {interval}  price {price}  "
@@ -557,6 +654,8 @@ def cycle(
     corr_max: float = 0.70,
     partners: list[str] | None = None,
     daily_loss_pct: float = 0.0,
+    layer: str = "supply_demand",
+    no_cisd_in_band: bool = False,
 ) -> dict:
     """ONE decision pass over every pair and timeframe. Returns a summary.
 
@@ -594,7 +693,8 @@ def cycle(
             "partners": list(partners or [])}
 
     ranked, blocked, series = gather(
-        symbols, intervals, bars, equity, risk_pct, lots, rules, partners
+        symbols, intervals, bars, equity, risk_pct, lots, rules, partners,
+        layer=layer, no_cisd_in_band=no_cisd_in_band,
     )
     if equity is None:
         print("  CATATAN: tanpa equity, ukuran posisi dan batas portofolio TIDAK "
@@ -816,6 +916,18 @@ def main() -> None:
              "tapi TIDAK ditradingkan, misal mt5:XAGUSD,mt5:XPTUSD",
     )
     parser.add_argument("--bars", type=int, default=3000)
+    parser.add_argument(
+        "--layer", default="supply_demand", choices=ORDERABLE_LAYERS,
+        help="detektor yang dipasangi order. Daftarnya dibatasi ke yang punya "
+             "populasi terukur di rig berbiaya, lihat ORDERABLE_LAYERS. "
+             "`fvg` TIDAK ADA di sana: gerbang departure-nya terbalik, "
+             "-0,1005 R dengan t=-4,48")
+    parser.add_argument(
+        "--no-cisd-in-band", action="store_true",
+        help="buang order block yang memuat level CISD baru (dalam 50 bar) di "
+             "dalam band-nya. Diukur pada order_block: -0,1119 R dengan, "
+             "+0,0244 R tanpa, delta -0,1363 t=-7,07, 8 dari 8 fold. Filter "
+             "ini yang membuat order_block layak dipilih sama sekali")
     parser.add_argument("--max-orders", type=int, default=2)
     parser.add_argument("--risk-pct", type=float, default=0.01,
                         help="fraction of equity risked per trade. Stated on the "
@@ -914,7 +1026,7 @@ def main() -> None:
           args.bars, args.risk_pct, args.max_orders, args.send, equity,
           lot, rules, args.max_total_risk_pct, args.max_correlation,
           [s.strip() for s in args.partners.split(",") if s.strip()],
-          args.daily_loss_pct)
+          args.daily_loss_pct, args.layer, args.no_cisd_in_band)
 
 
 if __name__ == "__main__":

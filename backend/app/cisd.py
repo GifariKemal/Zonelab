@@ -281,3 +281,51 @@ def _event(index: int, time: int, direction: int, run: DeliveryRun) -> CISD:
         run_end=run.end,
         run_length=run.length,
     )
+
+
+#: Jendela kebaruan, dalam bar, untuk `recent_in_band`.
+#:
+#: 50 BUKAN ANGKA YANG DIUKUR SEBAGAI TUNING. Ia nilai yang dipraregistrasi di
+#: `tools/csid_ob_intrabar.py` sebelum hasilnya dilihat, dan ia ada di sana
+#: karena separuh kebaruannya adalah seluruh pengetatannya: tanpa batas waktu,
+#: 95 persen order block memuat SEBUAH level CISD dan kondisinya degenerate.
+#: Mengubahnya di sini berarti memindahkan populasi yang delta -0,1363 R itu
+#: dihitung padanya, jadi ia konstanta bersama dan bukan parameter.
+RECENT_CISD_BARS = 50
+
+
+def recent_in_band(
+    bottom: float, top: float, events: list[CISD], now: int, step: int
+) -> bool:
+    """Apakah ada level CISD baru di dalam band `bottom..top` pada `now`?
+
+    Definisinya diambil kata per kata dari `tools/csid_ob_intrabar.py:152`,
+    studi yang mengukurnya, dan itu disengaja: sebuah filter yang definisinya
+    sedikit berbeda dari studinya menyaring populasi lain dan angka studinya
+    tidak berlaku untuknya.
+
+    Tiga syaratnya bersamaan. Level di dalam band. Sudah bisa diketahui di
+    `now`, yang dijaga `0 <= now - e.time`. Dan terbentuk dalam
+    `RECENT_CISD_BARS` bar dari `now`.
+
+    APA YANG DIUKUR PADANYA. Pada resolusi 5 menit dengan biaya, order block
+    yang lolos gerbang departure 2,0 ATR dan memuat CISD baru di dalamnya
+    menghasilkan -0,1119 R, yang tanpanya +0,0244 R: delta -0,1363 R dengan
+    Welch t = -7,07 lawan kritis 2,24 di n=8.170, dan KEDELAPAN fold
+    walk-forward bertanda sama. Confound efficiency sudah dicek terpisah dan
+    pemisahannya tetap ada di dalam kedua sel, -0,1618 di choppy dan -0,1324 di
+    clean, jadi ia bukan artefak pasar choppy.
+    TANDANYA TERBALIK dari hipotesis yang dipraregistrasi. Praregistrasinya
+    dua sisi justru karena CISD di dalam block bisa dibaca dua arah, dan yang
+    keluar adalah arah kedua: CISD di dalam order block menandai block yang
+    SUDAH dimakan, bukan block yang terkonfirmasi.
+    Versi arahnya dari pertanyaan yang sama NULL, t=+1,81 di
+    `docs/csid_ob_outcomes.json`, dan tandanya bahkan berlawanan dengan yang
+    ini. Jadi yang terukur adalah kondisi pada R yang teresolusi, bukan klaim
+    arah, dan hanya itu yang boleh diklaim.
+    """
+    window = RECENT_CISD_BARS * step
+    return any(
+        bottom <= e.level <= top and 0 <= now - e.time <= window
+        for e in events
+    )

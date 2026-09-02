@@ -414,7 +414,8 @@ def test_partners_are_read_for_ssmt_but_never_traded(monkeypatch):
         loaded.append(symbol)
         return []
 
-    def fake_candidates(symbol, interval, bars, equity, risk_pct, lot, rules, series):
+    def fake_candidates(symbol, interval, bars, equity, risk_pct, lot, rules,
+                        series, **_):
         scanned.append(symbol)
         return [], {"interval": interval, "candles": [], "meta": {}}, 0.0
 

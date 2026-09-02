@@ -63,7 +63,8 @@ def recorder(monkeypatch):
 def fake_candidates(log: list, table: dict[str, list[tuple[int, float, float]]]):
     """`table` maps symbol to (met, entry, target) triples. Response is empty."""
 
-    def inner(symbol, interval, bars, equity, risk_pct, lot, rules, partners=None):
+    def inner(symbol, interval, bars, equity, risk_pct, lot, rules,
+              partners=None, **_):
         log.append(("scan", symbol, interval, tuple(sorted(partners or ()))))
         rows = [
             (types.SimpleNamespace(id=f"{symbol}-{i}"), FakePlan(entry, target),
@@ -114,7 +115,8 @@ def test_a_stale_series_blocks_only_itself(monkeypatch, recorder):
     """A Saturday leaves exactly one pair quiet. A scan that refused the whole
     basket for it would be unusable on the day it is most needed."""
 
-    def inner(symbol, interval, bars, equity, risk_pct, lot, rules, partners=None):
+    def inner(symbol, interval, bars, equity, risk_pct, lot, rules,
+              partners=None, **_):
         if symbol == "mt5:XAUUSD":
             return [], ["feed is 3 bars behind"], 100.0
         return (
@@ -188,3 +190,32 @@ def test_the_returned_series_map_is_keyed_bare(monkeypatch, recorder):
     )
     assert list(series) == ["XAUUSD"]
     assert all(":" not in key for key in series)
+
+
+def test_the_layer_reaches_candidates(monkeypatch):
+    """Rantai penerusan `--layer`, dan kenapa ia dites daripada dipercaya.
+
+    `cycle` menerima `layer`, meneruskannya ke `gather`, dan `gather` ke
+    `candidates`. Tiga sambungan, dan sebuah sambungan yang lepas TIDAK
+    menimbulkan error: `candidates` punya default `"supply_demand"`, jadi
+    order akan dipasang pada populasi default sambil setiap laporan menyebut
+    nama layer yang diminta. Itu kelas cacat yang paling sulit terlihat di repo
+    ini, dan satu-satunya cara menutupnya adalah memeriksa nilainya sampai di
+    ujung.
+    """
+    seen: list[tuple[str, bool]] = []
+
+    def inner(symbol, interval, bars, equity, risk_pct, lot, rules,
+              partners=None, layer="supply_demand", no_cisd_in_band=False):
+        seen.append((layer, no_cisd_in_band))
+        return [], [], 1.0
+
+    monkeypatch.setattr(execute, "candidates", inner)
+    monkeypatch.setattr(
+        execute.history, "load",
+        lambda *a, **k: [types.SimpleNamespace(time=1787227200 + i * 3600)
+                         for i in range(50)])
+    monkeypatch.setattr(execute, "blockers", lambda response: [])
+    execute.gather(["mt5:XAUUSD"], ["30m"], 10, None, 0.01, {}, Rules(),
+                   layer="order_block", no_cisd_in_band=True)
+    assert seen == [("order_block", True)]
