@@ -162,8 +162,8 @@ def by_method(candidate: tuple) -> tuple:
     seluruh alasannya ada di komentar tepat di atas pemanggilnya di
     `candidates()`. Dikunci oleh `tests/test_order_key.py`.
     """
-    zone, _plan, checklist = candidate
-    return (-checklist.met, zone.id)
+    _zone, _plan, _checklist = candidate
+    return (_zone.id,)
 
 
 def by_method_ranked(row: tuple) -> tuple:
@@ -173,8 +173,8 @@ def by_method_ranked(row: tuple) -> tuple:
     simbol, jadi tanpa itu dua zona sejenis di bar yang sama pada dua instrumen
     berbeda akan bertukar tempat antar-run.
     """
-    symbol, _interval, zone, _plan, checklist = row
-    return (-checklist.met, symbol, zone.id)
+    symbol, _interval, zone, _plan, _checklist = row
+    return (symbol, zone.id)
 
 def candidates(
     symbol: str,
@@ -687,7 +687,16 @@ def cycle(
         ]
         head = (f"  {symbol} {interval} {zone.kind.value} {zone.side.value}  "
                 f"entry {plan.entry:.3f} stop {plan.stop:.3f} tp {plan.target:.3f}"
-                f"  checklist {checklist.met}/{len(checklist.conditions)}")
+                # BACAAN, DAN DINAMAI BEGITU. Angka ini dicetak di sebelah order
+                # yang sedang dikirim, jadi "checklist 12/17" terbaca sebagai
+                # peringkat mutu - dan ia terukur bukan itu: skor agregatnya tidak
+                # memisahkan hasil (docs/checklist_outcomes.json, separates false,
+                # rho -0,035 demeaned), satu dari tujuh belas klausanya melewati
+                # ambang dan ke arah sebaliknya, dua konstan, dan dua memberi angka
+                # identik. Ia tetap dicetak karena operator ingin tahu klausa mana
+                # yang terpenuhi; yang berubah kalimatnya berhenti mengklaim mutu.
+                f"  klausa terpenuhi {checklist.met}/{len(checklist.conditions)}"
+                f" (bacaan, bukan peringkat)")
         if already:
             print(f"{head}\n      SUDAH pernah diorder, ticket {already[0]['ticket']}")
             skipped += 1

@@ -43,18 +43,37 @@ def _candidate(zone_id: str, met: int, entry: float, target: float = 0.0):
     return (FakeZone(zone_id), FakePlan(entry, target), FakeChecklist(met))
 
 
-def test_higher_checklist_score_still_wins():
-    """`met` tetap kunci utama, dan itu keputusan yang dinyatakan.
+def test_the_checklist_score_does_not_decide():
+    """`met` DIBUANG dari kunci urut pada 2 September 2026, dengan sengaja.
 
-    Rho-nya -0,0356 demeaned, praktis nol, tapi nol berbeda dari merugikan:
-    tidak ada angka yang mengatakan mengurutkan dengannya lebih buruk daripada
-    tidak. Ia dipertahankan karena membuangnya tidak punya dukungan terukur,
-    sama seperti menggantinya. Kalau nanti ada angka yang mengatakan sebaliknya,
-    test inilah yang harus diubah, dengan sengaja.
+    Versi sebelumnya test ini bernama `test_higher_checklist_score_still_wins`
+    dan memancang kebalikannya, dengan alasan yang ditulis di tempatnya: rho
+    -0,0356 demeaned praktis nol, dan nol berbeda dari merugikan, jadi
+    membuangnya tidak punya dukungan terukur. Kalimat penutupnya berbunyi
+    "kalau nanti ada angka yang mengatakan sebaliknya, test inilah yang harus
+    diubah, dengan sengaja". Angkanya sekarang ada, dan ini perubahannya.
+
+    Yang berubah bukan rho-nya melainkan apa yang dibandingkan dengannya.
+    `docs/checklist_outcomes.json` menilai ketujuh belas klausa yang menyusun
+    skor itu: SATU melewati kritis Bonferroni 3,267, dan ia melewatinya ke arah
+    SEBALIKNYA (`dfr_side`, t = -3,543). Dua konstan di 1855 trade. Dua lagi
+    memberi angka IDENTIK, jadi satu fakta dihitung dua kali. Menjumlahkan
+    empat belas kolom yang tidak memisahkan, satu yang memisahkan ke arah
+    salah, dan dua yang tidak membawa informasi, tidak menghasilkan kriteria -
+    dan `app/ict.py` sendiri sudah menulis "It does not sum the conditions into
+    a score" sementara `tools/execute.py` menjumlahkannya.
+
+    Kasusnya disusun supaya urutan-met dan urutan-id BERBEDA: skor 9 punya id
+    yang mengurutkannya kedua. Kasus yang keduanya sepakat akan lolos tanpa
+    memeriksa apa pun.
     """
     low = _candidate("SD-100", met=3, entry=10.0)
     high = _candidate("SD-200", met=9, entry=10.0)
-    assert sorted([low, high], key=by_method) == [high, low]
+    assert sorted([low, high], key=by_method) == [low, high]
+    # DAN SKORNYA TIDAK BOLEH ADA DI KUNCINYA SAMA SEKALI. Dua kandidat yang
+    # hanya berbeda `met` harus punya kunci yang identik.
+    same = _candidate("SD-100", met=17, entry=10.0)
+    assert by_method(low) == by_method(same)
 
 
 def test_distance_to_close_does_not_decide():
@@ -82,6 +101,10 @@ def test_distance_to_target_does_not_decide():
     tight = ("XAUUSD", "1h", FakeZone("SD-200"), FakePlan(100.0, 99.0),
              FakeChecklist(5))
     assert sorted([tight, wide], key=by_method_ranked) == [wide, tight]
+    # Skornya juga tidak memutuskan di situs kedua.
+    scored = ("XAUUSD", "1h", FakeZone("SD-100"), FakePlan(100.0, 0.0),
+              FakeChecklist(17))
+    assert by_method_ranked(wide) == by_method_ranked(scored)
 
 
 def test_symbol_separates_identical_zone_ids():
