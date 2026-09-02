@@ -219,3 +219,55 @@ def test_the_layer_reaches_candidates(monkeypatch):
     execute.gather(["mt5:XAUUSD"], ["30m"], 10, None, 0.01, {}, Rules(),
                    layer="order_block", no_cisd_in_band=True)
     assert seen == [("order_block", True)]
+
+
+def test_the_alphabet_does_not_decide_which_symbol_gets_the_slots():
+    """Dua slot tidak boleh selalu jatuh ke simbol yang namanya lebih awal.
+
+    `by_method_ranked` mengembalikan `(symbol, zone.id)` dan `cycle` memotong
+    daftarnya di `max_orders`, jadi tanpa `round_robin` urutan abjad MENJADI
+    prioritas. Dengan config daemon `mt5:XAUUSD,mt5:BTCUSD` dan `--max-orders`
+    default 2, "BTCUSD" mendahului "XAUUSD" sehingga XAU tidak pernah diorder
+    selama BTC punya dua kandidat, dan diukur 2 September 2026 BTC punya 9 di
+    30m dan 10 di 15m.
+    """
+    rows = [("BTCUSD", "30m", f"b{i}", None, None) for i in range(5)]
+    rows += [("XAUUSD", "30m", f"x{i}", None, None) for i in range(3)]
+    rows.sort(key=lambda r: (r[0], r[2]))
+    got = execute.round_robin(rows)
+    # Dua pertama harus datang dari dua simbol yang BERBEDA.
+    assert got[0][0] != got[1][0], [r[0] for r in got[:4]]
+    # Tidak ada yang hilang, dan tidak ada yang berganda.
+    assert sorted(got) == sorted(rows)
+    # Urutan DI DALAM satu simbol dipertahankan apa adanya.
+    assert [r[2] for r in got if r[0] == "BTCUSD"] == ["b0", "b1", "b2", "b3", "b4"]
+    assert [r[2] for r in got if r[0] == "XAUUSD"] == ["x0", "x1", "x2"]
+
+
+def test_round_robin_is_deterministic_and_survives_one_symbol():
+    """Satu simbol saja harus lewat tanpa berubah, dan dua run harus sama."""
+    rows = [("XAUUSD", "30m", f"x{i}", None, None) for i in range(4)]
+    assert execute.round_robin(rows) == rows
+    assert execute.round_robin([]) == []
+    mixed = [("A", "30m", "a0", None, None), ("A", "30m", "a1", None, None),
+             ("B", "30m", "b0", None, None)]
+    assert execute.round_robin(mixed) == execute.round_robin(mixed)
+
+
+def test_gather_actually_applies_the_round_robin(monkeypatch, recorder):
+    """Dan ia dipasang di `gather`, bukan cuma tersedia sebagai fungsi.
+
+    Suntikan yang membuktikan test di atas TIDAK cukup: menghapus
+    `round_robin(...)` dari `return` di `gather` tidak membuat satu pun test di
+    atas merah, karena semuanya memanggil fungsinya langsung. Sebuah perbaikan
+    yang tidak terpasang terlihat persis sama dengan perbaikan yang terpasang.
+    """
+    log = recorder
+    monkeypatch.setattr(execute, "candidates", fake_candidates(log, {
+        "mt5:BTCUSD": [(5, 100.0, 110.0), (4, 101.0, 111.0)],
+        "mt5:XAUUSD": [(3, 200.0, 210.0), (2, 201.0, 211.0)],
+    }))
+    ranked, _, _ = execute.gather(
+        ["mt5:BTCUSD", "mt5:XAUUSD"], ["30m"], 10, None, 0.01, {}, Rules())
+    assert len(ranked) == 4
+    assert ranked[0][0] != ranked[1][0], [r[0] for r in ranked]

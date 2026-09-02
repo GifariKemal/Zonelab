@@ -149,3 +149,73 @@ def test_a_correction_with_no_grounds_is_still_written():
     refusing it here would push the correction out of the log entirely."""
     got = journal.record("corrected", why=[], rule=RULE, ticket=100)
     assert got["event"] == "corrected"
+
+
+def test_a_cancelled_ticket_stops_locking_its_zone(tmp_path, monkeypatch):
+    """Gate idempotensi mengunci zona SELAMANYA sebelum ini.
+
+    Ia menyaring `event == "placed"` saja, jadi sebuah zona yang order-nya sudah
+    dibatalkan tetap ditolak, dan penolakannya berbunyi "SUDAH pernah diorder,
+    ticket N" - kalimat yang terbaca seperti perilaku benar. Diukur 2 September
+    2026: 35 zona punya record `placed` dan 29 di antaranya tidak punya satu pun
+    ticket yang masih hidup di broker.
+    """
+    monkeypatch.setattr(journal, "DIRECTORY", tmp_path)
+    journal.record("placed", why=["x"], rule=RULE, zone_id="RBR-1", symbol="XAUUSD",
+                   ticket=111)
+    assert journal.open_tickets("RBR-1", "XAUUSD") == [111]
+    journal.record("cancelled", why=["y"], rule=RULE, zone_id="RBR-1",
+                   symbol="XAUUSD", ticket=111)
+    assert journal.open_tickets("RBR-1", "XAUUSD") == []
+
+
+def test_closed_also_releases_it_and_a_second_order_does_not(tmp_path, monkeypatch):
+    """`closed` melepaskannya juga, dan ticket LAIN tidak ikut terlepas.
+
+    Kalau pelepasannya dicocokkan per zona alih-alih per TICKET, satu
+    pembatalan akan melepaskan zona yang masih memegang order kedua yang hidup.
+    """
+    monkeypatch.setattr(journal, "DIRECTORY", tmp_path)
+    for ticket in (201, 202):
+        journal.record("placed", why=["x"], rule=RULE, zone_id="DBD-2",
+                       symbol="BTCUSD", ticket=ticket)
+    journal.record("closed", why=["y"], rule=RULE, zone_id="DBD-2",
+                   symbol="BTCUSD", ticket=201)
+    assert journal.open_tickets("DBD-2", "BTCUSD") == [202]
+
+
+def test_the_release_does_not_depend_on_line_order(tmp_path, monkeypatch):
+    """`cancelled` bisa tercatat di file hari yang BERBEDA dari `placed`-nya.
+
+    `entries()` membaca per hari, jadi pencocokan yang mengandalkan posisi baris
+    akan gagal tepat pada kasus yang paling umum: order dipasang hari ini dan
+    dibatalkan besok.
+    """
+    monkeypatch.setattr(journal, "DIRECTORY", tmp_path)
+    journal.record("cancelled", why=["y"], rule=RULE, zone_id="RBR-3",
+                   symbol="XAUUSD", ticket=301)
+    journal.record("placed", why=["x"], rule=RULE, zone_id="RBR-3",
+                   symbol="XAUUSD", ticket=301)
+    assert journal.open_tickets("RBR-3", "XAUUSD") == []
+
+
+def test_a_refusal_is_not_a_lock_but_a_ticketless_placement_is(tmp_path,
+                                                              monkeypatch):
+    """Dua keadaan yang mudah tertukar, dan jawabannya berlawanan.
+
+    `refused` tidak memasang apa pun, jadi ia tidak mengunci. Sebuah `placed`
+    TANPA ticket memasang sesuatu yang tidak bisa dinamai, jadi ia mengunci
+    tanpa syarat - itu perilaku lama, dan melonggarkannya diam-diam akan
+    membuka jalan ke order kedua di zona yang mungkin sudah punya satu.
+    """
+    monkeypatch.setattr(journal, "DIRECTORY", tmp_path)
+    journal.record("refused", why=["x"], rule=RULE, zone_id="RBR-4",
+                   symbol="XAUUSD")
+    assert journal.open_tickets("RBR-4", "XAUUSD") == []
+
+    journal.record("placed", why=["x"], rule=RULE, zone_id="RBR-5",
+                   symbol="XAUUSD")
+    assert journal.open_tickets("RBR-5", "XAUUSD") == [-1]
+    # Dan tanda itu tidak bisa dicocokkan ke ticket broker mana pun, jadi
+    # pemanggil yang BISA membaca order book tidak ikut terkunci selamanya.
+    assert -1 not in {4645188980, 1, 0}

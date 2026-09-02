@@ -247,6 +247,58 @@ def for_zone(zone_id: str, symbol: str | None = None) -> list[dict[str, Any]]:
     return out
 
 
+def open_tickets(zone_id: str, symbol: str | None = None) -> list[int]:
+    """Ticket `placed` untuk zona ini yang BELUM dicatat mati.
+
+    KENAPA INI ADA. Gate idempotensi di `tools/execute.py` menyaring
+    `event == "placed"` saja, jadi sebuah zona yang order-nya sudah DIBATALKAN
+    tetap terkunci selamanya, dan penolakannya berbunyi "SUDAH pernah diorder,
+    ticket N" - kalimat yang persis dipakai docstring `for_zone` di atas untuk
+    menggambarkan cacat lain di gate yang sama. Diukur 2 September 2026: 35 zona
+    punya record `placed` dan 29 di antaranya TIDAK punya satu pun ticket yang
+    masih hidup di broker.
+    Dari 29 itu, 13 punya record `cancelled` atau `closed` di journal ini dan 16
+    tidak punya catatan kematian sama sekali - ticket-nya hilang dari broker
+    tanpa journal pernah tahu, misalnya dibatalkan langsung di terminal.
+
+    JADI FUNGSI INI MENJAWAB SEPARUHNYA, dan separuhnya saja. Ia membaca apa
+    yang JOURNAL tahu: sebuah `placed` yang diikuti `cancelled` atau `closed`
+    dengan ticket yang sama sudah tidak mengunci apa pun. Untuk 16 sisanya
+    journal memang tidak tahu, dan jawabannya harus datang dari order book
+    broker, yang dipegang pemanggilnya. `tools/execute.py` memotongnya lagi
+    dengan daftar ticket hidup ketika terminalnya terbaca.
+
+    URUTAN TIDAK DIANDALKAN. `cancelled` bisa tercatat di file hari yang berbeda
+    dari `placed`-nya, dan `entries()` membaca per hari, jadi yang dipakai
+    kesamaan TICKET dan bukan posisi barisnya.
+    """
+    placed: list[int] = []
+    dead: set[int] = set()
+    ticketless = False
+    for e in for_zone(zone_id, symbol):
+        event, ticket = e.get("event"), e.get("ticket")
+        if event == "placed":
+            # `placed` TANPA TICKET MENGUNCI TANPA SYARAT, dan itu menahan
+            # perilaku lama alih-alih melonggarkannya. Ia berarti "sesuatu
+            # dipasang dan kita tidak tahu apa", dan sebuah zona yang mungkin
+            # sudah punya order tidak boleh diorder dua kali. Tidak ada
+            # pemanggil di repo ini yang menulisnya begitu - setiap
+            # `record("placed", ...)` mengoper `ticket=` - tapi tanda tangan
+            # `record` mengizinkannya, jadi jawabannya tidak boleh bergantung
+            # pada kebiasaan pemanggil.
+            if ticket is None:
+                ticketless = True
+            else:
+                placed.append(int(ticket))
+        elif event in ("cancelled", "closed") and ticket is not None:
+            dead.add(int(ticket))
+    live = [t for t in placed if t not in dead]
+    # -1 bukan ticket yang bisa ada, jadi pemanggil yang memotongnya dengan
+    # daftar ticket hidup broker tidak akan pernah menganggapnya hidup - tapi
+    # pemanggil yang TIDAK bisa membaca broker tetap melihat zona ini terkunci.
+    return live + ([-1] if ticketless else [])
+
+
 def for_ticket(ticket: int) -> list[dict[str, Any]]:
     """Every event about one broker ticket, which is what scoring asks about."""
     return [e for e in entries() if e.get("ticket") == ticket]

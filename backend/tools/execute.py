@@ -202,6 +202,36 @@ def by_method_ranked(row: tuple) -> tuple:
 ORDERABLE_LAYERS = ("supply_demand", "order_block")
 
 
+def round_robin(rows: list[tuple]) -> list[tuple]:
+    """Satu kandidat per simbol bergiliran, urutan di dalam simbol dipertahankan.
+
+    KENAPA INI ADA. `by_method_ranked` mengembalikan `(symbol, zone.id)` dan
+    `cycle` memotong daftarnya di `max_orders`, jadi urutan alfabetis simbol
+    MENJADI prioritas. Dengan config daemon di `start.bat`,
+    `--symbol mt5:XAUUSD,mt5:BTCUSD` dan `--max-orders` default 2, "BTCUSD"
+    mendahului "XAUUSD" sehingga KEDUA slot selalu jatuh ke BTC dan XAU hanya
+    dapat order kalau BTC punya kurang dari dua kandidat. Diukur 2 September
+    2026: BTCUSD 30m 9 kandidat dan 15m 10 kandidat, jadi ambangnya tidak pernah
+    tercapai dan XAU tidak akan pernah diorder oleh daemon.
+
+    INI BUKAN KUNCI SELEKSI, dan bedanya penting. `tools/order_key.py`
+    memprakregistrasi tujuh kandidat kunci urut dan TIDAK SATU PUN memisahkan
+    hasil, yang sebabnya `by_method` cuma mengembalikan `(zone.id,)` sekarang.
+    Fungsi ini tidak mengklaim kandidat mana lebih baik. Ia menghapus prioritas
+    yang tidak pernah dipilih siapa pun, yaitu urutan abjad nama instrumen.
+
+    Deterministik: urutan simbolnya datang dari daftar yang SUDAH terurut, jadi
+    dua run di tree yang sama memberi hasil yang sama.
+    """
+    groups: dict[str, list[tuple]] = {}
+    for row in rows:
+        groups.setdefault(row[0], []).append(row)
+    out: list[tuple] = []
+    for i in range(max((len(g) for g in groups.values()), default=0)):
+        out.extend(g[i] for g in groups.values() if i < len(g))
+    return out
+
+
 def candidates(
     symbol: str,
     interval: str,
@@ -636,7 +666,7 @@ def gather(
     # arah negatif di pengelompokan pekan: -0,0774 R pada t = -2,91, dengan
     # walk-forward 2 dari 8. Lihat `by_method_ranked`.
     found.sort(key=by_method_ranked)
-    return found, blocked, series
+    return round_robin(found), blocked, series
 
 
 def cycle(
@@ -716,6 +746,9 @@ def cycle(
     if daily_loss_pct > 0:
         print(f"  pengaman kerugian harian {daily_loss_pct:.2%}, terealisasi "
               f"hari ini {book.realised_today if book.realised_today is not None else 'TIDAK TERBACA'}")
+    # NONE BERARTI TIDAK TERBACA, BUKAN KOSONG. Set kosong akan menyatakan
+    # "tidak ada ticket hidup", yang membuka setiap zona yang pernah diorder.
+    live_tickets: set[int] | None = None
     if mt5 is not None:
         # PENDING IKUT DIHITUNG, dan tanpa itu cap ini tidak pernah mengikat
         # antar run. Tool ini menempatkan LIMIT, jadi risiko yang baru saja ia
@@ -723,10 +756,16 @@ def cycle(
         # membaca `positions_get`, sehingga satu pending XAUUSD berisiko 43.92
         # dari run sebelumnya tidak terlihat dan run berikutnya berangkat dari
         # book yang lebih ringan 4.5% dari kenyataan.
-        rows = [(p.symbol, p.price_open, p.sl, p.volume)
-                for p in (mt5.positions_get() or [])]
+        positions = mt5.positions_get() or []
+        pendings = mt5.orders_get() or []
+        # DIPAKAI DUA KALI, dibaca sekali. Gate idempotensi di bawah butuh
+        # daftar ticket yang HIDUP, dan membacanya lagi di sana akan menanyakan
+        # order book dua kali untuk satu keputusan - dua jawaban yang bisa
+        # berbeda kalau sebuah pending terisi di antaranya.
+        live_tickets = {int(x.ticket) for x in (*positions, *pendings)}
+        rows = [(p.symbol, p.price_open, p.sl, p.volume) for p in positions]
         rows += [(o.symbol, o.price_open, o.sl, o.volume_current)
-                 for o in (mt5.orders_get() or [])]
+                 for o in pendings]
         for name, opened, stop, volume in rows:
             # TIDAK TERHITUNG BUKAN NOL, dan dua cacat di dua baris ini
             # membuktikan bedanya. `if not stop: continue` menghitung posisi
@@ -781,10 +820,21 @@ def cycle(
         # simbol, jadi tanpa ini sebuah zona silver dilewati karena gold
         # sudah punya order dari zona sejenis di bar yang sama. Lihat
         # `journal.for_zone` untuk angkanya.
-        already = [
-            e for e in journal.for_zone(zone.id, symbol)
-            if e["event"] == "placed"
-        ]
+        # GATE IDEMPOTENSI, dan ia dulu mengunci zona SELAMANYA. Ia menyaring
+        # `event == "placed"` saja, jadi order yang sudah dibatalkan tetap
+        # menahan zonanya dan penolakannya berbunyi "SUDAH pernah diorder,
+        # ticket N". Diukur 2 September 2026: 35 zona punya record `placed` dan
+        # 29 di antaranya tidak punya satu pun ticket yang masih hidup.
+        #
+        # DUA SUMBER, karena satu saja tidak cukup. `journal.open_tickets`
+        # membuang yang journal TAHU sudah mati (13 dari 29); sisa 16 hilang
+        # dari broker tanpa journal pernah tahu, dan cuma order book yang bisa
+        # menjawab itu. `live_tickets` None berarti terminalnya tidak terbaca,
+        # dan di keadaan itu jawaban konservatif dipertahankan: sebuah order
+        # yang MUNGKIN masih ada tidak dipasang dua kali.
+        already = journal.open_tickets(zone.id, symbol)
+        if live_tickets is not None:
+            already = [t for t in already if t in live_tickets]
         head = (f"  {symbol} {interval} {zone.kind.value} {zone.side.value}  "
                 f"entry {plan.entry:.3f} stop {plan.stop:.3f} tp {plan.target:.3f}"
                 # BACAAN, DAN DINAMAI BEGITU. Angka ini dicetak di sebelah order
@@ -798,7 +848,7 @@ def cycle(
                 f"  klausa terpenuhi {checklist.met}/{len(checklist.conditions)}"
                 f" (bacaan, bukan peringkat)")
         if already:
-            print(f"{head}\n      SUDAH pernah diorder, ticket {already[0]['ticket']}")
+            print(f"{head}\n      SUDAH pernah diorder, ticket {already[0]}")
             skipped += 1
             continue
         # THE ICT GATE, and it sits before the risk checks on purpose: a setup the
