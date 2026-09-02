@@ -740,6 +740,125 @@ Uraiannya di `docs/QA-PRODUKSI.md` bagian 13.
 
 ---
 
+## Referensi Quarterly Theory kedua, dan aturan DFR fase yang diukur lalu gagal
+
+Diserahkan 2 September 2026: sebuah tool di `quarter-sequence.vercel.app` plus
+dua baris aturan, dengan bukti satu chart TradingView (BTC 1h Binance,
+Tango618).
+
+    Accumulation/Consolidation DFR  ->  Manipulation Targets
+    Manipulation DFR                ->  Distribution Targets
+
+### Apa isi referensinya
+
+Bukan dokumen. Satu file HTML 91 KB dengan logika inline, judul "QT Sequence
+Timeline". Yang bisa diambil darinya tabel degree dan tabel penamaan true open,
+plus satu konsep yang kita tidak punya.
+
+**Sebelas degree lawan delapan milik kita.** Panjang quarter-nya cocok satu per
+satu di tempat keduanya punya:
+
+| Milik kita | Panjang quarter | Referensi | Panjang quarter | True open kita | Milik mereka |
+|---|---|---|---|---|---|
+| `quadrennial` | 1 tahun | QUADRENNIAL | 365 d | **TQO** | **T4YO** |
+| `year` | 92,04 d | YEARLY | 91 d | TYO | TYO |
+| tidak ada | - | **QUARTERLY** | 22,75 d | - | **TQO** |
+| `month` | 7,0 d | MONTHLY | 7 d | TMO | TMO |
+| `week` | 1,0 d | WEEKLY | 1 d | TWO | TWO |
+| `day` | 6 h | DAILY | 6 h | TDO | TDO |
+| `session` | 90 min | 90MIN | 90 min | TSO | TSO |
+| `micro` | 22,5 min | MICRO | 22,5 min | T90mO | TMSO |
+| `nano` | 5,625 min | NANO | 5,625 min | TnO | TNO |
+| tidak ada | - | **PICO** | 1,40625 min | - | TPO |
+| tidak ada | - | **FEMTO** | 21,09375 s | - | TFO |
+
+> [!WARNING]
+> **`TQO` berarti dua hal yang berlawanan.** Di engine ini ia quadrennian,
+> empat tahun. Di referensi ia QUARTERLY, cycle 91 hari, dan yang empat tahun
+> dinamai `T4YO`. Komentar di `frontend/src/components/session-primitive.ts`
+> sudah mengantisipasi tabrakan ini sebelum referensi ini ada; sekarang ada
+> sumber luar yang menyelesaikannya.
+
+Tiga degree tidak ada di kita: satu di tengah (QUARTERLY) dan dua terdalam
+(PICO, FEMTO). Satu konsep juga tidak ada: referensinya mengelompokkan kuarter
+ke **tiga tipe**, `Q4/1`, `Q2`, `Q3` (Q4 dan Q1 satu tipe), lalu menamai
+runtun kuarter bersarang lintas degree yang tipenya sama sebagai
+**N-stage sequence**.
+
+### Aturan DFR-nya tidak setuju dengan kode kita
+
+`app/quarterly.py:defining_range` mengambil DFR dari **Q1 selalu**. Tapi profil
+menentukan fase mana yang Q1:
+
+| Profil | Q1 | Q2 | Q3 | Q4 |
+|---|---|---|---|---|
+| AMDX | akumulasi | manipulasi | distribusi | X |
+| XAMD | X | akumulasi | manipulasi | distribusi |
+
+Jadi di bawah XAMD, "Accumulation DFR" menurut aturan itu adalah DFR Q2 dan
+kita memberikan DFR Q1. Bukan kasus pinggiran: di populasi yang diukur,
+**XAMD 1021 cycle lawan AMDX 474** di degree day, jadi ia mengenai dua pertiga
+cycle.
+
+### Diukur, dan gagal di keenam sel
+
+Praregistrasi `tools/phase_targets.py`, hasil `docs/phase_targets.json`.
+Populasi disalin dari `dfr_outcomes.py`: mt5 XAUUSD, BTCUSD, ETHUSD, EURUSD,
+1 jam, 20.000 bar, degree day dan week. 22.550 level dari 1.284 cycle. Outcome:
+apakah level itu tersentuh **di dalam jendela kuarter targetnya**, bukan dalam
+96 bar. Kontrol per-event jitter, tanpa shuffling. Critical t ber-Bonferroni
+2,638 atas 6 grup, ambang efek +3,0pp.
+
+| Arm | Degree | Cycle | Delta | t | Walk-forward |
+|---|---|---|---|---|---|
+| `q1_to_manip` | day | 1109 | -0,443pp | -1,42 | 4/8 |
+| `q1_to_manip` | week | 173 | -0,169pp | -0,28 | 2/8 |
+| `accum_to_manip` | day | 1109 | -0,278pp | -0,77 | 2/8 |
+| `accum_to_manip` | week | 175 | -0,929pp | -1,15 | 2/8 |
+| `manip_to_distrib` | day | 1109 | **-1,864pp** | **-4,35** | **0/8** |
+| `manip_to_distrib` | week | 175 | -0,643pp | -0,67 | 3/8 |
+
+**Nol lulus, dan keenamnya bertanda negatif.** Satu di antaranya menyeberang
+ambang Bonferroni ke arah negatif: `manip_to_distrib` di degree day, t = -4,35
+dengan delapan dari delapan fold negatif (-0,899 sampai -3,231). Ekstrem DFR
+kuarter manipulasi tersentuh **lebih jarang** di kuarter distribusi daripada
+level placebo di jarak sebanding. Itu temuan terbalik, bukan nol.
+
+### Dan penyempurnaan fase-nya justru lebih buruk
+
+Perbandingan berpasangan cycle demi cycle antara membaca DFR dari kuarter
+akumulasi dan membacanya dari Q1 selalu:
+
+| Degree | Cycle | Delta | t | Berbeda di |
+|---|---|---|---|---|
+| day | 1109 | **-2,705pp** | **-3,90** | 310 level |
+| week | 173 | -2,601pp | -1,32 | 65 level |
+
+Negatif berarti membaca dari kuarter akumulasi **kalah** dari membaca dari Q1
+selalu, dan di degree day itu menyeberang ambang. Jadi ketidaksesuaian di atas
+terjawab: implementasi kita yang sekarang bukan yang salah.
+
+### Rig-nya dibuktikan bisa hijau
+
+Nol pemenang tanpa pernah menunjukkan pemenang seperti apa yang bisa dilihat
+adalah laporan tentang diamnya rig, bukan diamnya pasar. `--oracle` menambahkan
+arm yang mengambil levelnya dari ekstrem kuarter target itu sendiri, yang
+berarti ia melihat masa depan: **+32,856pp, t = +29,33, 8 dari 8 fold**, dan ia
+mendarat di `passes`.
+
+### Yang belum dijawab
+
+- Arah tidak diuji. Tercapai adalah tercapai; siapa yang lebih dulu tersentuh
+  antara high dan low tidak ditanyakan, karena aturannya tidak menyatakannya.
+- Level ekstensi 0,5 dan 1,0 tinggi DFR bukan pertanyaan studi ini; itu punya
+  `dfr_outcomes.py`, sudah dijalankan.
+- **Aturan pertiga itu sendiri masih single-sourced.** `app/quarterly.py`
+  mencatatnya: satu fetch yang merangkum, dikuatkan hanya oleh situs penulisnya,
+  satu suara dua kali. Mengukur konsekuensi sebuah aturan tidak memperbaiki
+  provenance aturannya.
+- Tiga degree yang tidak kita punya dan konsep N-stage sequence belum diport,
+  dan tidak ada angka apa pun untuk keduanya di sini.
+
 ## Ringkasan hitungan
 
 | Status | Jumlah butir |
