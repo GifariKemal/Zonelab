@@ -25,6 +25,7 @@ tanggal itu. Klaim yang tidak punya angka ditulis sebagai belum diukur.
 - [9. Walk-forward, empat periode](#9-walk-forward-empat-periode)
 - [10. Apa yang masih belum diukur](#10-apa-yang-masih-belum-diukur)
 - [11. Objek yang bergerak setelah lahir](#11-objek-yang-bergerak-setelah-lahir)
+- [12. Kunci urut yang memilih dua order](#12-kunci-urut-yang-memilih-dua-order)
 
 ## 1. Ringkasan vonis
 
@@ -758,3 +759,92 @@ akan mendapat gate hijau atas sensus yang bolong. Itu pola yang sudah dua kali
 membuat harness di repo ini merah tanpa ada yang tahu: `e2e/wiring.mjs` selama
 dua commit, dan sensus slider `e2e/sweep.mjs` selama 24. Sekarang test itu
 menemukan sendiri setiap dict bernama `PORTED*` plus `UNPORTED` lewat `dir()`.
+
+## 12. Kunci urut yang memilih dua order
+
+`tools/execute.py` mengurutkan kandidat di baris 395 dan 496, dan di keduanya
+kunci utamanya `-Setup.met`, skor checklist ICT. `--max-orders` default 2, jadi
+urutan itu memilih dua kandidat mana yang benar-benar dikirim ketika lebih dari
+dua lolos gerbang.
+
+Pertanyaan itu belum pernah bisa terlihat oleh harness mana pun di sini.
+`max_orders` hanya muncul di `execute.py` dan `autotrade.py`, keduanya jalur
+live. Tidak satu pun rig pengukuran memperhitungkannya: semuanya menghitung
+ekspektasi per trade dengan asumsi setiap trade diambil, dan di bawah asumsi itu
+urutan tidak punya arti sama sekali.
+
+Praregistrasi di `tools/order_key.py`, hasil di `docs/order_key.json`. Populasi
+dipinjam dari `checklist_outcomes.rows_for` apa adanya, 1.847 trade, 8
+instrumen, 1 jam, resolusi 5 menit, sudah dibebani biaya `exness_raw`.
+
+### Uji A, monoton, critical t 2,69
+
+| Kunci | rho demeaned | t | walk-forward |
+|---|---|---|---|
+| `k_near_close` | -0,1073 | **-4,64** | 2/8 |
+| `k_cheap` | +0,0432 | +1,86 | 5/8 |
+| `k_random`, kontrol | +0,0373 | +1,60 | 4/8 |
+| `k_near_target` | +0,0065 | +0,28 | 3/8 |
+| `k_departure` | -0,0239 | -1,03 | 3/8 |
+| `k_met` | -0,0356 | -1,53 | 2/8 |
+| `k_reward_r` | -0,0419 | -1,80 | 2/8 |
+
+### Uji B, lift dua teratas
+
+| Kunci | delta R hari | t | delta R pekan | t | wf pekan |
+|---|---|---|---|---|---|
+| `k_near_close` | -0,056 | -0,90 | -0,0966 | **-3,86** | **0/8** |
+| `k_near_target` | -0,146 | -2,46 | -0,0774 | -2,91 | 2/8 |
+| `k_reward_r` | +0,074 | +1,28 | +0,061 | +2,22 | 6/8 |
+| `k_departure` | +0,004 | +0,08 | +0,046 | +1,78 | 6/8 |
+| `k_met` | -0,006 | -0,12 | +0,038 | +1,44 | 5/8 |
+| `k_cheap` | -0,020 | -0,32 | -0,024 | -0,88 | 2/8 |
+| `k_random` | +0,043 | +0,88 | +0,010 | +0,36 | 4/8 |
+
+### Vonis
+
+**Nol kunci lulus.** Bukan hanya nol yang lulus kedua uji: nol juga yang lulus
+salah satunya. Tidak ada dasar terukur untuk mengganti `met` dengan kunci mana
+pun di daftar tertutup ini.
+
+**Yang menyeberang ambang justru satu-satunya yang negatif, dan ia sedang
+produksi.** `k_near_close`, tie-breaker di baris 395, memberi rho demeaned
+-0,107 pada t = -4,64, |t| terbesar di seluruh run, dengan tanda yang salah.
+Uji B pengelompokan pekan mengonfirmasi: -0,0966 R, t = -3,86, walk-forward
+**0 dari 8** fold. Mendahulukan kandidat yang paling dekat memilih trade yang
+lebih buruk.
+
+`k_near_target`, tie-breaker di baris 496, ikut menyeberang negatif di
+pengelompokan pekan: -0,077 pada t = -2,91, walk-forward 2 dari 8.
+
+`k_reward_r` yang paling dekat lulus dan tetap gagal: lift +0,061 pekan pada
+t = 2,22 melawan 2,69, walk-forward 6 dari 8 melawan 7 yang dibutuhkan. Uji
+A-nya justru negatif. Dua uji yang tidak sepakat adalah alasan mengukur lagi,
+dan praregistrasinya sudah menulis itu di depan.
+
+### Rig-nya dibuktikan bisa melaporkan LULUS
+
+Studi yang melaporkan nol pemenang tanpa pernah menunjukkan pemenang seperti apa
+yang bisa ia lihat sedang melaporkan diamnya sendiri. `--oracle` memuat populasi
+yang sama dan menambahkan kunci yang isinya outcome-nya sendiri:
+
+| Uji | Hasil oracle |
+|---|---|
+| A, monoton | rho 1,0000, t tak hingga, walk-forward 8/8, `passes` |
+| B, per simbol per hari | +0,4411 R, t = 9,42, walk-forward 8/8, `passes` |
+| B, per simbol per pekan | +0,6236 R, t = 26,92, walk-forward 8/8, `passes` |
+
+Kontrolnya juga bersih di arah sebaliknya: `k_random` t = 1,60 / 0,88 / 0,36,
+ketiganya di bawah 2,69.
+
+### Dua batas yang dinyatakan
+
+**Populasinya belum dipatok.** Dua run di tree yang sama memberi n = 1847 lalu
+n = 1850, karena `rows_for` membaca ekor MT5 yang hidup. Verdict-nya identik dan
+|t| terbesarnya bergeser -4,64 ke -4,66, jadi kesimpulannya stabil di dua run.
+Dua run bukan bukti stabil, dan sebelum angka ini jadi gate ia harus dipatok,
+persis alasan `e2e/labels.mjs` dipatok ke synthetic pada 1 September.
+
+**Rata-rata populasinya nol.** `exp_r_all` = -0,0003 R. Urutan tidak bisa
+menyelamatkan populasi yang datar, paling jauh ia berhenti memperburuknya, dan
+-0,0966 R per grup itu besar justru karena rata-ratanya nol.

@@ -1,0 +1,516 @@
+{
+  "preregistered": "tools/order_key.py, 2026-09-02",
+  "question": "kunci urut mana yang sebaiknya memilih dua order, tools/execute.py baris 395 dan 496",
+  "take": 2,
+  "population": {
+    "n": 1850,
+    "symbols": [
+      "AUDUSD",
+      "EURUSD",
+      "GBPUSD",
+      "US30",
+      "USDJPY",
+      "USOIL",
+      "XAGUSD",
+      "XAUUSD"
+    ],
+    "interval": "1h",
+    "fine": "5m",
+    "exp_r_all": -0.0006970052962280051
+  },
+  "keys_judged": 7,
+  "keys_dropped": [],
+  "alpha_corrected": 0.0071428571428571435,
+  "critical_t": 2.690109527158866,
+  "test_a_monotone": {
+    "k_met": {
+      "n": 1850,
+      "spearman_rho": -0.027835247372315484,
+      "t": -1.1970557574264447,
+      "spearman_rho_demeaned": -0.034340346458944716,
+      "t_demeaned": -1.477106740296063,
+      "walk_forward": {
+        "graded": 8,
+        "correct_sign": 2,
+        "p": 0.96484375,
+        "deltas": [
+          -0.0072,
+          -0.0225,
+          -0.0584,
+          -0.0662,
+          0.05,
+          0.0119,
+          -0.0229,
+          -0.0836
+        ]
+      },
+      "passes": false
+    },
+    "k_near_close": {
+      "n": 1850,
+      "spearman_rho": -0.036200522438461294,
+      "t": -1.5572221586771635,
+      "spearman_rho_demeaned": -0.10779081114721152,
+      "t_demeaned": -4.660907654491283,
+      "walk_forward": {
+        "graded": 8,
+        "correct_sign": 2,
+        "p": 0.96484375,
+        "deltas": [
+          0.0511,
+          -0.0462,
+          -0.0704,
+          -0.0174,
+          -0.1375,
+          -0.0723,
+          0.0345,
+          -0.0683
+        ]
+      },
+      "passes": false
+    },
+    "k_near_target": {
+      "n": 1850,
+      "spearman_rho": 5.576132526858826e-05,
+      "t": 0.0023970885150818005,
+      "spearman_rho_demeaned": 0.0048525389878103665,
+      "t_demeaned": 0.20860520001454694,
+      "walk_forward": {
+        "graded": 8,
+        "correct_sign": 3,
+        "p": 0.85546875,
+        "deltas": [
+          0.119,
+          -0.0275,
+          -0.0547,
+          0.0436,
+          -0.039,
+          -0.0775,
+          0.064,
+          -0.0405
+        ]
+      },
+      "passes": false
+    },
+    "k_reward_r": {
+      "n": 1850,
+      "spearman_rho": -0.03698410183009472,
+      "t": -1.5909747317112246,
+      "spearman_rho_demeaned": -0.040923029152106154,
+      "t_demeaned": -1.760689265931575,
+      "walk_forward": {
+        "graded": 8,
+        "correct_sign": 2,
+        "p": 0.96484375,
+        "deltas": [
+          -0.1283,
+          -0.0121,
+          -0.0168,
+          0.039,
+          -0.0389,
+          0.0827,
+          -0.0999,
+          -0.1046
+        ]
+      },
+      "passes": false
+    },
+    "k_cheap": {
+      "n": 1850,
+      "spearman_rho": -0.0004651069581835691,
+      "t": -0.01999419241263259,
+      "spearman_rho_demeaned": 0.043466025097968965,
+      "t_demeaned": 1.870301202911881,
+      "walk_forward": {
+        "graded": 8,
+        "correct_sign": 5,
+        "p": 0.36328125,
+        "deltas": [
+          0.0463,
+          -0.1217,
+          0.0271,
+          -0.0638,
+          -0.0374,
+          0.0204,
+          0.0667,
+          0.0536
+        ]
+      },
+      "passes": false
+    },
+    "k_departure": {
+      "n": 1850,
+      "spearman_rho": -0.026490803052623354,
+      "t": -1.13919624984911,
+      "spearman_rho_demeaned": -0.023069745056445323,
+      "t_demeaned": -0.9919947597515919,
+      "walk_forward": {
+        "graded": 8,
+        "correct_sign": 3,
+        "p": 0.85546875,
+        "deltas": [
+          0.002,
+          0.0056,
+          -0.0507,
+          0.0051,
+          -0.0268,
+          -0.0233,
+          -0.019,
+          -0.1428
+        ]
+      },
+      "passes": false
+    },
+    "k_random": {
+      "n": 1850,
+      "spearman_rho": 0.03223101935291612,
+      "t": 1.3862792495007168,
+      "spearman_rho_demeaned": 0.036219551946058894,
+      "t_demeaned": 1.558041817736702,
+      "walk_forward": {
+        "graded": 8,
+        "correct_sign": 4,
+        "p": 0.63671875,
+        "deltas": [
+          -0.026,
+          -0.0608,
+          -0.0259,
+          0.0889,
+          0.1688,
+          0.1016,
+          0.0406,
+          -0.0513
+        ]
+      },
+      "passes": false
+    }
+  },
+  "test_b_lift": {
+    "k_met": {
+      "per_symbol_day": {
+        "groups_total": 1397,
+        "groups_judged": 69,
+        "mean_delta_r": -0.006338290449449309,
+        "t": -0.12391087234131873,
+        "walk_forward": {
+          "graded": 8,
+          "correct_sign": 3,
+          "p": 0.85546875,
+          "deltas": [
+            0.0857,
+            -0.0111,
+            -0.129,
+            -0.0676,
+            -0.0091,
+            0.0358,
+            -0.0026,
+            0.0386
+          ]
+        },
+        "passes": false
+      },
+      "per_symbol_week": {
+        "groups_total": 558,
+        "groups_judged": 351,
+        "mean_delta_r": 0.03838359250517342,
+        "t": 1.4647260947144913,
+        "walk_forward": {
+          "graded": 8,
+          "correct_sign": 5,
+          "p": 0.36328125,
+          "deltas": [
+            0.1584,
+            0.0556,
+            0.0024,
+            -0.0149,
+            0.0324,
+            -0.0237,
+            0.0548,
+            -0.0148
+          ]
+        },
+        "passes": false
+      }
+    },
+    "k_near_close": {
+      "per_symbol_day": {
+        "groups_total": 1397,
+        "groups_judged": 69,
+        "mean_delta_r": -0.055921809129667856,
+        "t": -0.8950899942386502,
+        "walk_forward": {
+          "graded": 8,
+          "correct_sign": 5,
+          "p": 0.36328125,
+          "deltas": [
+            0.2004,
+            0.1466,
+            0.0382,
+            -0.0525,
+            -0.5274,
+            -0.1201,
+            0.0993,
+            0.1952
+          ]
+        },
+        "passes": false
+      },
+      "per_symbol_week": {
+        "groups_total": 558,
+        "groups_judged": 351,
+        "mean_delta_r": -0.09605701594743575,
+        "t": -3.8432725984965788,
+        "walk_forward": {
+          "graded": 8,
+          "correct_sign": 0,
+          "p": 1.0,
+          "deltas": [
+            -0.0787,
+            -0.0135,
+            -0.0108,
+            -0.1293,
+            -0.2909,
+            -0.1617,
+            -0.0168,
+            -0.0298
+          ]
+        },
+        "passes": false
+      }
+    },
+    "k_near_target": {
+      "per_symbol_day": {
+        "groups_total": 1397,
+        "groups_judged": 69,
+        "mean_delta_r": -0.14633502372604437,
+        "t": -2.455295655263052,
+        "walk_forward": {
+          "graded": 8,
+          "correct_sign": 2,
+          "p": 0.96484375,
+          "deltas": [
+            -0.0416,
+            0.1651,
+            -0.3935,
+            -0.1179,
+            -0.2782,
+            -0.1867,
+            0.0943,
+            -0.2243
+          ]
+        },
+        "passes": false
+      },
+      "per_symbol_week": {
+        "groups_total": 558,
+        "groups_judged": 351,
+        "mean_delta_r": -0.07895864109221504,
+        "t": -2.9588774024235525,
+        "walk_forward": {
+          "graded": 8,
+          "correct_sign": 2,
+          "p": 0.96484375,
+          "deltas": [
+            -0.0426,
+            -0.0536,
+            -0.1371,
+            -0.1493,
+            -0.134,
+            -0.1857,
+            0.0154,
+            0.1264
+          ]
+        },
+        "passes": false
+      }
+    },
+    "k_reward_r": {
+      "per_symbol_day": {
+        "groups_total": 1397,
+        "groups_judged": 69,
+        "mean_delta_r": 0.07347683880234492,
+        "t": 1.2781276350038375,
+        "walk_forward": {
+          "graded": 8,
+          "correct_sign": 6,
+          "p": 0.14453125,
+          "deltas": [
+            0.1295,
+            -0.1273,
+            0.1609,
+            0.1909,
+            0.0483,
+            0.1282,
+            -0.1936,
+            0.1333
+          ]
+        },
+        "passes": false
+      },
+      "per_symbol_week": {
+        "groups_total": 558,
+        "groups_judged": 351,
+        "mean_delta_r": 0.06122839628726811,
+        "t": 2.241249804681099,
+        "walk_forward": {
+          "graded": 8,
+          "correct_sign": 5,
+          "p": 0.36328125,
+          "deltas": [
+            -0.0013,
+            0.0609,
+            0.0305,
+            0.1198,
+            0.0832,
+            0.1516,
+            -0.002,
+            -0.0193
+          ]
+        },
+        "passes": false
+      }
+    },
+    "k_cheap": {
+      "per_symbol_day": {
+        "groups_total": 1397,
+        "groups_judged": 69,
+        "mean_delta_r": -0.02041751824709263,
+        "t": -0.32218023156826797,
+        "walk_forward": {
+          "graded": 8,
+          "correct_sign": 3,
+          "p": 0.85546875,
+          "deltas": [
+            -0.0356,
+            0.0365,
+            -0.0839,
+            -0.0394,
+            0.0403,
+            0.005,
+            -0.1157,
+            -0.1037
+          ]
+        },
+        "passes": false
+      },
+      "per_symbol_week": {
+        "groups_total": 558,
+        "groups_judged": 351,
+        "mean_delta_r": -0.024992222471276675,
+        "t": -0.936672809006267,
+        "walk_forward": {
+          "graded": 8,
+          "correct_sign": 2,
+          "p": 0.96484375,
+          "deltas": [
+            -0.0796,
+            -0.1712,
+            0.0299,
+            -0.0109,
+            -0.0831,
+            -0.0104,
+            -0.0027,
+            0.0773
+          ]
+        },
+        "passes": false
+      }
+    },
+    "k_departure": {
+      "per_symbol_day": {
+        "groups_total": 1397,
+        "groups_judged": 69,
+        "mean_delta_r": 0.004326924250717746,
+        "t": 0.08038585796464712,
+        "walk_forward": {
+          "graded": 8,
+          "correct_sign": 5,
+          "p": 0.36328125,
+          "deltas": [
+            0.1441,
+            0.0577,
+            0.1122,
+            -0.2133,
+            -0.1077,
+            -0.0866,
+            0.1223,
+            0.2423
+          ]
+        },
+        "passes": false
+      },
+      "per_symbol_week": {
+        "groups_total": 558,
+        "groups_judged": 351,
+        "mean_delta_r": 0.04687079524705803,
+        "t": 1.7978770429399844,
+        "walk_forward": {
+          "graded": 8,
+          "correct_sign": 6,
+          "p": 0.14453125,
+          "deltas": [
+            0.0214,
+            0.0518,
+            0.0243,
+            -0.0396,
+            0.083,
+            0.1043,
+            0.0835,
+            -0.022
+          ]
+        },
+        "passes": false
+      }
+    },
+    "k_random": {
+      "per_symbol_day": {
+        "groups_total": 1397,
+        "groups_judged": 69,
+        "mean_delta_r": 0.042858868310516315,
+        "t": 0.8759164065232512,
+        "walk_forward": {
+          "graded": 8,
+          "correct_sign": 5,
+          "p": 0.36328125,
+          "deltas": [
+            -0.0411,
+            0.0409,
+            0.087,
+            0.1639,
+            0.1935,
+            -0.1506,
+            -0.0274,
+            0.2069
+          ]
+        },
+        "passes": false
+      },
+      "per_symbol_week": {
+        "groups_total": 558,
+        "groups_judged": 351,
+        "mean_delta_r": 0.00918618983859768,
+        "t": 0.33408082442148335,
+        "walk_forward": {
+          "graded": 8,
+          "correct_sign": 3,
+          "p": 0.85546875,
+          "deltas": [
+            -0.0099,
+            0.0124,
+            -0.0403,
+            -0.0426,
+            0.1269,
+            -0.0424,
+            0.0298,
+            -0.0076
+          ]
+        },
+        "passes": false
+      }
+    }
+  },
+  "control_ok": true,
+  "passes_both": [],
+  "passes_one": [],
+  "verdict": "TIDAK ADA KUNCI YANG LULUS KEDUA UJI; lulus sebagian: []"
+}

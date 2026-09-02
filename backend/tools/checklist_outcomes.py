@@ -193,7 +193,7 @@ from app.cisd import cisds
 from app.clock import trades_when_shut
 from app.conditions import at_bar
 from app.confluence import mark_nesting
-from app.costs import schedule
+from app.costs import cost_to_risk, schedule
 from app.dealing_range import mark_dealing_range
 from app.detect import DETECTORS
 from app.ict import MEASURED_AGAINST, Rules, evaluate
@@ -211,6 +211,12 @@ from tools.calibrate import POPULATION
 from tools.conditioned import ALPHA, MIN_GROUP, _critical_t
 from tools.execute import POI_SLACK_BARS, STAGE_PAIRS
 from tools.intrabar import FINER, resolved
+
+#: Malam yang MUNGKIN dilewati, dipakai untuk membebani swap ke
+#: `cost_to_risk`. Angka dan rumusnya disalin dari `tools/execute.py:240`
+#: supaya cost_r di sini adalah angka gerbang biaya jalur order, bukan
+#: definisi kedua yang kebetulan mirip.
+COST_HORIZON = 96
 from tools.quant import BROKER, TCISD_PARTNER, clean
 
 #: Daftar tertutup, bagian 2. Delapan karena tiap instrumen di sini punya
@@ -424,12 +430,31 @@ def rows_for(symbol: str, interval: str, fine: str) -> list[dict]:
         checklist = evaluate(zone, state, stack, rules, at=now,
                              ssmt_side=ssmt_side, two_stage_confirmed=confirmed,
                              reward_r=plan.reward_r, always_open=always_open)
+        # KUNCI URUT KANDIDAT, semuanya terbaca di bar keputusan.
+        #
+        # Ditulis di sini dan bukan di harness kedua karena definisi populasi
+        # ada di fungsi INI. Sebuah rig yang membangun ulang populasinya sendiri
+        # untuk menguji kunci urut sedang menguji kunci urut DAN populasi
+        # sekaligus, dan kalau hasilnya berbeda tidak ada yang tahu yang mana
+        # penyebabnya. Prefix `k_` supaya tidak pernah bentrok dengan nama
+        # klausa checklist, yang ditulis ke dict yang sama di bawah.
+        cost_r, _ = cost_to_risk(
+            float(close[touch]), plan.risk_per_unit, spread or 0.0, fees,
+            (COST_HORIZON * step) / 86_400,
+        )
         record = {
             "symbol": symbol, "zone_id": row["zone_id"], "time": now,
             "r": float(row["r"]),
             "met": sum(1 for c in checklist if c.met is True),
             "unknown": sum(1 for c in checklist if c.met is None),
             "shipped_stage_pair_valid": stage_pair_valid,
+            "k_met": sum(1 for c in checklist if c.met is True),
+            "k_near_close": -abs(plan.entry - float(close[touch])),
+            "k_near_target": -abs(plan.entry - plan.target)
+            if plan.target is not None else None,
+            "k_reward_r": plan.reward_r,
+            "k_cheap": -cost_r,
+            "k_departure": zone.departure_atr,
         }
         for c in checklist:
             record[c.name] = c.met
