@@ -149,6 +149,67 @@ Kesimpulan: volume imbalance BUKAN zona di timeframe ini, ia artefak
 mikrostruktur. Sebuah stop di luar celah median 0,035 akan berada di dalam
 spread. Ditolak, dan ini penolakan terukur kelima di dokumen ini.
 
+### Bagian 3c: support dan resistance, sudah ada dan belum terukur (2 September 2026)
+
+Ditanya apakah Zonelab perlu support dan resistance. Ia sudah punya:
+`app/liquidity.equal_levels` mengelompokkan swing SESISI yang harganya dalam
+pita `tolerance_atr` dari anggota pertama, menuntut `min_touches`, dan menghitung
+sentuhannya. Itu S&R klasik, dengan nama ICT REQH dan REQL. Tiga hal yang membuat
+pertanyaannya tetap terbuka: defaultnya MATI (`LiquidityParams.equal_levels`
+false), ia muncul di empat dokumen `.md` dan NOL file `docs/*.json`, dan layer
+`liquidity` tidak pernah menyentuh `tools/execute.py`.
+
+`tools/shelf_conditioned.py` menanyakannya sebagai KONDISI di atas trade yang
+sudah terukur, jadi nol parameter baru: apakah zona yang band-nya memuat shelf
+resolve berbeda dari yang tidak.
+
+**Jawabannya tidak bisa diukur pada definisi ini, dan sebabnya geometri bukan
+outcome.** Pada `swing_n=10`, `min_touches=2`, dipatok di kelahiran zona:
+
+| detektor | zona diuji | di shelf | verdict |
+|---|---|---|---|
+| supply_demand | 3.496 | 1 | tidak terukur, n jauh di bawah 30 |
+| fvg | 3.931 | 0 | tidak terukur |
+
+Uraian per filter menunjukkan di mana populasinya hilang, XAUUSD 30m:
+
+| filter | supply_demand | fvg |
+|---|---|---|
+| zona seluruhnya | 7.063 | 9.557 |
+| shelf di dalam band | 4.951 | 3.544 |
+| plus sesisi | 3.413 | 2.153 |
+| plus knowable | 1.884 | 1.078 |
+| plus belum diambil | **14** | **0** |
+
+Containment justru umum, 37 sampai 70 persen. Yang memusnahkan populasinya
+syarat "belum diambil". Sebuah shelf equal-high atau equal-low adalah LIKUIDITAS
+dan harga mengambilnya; yang masih berdiri saat harga sampai ke zonanya adalah
+keadaan langka.
+
+> [!NOTE]
+> Definisi PERTAMA di studi itu mengevaluasi "belum diambil" di bar sentuhan,
+> dan itu nyaris tautologi: shelf-nya berada di DALAM band zona, jadi harga yang
+> menyentuh zona hampir selalu sudah menembus shelf-nya, dan untuk FVG yang
+> band-nya sempit persis nol dari 1.078. Diganti ke versi yang dipatok di
+> kelahiran zona, dan versi lamanya disimpan sebagai bacaan berlabel supaya
+> definisi yang terlihat masuk akal itu tidak diusulkan lagi.
+
+Satu angka yang hampir menipu dan layak dicatat: run dengan definisi pertama
+memberi Welch t = +2,92 di sisi shelf, MELEWATI ambang Bonferroni 2,24, dengan
+exp R +0,689 lawan -0,045. n-nya TUJUH trade. Lantai `MIN_GROUP` 30 dan syarat
+walk-forward yang menahannya jadi klaim, dan `tests/test_continuation_and_fvg.py`
+mengunci keduanya supaya tidak dilonggarkan sesudah melihat t sebesar itu.
+
+Yang TIDAK dilakukan: melonggarkan definisi sampai sesuatu muncul. Grid `swing_n`
+50, 20, 10, 5 dilaporkan penuh di output sebagai sensus JUMLAH SHELF, dan sensus
+itu tidak pernah menyentuh outcome, jadi memilih 10 darinya adalah perencanaan
+daya. Melanjutkan ke 5 setelah 10 gagal akan jadi hal yang berbeda.
+
+Status: S&R tetap MATI secara default, tidak terwire, dan sekarang punya catatan
+kenapa ia tidak bisa diuji sebagai kondisi zona. Yang belum dicoba dan butuh
+praregistrasinya sendiri: kedekatan (shelf dalam X ATR dari zona) alih-alih
+containment, yang menuntut satu parameter baru.
+
 > [!WARNING]
 > **Dua tempat sumber benar-benar tidak sepakat, jangan dikarang satu aturan.**
 > Pertama, urutan PD array: ada tiga urutan yang beredar dan satu sumber resmi

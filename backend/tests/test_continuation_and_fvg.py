@@ -201,3 +201,80 @@ def test_the_study_adds_nothing_to_the_app_registry():
 
     assert "volume_imbalance" not in DETECTORS
     assert "volume_imbalance" not in LAYER_IDS
+
+
+# ----------------------------------------------------- shelf_conditioned
+
+def test_a_seven_trade_group_is_not_a_finding():
+    """`MIN_GROUP` yang menahannya, dan ia BENAR-BENAR harus menahan.
+
+    Run pertama studi shelf memberi Welch t = +2,92 di sisi shelf, yang MELEWATI
+    ambang Bonferroni 2,24. Bacaan naif akan menyebutnya lolos. n-nya 7 trade.
+    Lantai n dan walk-forward yang mencegahnya jadi klaim, dan test ini yang
+    menjaga keduanya tidak dilonggarkan sesudah melihat t sebesar itu.
+    """
+    import tools.shelf_conditioned as sh
+
+    wf_ok = {"graded": sh.FOLDS, "positive": sh.FOLDS}
+    seven = {"welch_t": 2.92, "n_on": 7, "n_off": 3489, "difference": 0.73}
+    assert sh.judge(seven, wf_ok)[0] is False
+    assert sh.MIN_GROUP == 30
+    # Dan dengan n yang cukup, t yang sama HARUS lolos, atau yang menahannya
+    # bukan n melainkan sesuatu yang lain.
+    assert sh.judge({**seven, "n_on": 30}, wf_ok)[0] is True
+
+
+def test_the_shelf_test_is_two_sided():
+    """Bacaan klasik dan bacaan ICT memprediksi tanda berlawanan.
+
+    Support yang memantul lawan equal-low yang disapu. Kalau penghakimannya satu
+    arah, salah satu dari dua bacaan itu tidak bisa dinyatakan, dan yang
+    terjadi di CISD adalah tanda TERBALIK yang menang.
+    """
+    import tools.shelf_conditioned as sh
+
+    strong_neg = {"welch_t": -6.0, "n_on": 100, "n_off": 100, "difference": -0.2}
+    ok, kalimat = sh.judge(strong_neg, {"graded": sh.FOLDS, "positive": 0})
+    assert ok is True
+    assert "lebih BURUK" in kalimat, kalimat
+
+
+def test_the_setting_came_from_a_census_that_never_saw_an_outcome():
+    """`SWING_N` dipilih dari jumlah shelf, bukan dari hasil.
+
+    Itu perencanaan daya, bukan p-hacking, dan bedanya bisa diperiksa: `census`
+    hanya menghitung shelf dan tidak pernah menyentuh R. Kalau suatu saat ia
+    membaca outcome, pemilihannya berhenti sah dan test ini yang menangkapnya.
+    """
+    import inspect
+
+    import tools.shelf_conditioned as sh
+
+    src = inspect.getsource(sh.census)
+    for forbidden in ("cell_rows", '"r"', "resolved", "exp_r"):
+        assert forbidden not in src, f"census menyentuh outcome lewat {forbidden}"
+    assert sh.SWING_N == 10 and sh.MIN_TOUCHES == 2
+
+
+def test_both_shelf_arms_exist_and_the_degenerate_one_is_labelled():
+    """Versi bar-sentuhan disimpan sebagai BACAAN, bukan dihapus.
+
+    Ia gugur karena nyaris tautologi: shelf-nya di dalam band zona, jadi harga
+    yang menyentuh zona hampir selalu sudah menembus shelf-nya. Terurai pada
+    XAUUSD 30m fvg: 1.078 zona lolos syarat knowable dan NOL yang lolos "belum
+    diambil". Menyimpannya dengan label yang menyebut sebabnya lebih berguna
+    daripada menghapusnya, karena definisi itu terlihat masuk akal sampai
+    angkanya dilihat.
+    """
+    import inspect
+
+    import tools.shelf_conditioned as sh
+
+    assert hasattr(sh, "_on_shelf_at_birth") and hasattr(sh, "_on_shelf")
+    src = inspect.getsource(sh.rows_for)
+    assert '"on_shelf": _on_shelf_at_birth(' in src, src
+    assert "on_shelf_at_touch" in src
+    # Yang dinilai HARUS yang dipatok di kelahiran.
+    judged = inspect.getsource(sh.main)
+    assert 'summarise(pooled, "on_shelf")' in judged
+    assert 'reading_at_touch_degenerate' in judged

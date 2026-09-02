@@ -1,0 +1,281 @@
+{
+ "preregistration": {
+  "source": "tools/shelf_conditioned.py, 2026-09-02",
+  "question": "apakah zona yang proximal-nya duduk di shelf support/resistance resolve berbeda dari yang tidak",
+  "two_sided": "bacaan klasik memprediksi lebih baik, bacaan ICT memprediksi disapu; keduanya ditulis sebelum angkanya",
+  "condition": "shelf di dalam band, knowable, dan belum diambil, semuanya dievaluasi di KELAHIRAN zona",
+  "why_not_at_touch": "versi bar-sentuhan nyaris tautologi karena shelf-nya di dalam band: 1.078 ke NOL untuk fvg XAUUSD setelah satu syarat. Dilaporkan sebagai bacaan, tidak dinilai",
+  "settings": {
+   "swing_n": 10,
+   "min_touches": 2,
+   "chosen_from": "sensus JUMLAH shelf, tanpa outcome; terkasar yang memberi >100 per simbol"
+  },
+  "judged_groups": 2,
+  "t_threshold_bonferroni": 2.241402727604945,
+  "min_group": 30,
+  "folds": 8,
+  "min_sign_folds": 7,
+  "cells": [
+   "XAUUSD 30m",
+   "BTCUSD 30m"
+  ],
+  "secondary_not_judged": "pasangan lawan sisi, dilaporkan saja"
+ },
+ "census": {
+  "XAUUSD 30m": {
+   "swing_n=50": {
+    "shelves": 25,
+    "reqh": 14,
+    "reql": 11,
+    "untaken": 3
+   },
+   "swing_n=20": {
+    "shelves": 136,
+    "reqh": 65,
+    "reql": 71,
+    "untaken": 4
+   },
+   "swing_n=10": {
+    "shelves": 381,
+    "reqh": 177,
+    "reql": 204,
+    "untaken": 21
+   },
+   "swing_n=5": {
+    "shelves": 944,
+    "reqh": 476,
+    "reql": 468,
+    "untaken": 29
+   }
+  },
+  "BTCUSD 30m": {
+   "swing_n=50": {
+    "shelves": 66,
+    "reqh": 36,
+    "reql": 30,
+    "untaken": 5
+   },
+   "swing_n=20": {
+    "shelves": 265,
+    "reqh": 133,
+    "reql": 132,
+    "untaken": 9
+   },
+   "swing_n=10": {
+    "shelves": 711,
+    "reqh": 360,
+    "reql": 351,
+    "untaken": 16
+   },
+   "swing_n=5": {
+    "shelves": 1674,
+    "reqh": 858,
+    "reql": 816,
+    "untaken": 23
+   }
+  }
+ },
+ "cells": {
+  "supply_demand XAUUSD 30m": {
+   "shelves": 381,
+   "n_rows": 1793,
+   "n_on_shelf_at_birth": 1,
+   "n_on_shelf_opposite": 4,
+   "n_on_shelf_at_touch_degenerate": 2
+  },
+  "supply_demand BTCUSD 30m": {
+   "shelves": 711,
+   "n_rows": 1703,
+   "n_on_shelf_at_birth": 0,
+   "n_on_shelf_opposite": 4,
+   "n_on_shelf_at_touch_degenerate": 5
+  },
+  "fvg XAUUSD 30m": {
+   "shelves": 381,
+   "n_rows": 2001,
+   "n_on_shelf_at_birth": 0,
+   "n_on_shelf_opposite": 20,
+   "n_on_shelf_at_touch_degenerate": 0
+  },
+  "fvg BTCUSD 30m": {
+   "shelves": 711,
+   "n_rows": 1930,
+   "n_on_shelf_at_birth": 0,
+   "n_on_shelf_opposite": 25,
+   "n_on_shelf_at_touch_degenerate": 0
+  }
+ },
+ "detectors": {
+  "supply_demand": {
+   "n_on": 1,
+   "n_off": 3495,
+   "exp_r_on": 0.4530786343785063,
+   "exp_r_off": -0.043861429836116204,
+   "walk_forward": {
+    "folds": [
+     {
+      "fold": 1,
+      "n_on": 0,
+      "n_off": 430,
+      "purged": 1,
+      "readable": false
+     },
+     {
+      "fold": 2,
+      "n_on": 1,
+      "n_off": 436,
+      "purged": 1,
+      "readable": false
+     },
+     {
+      "fold": 3,
+      "n_on": 0,
+      "n_off": 384,
+      "purged": 0,
+      "readable": false
+     },
+     {
+      "fold": 4,
+      "n_on": 0,
+      "n_off": 454,
+      "purged": 0,
+      "readable": false
+     },
+     {
+      "fold": 5,
+      "n_on": 0,
+      "n_off": 429,
+      "purged": 0,
+      "readable": false
+     },
+     {
+      "fold": 6,
+      "n_on": 0,
+      "n_off": 452,
+      "purged": 2,
+      "readable": false
+     },
+     {
+      "fold": 7,
+      "n_on": 0,
+      "n_off": 467,
+      "purged": 1,
+      "readable": false
+     },
+     {
+      "fold": 8,
+      "n_on": 0,
+      "n_off": 436,
+      "purged": 2,
+      "readable": false
+     }
+    ],
+    "graded": 0,
+    "positive": 0
+   },
+   "separates": false,
+   "verdict": "TIDAK MEMISAHKAN",
+   "reading_opposite_side": {
+    "n_on": 8,
+    "n_off": 3488,
+    "exp_r_on": -0.024291081985394203,
+    "exp_r_off": -0.04376384460635449,
+    "difference": 0.019472762620960288,
+    "welch_t": 0.08082628875999398
+   },
+   "reading_at_touch_degenerate": {
+    "n_on": 7,
+    "n_off": 3489,
+    "exp_r_on": 0.6890992026897607,
+    "exp_r_off": -0.04518954229340096,
+    "difference": 0.7342887449831617,
+    "welch_t": 2.9208105631924637
+   }
+  },
+  "fvg": {
+   "n_on": 0,
+   "n_off": 3931,
+   "exp_r_on": null,
+   "exp_r_off": 0.21894411591324295,
+   "walk_forward": {
+    "folds": [
+     {
+      "fold": 1,
+      "n_on": 0,
+      "n_off": 491,
+      "purged": 0,
+      "readable": false
+     },
+     {
+      "fold": 2,
+      "n_on": 0,
+      "n_off": 529,
+      "purged": 0,
+      "readable": false
+     },
+     {
+      "fold": 3,
+      "n_on": 0,
+      "n_off": 413,
+      "purged": 0,
+      "readable": false
+     },
+     {
+      "fold": 4,
+      "n_on": 0,
+      "n_off": 492,
+      "purged": 1,
+      "readable": false
+     },
+     {
+      "fold": 5,
+      "n_on": 0,
+      "n_off": 461,
+      "purged": 1,
+      "readable": false
+     },
+     {
+      "fold": 6,
+      "n_on": 0,
+      "n_off": 498,
+      "purged": 1,
+      "readable": false
+     },
+     {
+      "fold": 7,
+      "n_on": 0,
+      "n_off": 522,
+      "purged": 0,
+      "readable": false
+     },
+     {
+      "fold": 8,
+      "n_on": 0,
+      "n_off": 520,
+      "purged": 2,
+      "readable": false
+     }
+    ],
+    "graded": 0,
+    "positive": 0
+   },
+   "separates": false,
+   "verdict": "TIDAK MEMISAHKAN",
+   "reading_opposite_side": {
+    "n_on": 45,
+    "n_off": 3886,
+    "exp_r_on": 0.060087528607685174,
+    "exp_r_off": 0.2207836800997458,
+    "difference": -0.16069615149206062,
+    "welch_t": -1.237011724892782
+   },
+   "reading_at_touch_degenerate": {
+    "n_on": 0,
+    "n_off": 3931,
+    "exp_r_on": null,
+    "exp_r_off": 0.21894411591324295
+   }
+  }
+ },
+ "separating": []
+}
