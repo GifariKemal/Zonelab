@@ -106,6 +106,50 @@ const TRACE_LABELS: Record<string, string> = {
  *
  *  Memoised: the crosshair sets hovered state on every mouse move over the
  *  chart, and none of these props change while that happens. */
+/** Nama panjang tiap family, untuk heading menu saja.
+ *
+ *  Kuncinya TETAP pendek di `app/layers.py`, dan itu keputusan bukan kelalaian:
+ *  `tests/test_mql5_contract.py` dan `tools/mqh_parity.py` menyaring layer
+ *  dengan `family == "ICT"`, jadi memanjangkan string di server akan
+ *  memutuskan sensus port sekaligus, dan sensus yang putus adalah kelas cacat
+ *  yang sudah dua kali membuat harness di repo ini merah tanpa ada yang tahu.
+ *  Yang dipanjangkan tampilannya, bukan datanya.
+ *
+ *  Family yang tidak ada di sini jatuh ke namanya sendiri, jadi family baru di
+ *  server muncul apa adanya alih-alih hilang.
+ */
+const FAMILY_LONG: Record<string, string> = {
+  ICT: "ICT (Inner Circle Trader)",
+  "Quarterly Theory": "Quarterly Theory (Daye)",
+};
+
+/** Layer yang MENGGAMBAR NOL sampai sebuah parameter diisi, plus apa yang kurang.
+ *
+ *  Ini cacat nyata yang dilaporkan pembaca: menyalakan Precision swing point
+ *  atau SSMT divergence pada setelan default menghasilkan chart yang tidak
+ *  berubah sama sekali, dan layer-nya terlihat rusak. Diukur 2 September 2026
+ *  di XAUUSD 1h 900 bar: `ssmt` 0 objek, `smt` 0, `psp` 0. Angka itu benar -
+ *  keduanya membaca divergensi LINTAS instrumen, jadi tanpa partner memang
+ *  tidak ada yang bisa dibaca. Yang salah adalah engine-nya diam soal itu.
+ */
+const NEEDS: Record<string, { unmet: (p: LayerParams) => boolean; say: string }> = {
+  ssmt: {
+    unmet: (p) =>
+      p.checklist.ssmt_symbols.length === 0 || p.checklist.ssmt_degrees.length === 0,
+    say:
+      "Butuh partner instrument dan degree. Tanpa keduanya layer ini menggambar " +
+      "nol, karena divergensi dibaca LINTAS instrumen. Pakai preset triad di " +
+      "bawah, atau pilih sendiri di Partner SSMT.",
+  },
+  psp: {
+    unmet: (p) =>
+      p.checklist.ssmt_symbols.length === 0 || p.checklist.ssmt_degrees.length === 0,
+    say:
+      "Membaca event SSMT, jadi ia butuh partner yang sama. Tanpa itu tidak ada " +
+      "swing point yang tergambar.",
+  },
+};
+
 export const Toolbox = memo(function Toolbox({
   config,
   layers,
@@ -1552,6 +1596,16 @@ export const Toolbox = memo(function Toolbox({
             direction claims and most have no measurement at all; a row reduced
             to a bare switch would present all of them as equally endorsed. */}
         <Hint k={`layer.${layer.id}`} summary="Bukti" evidence={layer.evidence} />
+        {/* PRASYARAT YANG BELUM TERPENUHI DIKATAKAN, BUKAN DIDIAMKAN. Sebuah
+            layer yang menyala dan menggambar nol tidak bisa dibedakan dari
+            layer yang rusak, dan pembaca yang melihatnya menyimpulkan yang
+            kedua. Hanya muncul saat layer-nya HIDUP: sebuah peringatan di
+            setiap baris mati adalah kebisingan. */}
+        {live && NEEDS[layer.id]?.unmet(params) ? (
+          <p className="mt-1 border-l-2 border-accent pl-2 text-[11px] leading-relaxed text-accent">
+            {NEEDS[layer.id].say}
+          </p>
+        ) : null}
         {own ? <div className="mt-3 space-y-3">{own}</div> : null}
       </div>
     );
@@ -1627,7 +1681,7 @@ export const Toolbox = memo(function Toolbox({
           separates ICT from SMC from Quarterly Theory rather than folding them
           together, so the menu does too. */}
       {families.map((family) => (
-        <Group key={family} title={family}>
+        <Group key={family} title={FAMILY_LONG[family] ?? family}>
           {menu.filter((layer) => layer.family === family).map(layerRow)}
         </Group>
       ))}

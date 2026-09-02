@@ -1,9 +1,22 @@
 "use client";
 
 import Link from "next/link";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  useSyncExternalStore,
+} from "react";
 
 import { Chart } from "@/components/chart";
+import {
+  railsServerSnapshot,
+  railsSnapshot,
+  setRails,
+  subscribeRails,
+} from "@/lib/rails";
 import { Toolbox } from "@/components/toolbox";
 import { ChecklistPanel } from "@/components/checklist-panel";
 import { LiquidityPanel } from "@/components/liquidity-panel";
@@ -367,6 +380,28 @@ export default function Page() {
 
   // ONE patch callback where there were nine. Hoisted out of the JSX because an
   // inline arrow is a new prop on every render, which is all it takes to defeat
+  // RAIL YANG BISA DISEMBUNYIKAN, dan keduanya terpisah. Chart adalah
+  // produknya; di layar 1366 px kedua rail memakan 476 px, lebih dari sepertiga
+  // lebarnya, dan pane yang tersisa 750 px adalah angka yang sudah diukur
+  // membuat wilayah bebas candle di kanan jadi NEGATIF (lihat
+  // `e2e/nonbox-truth.mjs`). Menyembunyikan satu rail mengembalikan lebar itu ke
+  // tempat harga dibaca.
+  //
+  // LEWAT STORE, bukan state plus effect. Versi pertama membaca localStorage di
+  // sebuah effect lalu setState, dan `npm run check` menolaknya:
+  // `react-hooks/set-state-in-effect`, cascading render. `lib/presets.ts` sudah
+  // menyelesaikan pertanyaan yang sama di repo ini, jadi pola itu dipakai ulang
+  // alih-alih ditemukan untuk kedua kalinya.
+  const rails = useSyncExternalStore(
+    subscribeRails,
+    railsSnapshot,
+    railsServerSnapshot,
+  );
+  const railLeft = rails.left;
+  const railRight = rails.right;
+  const setRailLeft = (on: boolean) => setRails({ ...rails, left: on });
+  const setRailRight = (on: boolean) => setRails({ ...rails, right: on });
+
   // the memo on Toolbox that the crosshair makes worth having.
   const patchParams = useCallback(
     <K extends keyof LayerParams>(key: K, patch: Partial<LayerParams[K]>) =>
@@ -595,6 +630,38 @@ export default function Page() {
           ))}
         </div>
 
+        {/* DUA TOMBOL, BUKAN SATU. Rail kiri adalah layer dan parameter, rail
+            kanan adalah checklist dan zone list, dan seorang pembaca yang
+            sedang menyetel parameter ingin membuang yang kanan sementara
+            seorang yang sedang membaca setup ingin membuang yang kiri. Satu
+            tombol untuk keduanya memaksa memilih di antara dua pekerjaan yang
+            tidak berhubungan. */}
+        <div className="flex items-center gap-1" role="group" aria-label="Panel">
+          {(
+            [
+              ["Panel kiri", railLeft, setRailLeft],
+              ["Panel kanan", railRight, setRailRight],
+            ] as const
+          ).map(([name, on, set]) => (
+            <button
+              key={name}
+              type="button"
+              role="switch"
+              aria-checked={on}
+              aria-label={name}
+              title={`${on ? "Sembunyikan" : "Tampilkan"} ${name.toLowerCase()}`}
+              onClick={() => set(!on)}
+              className={`num border px-2 py-1 text-[11px] uppercase tracking-wider transition-colors ${
+                on
+                  ? "border-line-strong text-fg"
+                  : "border-line text-fg-dim hover:text-fg"
+              }`}
+            >
+              {name === "Panel kiri" ? "[<]" : "[>]"}
+            </button>
+          ))}
+        </div>
+
         <div className="ml-auto flex items-center gap-4">
           {readout ? (
             <div className="num flex gap-3 text-[11px]">
@@ -743,6 +810,12 @@ export default function Page() {
           else. Narrower until `xl`, which puts the pane back over 470px there
           and leaves the roomy case untouched. */}
       <div className="flex min-h-0 flex-1 flex-col lg:flex-row">
+        {/* DI-UNMOUNT, BUKAN DI-`hidden`. Toolbox memegang state control dan
+            sebuah panel yang cuma disembunyikan lewat CSS tetap me-render tiap
+            kali params berubah. `hidden` juga meninggalkan switch-nya di
+            accessibility tree, jadi `getByRole("switch")` di harness akan
+            menemukan control yang tidak bisa dilihat siapa pun. */}
+        {railLeft ? (
         <aside className="order-2 h-[70dvh] shrink-0 border-t border-line bg-panel lg:order-1 lg:h-auto lg:w-[232px] lg:border-r lg:border-t-0 xl:w-[276px]">
           {/* Eight props where there were twenty-eight. The panel is driven by
               `config.layers` and one keyed params record, so a new layer needs
@@ -759,6 +832,7 @@ export default function Page() {
             symbol={symbol}
           />
         </aside>
+        ) : null}
 
         {/* The chart is the product. On a phone it gets most of the fold and
             the panels stack under it; on a desk it fills the middle column.
@@ -821,6 +895,7 @@ export default function Page() {
             in: the five questions decide whether to look for an entry at all,
             and the zones are where one would be. It only appears when asked
             for, so the rail is unchanged for anyone not using it. */}
+        {railRight ? (
         <aside className="order-3 flex h-[70dvh] shrink-0 flex-col border-t border-line bg-panel lg:h-auto lg:w-[244px] lg:border-l lg:border-t-0 xl:w-[300px]">
           {data?.checklist ? (
             <ChecklistPanel report={data.checklist} stats={data.meta.checklist} />
@@ -872,6 +947,7 @@ export default function Page() {
             decimals={decimals}
           />
         </aside>
+        ) : null}
       </div>
     </div>
   );

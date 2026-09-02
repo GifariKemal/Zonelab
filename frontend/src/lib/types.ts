@@ -1010,7 +1010,15 @@ export interface PoolParams {
 /** Both of ICT's own windows, in New York wall time. London opens at 02:00, which
  *  on the spring-forward day is an hour that does not exist - the backend maps it
  *  to 03:00 and that day's killzone is two real hours. */
-export const POOL_SESSIONS = ["asia", "london"] as const;
+// KEEMPATNYA, dan bukan dua. Sampai 2 September 2026 daftar ini memuat asia
+// dan london saja sementara `app/pools.py:SESSIONS` memuat empat, jadi ny_am
+// dan london_close ada di engine, punya jendela jam dinding New York sendiri,
+// dan TIDAK PERNAH bisa dipilih siapa pun. Deviation projections kehilangan New
+// York karena baris ini, bukan karena backend-nya tidak bisa menghitungnya.
+//
+// Diurutkan menurut jam bukanya, sama dengan urutan di `SDSessionDefs`, supaya
+// chip-nya terbaca seperti hari perdagangan berjalan.
+export const POOL_SESSIONS = ["asia", "london", "ny_am", "london_close"] as const;
 
 export const DISCOUNT_ANCHORS = [
   "parent_cycle",
@@ -1622,7 +1630,7 @@ export const DEFAULT_LAYER_PARAMS: LayerParams = {
     max_levels: 16,
   },
   projections: {
-    sessions: ["london"],
+    sessions: ["london", "ny_am"],
     direction: 0,
     levels: [0, -0.5, -1, -1.5, 2, 2.5],
   },
