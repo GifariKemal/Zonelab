@@ -1,12 +1,12 @@
 # Template prompt sesi trading
 
-Template yang dipakai untuk membuka sesi analisis pasar plus pending order di
+Template yang dipakai untuk membuka sesi analisis pasar plus order di
 Zonelab. Bagian pertama adalah prompt yang di-copy apa adanya. Bagian kedua
 adalah daftar jebakan yang sudah memakan waktu nyata, ditulis di sini supaya
 prompt-nya tidak perlu memuat semuanya dan sesi yang membacanya tetap tahu.
 
 > [!IMPORTANT]
-> Prompt ini meminta pending order di akun sungguhan. Bagian 4 di bawah memuat
+> Prompt ini meminta order di akun SUNGGUHAN. Bagian 5 di bawah memuat
 > empat hal yang harus diperiksa SEBELUM mengirim apa pun, dan keempatnya sudah
 > pernah salah setidaknya sekali.
 
@@ -14,9 +14,15 @@ prompt-nya tidak perlu memuat semuanya dan sesi yang membacanya tetap tahu.
 
 ```text
 Analisa dan cek kondisi market saat ini. Tarik semua fitur, function, news dan
-tools yang ada di Zonelab. Cek juga korelasi XAU. Tentukan pending order untuk
-XAU dan BTC. Kita entry di low timeframe, 30M ke bawah, Risk Reward 1:2.
-Berikan advisor: di price berapa, SL berapa, TP berapa.
+tools yang ada di Zonelab. Cek juga korelasi XAU. Tentukan order untuk XAU dan
+BTC. Kita entry di low timeframe, 30M ke bawah, Risk Reward 1:2. Berikan
+advisor: di price berapa, SL berapa, TP berapa.
+
+Jenis order ADAPTIF, tergantung hasil analisa: pending limit kalau harga masih
+jauh dari zona, dan boleh langsung market kalau harga sudah mendekat DAN
+gerbangnya lolos. Aturan pemilihannya di bagian 3 dokumen ini - jangan
+memutuskannya dengan perasaan, karena batas antara keduanya menentukan apakah
+trade-nya masih anggota populasi yang diukur.
 
 Aturan yang tidak boleh dilanggar:
 
@@ -52,7 +58,57 @@ flowchart TD
   H --> I[Kirim, lalu verifikasi independen]
 ```
 
-## 3. Command yang menghasilkan angkanya
+## 3. Pending limit lawan market, dan kenapa batasnya bukan selera
+
+Pending limit BUKAN default karena kehati-hatian. Ia default karena populasi
+yang seluruh angka di project ini dihitung padanya adalah SENTUHAN PERTAMA, dan
+sebuah limit yang duduk di garis proksimal terisi tepat pada sentuhan pertama
+itu. Order pending adalah cara menangkap event yang diukur, bukan versi
+konservatif dari market order.
+
+`tools/execute.py` baris 343 membuang setiap zona yang `first_test_time`-nya
+terisi, dan docstring-nya menyatakan alasannya apa adanya: "the measured
+population is a FIRST touch, so a zone price has already visited is not a member
+of it and its number does not apply."
+
+Jadi ketiga keadaannya berbeda, dan hanya dua di antaranya diukur:
+
+| Keadaan harga | Jenis order | Status populasi |
+|---|---|---|
+| Belum menyentuh zona | **pending limit di proksimal** | anggota populasi yang diukur |
+| Sedang menyentuh SEKARANG, belum ada bar tutup di dalam | **market boleh**, event-nya sama dengan pengisian limit | anggota, selama bar-nya belum tutup di dalam |
+| Sudah ada bar TUTUP di dalam zona | market adalah trade lain | `first_test_time` terisi, BUKAN anggota |
+
+`state` box menyatakan yang mana: `fresh` berarti belum ada sentuhan, `tested`
+berarti harga masuk tapi tidak melewati ambang mitigasi, `mitigated` berarti
+sudah dimakan melewatinya. `state` dihitung dari bar yang SUDAH TUTUP, jadi
+sebuah box yang harganya baru masuk di bar yang masih terbentuk tetap `fresh`
+sampai bar itu tutup.
+
+### Kalau memilih market, tiga angka berubah
+
+1. **Entry** jadi harga sekarang, bukan garis proksimal.
+2. **Risiko per unit** jadi jarak harga-sekarang ke stop, yang untuk zona demand
+   LEBIH KECIL daripada dari proksimal, karena harga sudah di dalam. R-nya
+   membaik dan itu bukan keuntungan gratis: zonanya sudah sebagian terpakai.
+3. **Target 1:2 ikut bergerak**, karena ia `entry +/- 2 x risiko` dan kedua
+   sukunya berubah. Hitung ulang, jangan pakai target yang dihitung untuk entry
+   proksimal.
+
+### Yang harus dilaporkan saat memilih market
+
+- `state` box-nya pada saat order, dan apakah ada bar tutup di dalamnya
+- entry market, risiko per unit, dan target 1:2 yang DIHITUNG ULANG
+- satu kalimat yang menyatakan trade ini masih anggota populasi terukur atau
+  bukan, dan kalau bukan, bahwa angka-angka kalibrasi tidak berlaku untuknya
+
+> [!WARNING]
+> Jangan pakai `tools/execute.py --send` untuk market entry pada zona yang sudah
+> tersentuh: jalur itu akan membuang zonanya di baris 343 dan tidak mengirim apa
+> pun. Yang keluar bukan penolakan yang menjelaskan, melainkan zona yang hilang
+> dari daftar kandidat tanpa suara.
+
+## 4. Command yang menghasilkan angkanya
 
 | Yang dicari | Command |
 |---|---|
@@ -83,9 +139,9 @@ nol dan terlihat seperti layer rusak:
 keduanya benar-benar tidak punya apa pun untuk digambar. Diukur 2 September
 2026 di XAUUSD 1h 900 bar: ssmt 0 objek, smt 0, psp 0.
 
-## 4. Empat pemeriksaan pra-kirim, dan kenapa masing-masing ada
+## 5. Empat pemeriksaan pra-kirim, dan kenapa masing-masing ada
 
-### 4.1 Saklar auto-trade bisa menyala di atas daemon yang mati
+### 5.1 Saklar auto-trade bisa menyala di atas daemon yang mati
 
 ```bash
 cat backend/.autotrade.json
@@ -97,7 +153,7 @@ Periksa `daemon_pid` benar-benar ada di daftar proses. Pada 2 September 2026
 dua arah: `tools/mt5_backtest.py:guard_daemon` memblokir setiap tool pengukuran,
 dan tidak ada yang menjaga akun.
 
-### 4.2 Lot minimum bisa melanggar anggaran risiko
+### 5.2 Lot minimum bisa melanggar anggaran risiko
 
 XAUUSD `trade_contract_size` 100, jadi lot minimum 0,01 pada stop selebar 13
 poin sudah berisiko 13 USD. Di akun 1000 USD itu 1,3% dalam satu trade, dan
@@ -108,7 +164,7 @@ dipasang. Engine melaporkannya dengan benar - "dinaikkan ke lot minimum justru
 melanggar batas risikonya sendiri" - dan yang salah adalah menganggap nol
 kandidat berarti nol setup.
 
-### 4.3 Journal mengunci zona atas ticket yang sudah dibatalkan
+### 5.3 Journal mengunci zona atas ticket yang sudah dibatalkan
 
 Journal append-only dan pemeriksaannya "sudah pernah diorder". Ia TIDAK
 membedakan placed-dan-hidup dari placed-dan-dibatalkan. Pada 2 September 2026
@@ -116,7 +172,7 @@ empat zona BTC terkunci atas ticket 4626368007-010, keempatnya `state=2`
 (canceled) sejak 30 Agustus. Periksa `history_orders_get(ticket=...)` sebelum
 menyimpulkan sebuah zona memang sudah dipegang.
 
-### 4.4 Cap portofolio berlaku PER PASS, dan urutannya alfabetis
+### 5.4 Cap portofolio berlaku PER PASS, dan urutannya alfabetis
 
 `tools/execute.py:by_method_ranked` mengurutkan `(symbol, zone.id)`, jadi
 "BTCUSD" selalu mendahului "XAUUSD". Di run basket dengan 6 slot, keenamnya
@@ -131,7 +187,7 @@ Dan sizing ke anggaran risiko memakan cap jauh lebih cepat daripada lot
 minimum: dua order BTC yang di lot minimum berisiko 4,25 dan 4,90 USD memakan
 59,21 dari cap 60,01 begitu di-size ke 3%.
 
-## 5. Yang harus muncul di jawabannya
+## 6. Yang harus muncul di jawabannya
 
 - [ ] Jam UTC dan New York, plus kuarter di keempat degree dan sisa menitnya
 - [ ] Killzone yang aktif dan kapan yang berikutnya mulai
@@ -141,12 +197,14 @@ minimum: dua order BTC yang di lot minimum berisiko 4,25 dan 4,90 USD memakan
 - [ ] Level terdekat, dan mana yang MASIH BERDIRI lawan sudah ditembus
 - [ ] Event news di DEPAN dengan jarak menitnya, plus catatan kalau feed gagal
 - [ ] Tabel order: entry, SL, TP 1:2, risiko dalam USD dan persen equity
+- [ ] Jenis order per baris (pending limit atau market) plus `state` box-nya,
+      dan untuk market: target 1:2 yang sudah dihitung ulang
 - [ ] Kriteria yang MENYELEKSI tiap order, dipisah dari layer yang cuma dibaca
 - [ ] Empat pemeriksaan pra-kirim, masing-masing dengan hasilnya
 - [ ] Verifikasi independen order book setelah kirim
 - [ ] Satu kalimat tentang apa yang angka-angka itu TIDAK katakan
 
-## 6. Dua hal yang bergantung timeframe, dan sering disalahbaca
+## 7. Dua hal yang bergantung timeframe, dan sering disalahbaca
 
 **`manipulation_done` bergantung lebar fraktal.** Ia memanggil
 `structure.breaks(candles, n, n)` dengan `n=2`, sementara layer `structure` di
@@ -164,7 +222,7 @@ dan cycle yang sama. Itu bukan bug, itu knob, dan docstring-nya menyatakan
 jadi ia tidak punya interval tanpa perdagangan dan tidak punya opening gap. Nol
 di situ adalah gambar yang BENAR, bukan layer yang gagal.
 
-## 7. Batas yang harus disebut, bukan disembunyikan
+## 8. Batas yang harus disebut, bukan disembunyikan
 
 Yang terukur positif di seluruh survei cuma tiga: `fvg` (+10 sampai +25 poin
 lawan placebo, walk-forward 8/8), `order_block` (rig sama, hasil sama), dan box
