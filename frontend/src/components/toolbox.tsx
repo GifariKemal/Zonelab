@@ -123,27 +123,49 @@ const FAMILY_LONG: Record<string, string> = {
   "Quarterly Theory": "Quarterly Theory (Daye)",
 };
 
-/** Layer yang alasan-kosongnya datang dari SERVER, dipetakan ke kunci meta-nya.
+/** Alasan-kosong tiap layer, DIBACA DARI SERVER, bukan diturunkan ulang di sini.
  *
  *  Versi pertama fitur ini menuliskan ulang KONDISINYA di TypeScript -
  *  `ssmt_symbols.length === 0 || ssmt_degrees.length === 0` - lalu menyusun
- *  sendiri kalimatnya. Itu salinan kedua dari satu aturan, dan `app/main.py:619`
- *  sudah memegang aslinya beserta kalimatnya:
+ *  sendiri kalimatnya, sementara `app/main.py:619` sudah memegang keduanya:
  *
  *      if not (params.ssmt_symbols and params.ssmt_degrees):
  *          stats["reason"] = "pick at least one instrument and one degree"
  *
- *  `meta.ssmt.reason` bahkan SUDAH bertipe di `lib/types.ts` sejak sebelum
- *  perubahan ini. Jadi informasinya selalu ada dan tidak ada yang
- *  merendernya - dan salinan TypeScript-nya akan melayang begitu gate server
- *  disetel, tanpa satu test pun bisa melihatnya. Yang dipetakan di sini
- *  ROUTING-nya, bukan aturannya.
+ *  `meta.ssmt.reason` bahkan SUDAH bertipe di `lib/types.ts` sejak sebelum itu,
+ *  jadi informasinya selalu ada dan tidak ada yang merendernya. Salinan
+ *  TypeScript-nya akan melayang begitu gate server disetel, tanpa satu test pun
+ *  bisa melihatnya.
  *
- *  `psp` menunjuk ke kunci `ssmt` dengan sengaja: ia membaca event SSMT, jadi
- *  gate yang sama mengosongkannya, dan itu terbukti dari API - meminta `psp`
- *  sendirian tetap mengembalikan `meta.ssmt.reason`.
+ *  EMPAT LAYER, BUKAN DUA, dan hitungan itu diukur: menggambar tiap layer
+ *  sendirian dengan setelan default, `session`, `dfr`, `ssmt` dan `psp` kembali
+ *  kosong dan dua belas lainnya tidak (`e2e/wiring.mjs`). Diukur lagi
+ *  2 September 2026 lewat diff piksel di `e2e/ink-budget.mjs`: layer `session`
+ *  menambahkan NOL piksel di atas wilayah candle. Sampai hari itu hanya `ssmt`
+ *  yang mengatakan kenapa.
+ *
+ *  SEBUAH FUNGSI PER LAYER, bukan peta kunci, karena ketiga alasan itu tinggal
+ *  di tempat yang berbeda: `meta.ssmt` punya blok sendiri, `session` punya blok
+ *  sendiri, dan `dfr` menyatu ke `meta.overlays` yang dipakai BERSAMA setiap
+ *  overlay - jadi kuncinya di sana harus bernama `dfr_reason`, karena `reason`
+ *  telanjang akan ditimpa overlay berikutnya yang menulisnya.
  */
-const REASON_KEY: Record<string, "ssmt"> = { ssmt: "ssmt", psp: "ssmt" };
+const REASON: Record<string, (m: DrawResponse["meta"] | undefined) => string | null> = {
+  ssmt: (m) => m?.ssmt?.reason ?? null,
+  psp: (m) => m?.ssmt?.reason ?? null,
+  session: (m) => m?.session?.reason ?? null,
+  dfr: (m) => (m?.overlays?.dfr_reason as string | undefined) ?? null,
+};
+
+/** Kalimat tambahan setelah alasan server, per layer, hanya di mana ia membawa
+ *  informasi yang server-nya tidak punya. Kosong berarti alasan server sudah
+ *  cukup sendiri. */
+const REASON_HINT: Record<string, string> = {
+  ssmt:
+    "Divergensi dibaca LINTAS instrumen, jadi tanpa partner tidak ada yang " +
+    "bisa dibaca. Pakai preset triad di grup SSMT, atau pilih sendiri.",
+  psp: "Ia membaca event SSMT, jadi partner yang sama yang dibutuhkan.",
+};
 
 export const Toolbox = memo(function Toolbox({
   config,
@@ -1596,11 +1618,10 @@ export const Toolbox = memo(function Toolbox({
             layer yang rusak, dan pembaca yang melihatnya menyimpulkan yang
             kedua. Hanya muncul saat layer-nya HIDUP: sebuah peringatan di
             setiap baris mati adalah kebisingan. */}
-        {live && REASON_KEY[layer.id] && meta?.[REASON_KEY[layer.id]]?.reason ? (
+        {live && REASON[layer.id]?.(meta) ? (
           <p className="mt-1 border-l-2 border-accent pl-2 text-[11px] leading-relaxed text-accent">
-            Menggambar nol: {meta[REASON_KEY[layer.id]]?.reason}. Divergensi
-            dibaca LINTAS instrumen, jadi tanpa partner tidak ada yang bisa
-            dibaca. Pakai preset triad di grup SSMT, atau pilih sendiri.
+            Menggambar nol: {REASON[layer.id](meta)}.
+            {REASON_HINT[layer.id] ? ` ${REASON_HINT[layer.id]}` : ""}
           </p>
         ) : null}
         {own ? <div className="mt-3 space-y-3">{own}</div> : null}

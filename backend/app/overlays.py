@@ -269,6 +269,24 @@ def bar_overlays(
                 )
         bands.sort(key=lambda b: (b.time_to, b.degree))
         stats["dfr_found"] = len(bands)
+        # ALASAN, BUKAN CUMA HITUNGAN NOL. `ssmt` sudah menulis `reason` di
+        # `main.py:619` dan rail-nya merendernya; empat layer di engine ini
+        # menggambar nol dengan setelan default - `session`, `dfr`, `ssmt`, `psp`
+        # - dan sampai 2 September 2026 hanya satu di antaranya mengatakan
+        # kenapa. Sebuah layer yang menyala dan tidak mengubah apa pun di kanvas
+        # tidak bisa dibedakan dari layer yang rusak, dan pembaca yang
+        # melihatnya menyimpulkan yang kedua.
+        #
+        # Kalimatnya tinggal DI SINI dan bukan di TypeScript, karena kondisinya
+        # tinggal di sini. Dua salinan satu aturan adalah bagaimana yang satu
+        # melayang tanpa satu test pun bisa melihatnya.
+        # DIBERI NAMA, karena stats  menyatu ke  yang
+        # dipakai BERSAMA oleh setiap overlay. Sebuah kunci `reason` telanjang
+        # di situ akan ditimpa overlay berikutnya yang menulisnya, dan yang
+        # terbaca di rail jadi alasan milik layer lain.
+        if not request.dfr.degrees:
+            stats["dfr_reason"] = "pilih minimal satu degree"
+
         keep = request.dfr.max_ranges
         drawing.dfr = bands[-keep:] if keep > 0 else bands
         stats["dfr"] = len(drawing.dfr)
@@ -840,6 +858,17 @@ def session_grid(
 
     found.sort(key=lambda q: q.time_from)
     stats["quarters_found"] = len(found)
+    # Sama seperti `dfr` di atas. `session` punya DUA daftar yang bisa kosong
+    # sendiri-sendiri, dan keduanya disebut namanya: seorang pembaca yang
+    # memilih grid tapi bukan true open sedang melihat separuh layer dan berhak
+    # tahu separuh mana.
+    if not params.quarters and not params.true_opens:
+        stats["reason"] = "pilih minimal satu degree untuk grid atau true open"
+    elif not params.quarters:
+        stats["reason"] = "tidak ada degree untuk grid kuarter, hanya true open"
+    elif not params.true_opens:
+        stats["reason"] = "tidak ada degree untuk true open, hanya grid kuarter"
+
     if params.max_quarters and len(found) > params.max_quarters:
         found = found[-params.max_quarters:]
     drawing.quarters = found

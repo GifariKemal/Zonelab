@@ -26,6 +26,7 @@ tanggal itu. Klaim yang tidak punya angka ditulis sebagai belum diukur.
 - [10. Apa yang masih belum diukur](#10-apa-yang-masih-belum-diukur)
 - [11. Objek yang bergerak setelah lahir](#11-objek-yang-bergerak-setelah-lahir)
 - [12. Kunci urut yang memilih dua order](#12-kunci-urut-yang-memilih-dua-order)
+- [13. Border box inverted terbaca separuh](#13-border-box-inverted-terbaca-separuh)
 
 ## 1. Ringkasan vonis
 
@@ -677,10 +678,8 @@ Yang runtuh, dinyatakan langsung:
 - **`ifvg` dan `breaker` belum terbukti tergambar di tempat yang benar**, bukan
   karena terbukti salah melainkan karena border-nya tidak terbaca di kepadatan
   yang mereka hasilkan sendiri. Itu pertanyaan terbuka, bukan lulus.
-- **`breaker` masih merah di pixel-truth**, dan sebabnya ambiguitas probe yang
-  sudah diukur, bukan gambar yang meleset. Menyelesaikannya butuh probe yang
-  bisa memilih di antara dua garis tercat tanpa memakai ekspektasi sebagai
-  petunjuk, dan itu belum dirancang.
+- **`breaker` masih merah di pixel-truth**, dan pada 2 September 2026
+  pertanyaannya jadi jauh lebih sempit. Lihat bagian 13.
 - **Empat periode tidak cukup untuk menyatakan sebuah sel LOLOS**, hanya untuk
   menyatakannya gagal. Menjawab pertanyaan sebaliknya butuh lebih banyak
   periode, dan history BTC 1h di terminal ini hanya sampai Februari 2022.
@@ -875,3 +874,70 @@ kehilangan bar terbarunya tanpa satu error pun.
 **Rata-rata populasinya nol.** `exp_r_all` = +0,0010 R. Urutan tidak bisa
 menyelamatkan populasi yang datar, paling jauh ia berhenti memperburuknya, dan
 -0,0977 R per grup itu besar justru karena rata-ratanya nol.
+
+## 13. Border box inverted terbaca separuh
+
+`e2e/pixel-truth.mjs` menyatakan sebuah edge LEGIBLE kalau coverage barisnya
+lebih dari 0,6, dan `breaker` gagal di situ dengan bottom 2 dari 5. Catatan
+lamanya menyebut kandidat sebabnya "pembelahan setengah piksel yang menahan
+coverage per-baris di 0,58 lawan ambang 0,60", dinyatakan sebagai kandidat dan
+bukan pengukuran. Sekarang ada pengukurannya, dan kandidat itu jatuh.
+
+### Angkanya, dan selisihnya bukan 0,02
+
+| Kind | Inverted | n edge | Median | Min | Maks | Di bawah 0,6 |
+|---|---|---|---|---|---|---|
+| `fvg` | tidak | 24 | **1,0000** | 0,9542 | 1,0000 | 0 dari 24 |
+| `ifvg` | ya | 16 | **0,5797** | 0,5417 | 0,7406 | 9 dari 16 |
+
+Box non-inverted terbaca coverage penuh. Box inverted terbaca separuh. Jarak
+antar keduanya 0,42, dua puluh kali lipat dari margin 0,02 yang catatan lama
+sebutkan, jadi ini bukan kasus yang menyerempet ambang.
+
+Dan `breaker` menunjukkan pola yang sama dengan satu tambahan: sisi yang
+coverage-nya rendah selalu sisi PROXIMAL, top di zona demand dan bottom di zona
+supply.
+
+| Sisi | Top coverage | Bottom coverage |
+|---|---|---|
+| demand | 0,578 - 0,617 | 0,620 - 0,723 |
+| supply | 0,620 - 0,698 | 0,578 - 0,698 |
+
+### Empat sebab dicoba, empat gugur
+
+Masing-masing dibunuh oleh eksperimen langsung, bukan oleh argumen:
+
+| Kandidat | Cara dibunuh |
+|---|---|
+| Caption menimpa border | Caption digambar di TENGAH box (`box.top + h / 2`), bukan di edge |
+| `crowded` memotong alpha border jadi separuh | Diukur: **0 dari 40** zona di keempat kind punya `crowded_at` |
+| Stroke dalam 3,5px milik box inverted membagi tinta | Dibuang lewat suntikan, lalu diukur ulang: median **0,5797**, min **0,5417**, identik empat desimal dengan sebelumnya |
+| Kanvas lebih lebar dari pane, jadi kolom kosong ikut dihitung | Diukur: pane 750 px, kanvas terbesar 750 px, sama |
+
+Yang TERAMATI langsung: baris border box inverted membawa pola nyala-mati
+periodik, dibaca kolom demi kolom (`1011101110111011...`). Jadi barisnya memang
+tidak penuh. Yang belum ketemu apa yang mematikan kolom-kolom itu.
+
+### Satu klaim komentar yang jatuh
+
+`zone-primitive.ts:163` menjelaskan kenapa `--dash-ifvg` dan `--dash-brk` ([4 3])
+sengaja tidak dipakai, dan alasannya berdiri: [4 3] sudah dipakai border untuk
+menyatakan "box ini masih bisa bergerak", dan satu pola tidak bisa berarti dua
+hal di satu box. Itu keputusan yang terdokumentasi, bukan token yang mati.
+
+Kalimat berikutnya di komentar yang sama TIDAK berdiri: "the harness reads the
+solid border underneath it exactly as before". Harness-nya tidak membaca border
+solid di bawah untuk `ifvg`. Ia membaca 0,5797.
+
+### Konsekuensi untuk gate-nya
+
+Ambang 0,6 tidak bisa dicapai border putus-putus mana pun: dash [4 3] punya duty
+4/7 = 0,5714 secara aritmetika. Jadi selama penyebab di atas belum ketemu, gate
+ini tidak bisa hijau untuk kind inverted APA PUN alasannya, dan menurunkan
+ambangnya akan melemahkan gate untuk kind non-inverted yang sekarang lulus di
+1,0000 dengan margin lebar.
+
+DIBIARKAN MERAH, dan itu keputusan. Gate yang diturunkan supaya hijau adalah
+gate yang berhenti mengukur. Yang berubah hari ini bukan warnanya, melainkan
+bahwa pertanyaannya sekarang sempit dan empat jawaban yang salah sudah tidak
+perlu dicoba lagi.

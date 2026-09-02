@@ -1405,8 +1405,16 @@ export interface DrawResponse {
       /** Per degree: Q2 boundaries in this window that had no bar to open on. */
       true_opens_missing?: Record<string, number>;
       unknown_degrees?: string[];
+      /** Kenapa layer ini menggambar nol, saat sebabnya pilihan yang belum
+       *  dibuat dan bukan kegagalan. Bentuk yang sama dengan `ssmt.reason`.
+       *  Dibaca `toolbox.tsx:REASON`; kondisinya tinggal di server. */
+      reason?: string;
     };
     overlays?: {
+      /** Kenapa layer `dfr` menggambar nol. DIBERI NAMA, karena `overlays`
+       *  dipakai BERSAMA setiap overlay dan sebuah kunci `reason` telanjang di
+       *  sini akan ditimpa overlay berikutnya yang menulisnya. */
+      dfr_reason?: string;
       /** Before the display cap. `gaps` is what was drawn. */
       gaps_found?: number;
       /** Bars the gap layer actually read, which is NOT the chart's bar count:

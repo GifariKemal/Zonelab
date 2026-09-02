@@ -57,6 +57,24 @@ await page.evaluate(() => {
 await page.goto(UI, { waitUntil: "networkidle" });
 await page.waitForTimeout(6000);
 
+// CHART DITUNGGU, TIDAK DIASUMSIKAN. Tanpa ini `paneWidth()` melempar
+// `Cannot read properties of undefined (reading 'chart')` dan run-nya mati
+// dengan stack trace alih-alih pesan - yang terjadi 2 September 2026 ketika dua
+// harness Playwright berjalan bersamaan lawan satu dev server dan mount-nya
+// terlambat. Contention adalah kondisi yang harus DILAPORKAN, bukan crash.
+await page
+  .waitForFunction(() => Boolean(window.__zonelabChart?.chart), null, {
+    timeout: 60000,
+  })
+  .catch(async () => {
+    console.error(
+      "chart tidak pernah mount di 60 detik. Dev server sibuk, atau ada " +
+        "harness Playwright lain yang jalan bersamaan lawan port 3100.",
+    );
+    await browser.close();
+    process.exit(2);
+  });
+
 const paneWidth = () =>
   page.evaluate(() => window.__zonelabChart.chart.paneSize().width);
 
@@ -150,46 +168,76 @@ check(
 );
 
 // ----------------------------------------- 6. PERINGATAN PRASYARAT
-// `psp` menggambar nol tanpa partner SSMT, diukur 0 objek di XAUUSD 1h 900 bar.
-// Layer yang menyala tanpa mengubah apa pun di kanvas tidak bisa dibedakan dari
-// layer yang rusak, jadi barisnya harus mengatakan apa yang kurang.
-const pspSwitch = page.getByRole("switch", {
-  name: "Precision swing point",
-  exact: true,
-});
-await pspSwitch.click();
-await page.waitForTimeout(4000);
-// KATA-KATA SERVER, BUKAN KATA-KATA SAYA. `app/main.py:619` yang memegang
-// gate-nya DAN kalimatnya, dan rail-nya cuma me-routing. Mencari prosa yang
-// dieja di harness ini akan merah setiap kali copy UI-nya disunting, dan hijau
-// kalau seseorang menyalin ulang kondisinya ke TypeScript - dua-duanya jawaban
-// yang salah. Yang ditanyakan: apakah alasan yang API kirim benar-benar sampai
-// ke mata pembaca.
-const reason = await page.evaluate(async (api) => {
-  const r = await fetch(`${api}/api/draw`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      symbol: "XAUUSD",
-      interval: "1h",
-      bars: 600,
-      layers: ["psp"],
-    }),
-  });
-  return (await r.json()).meta?.ssmt?.reason ?? null;
-}, API);
-const warned =
-  Boolean(reason) &&
-  (await page.evaluate((want) => document.body.innerText.includes(want), reason));
+// EMPAT LAYER, BUKAN DUA, dan hitungannya diukur: menggambar tiap layer
+// sendirian dengan setelan default, `session`, `dfr`, `ssmt` dan `psp` kembali
+// kosong dan dua belas lainnya tidak. `e2e/ink-budget.mjs` mengukurnya lagi
+// lewat diff piksel dan `session` menambahkan NOL piksel di atas wilayah
+// candle. Sampai 2 September 2026 hanya `ssmt` yang mengatakan kenapa.
+//
+// KATA-KATA SERVER, BUKAN KATA-KATA SAYA. Kondisinya DAN kalimatnya tinggal di
+// `app/main.py` dan `app/overlays.py`; rail-nya cuma me-routing. Mencari prosa
+// yang dieja di harness ini akan merah setiap kali copy UI-nya disunting, dan
+// hijau kalau seseorang menyalin ulang kondisinya ke TypeScript - dua-duanya
+// jawaban yang salah.
+const NEEDY = [
+  ["ssmt", "SSMT divergence", (m) => m?.ssmt?.reason],
+  ["psp", "Precision swing point", (m) => m?.ssmt?.reason],
+  ["session", "Cycle grid", (m) => m?.session?.reason],
+  ["dfr", "Defining range", (m) => m?.overlays?.dfr_reason],
+];
+
+const warnings = [];
+for (const [id, label] of NEEDY) {
+  const reason = await page.evaluate(
+    async ([api, layer]) => {
+      const r = await fetch(`${api}/api/draw`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          symbol: "XAUUSD",
+          interval: "1h",
+          bars: 600,
+          layers: [layer],
+        }),
+      });
+      const m = (await r.json()).meta ?? {};
+      // Ketiga alasan tinggal di tempat yang berbeda: `ssmt` dan `session`
+      // punya blok sendiri, `dfr` menyatu ke `overlays` yang dipakai bersama.
+      return (
+        m.ssmt?.reason ?? m.session?.reason ?? m.overlays?.dfr_reason ?? null
+      );
+    },
+    [API, id],
+  );
+
+  const sw = page.getByRole("switch", { name: label, exact: true });
+  if ((await sw.count()) === 0) {
+    warnings.push({ id, reason, shown: false, note: "switch tidak ketemu" });
+    continue;
+  }
+  await sw.click();
+  await page.waitForTimeout(4000);
+  const shown =
+    Boolean(reason) &&
+    (await page.evaluate(
+      (want) => document.body.innerText.includes(want),
+      reason,
+    ));
+  warnings.push({ id, reason, shown });
+  await sw.click();
+  await page.waitForTimeout(1500);
+}
+
+const silent = warnings.filter((w) => !w.shown);
 check(
-  "layer yang menggambar nol menyebut prasyaratnya",
-  warned,
-  reason
-    ? `alasan server "${reason}" ${warned ? "tampil di rail" : "TIDAK sampai ke rail"}`
-    : "API tidak mengirim reason, jadi tidak ada yang bisa dirender",
+  "keempat layer yang menggambar nol menyebut prasyaratnya",
+  silent.length === 0,
+  silent.length
+    ? silent
+        .map((w) => `${w.id}: ${w.reason ? "alasan tidak sampai ke rail" : "API tidak kirim alasan"}`)
+        .join("; ")
+    : warnings.map((w) => w.id).join(", ") + " semuanya bersuara",
 );
-await pspSwitch.click();
-await page.waitForTimeout(2000);
 
 // -------------------------------------------- 7. PROJECTIONS DUA SESI
 // Klaimnya bukan "projections ada", melainkan bahwa DUA sesi tergambar
@@ -233,7 +281,7 @@ writeFileSync(
       ict_heading: ictHeading ?? null,
       server_families: serverFamilies,
       projection_labels: stacks,
-      prerequisite_warned: warned,
+      prerequisites: warnings,
     },
     null,
     2,
