@@ -27,6 +27,7 @@ tanggal itu. Klaim yang tidak punya angka ditulis sebagai belum diukur.
 - [11. Objek yang bergerak setelah lahir](#11-objek-yang-bergerak-setelah-lahir)
 - [12. Kunci urut yang memilih dua order](#12-kunci-urut-yang-memilih-dua-order)
 - [13. Border box inverted terbaca separuh](#13-border-box-inverted-terbaca-separuh)
+- [14. Backtester Python untuk yang tidak bisa di MT5](#14-backtester-python-untuk-yang-tidak-bisa-di-mt5)
 
 ## 1. Ringkasan vonis
 
@@ -941,3 +942,93 @@ DIBIARKAN MERAH, dan itu keputusan. Gate yang diturunkan supaya hijau adalah
 gate yang berhenti mengukur. Yang berubah hari ini bukan warnanya, melainkan
 bahwa pertanyaannya sekarang sempit dan empat jawaban yang salah sudah tidak
 perlu dicoba lagi.
+
+## 14. Backtester Python untuk yang tidak bisa di MT5
+
+Diminta pemiliknya: "yang gagal, null tidak terukur, ataupun gk bisa di MT-5
+kamu bisa bikin backtester sendiri via python". `ssmt` dan `psp` adalah dua
+layer ICT tanpa port MQL5.
+
+> [!IMPORTANT]
+> **Keduanya bukan "belum terukur".** `ssmt` null di 0 dari 24 sel dengan tanda
+> terbagi 12 lawan 12 (`docs/ssmt_outcomes.json`); `psp` null di 48 dari 48 sel
+> dengan |z| terbesar 2,104 lawan bar Bonferroni 3,279
+> (`docs/psp_outcomes.json`). Keduanya diukur sebagai BACAAN. Yang belum
+> ditanyakan: kalau aturan entry, stop dan target dipasang di atasnya dan biaya
+> broker dibebankan, berapa R yang keluar. Bacaan null yang tetap tradable dan
+> bacaan null yang tidak tradable adalah dua fakta, bukan satu.
+
+Praregistrasi `tools/event_backtest.py`, hasil `docs/event_backtest.json`.
+Entry di open bar 1 jam berikutnya, stop 1,0 ATR, target 2R, resolusi bar 5
+menit, horizon 96 bar, biaya `exness_raw` dikurangkan dari R. Stop dan target
+kena di satu bar halus: stop menang, asumsi pesimis yang dinyatakan. Kontrol
+jitter waktu per-event, arah dan instrumen sama, entry digeser 5 sampai 40 bar
+dengan seed deterministik.
+
+### Hasil, 6.600 trade, tiga instrumen
+
+| Arm | n | Exp R real | Exp R kontrol | Delta R | t | Walk-forward |
+|---|---|---|---|---|---|---|
+| `ssmt` | 1597 | -0,1318 | -0,1076 | -0,0242 | -0,51 | 4/8 |
+| `psp_after_ssmt` | 728 | -0,1233 | -0,1070 | -0,0163 | -0,23 | 4/8 |
+| `psp_alone` | 4275 | -0,0725 | -0,0755 | +0,0030 | +0,10 | 4/8 |
+
+Critical t ber-Bonferroni 2,394 atas tiga arm. **Nol lulus.** Ketiga arm
+ekspektasinya NEGATIF setelah biaya, dan dua dari tiga kalah dari kontrol
+jitter-nya sendiri - artinya bukan cuma tidak menghasilkan, ia juga tidak
+mengalahkan arah-plus-volatilitas di periode yang sama.
+
+**Premis pairing gagal lagi, dan kali ini ke arah yang salah.** `psp_alone`
+mencetak -0,0725 R sementara `psp_after_ssmt` mencetak -0,1233 R: PSP yang
+didahului SSMT lebih BURUK daripada PSP sendirian. `docs/psp_outcomes.json`
+menemukan `triad_crack_rate` identik untuk keduanya; di sini keduanya tidak
+identik, yang di depan justru merugikan.
+
+`ETHUSD` DILEWATI dan itu tercatat di output. Ia muncul di `TCISD_PARTNER`
+hanya sebagai partner BTCUSD, satu arah, dan menambahkan kebalikannya berarti
+MEMILIH partner - yang praregistrasi bagian 2 larang. Populasi tiga instrumen
+dengan alasan tertulis lebih baik daripada empat instrumen yang satu
+partnernya dipilih oleh orang yang sedang membaca hasilnya.
+
+### Rig-nya dibuktikan bisa hijau
+
+| Arm | n | Delta R | t | Walk-forward | Lulus |
+|---|---|---|---|---|---|
+| `oracle_lookahead` | 1081 | **+0,5693** | **+9,08** | **8/8** | ya |
+
+Arah dibaca dari close 12 bar ke depan. Ia harus lulus, dan ia lulus.
+
+### Dua cacat di rig ini sendiri, dan cara keduanya ketemu
+
+**Arm `psp` sendirian tidak pernah ada.** `app/psp.py:WINDOW` adalah 3 dan
+`PAIR_WINDOW` versi pertama juga 3, jadi setiap PSP yang `after_ssmt` temukan
+lolos syarat "dalam 3 bar" SECARA KONSTRUKSI. Kedua arm mengukur populasi yang
+identik: n 728 keduanya, ekspektasi -0,123291 keduanya, hitungan per simbol sama
+persis. Premis pairing tidak diuji sama sekali. Dua kolom angka yang identik
+satu-satunya alasan itu ketahuan.
+
+**Dan yang lebih berbahaya: oracle run melaporkan `ssmt` LULUS di atas trade
+palsu.** Run pertama `--bars 6000` memberi n=7709 untuk `ssmt` sementara run
+20.000 bar memberi n=1597. Bar lebih sedikit menghasilkan event lima kali lebih
+banyak adalah angka yang tidak mungkin, dan itu yang membuatnya terlihat.
+
+Sebabnya: `_aligned` selalu meminta 99.999 bar sementara `coarse` dipotong ke
+`--bars`, jadi setiap event yang MENDAHULUI bar pertama membuat `bisect_left`
+mengembalikan 0 dan trade-nya dibuka di bar 1. Ribuan event berbeda jadi satu
+trade yang sama dengan kunci berbeda, dan `ssmt` "lulus" dengan t = +14,06 di
+atas tumpukan itu.
+
+Yang menangkapnya gate yang ditulis untuk tujuan lain: tanpa oracle check angka
+`ssmt` yang salah tidak akan pernah terlihat, karena run penuh kebetulan kurang
+terpengaruh dan tetap melaporkan tidak lulus. Sebuah gate yang ada untuk
+membuktikan rig bisa hijau justru yang membuktikan rig bocor.
+
+### Yang tidak dijawab
+
+- Tidak ada model book. Ia mengasumsikan setiap trade diambil, asumsi yang
+  `docs/order_key.json` catat berlaku di setiap rig pengukuran di repo ini.
+- Tidak ada slippage per tick; biayanya satu angka per instrumen dari tabel
+  `exness_raw`.
+- Satu degree saja (day). SSMT di degree lain adalah populasi lain.
+- Status `psp` TIDAK berubah: `tests/test_psp_not_wired_to_decisions.py` tetap
+  melarangnya menyentuh jalur order, apa pun angka di atas.

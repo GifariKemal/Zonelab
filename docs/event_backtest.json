@@ -1,0 +1,130 @@
+{
+  "preregistered": "tools/event_backtest.py, 2026-09-02",
+  "asked_by": "pemiliknya: backtester Python untuk yang tidak bisa di MT5",
+  "already_measured_null": {
+    "ssmt": "0 dari 24 sel, tanda 12 lawan 12 (docs/ssmt_outcomes.json)",
+    "psp": "48 dari 48 sel null, |z| maks 2,104 lawan bar 3,279 (docs/psp_outcomes.json)"
+  },
+  "rules": {
+    "stop_atr": 1.0,
+    "rr": 2.0,
+    "horizon_bars": 96,
+    "interval": "1h",
+    "fine": "5m",
+    "degree": "day",
+    "broker": "exness_raw",
+    "both_hit_in_one_fine_bar": "stop menang, asumsi pesimis"
+  },
+  "control": {
+    "shape": "per-event jitter di sumbu waktu, arah sama",
+    "shift_bars": [
+      5,
+      40
+    ]
+  },
+  "population": {
+    "n_trades": 6600,
+    "symbols": [
+      "BTCUSD",
+      "EURUSD",
+      "XAUUSD"
+    ],
+    "skipped": [
+      "ETHUSD"
+    ]
+  },
+  "arms_judged": 3,
+  "alpha_corrected": 0.016666666666666666,
+  "critical_t": 2.3939797998185104,
+  "cells": {
+    "psp_after_ssmt": {
+      "n": 728,
+      "exp_r_real": -0.1232910994589755,
+      "exp_r_control": -0.10697450095846102,
+      "delta_r": -0.016316598500514482,
+      "t": -0.22642557122780224,
+      "walk_forward": {
+        "graded": 8,
+        "positive": 4,
+        "p": 0.63671875,
+        "deltas": [
+          0.1953,
+          -0.0546,
+          -0.034,
+          0.2674,
+          -0.2347,
+          0.0608,
+          0.1266,
+          -0.4575
+        ]
+      },
+      "judged": true,
+      "passes": false,
+      "by_symbol": {
+        "BTCUSD": 209,
+        "EURUSD": 247,
+        "XAUUSD": 272
+      }
+    },
+    "psp_alone": {
+      "n": 4275,
+      "exp_r_real": -0.07249261030372194,
+      "exp_r_control": -0.07549511588622415,
+      "delta_r": 0.0030025055825022066,
+      "t": 0.10129884167965389,
+      "walk_forward": {
+        "graded": 8,
+        "positive": 4,
+        "p": 0.63671875,
+        "deltas": [
+          0.1162,
+          0.0579,
+          0.0626,
+          0.0131,
+          -0.0183,
+          -0.1368,
+          -0.0627,
+          -0.008
+        ]
+      },
+      "judged": true,
+      "passes": false,
+      "by_symbol": {
+        "BTCUSD": 1501,
+        "EURUSD": 1379,
+        "XAUUSD": 1395
+      }
+    },
+    "ssmt": {
+      "n": 1597,
+      "exp_r_real": -0.13180789605099616,
+      "exp_r_control": -0.10764572040896601,
+      "delta_r": -0.02416217564203013,
+      "t": -0.5058688310443966,
+      "walk_forward": {
+        "graded": 8,
+        "positive": 4,
+        "p": 0.63671875,
+        "deltas": [
+          0.0471,
+          -0.0281,
+          -0.2246,
+          -0.0748,
+          0.0457,
+          0.053,
+          -0.0332,
+          0.0212
+        ]
+      },
+      "judged": true,
+      "passes": false,
+      "by_symbol": {
+        "BTCUSD": 440,
+        "EURUSD": 568,
+        "XAUUSD": 589
+      }
+    }
+  },
+  "passes": [],
+  "verdict": "TIDAK ADA ARM YANG LULUS"
+}
