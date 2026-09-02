@@ -291,6 +291,25 @@ Dinyatakan eksplisit karena hasil negatif juga hasil.
    digambar di bawahnya, tetapi garis masih lewat di belakangnya. Menghilangkannya
    (`layout.attributionLogo: false` plus kredit yang terlihat di tempat lain)
    adalah keputusan lisensi milik pemilik, bukan keputusan rendering.
+8. **Caption zona tidak punya batas bawah saat menghindari tabrakan.**
+   `zone-primitive.ts` men-clamp `x` sebuah plate ke `[0, limit]` empat baris
+   sebelum menempatkan `y`, dan `y` tidak di-clamp sama sekali. Loop penghindar
+   tabrakan di bawahnya hanya mendorong plate KE ATAS, sampai empat kali tinggi
+   plate, jadi caption pada zona yang tinggi di pane bisa berakhir di `y`
+   negatif dan tergambar terpotong tepi atas.
+
+   **Ditemukan lewat membaca, bukan lewat run yang jatuh, dan karena itu belum
+   diperbaiki.** Tambalannya sempat ditulis pada 1 September 2026 lalu
+   dikembalikan: tidak ada satu pun run `e2e/labels.mjs` yang menuduh caption
+   zona, semua straddle yang tertangkap hari itu berasal dari label
+   `projections` di `levels-primitive.ts`, dan mengirim perbaikan tanpa kasus
+   yang menjatuhkannya adalah mengirim klaim. Yang dibutuhkan lebih dulu adalah
+   satu grid bar yang menempatkan zona cukup tinggi untuk memicunya; sapuan
+   delapan jam terpatok pada tanggal yang sama tidak menemukannya.
+
+   Kalau nanti ditemukan, tambalannya adalah dua baris yang mencerminkan clamp
+   `x` yang sudah ada, plus `free(plate)` ditanya ULANG sesudahnya, karena
+   memindahkan plate agar muat di pane bisa memindahkannya ke atas tetangganya.
 
 ## Reduksi 20 Agustus 2026: apa yang dihapus, dan tiga yang ditolak
 
