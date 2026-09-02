@@ -123,32 +123,27 @@ const FAMILY_LONG: Record<string, string> = {
   "Quarterly Theory": "Quarterly Theory (Daye)",
 };
 
-/** Layer yang MENGGAMBAR NOL sampai sebuah parameter diisi, plus apa yang kurang.
+/** Layer yang alasan-kosongnya datang dari SERVER, dipetakan ke kunci meta-nya.
  *
- *  Ini cacat nyata yang dilaporkan pembaca: menyalakan Precision swing point
- *  atau SSMT divergence pada setelan default menghasilkan chart yang tidak
- *  berubah sama sekali, dan layer-nya terlihat rusak. Diukur 2 September 2026
- *  di XAUUSD 1h 900 bar: `ssmt` 0 objek, `smt` 0, `psp` 0. Angka itu benar -
- *  keduanya membaca divergensi LINTAS instrumen, jadi tanpa partner memang
- *  tidak ada yang bisa dibaca. Yang salah adalah engine-nya diam soal itu.
+ *  Versi pertama fitur ini menuliskan ulang KONDISINYA di TypeScript -
+ *  `ssmt_symbols.length === 0 || ssmt_degrees.length === 0` - lalu menyusun
+ *  sendiri kalimatnya. Itu salinan kedua dari satu aturan, dan `app/main.py:619`
+ *  sudah memegang aslinya beserta kalimatnya:
+ *
+ *      if not (params.ssmt_symbols and params.ssmt_degrees):
+ *          stats["reason"] = "pick at least one instrument and one degree"
+ *
+ *  `meta.ssmt.reason` bahkan SUDAH bertipe di `lib/types.ts` sejak sebelum
+ *  perubahan ini. Jadi informasinya selalu ada dan tidak ada yang
+ *  merendernya - dan salinan TypeScript-nya akan melayang begitu gate server
+ *  disetel, tanpa satu test pun bisa melihatnya. Yang dipetakan di sini
+ *  ROUTING-nya, bukan aturannya.
+ *
+ *  `psp` menunjuk ke kunci `ssmt` dengan sengaja: ia membaca event SSMT, jadi
+ *  gate yang sama mengosongkannya, dan itu terbukti dari API - meminta `psp`
+ *  sendirian tetap mengembalikan `meta.ssmt.reason`.
  */
-const NEEDS: Record<string, { unmet: (p: LayerParams) => boolean; say: string }> = {
-  ssmt: {
-    unmet: (p) =>
-      p.checklist.ssmt_symbols.length === 0 || p.checklist.ssmt_degrees.length === 0,
-    say:
-      "Butuh partner instrument dan degree. Tanpa keduanya layer ini menggambar " +
-      "nol, karena divergensi dibaca LINTAS instrumen. Pakai preset triad di " +
-      "bawah, atau pilih sendiri di Partner SSMT.",
-  },
-  psp: {
-    unmet: (p) =>
-      p.checklist.ssmt_symbols.length === 0 || p.checklist.ssmt_degrees.length === 0,
-    say:
-      "Membaca event SSMT, jadi ia butuh partner yang sama. Tanpa itu tidak ada " +
-      "swing point yang tergambar.",
-  },
-};
+const REASON_KEY: Record<string, "ssmt"> = { ssmt: "ssmt", psp: "ssmt" };
 
 export const Toolbox = memo(function Toolbox({
   config,
@@ -1601,9 +1596,11 @@ export const Toolbox = memo(function Toolbox({
             layer yang rusak, dan pembaca yang melihatnya menyimpulkan yang
             kedua. Hanya muncul saat layer-nya HIDUP: sebuah peringatan di
             setiap baris mati adalah kebisingan. */}
-        {live && NEEDS[layer.id]?.unmet(params) ? (
+        {live && REASON_KEY[layer.id] && meta?.[REASON_KEY[layer.id]]?.reason ? (
           <p className="mt-1 border-l-2 border-accent pl-2 text-[11px] leading-relaxed text-accent">
-            {NEEDS[layer.id].say}
+            Menggambar nol: {meta[REASON_KEY[layer.id]]?.reason}. Divergensi
+            dibaca LINTAS instrumen, jadi tanpa partner tidak ada yang bisa
+            dibaca. Pakai preset triad di grup SSMT, atau pilih sendiri.
           </p>
         ) : null}
         {own ? <div className="mt-3 space-y-3">{own}</div> : null}
