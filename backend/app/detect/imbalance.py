@@ -174,6 +174,7 @@ from ..models import (
     ZoneState,
 )
 from .structure import breaks
+from ..profit_zone import mark_profit_zones
 from .supply_demand import cap_per_side, replay_lifecycle
 
 
@@ -349,7 +350,7 @@ def detect_fvg(
         if zone is not None:
             found.append(zone)
 
-    return _present(found, params, stats)
+    return _present(found, params, stats, int(candles[-1].time) if candles else 0)
 
 
 def detect_order_block(
@@ -517,13 +518,41 @@ def detect_order_block(
         if zone is not None:
             found.append(zone)
 
-    return _present(found, params, stats)
+    return _present(found, params, stats, int(candles[-1].time) if candles else 0)
 
 
 def _present(
-    found: list[Zone], params: ImbalanceParams, stats: dict[str, float]
+    found: list[Zone], params: ImbalanceParams, stats: dict[str, float],
+    now: int = 0,
 ) -> tuple[list[Zone], dict[str, float]]:
-    """State filter and the per-side cap, with zero meaning no cap.
+    """State filter, the two cross-zone passes, and the per-side cap.
+
+    `now` ADALAH KENAPA FUNGSI INI PUNYA PARAMETER KETIGA, dan ia ditambahkan
+    2 September 2026 untuk menutup cacat yang menutup jalur order bagi SETIAP
+    detektor ICT. `plan.build` mengambil target dari `zone.profit_zone_rr`;
+    field itu diisi `mark_profit_zones`, dan sampai hari itu fungsi tersebut
+    dipanggil HANYA di `supply_demand.py:673` dan di jalur refinement
+    `drawing.py:401`. Tidak satu pun menyentuh modul ini.
+    ORDER PATH BUKAN CUMA LEBIH SULIT UNTUK ICT, IA TERTUTUP. `tools/execute.py`
+    mensyaratkan target yang terbaca, jadi zona ICT yang lolos gerbang departure
+    DAN masih fresh tetap tidak pernah jadi kandidat. Diukur di empat kombinasi
+    simbol-timeframe pada 2 September 2026: 7, 10, 4 dan 8 zona ICT lolos
+    gerbang dan fresh, dan NOL dari semuanya punya target, sementara setiap zona
+    supply_demand yang lolos gerbang dan fresh punya.
+    Yang paling mahal dari itu: `fvg` dan `order_block` adalah dua detektor
+    dengan bukti TERKUAT di repo ini - +10 sampai +25 poin lawan placebo dengan
+    walk-forward 8 dari 8 di dua geometri - dan keduanya tepat yang tidak bisa
+    diorder. Klaim `supply_demand` lebih lemah: ia mengalahkan TIDAK ADA box,
+    bukan placebo di jarak yang disamakan.
+    DINDINGNYA SE-DETEKTOR, sama seperti supply_demand. `mark_profit_zones`
+    mencari zona lawan terdekat di dalam DAFTAR YANG DIBERIKAN, dan daftar di
+    sini hanya zona modul ini. Jadi dinding sebuah FVG adalah FVG lawan
+    terdekat, bukan order block terdekat. Itu batasan yang sama yang sudah
+    dipegang supply_demand sejak awal, dan menyatukan daftarnya adalah
+    perubahan doktrin yang butuh pengukurannya sendiri.
+    `now` default 0 supaya pemanggil lama tidak pecah, dan 0 berarti kedua pass
+    dilewati - bukan berarti dijalankan dengan waktu nol, yang akan menyatakan
+    setiap zona belum lahir.
 
     Deliberately the same shape as the supply/demand detector's tail, including
     that zero disables the cap. A measurement taken through a recency cap is a
@@ -559,6 +588,20 @@ def _present(
         allowed.add(ZoneState.BROKEN)
     visible = [z for z in found if z.state in allowed]
     stats["rejected_state_filter"] = len(found) - len(visible)
+
+    # SETELAH filter state, SEBELUM cap, urutan yang sama dengan
+    # `supply_demand.py`. Sebuah dinding yang chart-nya tidak punya ruang untuk
+    # menggambar tetap dinding, dan mengukur jalan terhadap subset yang tergambar
+    # membuatnya terlihat lebih panjang tepat sebesar apa yang cap buang.
+    # HANYA `mark_profit_zones`, BUKAN `mark_crowding`. Yang kedua butuh
+    # `min_profit_zone_rr`, dan `ImbalanceParams` tidak punya field itu -
+    # menambahkannya berarti menambah knob yang belum pernah diukur untuk
+    # menyelesaikan masalah yang berbeda. `crowded_at` karena itu tetap None di
+    # zona ICT, sama seperti sebelum perubahan ini, dan itu tidak mengubah apa
+    # pun yang teramati: diukur 2 September 2026 di empat kind, NOL dari 40 zona
+    # punya `crowded_at` terisi.
+    if visible and now > 0:
+        mark_profit_zones(visible, now)
 
     result = cap_per_side(visible, params.max_zones_per_side)
     stats["zones"] = len(result)

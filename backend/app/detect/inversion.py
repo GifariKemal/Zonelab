@@ -89,7 +89,7 @@ def _invert(
         params.model_copy(update={"show_broken": True, "max_zones_per_side": 0}),
     )
     if not parents:
-        return _present([], params, stats)
+        return _present([], params, stats, int(candles[-1].time) if candles else 0)
 
     time, _open, high, low, close = _arrays(candles)
     atr = wilder_atr(high, low, close, params.atr_period)
@@ -158,7 +158,7 @@ def _invert(
             "time_from": int(time[broke]),
         }))
 
-    return _present(found, params, stats)
+    return _present(found, params, stats, int(candles[-1].time) if candles else 0)
 
 
 def detect_ifvg(
