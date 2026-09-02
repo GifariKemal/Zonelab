@@ -269,8 +269,14 @@ def main():
                     print(f"    {prob}")
 
     print(f"checked {n_checked} zona, {mismatches} mismatch")
-    print("PARITY OK" if mismatches == 0 and len(zones_np) == len(zones_ref)
-          else "PARITY FAIL")
+    # Exit code, not just a word. Until 2026-09-01 this printed PARITY FAIL and
+    # exited 0, so every wrapper that read the status saw green on a red run -
+    # the same false-green shape docs/QA-PRODUKSI.md records three times.
+    # Proven not empty: removing the "last" test from the reference port turns
+    # 415 checked blocks into 414 mismatches and this into exit 1.
+    ok = mismatches == 0 and len(zones_np) == len(zones_ref)
+    print("PARITY OK" if ok else "PARITY FAIL")
+    raise SystemExit(0 if ok else 1)
 
 
 if __name__ == "__main__":
