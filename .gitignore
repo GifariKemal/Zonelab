@@ -82,7 +82,14 @@ frontend/test-results/
 # `docs/*.json`, yang memang di-commit karena satu satunya salinan angka yang
 # sebuah dokumen mengutipnya. Di-anchor ke root: tanpa slash awal ia juga
 # match ke backend/tools/brief, yaitu paket yang MENGHASILKANNYA.
+#
+# DAN SETIAP `--out` LAIN, karena aturan satu direktori tidak menutup apa pun.
+# `brief-btc/` dan `brief-xau/` dibuat lewat `--out` dengan nama berbeda,
+# lolos dari `/brief/`, dan ter-track. Sekali di-regenerate keduanya
+# menghasilkan diff 1.141.704 baris, yaitu persis pengotoran yang aturan di
+# atas ada untuk mencegahnya.
 /brief/
+/brief-*/
 
 # Error logs, the .err sibling of *.log
 *.err
