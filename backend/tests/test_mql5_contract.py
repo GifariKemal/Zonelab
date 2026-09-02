@@ -111,15 +111,31 @@ def test_every_registered_detector_is_ported_or_written_down_as_not():
     measured and passed" must not look the same from the outside.
     """
     from app.layers import LAYERS
-    from tools.mqh_parity import PORTED, PORTED_EVENTS, UNPORTED
+    from tools import mqh_parity
 
-    accounted = set(PORTED) | set(PORTED_EVENTS) | set(UNPORTED)
+    # Daftar bentuk DITEMUKAN, bukan dieja. Versi sebelumnya mengimpor keempat
+    # dict itu satu per satu, yang berarti bentuk keenam bisa mendarat di
+    # `mqh_parity` dan setiap layer di dalamnya kembali terhitung tidak
+    # tercatat - atau lebih buruk, seorang penulis menambahkan dict-nya ke
+    # impor DAN ke kalimat assert-nya lalu lupa yang ketiga. Itu persis pola
+    # sensus-yang-harus-disunting-tangan yang sudah dua kali membuat harness di
+    # repo ini merah tanpa ada yang tahu: `e2e/wiring.mjs` selama dua commit,
+    # dan sensus slider `e2e/sweep.mjs` selama 24.
+    lists = {
+        name: set(getattr(mqh_parity, name))
+        for name in dir(mqh_parity)
+        if name == "UNPORTED" or name.startswith("PORTED")
+    }
+    assert "UNPORTED" in lists and "PORTED" in lists, (
+        f"nama dict di mqh_parity berubah, sensus ini jadi hampa: {sorted(lists)}"
+    )
+    accounted = set().union(*lists.values())
     ict = {layer.id for layer in LAYERS if layer.family == "ICT"}
 
     unaccounted = sorted(ict - accounted)
     assert not unaccounted, (
-        "layer ICT yang tidak ada di PORTED, PORTED_EVENTS maupun UNPORTED, "
-        "jadi presisinya tidak diukur dan tidak ada yang mencatatnya: "
+        f"layer ICT yang tidak ada di satu pun dari {sorted(lists)}, jadi "
+        "presisinya tidak diukur dan tidak ada yang mencatatnya: "
         f"{unaccounted}"
     )
     known = {layer.id for layer in LAYERS}
@@ -129,10 +145,10 @@ def test_every_registered_detector_is_ported_or_written_down_as_not():
     # Sebuah nama tidak boleh muncul di dua daftar: "diport" dan "sengaja tidak
     # diport" adalah pernyataan yang saling meniadakan, dan sebuah nama di
     # keduanya berarti salah satunya sudah basi tanpa ada yang tahu yang mana.
-    pairs = (
-        ("PORTED", "PORTED_EVENTS", set(PORTED) & set(PORTED_EVENTS)),
-        ("PORTED", "UNPORTED", set(PORTED) & set(UNPORTED)),
-        ("PORTED_EVENTS", "UNPORTED", set(PORTED_EVENTS) & set(UNPORTED)),
+    names = sorted(lists)
+    pairs = tuple(
+        (a, b, lists[a] & lists[b])
+        for i, a in enumerate(names) for b in names[i + 1:]
     )
     for left, right, overlap in pairs:
         assert not overlap, f"ada di {left} DAN {right}: {sorted(overlap)}"
@@ -140,5 +156,7 @@ def test_every_registered_detector_is_ported_or_written_down_as_not():
     # Setiap alasan harus benar-benar sebuah alasan. Sebuah string kosong lolos
     # dict tapi tidak memberi tahu pembaca apa pun, yang mengembalikan keadaan
     # yang test ini ada untuk mencegah.
-    thin = sorted(n for n, why in UNPORTED.items() if len(why.strip()) < 40)
+    thin = sorted(
+        n for n, why in mqh_parity.UNPORTED.items() if len(why.strip()) < 40
+    )
     assert not thin, f"terdaftar tidak diport tanpa alasan yang bisa dibaca: {thin}"

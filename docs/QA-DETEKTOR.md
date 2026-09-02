@@ -24,6 +24,7 @@ tanggal itu. Klaim yang tidak punya angka ditulis sebagai belum diukur.
 - [8. ATR stop: bar terakhir lawan zona](#8-atr-stop-bar-terakhir-lawan-zona)
 - [9. Walk-forward, empat periode](#9-walk-forward-empat-periode)
 - [10. Apa yang masih belum diukur](#10-apa-yang-masih-belum-diukur)
+- [11. Objek yang bergerak setelah lahir](#11-objek-yang-bergerak-setelah-lahir)
 
 ## 1. Ringkasan vonis
 
@@ -689,4 +690,71 @@ Yang runtuh, dinyatakan langsung:
   dibacanya ada di tier "near". Jalur menggambar tier "far" tidak tercakup.
 - `--dash-sd` dan `--dash-ob` sama-sama `0`, jadi box S&D dan box OB di harga
   yang sama hanya dibedakan caption, yang hilang di bawah tinggi 15 px.
-- IFVG dan breaker **tidak punya port MQL5 sama sekali**.
+- `ssmt` dan `psp` tetap tidak diport, dan alasannya terukur, bukan
+  kekurangan waktu. Keduanya tercatat di `UNPORTED` dengan angkanya.
+
+## 11. Objek yang bergerak setelah lahir
+
+Sepuluh objek pertama yang diport punya satu sifat bersama yang tidak pernah
+ada yang menuliskannya: semuanya **beku saat lahir**. Sebuah zona punya top dan
+bottom yang tetap begitu bar pembentuknya ada. Sebuah level pool adalah high
+sesi, dan sesi yang sudah tutup tidak berubah high-nya. Karena itu setiap
+harness di repo ini menanyakan satu pertanyaan yang sama, dan pertanyaan itu
+memang cukup: apakah nilainya sama.
+
+Event horizon tidak beku. Ia rata-rata antara `lower.top` dan `upper.bottom`
+dari dua gap yang bertetangga **menurut harga**, jadi gap baru yang menyisip di
+antara dua gap lama memindahkan level yang sudah tergambar tanpa satu harga pun
+berubah. `keep=5` membuang gap tertua di saat yang sama, sehingga sebuah level
+bisa lenyap tanpa harganya pernah disentuh. Dua sisi bisa sepakat sempurna soal
+himpunan akhir dan tetap berbeda pendapat di setiap bar sebelumnya.
+
+`compare_horizons` karena itu menanyakan pertanyaan yang berbeda: bukan
+"apakah nilainya sama", tapi "apakah nilainya sama **pada bar yang sama**".
+Satu himpunan level per `as_of`, disampel tiap 200 bar.
+
+### Hasil, XAUUSD H1, 2.760 bar
+
+| Objek | Python | MQL5 | Mismatch |
+|---|---|---|---|
+| `gaps`, NDOG dan NWOG | 130 | 130 | 0 |
+| event horizons, 14 bar sampel | 56 level | 56 level | 0 |
+
+### Kedua gate dibuktikan bisa merah
+
+**Suntikan 1, bukti ketepatan dilonggarkan.** `time_[i_close]+step==close_at`
+diganti `<=`. Hasil: 3 mismatch, **semuanya di field `approximate`**, nol di
+harga dan nol di timestamp. Yang dibuktikan bukan sekadar bahwa gate-nya
+menyala, melainkan bahwa flag itu benar-benar dibandingkan. Flag ini yang
+membedakan "tepi pita ini bar 17:00 dan bar 18:00 yang sesungguhnya" dari "ini
+bar terdekat yang bisa saya temukan", dan `gaps.py` mencatat 29 pita karangan
+di binance BTCUSDT 1h pada 19 Agustus 2026 yang semuanya terkirim berflag
+exact.
+
+**Suntikan 2, kebocoran lookahead murni.** Filter `as_of` di
+`SDEventHorizons` dimatikan, sehingga tiap bar sampel melihat seluruh riwayat
+gap termasuk yang belum terjadi. Hasil: **57 mismatch**.
+
+Yang penting bukan angka 57. Yang penting adalah apa yang dilakukan komparator
+lain terhadap dump yang persis sama:
+
+| Komparator | Pertanyaan yang ia ajukan | Vonis atas dump bocor yang sama |
+|---|---|---|
+| birth-settled, satu daftar `as_of=None` | apakah nilainya sama | **HIJAU**, 0 dari 15 blok berbeda |
+| `compare_horizons`, per bar | apakah nilainya sama pada bar yang sama | **MERAH**, 57 mismatch |
+
+Kebocoran lookahead itu tidak terlihat sama sekali oleh pertanyaan yang dipakai
+sepuluh objek sebelumnya, karena dengan `as_of=None` sisi Python juga memakai
+seluruh riwayat, jadi kedua sisi bocor dengan cara yang sama dan cocok
+sempurna. Bentuk harness-nya yang menangkap, bukan field-nya.
+
+### Sensus bentuk sekarang menemukan dirinya sendiri
+
+`tests/test_mql5_contract.py` dulu mengimpor keempat dict registry satu per
+satu dan mengejanya lagi di kalimat assert-nya. Bentuk keenam yang mendarat di
+`mqh_parity` akan membuat setiap layer di dalamnya kembali terhitung tidak
+tercatat, dan penulis yang menambahkan dict-nya ke impor tapi lupa ke assert
+akan mendapat gate hijau atas sensus yang bolong. Itu pola yang sudah dua kali
+membuat harness di repo ini merah tanpa ada yang tahu: `e2e/wiring.mjs` selama
+dua commit, dan sensus slider `e2e/sweep.mjs` selama 24. Sekarang test itu
+menemukan sendiri setiap dict bernama `PORTED*` plus `UNPORTED` lewat `dir()`.
