@@ -52,7 +52,30 @@ def _path(at: int) -> Path:
 #: audit-worthy act: it is the moment a human decided the engine could trade
 #: unattended, and a review that can see the orders but not that decision is
 #: reading half the story.
-EVENTS = ("placed", "refused", "filled", "closed", "cancelled", "armed", "disarmed")
+#:
+#: `corrected` EXISTS BECAUSE THIS LOG IS APPEND-ONLY AND A `why` CAN BE WRONG.
+#: On 2 September 2026 two orders were placed on `order_block` zones whose
+#: grounds cited the `supply_demand` numbers - the departure gate at +0.1105 R
+#: and a 2R hit rate of 36.8 per cent - because the prefix `OB` was read as a
+#: supply/demand box. Re-measured per detector with the display cap OFF
+#: (`ImbalanceParams.max_zones_per_side` defaults to 6, so 50,000 bars first
+#: answered with twelve boxes), order_block at a fixed 2R came out +0.0827 R at
+#: t=+3.32 on XAUUSD and +0.0754 R at t=+3.01 on BTCUSD, both 4 of 4 folds
+#: same-signed - a STRONGER population than the one quoted, not a weaker one.
+#:
+#: There was no way to say that here. Editing the `placed` line was never an
+#: option: `test_a_fill_is_a_second_line_and_never_an_edit` states the rule, and
+#: a record that can be rewritten is not evidence. Cancelling and re-sending
+#: would have bought a correct `why` with two extra tickets and a re-entry at a
+#: level the account already held.
+#:
+#: NO CONSUMER READS IT, and that is deliberate rather than incidental: every
+#: reader in this repo filters on `event == "placed"` (`autotrade.py:209`,
+#: `execute.py:686`, `flatten.py:182`, `stress_decision.py:125`), so adding this
+#: name cannot change what any tool decides. It carries `ticket` so
+#: `for_ticket` prints it beside the record it corrects.
+EVENTS = ("placed", "refused", "filled", "closed", "cancelled", "armed",
+          "disarmed", "corrected")
 
 
 def record(

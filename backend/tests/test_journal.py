@@ -124,3 +124,28 @@ def test_a_record_written_before_symbols_existed_still_suppresses():
 
     assert journal.for_zone("DBR-9", "mt5:XAUUSD")[0]["ticket"] == 1
     assert journal.for_zone("DBR-9", "mt5:XAGUSD")[0]["ticket"] == 1
+
+
+def test_a_correction_is_a_third_line_and_leaves_the_placed_why_intact():
+    """A wrong `why` cannot be edited out, so it is answered in place.
+
+    The defect this locks: two orders on 2 September 2026 carried grounds
+    measured on `supply_demand` while sitting on `order_block` zones. The
+    original line has to survive - it is what was actually acted on - and the
+    correction has to be readable beside it.
+    """
+    journal.record("placed", why=["gerbang supply_demand +0,1105 R"], rule=RULE,
+                   zone_id="OB-1", ticket=99, at=100)
+    journal.record("corrected", why=["populasi sebenarnya order_block, +0,0827 R t=+3,32"],
+                   rule=RULE, zone_id="OB-1", ticket=99, at=300)
+    rows = journal.for_ticket(99)
+    assert [r["event"] for r in rows] == ["placed", "corrected"]
+    assert rows[0]["why"] == ["gerbang supply_demand +0,1105 R"]
+    assert "order_block" in rows[1]["why"][0]
+
+
+def test_a_correction_with_no_grounds_is_still_written():
+    """Only `placed` demands its grounds. A correction is free to be terse, and
+    refusing it here would push the correction out of the log entirely."""
+    got = journal.record("corrected", why=[], rule=RULE, ticket=100)
+    assert got["event"] == "corrected"
