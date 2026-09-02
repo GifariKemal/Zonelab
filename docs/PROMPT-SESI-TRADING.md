@@ -41,7 +41,8 @@ Aturan yang tidak boleh dilanggar:
 6. Sebelum mengirim order, periksa `.autotrade.json`, journal, cap portofolio,
    dan apakah lot minimum melanggar anggaran risiko. Lapor keempatnya.
 7. Verifikasi order yang terkirim lewat pembacaan INDEPENDEN dari order book,
-   bukan dari output script pengirimnya.
+   bukan dari output script pengirimnya. Retcode 0 di API MetaTrader 5 berarti
+   dua hal berlawanan, jadi ia bukan verifikasi.
 8. Sebut TIMEFRAME populasi yang angkanya dipakai. `detectors_costed.json`
    diukur di 1h dan 4h; untuk 30m pakai `lowtf_costed.json` plus kontrol
    resolusinya `lowtf_resolution.json`, dan sebut yang kedua kalau angka
@@ -333,9 +334,47 @@ Konsekuensinya: flag manipulasi bisa BELUM di 15m dan SUDAH di 1h pada instrumen
 dan cycle yang sama. Itu bukan bug, itu knob, dan docstring-nya menyatakan
 `n` adalah knob bukan angka dari sumber mana pun.
 
+**Dan ia hanya menghitung SWEEP, bukan CHoCH.** `app/quarterly.py:390`
+menyaring `event.kind != "SWEEP"`, jadi sebuah CHoCH di kuarter manipulasi
+TIDAK menyalakan flag itu betapa pun jelasnya di chart. Ini terpisah dari lebar
+fraktal di atas, dan gampang tertukar dengannya: yang pertama soal KAPAN sebuah
+swing confirmed, yang kedua soal JENIS event apa yang dihitung. Pada 2 September
+2026 saya salah menjelaskan flag XAU yang belum menyala sebagai lag konfirmasi;
+sebabnya yang benar adalah event Q3-nya CHoCH, bukan SWEEP.
+
 **`gaps` dan `event_horizons` kosong di instrumen 24/7.** BTC tidak pernah tutup,
 jadi ia tidak punya interval tanpa perdagangan dan tidak punya opening gap. Nol
 di situ adalah gambar yang BENAR, bukan layer yang gagal.
+
+## 7b. Tiga hal di jalur order yang berubah 2 September 2026
+
+Sesi yang membaca dokumen ini sebelum tanggal itu akan salah pada ketiganya.
+
+**Slot order tidak lagi ditentukan abjad.** `by_method_ranked` mengembalikan
+`(symbol, zone.id)` dan `cycle` memotong daftarnya di `max_orders`, jadi
+"BTCUSD" mendahului "XAUUSD" dan KEDUA slot daemon selalu jatuh ke BTC. Diukur:
+BTC punya 9 kandidat di 30m dan 10 di 15m, jadi ambang "BTC punya kurang dari
+dua" tidak pernah tercapai dan XAU tidak akan pernah diorder daemon.
+`round_robin` menghapus prioritas itu. Ia BUKAN kunci seleksi: tujuh kandidat
+kunci urut sudah dipraregistrasi di `tools/order_key.py` dan tidak satu pun
+memisahkan hasil.
+
+**"SUDAH pernah diorder" sekarang bisa dipercaya.** Gate idempotensi menyaring
+`event == "placed"` saja, dan tidak ada apa pun yang membatalkan sebuah
+`placed`, jadi zona yang order-nya sudah dibatalkan tetap ditolak SELAMANYA.
+Diukur: 35 zona punya record `placed`, gate lama mengunci 35, dan cuma 6
+ticket yang masih hidup di broker. Sekarang dua sumber dipakai, dan angkanya
+menunjukkan kenapa keduanya perlu: pengetahuan journal sendiri melepas 2 saja
+karena 16 ticket hilang dari broker tanpa pernah tercatat di sini, dan
+pemotongan lewat order book membawanya dari 33 ke 6. 29 zona terlepas.
+
+**Cek cap harus membandingkan TERKOMITMEN plus BARU.** Sebuah script yang
+membandingkan risiko order baru saja lawan cap akan meloloskan order yang
+membawa total melewatinya, sambil melaporkan angka yang terlihat kecil.
+`tools/execute.py` sudah benar soal ini lewat `Book`, dan ia juga mencetak
+"POSISI TERBUKA TIDAK TERBACA, jadi ini LANTAI" saat terminalnya tidak
+menjawab. Script ad-hoc yang ditulis di dalam sesi tidak otomatis benar, dan
+yang ini pernah salah.
 
 ## 8. Batas yang harus disebut, bukan disembunyikan
 
