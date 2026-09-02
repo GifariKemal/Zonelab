@@ -55,7 +55,20 @@ from tools.quant import BROKER, clean, metrics
 #: Timeframe halus yang dipakai menyelesaikan, per timeframe zona. Bukan pilihan
 #: gaya: makin halus makin sedikit riwayatnya, jadi ini titik seimbang antara
 #: presisi dan jumlah trade yang bisa dinilai.
-FINER = {"1h": "5m", "4h": "15m", "15m": "1m"}
+#: Bar halus per timeframe kasar, dan rasionya bagian dari jawabannya.
+#:
+#: 1h ke 5m adalah 12 bar halus per bar kasar, 4h ke 15m 16, 15m ke 1m 15.
+#: `30m` ke `5m` cuma 6, RASIO TERKASAR DI TABEL INI, dan itu harus dinyatakan
+#: karena resolusi mengubah jawabannya di repo ini: edge +0,2 R jadi -0,0153 R
+#: saat diukur di resolusi halus (18 sel), yaitu artefak urutan intrabar. 30m ke
+#: 1m akan memberi 30, tapi riwayat 1 menit di mesin ini cuma 103 hari untuk
+#: XAUUSD dan 69 hari untuk BTCUSD, sementara 5 menit memberi 516 dan 347 hari.
+#: Jadi 5m dipilih untuk SPAN, dan biayanya resolusi, bukan sebaliknya.
+#:
+#: Beberapa pemanggil sudah memakai `FINER.get(interval, "5m")`, jadi 30m sudah
+#: jatuh ke 5m di sana; entri ini membuatnya eksplisit dan menghilangkan
+#: KeyError di tiga pemanggil yang memakai `FINER[interval]` langsung.
+FINER = {"1h": "5m", "4h": "15m", "30m": "5m", "15m": "1m"}
 
 
 def _venue(symbol: str, source: str) -> str:

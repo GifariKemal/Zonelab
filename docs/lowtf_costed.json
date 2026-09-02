@@ -1,0 +1,302 @@
+{
+ "preregistration": {
+  "source": "tools/lowtf_costed.py",
+  "question": "apakah gerbang departure memisahkan di 30m, dan apakah populasi di atasnya mengalahkan nol",
+  "cells": [
+   "XAUUSD 30m",
+   "BTCUSD 30m"
+  ],
+  "detectors": [
+   "supply_demand",
+   "order_block"
+  ],
+  "judged_groups": 4,
+  "t_threshold_bonferroni_4": 2.4977054744123732,
+  "folds": 8,
+  "min_sign_folds": 7,
+  "sign_test_p_for_7_of_8": 0.0352,
+  "fine_bars": "5m, rasio 6 per bar kasar, TERKASAR di tabel FINER",
+  "why": "setiap sel di detectors_costed.json diukur di 1h dan 4h; order hidup dipasang di 30m dan 15m",
+  "not_measured": "15m, karena riwayat 1m cuma 103 hari XAUUSD dan 69 hari BTCUSD"
+ },
+ "detectors": {
+  "supply_demand": {
+   "cells": {
+    "XAUUSD 30m": {
+     "n_above": 459,
+     "n_below": 1334,
+     "exp_r_above": 0.10937975505756774,
+     "exp_r_below": -0.0804987174817301,
+     "t_above": 2.034610255184923,
+     "difference": 0.18987847253929785,
+     "welch_t": 3.2497714557726844,
+     "bars": 61137,
+     "readable": true
+    },
+    "BTCUSD 30m": {
+     "n_above": 437,
+     "n_below": 1265,
+     "exp_r_above": 0.11573949443496212,
+     "exp_r_below": -0.11736159499784807,
+     "t_above": 2.325080904384678,
+     "difference": 0.2331010894328102,
+     "welch_t": 4.212403778734861,
+     "bars": 90613,
+     "readable": true
+    }
+   },
+   "gate_atr": 2.0,
+   "fine": "5m",
+   "pooled": {
+    "n_above": 896,
+    "n_below": 2599,
+    "exp_r_above": 0.11248154758872997,
+    "exp_r_below": -0.09844082600727422,
+    "t_above": 3.06546794319798,
+    "difference": 0.2109223735960042,
+    "welch_t": 5.235877442584555,
+    "t_above_vs_zero": 3.06546794319798
+   },
+   "walk_forward": {
+    "folds": [
+     {
+      "fold": 1,
+      "n_above": 108,
+      "n_below": 322,
+      "purged": 1,
+      "readable": true,
+      "exp_r_above": 0.013838630835310832,
+      "exp_r_below": -0.16839881756099198,
+      "difference": 0.18223744839630282,
+      "welch_t": 1.5611171549332508
+     },
+     {
+      "fold": 2,
+      "n_above": 112,
+      "n_below": 325,
+      "purged": 0,
+      "readable": true,
+      "exp_r_above": -0.12429131280645898,
+      "exp_r_below": -0.050605315035681164,
+      "difference": -0.07368599777077782,
+      "welch_t": -0.7049846847587233
+     },
+     {
+      "fold": 3,
+      "n_above": 98,
+      "n_below": 287,
+      "purged": 0,
+      "readable": true,
+      "exp_r_above": 0.04409721873214198,
+      "exp_r_below": -0.06426910389636693,
+      "difference": 0.10836632262850891,
+      "welch_t": 0.9260674006069413
+     },
+     {
+      "fold": 4,
+      "n_above": 124,
+      "n_below": 330,
+      "purged": 0,
+      "readable": true,
+      "exp_r_above": 0.15004579606698243,
+      "exp_r_below": -0.10495462439847199,
+      "difference": 0.2550004204654544,
+      "welch_t": 2.3976374478032523
+     },
+     {
+      "fold": 5,
+      "n_above": 105,
+      "n_below": 321,
+      "purged": 0,
+      "readable": true,
+      "exp_r_above": 0.4336234399441639,
+      "exp_r_below": -0.13429735684689656,
+      "difference": 0.5679207967910604,
+      "welch_t": 3.852277779295041
+     },
+     {
+      "fold": 6,
+      "n_above": 111,
+      "n_below": 344,
+      "purged": 3,
+      "readable": true,
+      "exp_r_above": 0.08670528001055752,
+      "exp_r_below": -0.08448637643805658,
+      "difference": 0.17119165644861412,
+      "welch_t": 1.425695815924223
+     },
+     {
+      "fold": 7,
+      "n_above": 122,
+      "n_below": 345,
+      "purged": 1,
+      "readable": true,
+      "exp_r_above": 0.2984391173900683,
+      "exp_r_below": -0.05134975204829813,
+      "difference": 0.3497888694383664,
+      "welch_t": 3.775475799905318
+     },
+     {
+      "fold": 8,
+      "n_above": 116,
+      "n_below": 318,
+      "purged": 2,
+      "readable": true,
+      "exp_r_above": -0.01105176035639026,
+      "exp_r_below": -0.1367771973456439,
+      "difference": 0.12572543698925362,
+      "welch_t": 1.2220036661236235
+     }
+    ],
+    "graded": 8,
+    "positive": 7,
+    "failed": [
+     2
+    ],
+    "sign_test_p": null,
+    "purged": 7
+   },
+   "h1_gate_separates": true,
+   "h2_above_gate_beats_zero": true,
+   "verdict": "H1 DAN H2 LOLOS, boleh ditradingkan di 30m"
+  },
+  "order_block": {
+   "cells": {
+    "XAUUSD 30m": {
+     "n_above": 1745,
+     "n_below": 996,
+     "exp_r_above": 0.0865242899926187,
+     "exp_r_below": -0.011407056627261176,
+     "t_above": 3.476408642666529,
+     "difference": 0.09793134661987987,
+     "welch_t": 2.5558143463277396,
+     "bars": 61137,
+     "readable": true
+    },
+    "BTCUSD 30m": {
+     "n_above": 1770,
+     "n_below": 957,
+     "exp_r_above": 0.08511133459886015,
+     "exp_r_below": -0.05623249018342409,
+     "t_above": 3.5880599075306527,
+     "difference": 0.14134382478228424,
+     "welch_t": 3.9065086341340125,
+     "bars": 90613,
+     "readable": true
+    }
+   },
+   "gate_atr": 2.0,
+   "fine": "5m",
+   "pooled": {
+    "n_above": 3515,
+    "n_below": 1953,
+    "exp_r_above": 0.08581278756105322,
+    "exp_r_below": -0.03337220763250845,
+    "t_above": 4.993992235026402,
+    "difference": 0.11918499519356167,
+    "welch_t": 4.520002724316459,
+    "t_above_vs_zero": 4.993992235026402
+   },
+   "walk_forward": {
+    "folds": [
+     {
+      "fold": 1,
+      "n_above": 415,
+      "n_below": 259,
+      "purged": 0,
+      "readable": true,
+      "exp_r_above": 0.052853145274103584,
+      "exp_r_below": -0.030636222861998786,
+      "difference": 0.08348936813610237,
+      "welch_t": 1.0624198560639329
+     },
+     {
+      "fold": 2,
+      "n_above": 482,
+      "n_below": 244,
+      "purged": 2,
+      "readable": true,
+      "exp_r_above": 0.05577827811322301,
+      "exp_r_below": 0.032350298910119535,
+      "difference": 0.023427979203103473,
+      "welch_t": 0.35227740114516065
+     },
+     {
+      "fold": 3,
+      "n_above": 418,
+      "n_below": 214,
+      "purged": 1,
+      "readable": true,
+      "exp_r_above": 0.0736065025350891,
+      "exp_r_below": -0.05828429498295812,
+      "difference": 0.13189079751804722,
+      "welch_t": 1.6954824485086966
+     },
+     {
+      "fold": 4,
+      "n_above": 438,
+      "n_below": 260,
+      "purged": 0,
+      "readable": true,
+      "exp_r_above": 0.11445391592198972,
+      "exp_r_below": -0.0013934120711555685,
+      "difference": 0.11584732799314529,
+      "welch_t": 1.6936652910357748
+     },
+     {
+      "fold": 5,
+      "n_above": 444,
+      "n_below": 230,
+      "purged": 1,
+      "readable": true,
+      "exp_r_above": 0.08498540008291706,
+      "exp_r_below": 0.014026298890275705,
+      "difference": 0.07095910119264136,
+      "welch_t": 0.8565520820335367
+     },
+     {
+      "fold": 6,
+      "n_above": 429,
+      "n_below": 258,
+      "purged": 2,
+      "readable": true,
+      "exp_r_above": 0.13908565281839033,
+      "exp_r_below": -0.02282192599503862,
+      "difference": 0.16190757881342896,
+      "welch_t": 2.0162889705520533
+     },
+     {
+      "fold": 7,
+      "n_above": 422,
+      "n_below": 241,
+      "purged": 2,
+      "readable": true,
+      "exp_r_above": 0.1462055521827776,
+      "exp_r_below": -0.036392988324467614,
+      "difference": 0.1825985405072452,
+      "welch_t": 2.5774262382040596
+     },
+     {
+      "fold": 8,
+      "n_above": 461,
+      "n_below": 243,
+      "purged": 1,
+      "readable": true,
+      "exp_r_above": 0.030773970690834984,
+      "exp_r_below": -0.15588401175684213,
+      "difference": 0.18665798244767712,
+      "welch_t": 2.5493061188623622
+     }
+    ],
+    "graded": 8,
+    "positive": 8,
+    "failed": [],
+    "sign_test_p": 0.0078125,
+    "purged": 9
+   },
+   "h1_gate_separates": true,
+   "h2_above_gate_beats_zero": true,
+   "verdict": "H1 DAN H2 LOLOS, boleh ditradingkan di 30m"
+  }
+ }
+}

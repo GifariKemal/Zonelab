@@ -1,0 +1,128 @@
+{
+ "question": "apakah +0,1125 R dan +0,0858 R di 30m bertahan saat diresolusi 1 menit (rasio 30) alih-alih 5 menit (rasio 6)",
+ "gate_atr": 2.0,
+ "caveat": "riwayat 1m cuma 103 hari XAUUSD dan 69 hari BTCUSD; kedua resolusi dipotong ke rentang bar-kasar yang SAMA sebelum dibandingkan",
+ "cells": {
+  "supply_demand XAUUSD 30m": {
+   "shared_coarse_bars": [
+    57802,
+    61050
+   ],
+   "fine_5m": {
+    "ratio_fine_per_coarse": 6,
+    "n_above": 85,
+    "n_below": 270,
+    "exp_r_above": 0.11095904842958157,
+    "exp_r_below": -0.08710066230488878,
+    "t_above_vs_zero": 1.002787958476645,
+    "difference": 0.19805971073447035,
+    "welch_t": 1.6128591494034719
+   },
+   "fine_1m": {
+    "ratio_fine_per_coarse": 30,
+    "n_above": 85,
+    "n_below": 270,
+    "exp_r_above": 0.05486471409735144,
+    "exp_r_below": -0.10648806061376193,
+    "t_above_vs_zero": 0.4887664636567657,
+    "difference": 0.16135277471111337,
+    "welch_t": 1.2972174421872038
+   }
+  },
+  "supply_demand BTCUSD 30m": {
+   "shared_coarse_bars": [
+    87298,
+    90525
+   ],
+   "fine_5m": {
+    "ratio_fine_per_coarse": 6,
+    "n_above": 91,
+    "n_below": 245,
+    "exp_r_above": 0.08089373106265654,
+    "exp_r_below": -0.1434458766515994,
+    "t_above_vs_zero": 0.9102568524115422,
+    "difference": 0.22433960771425596,
+    "welch_t": 2.175965055802994
+   },
+   "fine_1m": {
+    "ratio_fine_per_coarse": 30,
+    "n_above": 91,
+    "n_below": 245,
+    "exp_r_above": 0.035942382641573706,
+    "exp_r_below": -0.15299865435093377,
+    "t_above_vs_zero": 0.3959182686101076,
+    "difference": 0.18894103699250747,
+    "welch_t": 1.8019831710374716
+   }
+  },
+  "order_block XAUUSD 30m": {
+   "shared_coarse_bars": [
+    57803,
+    61056
+   ],
+   "fine_5m": {
+    "ratio_fine_per_coarse": 6,
+    "n_above": 359,
+    "n_below": 178,
+    "exp_r_above": 0.07007304974366522,
+    "exp_r_below": -0.08699685984070409,
+    "t_above_vs_zero": 1.3625873102871544,
+    "difference": 0.1570699095843693,
+    "welch_t": 1.9125250079624618
+   },
+   "fine_1m": {
+    "ratio_fine_per_coarse": 30,
+    "n_above": 359,
+    "n_below": 178,
+    "exp_r_above": 0.010695035245878233,
+    "exp_r_below": -0.11447270282692865,
+    "t_above_vs_zero": 0.20930155015926497,
+    "difference": 0.12516773807280687,
+    "welch_t": 1.522707541813474
+   }
+  },
+  "order_block BTCUSD 30m": {
+   "shared_coarse_bars": [
+    87298,
+    90530
+   ],
+   "fine_5m": {
+    "ratio_fine_per_coarse": 6,
+    "n_above": 342,
+    "n_below": 189,
+    "exp_r_above": 0.05760678837003046,
+    "exp_r_below": -0.15570612689517271,
+    "t_above_vs_zero": 1.1693037524294083,
+    "difference": 0.21331291526520318,
+    "welch_t": 2.585963583422071
+   },
+   "fine_1m": {
+    "ratio_fine_per_coarse": 30,
+    "n_above": 342,
+    "n_below": 189,
+    "exp_r_above": -0.0031315194555689412,
+    "exp_r_below": -0.19520087964264363,
+    "t_above_vs_zero": -0.06343189589416383,
+    "difference": 0.19206936018707468,
+    "welch_t": 2.3206160914068414
+   }
+  }
+ },
+ "cells_compared": 4,
+ "per_detector": {
+  "order_block": {
+   "exp_above_keeps_sign_at_ratio_30": false,
+   "exp_above_shrinks": true,
+   "separation_keeps_sign": true
+  },
+  "supply_demand": {
+   "exp_above_keeps_sign_at_ratio_30": true,
+   "exp_above_shrinks": true,
+   "separation_keeps_sign": true
+  }
+ },
+ "all_exp_above_shrink": true,
+ "separation_survives": true,
+ "exp_above_survives": false,
+ "verdict": "H1 BERTAHAN di setiap sel; H2 menyusut di setiap sel, tanda bertahan untuk supply_demand, HILANG untuk order_block"
+}

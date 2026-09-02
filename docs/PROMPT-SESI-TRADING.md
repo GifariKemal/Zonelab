@@ -42,6 +42,15 @@ Aturan yang tidak boleh dilanggar:
    dan apakah lot minimum melanggar anggaran risiko. Lapor keempatnya.
 7. Verifikasi order yang terkirim lewat pembacaan INDEPENDEN dari order book,
    bukan dari output script pengirimnya.
+8. Sebut TIMEFRAME populasi yang angkanya dipakai. `detectors_costed.json`
+   diukur di 1h dan 4h; untuk 30m pakai `lowtf_costed.json` plus kontrol
+   resolusinya `lowtf_resolution.json`, dan sebut yang kedua kalau angka
+   pertama dikutip. Untuk 15m TIDAK ADA angka: riwayat 1 menit di mesin ini
+   cuma 103 hari XAUUSD dan 69 hari BTCUSD.
+9. Jangan order `fvg`. Zonanya punya target sejak 2 September 2026, dan
+   gerbang departure-nya TERBALIK di rig berbiaya: -0,1005 R dengan t=-4,48.
+   `tools/execute.py` menolaknya lewat `ORDERABLE_LAYERS`, dan penolakan itu
+   harus tetap disebut alih-alih dilewati diam-diam.
 ```
 
 ## 2. Urutan kerja yang diharapkan
@@ -107,6 +116,110 @@ sampai bar itu tutup.
 > tersentuh: jalur itu akan membuang zonanya di baris 343 dan tidak mengirim apa
 > pun. Yang keluar bukan penolakan yang menjelaskan, melainkan zona yang hilang
 > dari daftar kandidat tanpa suara.
+
+## 3b. Layer mana yang boleh diorder, dan kenapa daftarnya cuma dua
+
+Sampai 2 September 2026 jalur order tertutup untuk SETIAP detektor ICT, dan
+tertutupnya karena dua sebab bertumpuk yang harus dibedakan.
+
+**Sebab pertama, target.** `plan.build` mengambil target dari
+`zone.profit_zone_rr`, field itu diisi `mark_profit_zones`, dan fungsi itu cuma
+dipanggil di `detect/supply_demand.py` plus jalur refinement `drawing.py`.
+Zona FVG, order block, IFVG dan breaker karena itu selalu `None`, dan
+`execute.py` mensyaratkan target yang terbaca. Diukur di empat kombinasi
+simbol-timeframe: 7, 10, 4 dan 8 zona ICT lolos gerbang DAN masih fresh, NOL
+punya target. Sudah ditutup.
+
+**Sebab kedua, dan ini yang mengikat.** `candidates()` memanggil
+`DETECTORS["supply_demand"]` dan tidak punya cara memilih yang lain. Menutup
+sebab pertama tidak mengubah apa pun sendiri: zona ICT punya target sekarang dan
+tetap tidak masuk loop-nya. `--layer` yang membukanya.
+
+| layer | boleh diorder | angka rig berbiaya (1h dan 4h) |
+|---|---|---|
+| `supply_demand` | ya, default | -0,0153 R di atas gerbang, selisih +0,1105 t=+7,19 |
+| `order_block` | ya, lewat `--layer order_block` | -0,0429 R di atas gerbang (t sendiri -6,21), selisih +0,0764 t=+6,95, 17 dari 18 sel |
+| `fvg` | TIDAK | gerbang TERBALIK, selisih -0,1005 t=-4,48, 3 dari 17 sel |
+| `ifvg`, `breaker` | TIDAK | belum pernah lewat rig berbiaya sama sekali |
+
+> [!WARNING]
+> Tidak satu pun dari ketiganya positif sendiri di rig itu. Gerbang yang
+> memisahkan dua populasi yang keduanya kalah tidak memberi trade, ia memberi
+> urutan kekalahan. Dan seluruh tabel itu diukur di 1h dan 4h, bukan di
+> timeframe yang order-nya dipasang.
+
+Per sel untuk dua instrumen yang benar-benar ditradingkan, `order_block` di atas
+gerbang: XAUUSD 1h +0,0661 (t=+1,94), XAUUSD 4h **-0,0720 dengan t=-2,51**,
+BTCUSD 1h +0,0045, BTCUSD 4h -0,0311. Campur, dan yang paling negatif signifikan
+justru XAU.
+
+### Dan di 30 menit angkanya BERBEDA, karena tabel di atas bukan 30 menit
+
+Setiap sel di tabel itu diukur di 1 jam dan 4 jam. Order dipasang di 30 menit.
+`tools/lowtf_costed.py` menutup lubang itu: dua sel yang benar-benar
+ditradingkan, XAUUSD dan BTCUSD 30m, dengan biaya, bar halus 5 menit, ambang
+Bonferroni 2,498 untuk empat kelompok yang dinilai.
+
+| detektor, 30m | exp atas gerbang | t lawan nol | selisih | welch t | walk-forward |
+|---|---|---|---|---|---|
+| supply_demand | **+0,1125 R** | +3,07 | +0,2109 | +5,24 | 7 dari 8 |
+| order_block | **+0,0858 R** | +4,99 | +0,1192 | +4,52 | 8 dari 8 |
+
+Keduanya lolos H1 dan H2 di 30 menit, sementara keduanya negatif di 1 jam. Itu
+populasi tradeable positif pertama di repo ini, dan itu sekaligus alasan untuk
+memeriksanya lebih keras.
+
+**Kontrol resolusinya membatalkan separuhnya.** Bar halus 30m adalah 5 menit,
+rasio 6, TERKASAR di tabel `FINER`, sementara rig 1 jam memakai rasio 12. Di
+project ini resolusi sudah pernah membalik jawaban: edge +0,2 R jadi -0,0153 R
+saat diukur halus. `tools/lowtf_resolution.py` menjalankan 30 menit dengan bar
+1 MENIT, rasio 30, pada rentang bar-kasar yang SAMA supaya yang dibandingkan
+resolusi dan bukan periode.
+
+| sel | exp atas, rasio 6 | exp atas, rasio 30 | selisih, rasio 6 | selisih, rasio 30 |
+|---|---|---|---|---|
+| supply_demand XAU | +0,1110 | **+0,0549** | +0,1981 | +0,1614 |
+| supply_demand BTC | +0,0809 | **+0,0359** | +0,2243 | +0,1889 |
+| order_block XAU | +0,0701 | **+0,0107** | +0,1571 | +0,1252 |
+| order_block BTC | +0,0576 | **-0,0031** | +0,2133 | +0,1921 |
+
+Dua hal terpisah, dan jawabannya berbeda:
+
+- **Daya pisah gerbang bertahan.** Selisih atas-bawah tetap positif di keempat
+  sel di rasio 30. Gerbang departure 2,0 ATR memang memisahkan.
+- **Ekspektasi absolut di atas gerbang tidak.** Ia menyusut di keempat sel,
+  satu arah. `supply_demand` mempertahankan tanda positifnya, `order_block`
+  kehilangannya.
+
+> [!IMPORTANT]
+> Ini jawaban terukur untuk "kenapa harus supply demand". Bukan karena ia
+> detektor favorit, dan bukan karena ICT lebih lemah sebagai metode. Karena di
+> 30 menit, edge `order_block` justru bagian yang dimakan resolusi, dan
+> `supply_demand` yang tidak. Dan pada jendela pendek yang dipakai kontrol itu
+> tidak satu pun t lawan nol yang signifikan di kedua resolusi, maksimum +1,363,
+> jadi yang dinyatakan di sini ARAH penyusutannya dan tandanya, bukan bahwa
+> +0,0549 R sudah terbukti di atas nol.
+
+### Filter CISD-di-dalam-block, pemisahan terkuat yang tidak bisa dipasang
+
+`--no-cisd-in-band` ada di `tools/execute.py` dan defaultnya mati. Pemisahannya
+sendiri yang terkuat di repo ini: order block yang memuat level CISD baru
+(dalam 50 bar) di dalam band-nya menghasilkan -0,1119 R, tanpanya +0,0244 R,
+delta -0,1363 dengan Welch t = -7,07 lawan kritis 2,24 di n=8.170, dan KEDELAPAN
+fold walk-forward bertanda sama. Confound efficiency dicek terpisah: -0,1618 di
+dalam sel choppy, -0,1324 di dalam clean.
+
+Yang membuatnya tidak terpasang: studinya mengevaluasi kondisinya di **bar
+sentuhan**, jalur order berdiri di **bar keputusan**. Sebuah CISD yang lahir
+dalam 50 bar duduk dekat harga sekarang, sementara zona yang masih `fresh`
+justru yang harga belum datangi. Diukur XAUUSD 30m 2 September 2026: 4 CISD baru
+di 4304-4360 dengan harga 4358, 20 order block fresh lolos gerbang di 3991-4139,
+NOL persinggungan. Buang batas kebaruannya dan 18 dari 20 kena, yang persis
+kondisi degenerate 95 persen yang studinya tolak.
+
+Jadi angka +0,0244 R itu BELUM terpasang, dan flag itu tidak boleh dilaporkan
+seolah sudah. `cycle` mencetak saat filter diminta dan tidak mengikat, karena
+gerbang yang menyaring nol terbaca sama dengan gerbang yang menyaring.
 
 ## 4. Command yang menghasilkan angkanya
 
@@ -202,6 +315,8 @@ minimum: dua order BTC yang di lot minimum berisiko 4,25 dan 4,90 USD memakan
 - [ ] Kriteria yang MENYELEKSI tiap order, dipisah dari layer yang cuma dibaca
 - [ ] Empat pemeriksaan pra-kirim, masing-masing dengan hasilnya
 - [ ] Verifikasi independen order book setelah kirim
+- [ ] Layer yang menyeleksi, plus timeframe populasi angkanya diukur, plus
+      kalimat kalau itu ekstrapolasi
 - [ ] Satu kalimat tentang apa yang angka-angka itu TIDAK katakan
 
 ## 7. Dua hal yang bergantung timeframe, dan sering disalahbaca
@@ -224,9 +339,17 @@ di situ adalah gambar yang BENAR, bukan layer yang gagal.
 
 ## 8. Batas yang harus disebut, bukan disembunyikan
 
-Yang terukur positif di seluruh survei cuma tiga: `fvg` (+10 sampai +25 poin
-lawan placebo, walk-forward 8/8), `order_block` (rig sama, hasil sama), dan box
+Yang terukur positif di rig ARAH ada tiga: `fvg` (+10 sampai +25 poin lawan
+placebo, walk-forward 8/8), `order_block` (rig sama, hasil sama), dan box
 `supply_demand` mengalahkan tanpa-box (8/8, t = +4,28).
+
+> [!IMPORTANT]
+> Ketiga angka itu dari rig ARAH, poin lawan placebo, dan bukan dari rig R
+> teresolusi berbiaya. Di rig kedua jawabannya berbeda untuk salah satunya:
+> `fvg` GAGAL negatif dan signifikan, -0,1005 R dengan t=-4,48, artinya gerbang
+> departure-nya terbalik. Satu detektor bisa memenangkan pertanyaan arah dan
+> kalah pertanyaan trade, dan yang menentukan order adalah yang kedua. Lihat
+> bagian 3b.
 
 Enam layer terukur NULL, dua terukur NEGATIF signifikan sebagai klaim arah
 (`ifvg`, `breaker`), satu dari tujuh belas klausa checklist memisahkan dan ia
