@@ -24,6 +24,7 @@
 #include "OrderBlockDetector.mqh"
 #include "FVGDetector.mqh"
 #include "InversionDetector.mqh"
+#include "CISDDetector.mqh"
 
 input int    InpBars               = 3000;
 //--- supply/demand (SDParams, default shipped) ---
@@ -45,6 +46,9 @@ input double InpDisplacementAtr    = 1.5;
 input int    InpDisplacementBars   = 5;
 //--- fvg ---
 input double InpMinGapAtr          = 0.1;
+//--- cisd ---
+input int    InpMinRun             = 2;
+input int    InpInterruptTolerance = 0;
 
 // Cukup untuk harga broker mana pun: emas 2 desimal, kripto 2, forex 5.
 // Sepuluh desimal menulis nilai double-nya persis, bukan pembulatan.
@@ -74,6 +78,36 @@ int WriteZones(string filename,const SDZone &zones[],int count)
                 IntegerToString((long)zones[i].time_from),
                 IntegerToString((long)zones[i].time_to),
                 IntegerToString(zones[i].base_from));
+   FileClose(h);
+   return count;
+  }
+
+
+//+------------------------------------------------------------------+
+//| BENTUK KEDUA. Sebuah CISD bukan box: ia satu bar, satu arah dan
+//| satu level horizontal, jadi ia tidak muat di SDZone dan komparator
+//| zona tidak bisa membandingkannya sama sekali. Menuliskannya sebagai
+//| SDZone dengan top == bottom akan membuatnya LOLOS pemeriksaan
+//| geometri secara hampa, yang lebih buruk daripada tidak diperiksa.
+//+------------------------------------------------------------------+
+int WriteEvents(string filename,const SDCisd &events[],int count)
+  {
+   int h=FileOpen(filename,FILE_WRITE|FILE_CSV|FILE_ANSI|FILE_COMMON,",");
+   if(h==INVALID_HANDLE)
+     {
+      Print("PARITYDUMP gagal membuka ",filename," err=",GetLastError());
+      return -1;
+     }
+   FileWrite(h,"index","time","direction","level","run_start","run_end","run_length");
+   for(int i=0;i<count;i++)
+      FileWrite(h,
+                IntegerToString(events[i].index),
+                IntegerToString((long)events[i].time),
+                IntegerToString(events[i].direction),
+                DoubleToString(events[i].level,DUMP_DIGITS),
+                IntegerToString(events[i].run_start),
+                IntegerToString(events[i].run_end),
+                IntegerToString(events[i].run_length));
    FileClose(h);
    return count;
   }
@@ -175,8 +209,16 @@ int OnInit()
    WriteZones("zonelab_parity_ifvg.csv",ifvg,nifvg);
    WriteZones("zonelab_parity_brk.csv",brk,nbrk);
 
-   PrintFormat("PARITYDUMP symbol=%s period=%d bars=%d sd=%d sd_dedup=%d ob=%d fvg=%d ifvg=%d brk=%d",
-               _Symbol,(int)_Period,n,nsd,nsd_dedup,nob,nfvg,nifvg,nbrk);
+   CISDParamsMQ cp;
+   cp.min_run            =InpMinRun;
+   cp.interrupt_tolerance=InpInterruptTolerance;
+   SDCisd cisd[];
+   SDRun  runs[];
+   int ncisd=SDCisds(open_,close_,time_,n,cp,cisd,runs);
+   WriteEvents("zonelab_parity_cisd.csv",cisd,ncisd);
+
+   PrintFormat("PARITYDUMP symbol=%s period=%d bars=%d sd=%d sd_dedup=%d ob=%d fvg=%d ifvg=%d brk=%d cisd=%d",
+               _Symbol,(int)_Period,n,nsd,nsd_dedup,nob,nfvg,nifvg,nbrk,ncisd);
    return INIT_SUCCEEDED;
   }
 

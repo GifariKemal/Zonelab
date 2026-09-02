@@ -46,7 +46,10 @@ from pathlib import Path
 
 REPO = Path(__file__).resolve().parent.parent.parent
 TERMINAL = Path(r"C:\Program Files\MetaTrader 5 EXNESS\terminal64.exe")
-DATA = Path(os.environ["APPDATA"]) / "MetaQuotes" / "Terminal" / (
+# `.get` dan bukan `[...]`: file ini diimpor oleh tests/test_mql5_contract.py
+# untuk membaca SHIPPED, dan sebuah KeyError di baris module-level akan
+# menggagalkan PENGUMPULAN seluruh suite alih-alih satu test.
+DATA = Path(os.environ.get("APPDATA", "")) / "MetaQuotes" / "Terminal" / (
     "53785E099C927DB68A545C249CDBCE06"
 )
 SETS = DATA / "MQL5" / "Profiles" / "Tester"
@@ -86,6 +89,15 @@ SHIPPED = {
     # sama persis. Satu-satunya yang berbeda adalah magic, supaya order kedua
     # EA ini tidak saling mengaku milik ketika keduanya pernah jalan di
     # terminal yang sama.
+    # Jalur trade-nya salinan ZonelabIFVG; yang berbeda cuma detektor induknya,
+    # jadi parameternya ikut induk itu (impulse, bukan gap).
+    "ZonelabBRK": {
+        "InpAtrPeriod": 14, "InpDisplacementAtr": 1.5,
+        "InpDisplacementBars": 5, "InpMitigationPct": 0.5,
+        "InpStopBufferAtr": 0.25, "InpStopAtrMode": 0,
+        "InpTargetMode": 0, "InpRewardR": 2.0, "InpTargetAtr": 2.0,
+        "InpRiskPercent": 1.0, "InpBars": 3000, "InpMagic": 20260903,
+    },
     "ZonelabIFVG": {
         "InpAtrPeriod": 14, "InpMinGapAtr": 0.1, "InpMitigationPct": 0.5,
         "InpStopBufferAtr": 0.25, "InpStopAtrMode": 0,
@@ -95,7 +107,7 @@ SHIPPED = {
     },
 }
 
-#: Empat detektor lawan dua instrumen lawan lima timeframe, semuanya di config
+#: Lima detektor lawan dua instrumen lawan lima timeframe, semuanya di config
 #: yang DIKIRIM. Bukan sapuan parameter - sapuan mencari angka terbaik, ini
 #: memeriksa apakah angka yang sudah diterbitkan bisa diproduksi ulang, dan
 #: apakah kesimpulan "H1 sweet spot" bertahan di dua instrumen.
@@ -103,7 +115,7 @@ SHIPPED = {
 #: Urut dari yang paling murah. Timeframe besar selesai lebih dulu, jadi kalau
 #: matriksnya dipotong di tengah yang hilang adalah sel yang paling lama, bukan
 #: sel yang acak.
-EXPERTS = ("ZonelabSD", "ZonelabOB", "ZonelabFVG", "ZonelabIFVG")
+EXPERTS = ("ZonelabSD", "ZonelabOB", "ZonelabFVG", "ZonelabIFVG", "ZonelabBRK")
 SYMBOLS = ("XAUUSD", "BTCUSD")
 PERIODS = ("H4", "H1", "M30", "M15", "M5")
 

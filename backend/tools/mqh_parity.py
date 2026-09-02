@@ -51,6 +51,67 @@ COMMON = Path(
     os.environ.get("APPDATA", "")
 ) / "MetaQuotes" / "Terminal" / "Common" / "Files"
 
+#: Layer ICT yang punya port MQL5 berbentuk ZONA, dipetakan ke file dump-nya.
+PORTED = {
+    "supply_demand": "zonelab_parity_sd.csv",
+    "order_block": "zonelab_parity_ob.csv",
+    "fvg": "zonelab_parity_fvg.csv",
+    "ifvg": "zonelab_parity_ifvg.csv",
+    "breaker": "zonelab_parity_brk.csv",
+}
+
+#: Layer ICT yang punya port MQL5 berbentuk EVENT. Bentuk kedua, dan ia ada
+#: karena tidak satu pun layer ICT sisanya menghasilkan box: cisd, structure
+#: dan psp menghasilkan EVENT, pools, liquidity dan projections menghasilkan
+#: LEVEL, ssmt menghasilkan SPAN. Menulis sebuah event sebagai zona dengan
+#: `top == bottom` akan membuatnya LOLOS pemeriksaan geometri secara hampa,
+#: yang lebih buruk daripada tidak diperiksa sama sekali.
+PORTED_EVENTS = {
+    "cisd": "zonelab_parity_cisd.csv",
+}
+
+#: Layer ICT yang SENGAJA belum diport, dengan alasannya masing-masing.
+#: `tests/test_mql5_contract.py` menuntut ketiga dict ini bersama-sama menutup
+#: setiap layer berkeluarga ICT di `app.layers.LAYERS`, jadi layer baru harus
+#: mendarat di salah satunya. Yang dicegah bukan penambahan layer, melainkan
+#: penambahan yang presisinya tidak pernah diukur tanpa ada yang menuliskan
+#: bahwa ia tidak diukur - karena "belum diukur" dan "diukur dan lolos" tidak
+#: boleh terlihat sama dari luar.
+UNPORTED: dict[str, str] = {
+    "structure": (
+        "murni OHLC dan berikutnya dalam antrean. Ia juga menutup satu cacat "
+        "di detektor yang SUDAH diport: OrderBlockDetector.mqh tidak punya "
+        "satu baris kode swing pun, jadi require_structure_break tidak bisa "
+        "diekspresikan di MQL5 dan order block yang parity-nya terbukti hanya "
+        "jalur default-nya"
+    ),
+    "pools": (
+        "butuh jam dinding New York yang sadar DST, yang tidak dipunyai MQL5 "
+        "dan harus ditulis sendiri; infrastruktur bersama untuk liquidity, "
+        "projections dan gaps"
+    ),
+    "liquidity": "menunggu jam New York dari pools; previous_period_levels dulu",
+    "projections": "menunggu jam New York; sisanya satu baris aritmetika",
+    "gaps": (
+        "jam New York PLUS grid quarter PLUS window lebih panjang dari chart, "
+        "dan level-levelnya TIDAK beku saat lahir - satu-satunya di survei ini "
+        "yang melanggar asumsi birth-settled yang dipakai setiap harness di "
+        "repo ini"
+    ),
+    "ssmt": (
+        "500 sampai 700 baris untuk grid quarter dan intersection multi-symbol, "
+        "di atas objek yang sudah diukur NULL di 0 dari 24 sel dengan tanda "
+        "terbagi 12 lawan 12 (docs/ssmt_outcomes.json)"
+    ),
+    "psp": (
+        "TIDAK AKAN DIPORT. 48 dari 48 sel null, |z| terbesar 2,104 lawan bar "
+        "Bonferroni 3,279 (docs/psp_outcomes.json), dan triad_crack_rate "
+        "identik 0,2644 untuk psp-sesudah-ssmt dan psp-sendirian, jadi premis "
+        "pairing-nya tidak berdiri di data ini. Ia juga dilarang menyentuh "
+        "jalur keputusan oleh tests/test_psp_not_wired_to_decisions.py"
+    ),
+}
+
 _STATE = {
     "0": ZoneState.FRESH,
     "1": ZoneState.TESTED,
@@ -148,6 +209,52 @@ def compare(name: str, zones_py, zones_mq: list[dict]) -> int:
     return mismatches
 
 
+
+def compare_events(name: str, events_py, events_mq: list[dict]) -> int:
+    """Komparator BENTUK KEDUA: satu bar, satu arah, satu level.
+
+    Terpisah dari `compare` dan bukan generalisasi darinya, karena yang
+    dibandingkan berbeda seluruhnya. Sebuah zona diperiksa pada empat harga dan
+    sebuah state; sebuah event diperiksa pada bar mana ia terjadi, ke arah mana,
+    dan level run mana yang ia tembus. Memaksa keduanya lewat satu fungsi berarti
+    salah satunya diperiksa dengan pertanyaan yang bukan miliknya.
+    """
+    py = sorted(events_py, key=lambda e: (e.index, e.direction))
+    mq = sorted(events_mq, key=lambda e: (int(e["index"]), int(e["direction"])))
+
+    print(f"\n=== {name} ===")
+    print(f"  Python  : {len(py)}")
+    print(f"  MQL5    : {len(mq)}")
+
+    mismatches = 0
+    if len(py) != len(mq):
+        print(f"  COUNT MISMATCH: {len(py)} != {len(mq)}")
+        mismatches += 1
+
+    for ep, em in zip(py, mq):
+        problems = []
+        for field in ("index", "direction", "run_start", "run_end", "run_length"):
+            a, b = getattr(ep, field), int(em[field])
+            if a != b:
+                problems.append(f"{field} {a} != {b}")
+        if ep.time != int(em["time"]):
+            problems.append(f"time {ep.time} != {em['time']}")
+        # Level sebuah CISD adalah OPEN sebuah bar apa adanya, tanpa aritmetika
+        # dan tanpa pembulatan di kedua sisi, jadi toleransinya boleh seketat
+        # representasi double-nya sendiri.
+        if abs(ep.level - float(em["level"])) > 1e-9 * max(1.0, abs(ep.level)):
+            problems.append(f"level {ep.level} != {em['level']}")
+        if problems:
+            mismatches += 1
+            if mismatches <= 10:
+                print(f"  MISMATCH #{mismatches} bar {ep.index}:")
+                for problem in problems:
+                    print(f"    {problem}")
+    if mismatches == 0:
+        print("  OK")
+    return mismatches
+
+
 def dump(symbol: str, period: str) -> None:
     """Jalankan ZonelabParityDump di terminal untuk satu simbol dan timeframe.
 
@@ -225,6 +332,29 @@ def main() -> None:
         max_zones_per_side=0, show_broken=True, show_mitigated=True,
     )
 
+    # SETIAP DETEKTOR DI REGISTRY HARUS PUNYA DUMP, dan yang tidak punya harus
+    # menyebut dirinya. Daftar di bawah ini ditulis tangan, jadi sebuah detektor
+    # keenam yang masuk `app/detect/__init__.py` akan diam-diam tidak pernah
+    # dibandingkan dengan MQL5 - persis bentuk drift yang docstring registry itu
+    # sendiri peringatkan, dan yang sudah memakan project ini dua kali di
+    # `e2e/wiring.mjs` dan di sensus slider `e2e/sweep.mjs`.
+    #
+    # Ini BUKAN mengklaim detektor tanpa port itu salah. Ia menyatakan bahwa
+    # presisinya BELUM DIUKUR, yang berbeda dari terukur dan lolos, dan
+    # perbedaan itu tidak boleh hilang hanya karena tidak ada yang menuliskannya.
+    from app.detect import DETECTORS
+
+    dumped = PORTED
+    unported = sorted(set(DETECTORS) - set(dumped))
+    if unported:
+        print(f"\nBELUM DIPORT ke MQL5, presisinya belum diukur: {unported}")
+    absent = sorted(n for n, f in dumped.items() if not (root / f).exists())
+    if absent:
+        raise SystemExit(
+            f"dump hilang untuk detektor yang punya port: {absent}. "
+            "Jalankan ulang ZonelabParityDump."
+        )
+
     total = 0
     total += compare("supply_demand (tanpa dedupe)",
                      detect(candles, sd_raw)[0],
@@ -245,7 +375,22 @@ def main() -> None:
                      detect_breaker(candles, imb)[0],
                      read_zones(root / "zonelab_parity_brk.csv"))
 
+    # Bentuk kedua. `cisds` mengembalikan (events, runs); run-nya tidak
+    # dibandingkan karena ia populasi TIDAK terfilter yang dipakai untuk
+    # mengarmkan level, bukan objek yang digambar.
+    from app.cisd import cisds
+    from app.models import CISDParams
+
+    cp = CISDParams()
+    total += compare_events(
+        "cisd",
+        cisds(candles, cp.min_run, cp.interrupt_tolerance)[0],
+        read_zones(root / "zonelab_parity_cisd.csv"),
+    )
+
     print(f"\nTOTAL MISMATCH: {total}")
+    if unported:
+        print(f"tidak diukur ({len(unported)} detektor tanpa port): {unported}")
     print("MQH PARITY OK" if total == 0 else "MQH PARITY FAIL")
     raise SystemExit(0 if total == 0 else 1)
 
