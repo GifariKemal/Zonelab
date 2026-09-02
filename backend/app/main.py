@@ -111,6 +111,11 @@ async def config() -> dict:
             for name in PROVIDERS
         ],
         "default_provider": settings.default_provider,
+        # Nol berarti provider synthetic mengikuti jam dinding, jadi
+        # deretnya bergeser satu bar setiap kali sebuah bar tutup. Sebuah
+        # harness yang menyatakan geometri perlu tahu mana yang berlaku,
+        # karena itu yang menentukan apakah run merahnya bisa diulang.
+        "synthetic_now": settings.synthetic_now,
         # ONE list, in draw order, every entry saying what it is. There used to
         # be two - `detectors` and `overlays` - and the UI had to know which id
         # belonged to which, duplicating in TypeScript a fact that only the
@@ -989,7 +994,32 @@ def _annotate(
     plans: list[TradePlan] = []
     advice: list[Advice] = []
     for zone in zones:
-        scale = float(atr[-1])
+        # ATR DI BAR SEBELUM BASE ZONA, bukan di bar terakhir, dan itu diputuskan
+        # dengan angka pada 1 September 2026. Sampai hari itu jalur ini memakai
+        # `atr[-1]` untuk SETIAP zona sementara ketiga EA memakai ATR per zona,
+        # jadi rumus stopnya identik dengan input yang berbeda: harga stop, risk,
+        # dan lot berbeda hampir di tiap zona, dan tidak ada satu gate pun yang
+        # bisa melihatnya karena tidak ada harness yang membandingkan plan.
+        #
+        # Diukur di 16 sel Strategy Tester, empat detektor lawan dua instrumen
+        # lawan H4 dan H1, real tick, hanya mode ATR yang berbeda: ATR per zona
+        # menang di 11 sel, ATR bar terakhir di 5. Rata-rata delta PF -0,0312.
+        # LEAN, BUKAN LOLOS: paired t = -1,854 lawan kritis 2,13 di df 15, dan
+        # sign test satu sisi p = 0,105. Yang memutuskan bukan signifikansi,
+        # melainkan bahwa dua sisi HARUS sepakat pada satu angka, dan angka ini
+        # yang dipakai oleh setiap sel backtest yang pernah dijalankan.
+        #
+        # ZONA HTF DIKECUALIKAN, dan ini bukan kerapian. `anatomy.base_from`
+        # sebuah zona HTF meng-index deret HTF-nya sendiri, bukan `rows`, jadi
+        # membacanya di sini akan mengambil bar yang salah tanpa error. Untuk
+        # zona itu `atr[-1]` tetap dipakai, yang window-independent, dan ia satu-
+        # satunya alasan cacat ini tidak pernah muncul sebelum sekarang.
+        own_bar = zone.timeframe == request.interval
+        scale = (
+            float(atr[max(0, zone.anatomy.base_from - 1)])
+            if own_bar
+            else float(atr[-1])
+        )
         plan = plan_for(
             zone, scale, now, INTERVALS[request.interval],
             equity=request.equity, lot=request.lot, spread=spread,

@@ -20,6 +20,24 @@ class Settings(BaseSettings):
     # default costs a clean checkout nothing but one failed probe.
     default_provider: str = "mt5"
 
+    # Stempel waktu tetap untuk provider synthetic, 0 berarti ikut jam dinding.
+    #
+    # KENAPA ADA. `generate()` sudah punya parameter `now` yang docstring-nya
+    # menyebut ia ada "so a test can stop the clock", tapi `SyntheticProvider`
+    # tidak pernah mengopernya, jadi jalur API selalu terikat jam. Diukur
+    # 1 September 2026: dua panggilan beruntun byte-identical, panggilan ketiga
+    # 70 detik kemudian bergeser SATU BAR 15m penuh (1787629500 jadi
+    # 1787630400). `e2e/labels.mjs` dipatok ke synthetic hari itu supaya "a red
+    # run means something", dan diverifikasi dengan dua request beruntun - cara
+    # memeriksa yang secara struktural tidak bisa melihat pergeseran ini, karena
+    # dua request beruntun selalu jatuh di window yang sama.
+    #
+    # Default tetap 0 supaya chart offline tetap mengikuti kalender. Sebuah
+    # harness yang menyatakan geometri memasangnya:
+    #
+    #     ZONELAB_SYNTHETIC_NOW=1788000000 python -m uvicorn app.main:app ...
+    synthetic_now: int = 0
+
     # API keys. Empty means that provider is unavailable and says so explicitly
     # instead of silently returning nothing.
     twelvedata_key: str = ""

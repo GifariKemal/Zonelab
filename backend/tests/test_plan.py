@@ -388,3 +388,104 @@ def test_the_product_and_the_harness_read_the_same_table():
     assert costed.BROKERS is BROKERS
     assert spec("yahoo:XAUUSD") == spec("XAUUSD")  # the routing prefix is not a symbol
     assert spec("XAUUSD").commission_bp == COSTS["XAUUSD"]["commission_bp"]
+
+
+def test_the_stop_reads_the_volatility_that_formed_the_zone_not_todays():
+    """Two identical zones from different volatility get different stops.
+
+    Until 1 September 2026 `app/main.py` passed `float(atr[-1])` to every zone,
+    so the whole chart's stops moved together with the newest bar while all
+    three MQL5 EAs read the ATR of the bar before each zone's own base. The
+    formula is the same on both sides and the input was not, which means the
+    stop price, the risk, and therefore the lot size differed for nearly every
+    zone - and no gate could see it, because nothing compares the two plans.
+
+    Measured across 16 Strategy Tester cells, four detectors against two
+    instruments against H4 and H1, real ticks, with only the ATR source
+    changed: per-zone won 11 cells, last-bar won 5, mean PF delta -0.0312.
+    That is a LEAN and not a clearance - paired t = -1.854 against 2.13
+    critical at df 15, sign test one-sided p = 0.105. What settles it is that
+    the two sides have to agree on one number and this is the one every
+    backtest was run on.
+
+    A HIGHER TIMEFRAME zone is exempt and this test says so, because its
+    `anatomy.base_from` indexes its own series rather than this chart's. Read
+    here it would silently name the wrong bar.
+    """
+    from app.main import _annotate
+    from app.models import Candle, DrawRequest
+
+    # Calm for 200 bars, then four times the range. A zone based in the calm
+    # stretch must not inherit the loud stretch's stop.
+    rows = [
+        Candle(
+            time=T0 + i * STEP, open=100.0, close=100.0,
+            high=100.0 + (0.25 if i < 200 else 1.0),
+            low=100.0 - (0.25 if i < 200 else 1.0), volume=1.0,
+        )
+        for i in range(260)
+    ]
+    request = DrawRequest(symbol="XAUUSD", interval="15m", bars=len(rows))
+
+    calm = zone(id="calm", time_from=rows[100].time,
+                anatomy=Anatomy(leg_in_from=98, leg_in_to=99, base_run_from=100,
+                                base_from=100, base_to=101,
+                                leg_out_from=102, leg_out_to=103))
+    loud = zone(id="loud", time_from=rows[250].time,
+                anatomy=Anatomy(leg_in_from=248, leg_in_to=249, base_run_from=250,
+                                base_from=250, base_to=251,
+                                leg_out_from=252, leg_out_to=253))
+    plans, _ = _annotate([calm, loud], rows, request)
+    assert len(plans) == 2
+    # The ATR only reaches the stop through the buffer, and the zone's own
+    # height carries the rest of the risk - so compare the BUFFERS. Comparing
+    # total risk hides a 3.6x difference in ATR behind a fixed 2.0 of height,
+    # which is how the first version of this test set its threshold too high
+    # and failed on working code.
+    height = calm.top - calm.bottom
+    calm_buffer = abs(plans[0].entry - plans[0].stop) - height
+    loud_buffer = abs(plans[1].entry - plans[1].stop) - height
+    assert loud_buffer > calm_buffer * 2, (
+        "both zones got the same stop buffer, so the ATR is being read at one "
+        f"bar for the whole chart again: calm {calm_buffer}, loud {loud_buffer}"
+    )
+
+    # The HTF exemption, asserted rather than trusted. Same base_from as the
+    # calm zone but stamped with another timeframe, so it must fall back to the
+    # last bar and land with the loud one instead.
+    htf = zone(id="htf", timeframe="4h", time_from=rows[100].time,
+               anatomy=calm.anatomy)
+    htf_plans, _ = _annotate([htf], rows, request)
+    htf_buffer = abs(htf_plans[0].entry - htf_plans[0].stop) - height
+    # Compared against the LAST bar's ATR directly, not against the loud zone.
+    # The loud zone reads `atr[249]` and the last bar is 259, and Wilder is
+    # still climbing between them - so those two are close and not equal, which
+    # is what the first version of this assertion mistook for a defect.
+    import numpy as np
+
+    from app.indicators import wilder_atr
+
+    last = float(wilder_atr(
+        np.array([c.high for c in rows]), np.array([c.low for c in rows]),
+        np.array([c.close for c in rows]), request.supply_demand.atr_period,
+    )[-1])
+    calm_atr = float(wilder_atr(
+        np.array([c.high for c in rows]), np.array([c.low for c in rows]),
+        np.array([c.close for c in rows]), request.supply_demand.atr_period,
+    )[calm.anatomy.base_from - 1])
+    # DIFFERENCES, not absolute values. `plan.build` also widens the stop by the
+    # instrument's costs, a constant 0.016 here, and comparing an absolute
+    # buffer against a pure ATR multiple charges that constant to the ATR. It
+    # cancels between two zones on one chart.
+    assert abs(
+        (htf_buffer - calm_buffer)
+        - DEFAULT_STOP_BUFFER_ATR * (last - calm_atr)
+    # 1e-6, not 1e-9: the plan rounds its prices to the symbol's digits, which
+    # leaves about 1e-7 here. A tighter bound fails on arithmetic rather than
+    # on the thing this line is about.
+    ) < 1e-6, (
+        "an HTF zone read this chart's ATR at its own base index, which is an "
+        f"index into a different series: buffer moved {htf_buffer - calm_buffer} "
+        f"where the last bar's ATR accounts for "
+        f"{DEFAULT_STOP_BUFFER_ATR * (last - calm_atr)}"
+    )

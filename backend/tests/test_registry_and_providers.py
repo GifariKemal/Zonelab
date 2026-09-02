@@ -517,3 +517,83 @@ def test_a_colon_that_is_not_a_provider_is_left_alone():
         # `notaprovider` is not in PROVIDERS, so the whole string stays the
         # symbol and the default provider is asked for it.
         asyncio.run(get_candles("notaprovider:XAUUSD", "1h", 200, "yahoo"))
+
+
+def test_a_layer_family_is_a_heading_that_already_exists():
+    """A family must be one of the two the registry declares, or absent.
+
+    The families are HEADINGS in the menu and nothing more - the switch stays on
+    each layer, so a family cannot turn a doctrine on as a bloc. That makes the
+    failure mode quiet rather than loud: a typo ("ict" for "ICT") does not raise
+    anything, it opens a SECOND group with one member in it, and the reader sees
+    two headings where the registry meant one.
+
+    The membership itself is not restated here, because a second list of layer
+    ids is the drift `app/detect/__init__.py` warns about at its own bottom.
+    What is pinned is the set of NAMES, so adding a third family stays a
+    deliberate edit in two places instead of an accident in one.
+
+    `docs/ADOPSI.md` is the authority on which layer belongs where, and it keeps
+    ICT, SMC and Quarterly Theory apart rather than folding them together.
+    """
+    from app.layers import LAYERS, catalogue
+
+    allowed = {"ICT", "Quarterly Theory", None}
+    seen = {layer.family for layer in LAYERS}
+    assert seen <= allowed, f"family yang tidak dideklarasikan: {sorted(seen - allowed, key=str)}"
+
+    # Served, not merely stored. The menu is built from `/api/config`, so a
+    # field the catalogue drops is a field the UI cannot group by.
+    rows = catalogue()
+    assert all("family" in row for row in rows)
+    assert {row["family"] for row in rows} == seen
+
+    # A heading with one member reads as a mistake even when it is not, and is
+    # what a typo produces. Two is the smallest group worth a heading.
+    counts: dict[str, int] = {}
+    for layer in LAYERS:
+        if layer.family:
+            counts[layer.family] = counts.get(layer.family, 0) + 1
+    thin = sorted(name for name, n in counts.items() if n < 2)
+    assert not thin, f"family beranggota satu, hampir selalu salah ketik: {thin}"
+
+
+def test_a_pinned_synthetic_clock_survives_the_clock_moving(monkeypatch):
+    """The pin has to hold across TIME, which is the thing the old check missed.
+
+    `e2e/labels.mjs` was pinned to this provider on 1 September 2026 so that "a
+    red run means something", and the pin was verified by fetching twice and
+    comparing bytes. Two fetches in a row always land in the same bar, so that
+    check could not fail for the reason it existed - measured the same day, two
+    back-to-back calls were byte-identical and a third one 70 seconds later had
+    moved a full 15 minute bar, 1787629500 to 1787630400.
+
+    So this advances the clock instead of calling twice, and asserts both
+    halves: unpinned still tracks the calendar, which is what the offline chart
+    wants, and pinned does not, which is what a geometry assertion needs.
+    """
+    from app.providers import synthetic as mod
+
+    def series(when: float) -> tuple[int, int]:
+        monkeypatch.setattr(mod._time, "time", lambda: when)
+        rows = asyncio.run(mod.SyntheticProvider().fetch("XAUUSD", "15m", 120))
+        return rows[0].time, rows[-1].time
+
+    # Dua hari KERJA, sehari terpisah. Percobaan pertama memakai 1788000000 dan
+    # 1788086400, yang keduanya jatuh di akhir pekan: `_session_grid` mundur ke
+    # penutupan Jumat yang sama untuk dua-duanya, jadi deretnya identik dan
+    # bagian "unpinned" gagal karena fixture-nya, bukan karena kodenya. Selasa
+    # 1 September 2026 10:00 UTC dan Rabu 2 September, jam yang sama.
+    early, late = 1788256800.0, 1788343200.0
+
+    monkeypatch.setattr(mod.settings, "synthetic_now", 0)
+    assert series(early) != series(late), (
+        "unpinned synthetic stopped following the clock; the offline chart "
+        "would sit on a fixed date"
+    )
+
+    monkeypatch.setattr(mod.settings, "synthetic_now", int(early))
+    assert series(early) == series(late), (
+        "a pinned clock still moved with the wall clock, so any harness that "
+        "asserts geometry on this provider is still measuring a moving series"
+    )

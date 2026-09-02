@@ -24,6 +24,7 @@ from zlib import crc32
 import numpy as np
 
 from ..clock import market_shut as _closed
+from ..config import settings
 from ..models import Candle
 from .base import INTERVALS, ProviderError
 
@@ -40,7 +41,17 @@ class SyntheticProvider:
             raise ProviderError(f"unknown interval {interval}")
         # crc32, not hash(): see the module docstring. Stable across processes
         # by specification, and already bounded to 32 bits.
-        return generate(bars, step, seed=crc32(symbol.encode()))
+        #
+        # `now` disalurkan, dan sebelum 1 September 2026 tidak. Parameter itu
+        # sudah ada di `generate()` dengan docstring "so a test can stop the
+        # clock", dan jalur API adalah satu-satunya pemanggil yang tidak pernah
+        # memakainya - jadi setiap harness yang menyatakan geometri lewat HTTP
+        # mengukur deret yang bergeser satu bar tiap kali sebuah bar tutup.
+        # 0 berarti jam dinding, yang tetap default.
+        return generate(
+            bars, step, seed=crc32(symbol.encode()),
+            now=settings.synthetic_now or None,
+        )
 
 
 def _session_grid(now: int, step: int, bars: int) -> list[int]:
