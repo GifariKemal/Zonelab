@@ -28,6 +28,7 @@ input double InpMitigationPct    = 0.5;
 input double InpMergeOverlapPct  = 0.6;
 //--- parameter trade ---
 input double InpStopBufferAtr    = 0.25;
+input int    InpStopAtrMode      = 0;    // 0 = ATR bar sebelum base zona, 1 = ATR bar terakhir
 input double InpRiskPercent      = 1.0;
 input int    InpBars             = 20000;  // besar = window tumbuh dari awal test (cocok dengan full-series Zonelab)
 input int    InpMagic            = 20260831;
@@ -169,8 +170,15 @@ void DetectAndTrade()
       bool is_demand = (zones[i].side == SD_DEMAND);
       double way    = is_demand ? 1.0 : -1.0;
       double entry  = zones[i].proximal;
+      // DUA BACAAN ATR YANG BERBEDA, dan sampai 1 September 2026 kedua sisi
+      // memakai yang berbeda tanpa ada yang memutuskan mana yang benar:
+      // Zonelab memakai `atr[-1]` untuk SETIAP zona (`app/main.py:991`), EA ini
+      // memakai ATR bar sebelum base zona. Rumus stop-nya identik, inputnya
+      // tidak, jadi harga stop, risk, dan lot berbeda hampir di tiap zona.
+      // Saklarnya ada supaya pertanyaannya bisa diukur, bukan diperdebatkan.
       double atr_base = atr[MathMax(0, zones[i].base_from - 1)];
-      double buffer = InpStopBufferAtr * atr_base;
+      double atr_stop = (InpStopAtrMode == 1) ? atr[n - 1] : atr_base;
+      double buffer = InpStopBufferAtr * atr_stop;
       double stop   = zones[i].distal - way * buffer;
       double risk   = MathAbs(entry - stop);
       if(risk <= SD_EPS)

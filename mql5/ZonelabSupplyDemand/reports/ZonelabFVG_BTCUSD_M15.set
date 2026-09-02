@@ -1,0 +1,10 @@
+InpAtrPeriod=14
+InpMinGapAtr=0.1
+InpMitigationPct=0.5
+InpStopBufferAtr=0.25
+InpTargetMode=0
+InpRewardR=2.0
+InpTargetAtr=2.0
+InpRiskPercent=1.0
+InpBars=3000
+InpMagic=20260901

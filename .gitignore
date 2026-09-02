@@ -87,3 +87,19 @@ frontend/test-results/
 # Error logs, the .err sibling of *.log
 *.err
 backend/.autotrade.log.*
+
+# Config Strategy Tester per sel, ditulis ulang tiap run oleh
+# `backend/tools/mt5_backtest.py`. Isinya sepenuhnya ditentukan argumen tool
+# itu, yang tercatat di kepala `docs/mt5-backtest.json`, dan input EA-nya
+# tersimpan di `.set` yang IKUT di-commit bersama report-nya. Jadi yang
+# diabaikan di sini adalah satu-satunya bagian yang bisa dihasilkan ulang.
+mql5/ZonelabSupplyDemand/.run_*.ini
+
+# Report HTML Strategy Tester. 120 file, 140,6 MB, dan yang menutup lubang
+# reproducibility bukan file ini: `.set` di sebelahnya (30 KB total) merekam
+# SETIAP input yang dipakai, dan `docs/mt5-backtest.json` plus
+# `docs/mt5-walkforward.json` merekam angka tiap sel beserta baris `Inputs:`
+# yang report itu sendiri catat. `tools.mt5_backtest` menghasilkan ulang HTML-nya
+# dari `.set` yang sama. Yang dulu rusak adalah input yang tidak tercatat dan
+# report yang saling menimpa, dan dua-duanya sudah ditutup tanpa 140 MB.
+mql5/ZonelabSupplyDemand/reports/*.htm
