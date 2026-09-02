@@ -1,6 +1,6 @@
 # Peta direktori docs
 
-Direktori ini berisi 14 dokumen prosa dan 42 file bukti mentah. Tanpa peta,
+Direktori ini berisi 15 dokumen prosa dan 42 file bukti mentah. Tanpa peta,
 pembaca yang membukanya melihat 30 file dan tidak bisa tahu prosa mana membaca
 data mana. Itu satu-satunya alasan file ini ada.
 
@@ -23,6 +23,7 @@ data mana. Itu satu-satunya alasan file ini ada.
 | [PRAREGISTRASI-KONDISI.md](PRAREGISTRASI-KONDISI.md) | Kolom mana yang diuji sebagai pengkondisi ekspektasi, ditulis sebelum satu angka dihitung, plus hasilnya |
 | [QA-QUANT.md](QA-QUANT.md) | Apakah edge-nya nyata setelah biaya per instrumen dan urutan di dalam bar diselesaikan dengan benar. **Baca ini sebelum CALIBRATION.md** |
 | [QA-DETEKTOR.md](QA-DETEKTOR.md) | Apakah supply_demand, order_block, fvg dan ifvg valid, terkalibrasi, dan tergambar di tempat yang benar, di Zonelab MAUPUN di MQL5 yang berjalan di MT5. Termasuk kenapa tiga gate parity lama tidak pernah menjalankan satu baris pun MQL5 |
+| [PROMPT-SESI-TRADING.md](PROMPT-SESI-TRADING.md) | Template prompt untuk sesi analisis pasar plus pending order, dan empat pemeriksaan pra-kirim yang masing-masing sudah pernah salah |
 | [PRAREGISTRASI-KORELASI.md](PRAREGISTRASI-KORELASI.md) | Apakah korelasi partner mengkondisikan hasil SSMT, ditulis sebelum satu angka pun ada. Bagian 7 terisi 29 Agustus 2026: null, `t` terbesar 0,19 lawan kritis 3,48 |
 | [PRAREGISTRASI-YATIM.md](PRAREGISTRASI-YATIM.md) | Apakah enam modul yang tidak tersambung ke jalur keputusan memisahkan hasil, ditulis sebelum angkanya ada, plus hasilnya |
 | [PRAREGISTRASI-EKSEKUSI.md](PRAREGISTRASI-EKSEKUSI.md) | Dua aturan eksekusi yang diuji setelah sinyalnya habis, keduanya ditolak, dan satu ambang praregistrasi yang salah dirancang |
