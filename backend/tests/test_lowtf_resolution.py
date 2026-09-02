@@ -52,7 +52,7 @@ def test_a_dying_separation_reads_differently_from_a_dying_expectation():
     """Kalau H1 ikut mati, kalimatnya tidak boleh sama."""
     got = conclude({"a X 30m": cell(0.11, 0.05, 0.2, -0.01)})
     assert got["separation_survives"] is False
-    assert got["verdict"].startswith("H1 TIDAK bertahan")
+    assert got["verdict"].startswith("SEPARASI gerbang TIDAK bertahan")
 
 
 def test_growth_is_not_reported_as_shrinkage():

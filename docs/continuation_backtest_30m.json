@@ -1,0 +1,289 @@
+{
+ "preregistration": {
+  "source": "tools/continuation_backtest.py, 2026-09-02",
+  "question": "apakah entry KELANJUTAN (searah break atau CISD) positif setelah biaya, lawan placebo jitter per-event",
+  "why": "XAU rally 115,54 poin dan engine tidak punya satu pun entry yang bisa ikut: entry long satu-satunya adalah limit di zona belum tersentuh, dan harga tidak pernah kembali",
+  "arms": [
+   "bos",
+   "choch",
+   "cisd",
+   "sweep_against"
+  ],
+  "rule": "entry open bar+1, stop 1,0 ATR, target 2,0 R, horizon 96, biaya exness_raw, stop menang saat seri",
+  "placebo": "jitter per-event Uniform(5,40) bar",
+  "t_threshold_bonferroni": 2.4977054744123732,
+  "min_n": 30,
+  "folds": 8,
+  "min_sign_folds": 7,
+  "interval": "30m",
+  "fine": "5m",
+  "not_judged": "killzone dicetak sebagai bacaan, bukan hipotesis"
+ },
+ "population": {
+  "n_total": 19841,
+  "symbols": [
+   "BTCUSD",
+   "ETHUSD",
+   "EURUSD",
+   "XAUUSD"
+  ]
+ },
+ "arms": {
+  "bos": {
+   "n": 3010,
+   "exp_r_real": -0.1873834009973033,
+   "exp_r_placebo": -0.1380026898914229,
+   "delta": -0.04938071110588039,
+   "paired_t": -1.406939395640997,
+   "t_real_vs_zero": -7.254097177364924,
+   "walk_forward": {
+    "graded": 8,
+    "positive": 1,
+    "p": 0.99609375,
+    "deltas": [
+     -0.1184,
+     -0.1159,
+     -0.0055,
+     -0.0543,
+     -0.0917,
+     0.1244,
+     -0.1273,
+     -0.0069
+    ]
+   },
+   "by_killzone": {
+    "asia": {
+     "n": 405,
+     "exp_r": -0.1572542706141842
+    },
+    "london": {
+     "n": 416,
+     "exp_r": -0.13890143761716345
+    },
+    "london_close": {
+     "n": 313,
+     "exp_r": -0.12074245777151722
+    },
+    "none": {
+     "n": 1109,
+     "exp_r": -0.20398962596028325
+    },
+    "ny_am": {
+     "n": 515,
+     "exp_r": -0.22153634841633954
+    },
+    "ny_pm": {
+     "n": 252,
+     "exp_r": -0.25573395018866824
+    }
+   },
+   "passed": false,
+   "verdict": "TIDAK LOLOS"
+  },
+  "choch": {
+   "n": 3168,
+   "exp_r_real": -0.19769138963843721,
+   "exp_r_placebo": -0.2067304687092691,
+   "delta": 0.009039079070831893,
+   "paired_t": 0.2637414121412637,
+   "t_real_vs_zero": -7.860873723672621,
+   "walk_forward": {
+    "graded": 8,
+    "positive": 3,
+    "p": 0.85546875,
+    "deltas": [
+     -0.0212,
+     -0.0238,
+     -0.0429,
+     0.0525,
+     0.2183,
+     -0.0366,
+     -0.1193,
+     0.0454
+    ]
+   },
+   "by_killzone": {
+    "asia": {
+     "n": 482,
+     "exp_r": -0.19104738257789305
+    },
+    "london": {
+     "n": 461,
+     "exp_r": -0.2650396478948382
+    },
+    "london_close": {
+     "n": 350,
+     "exp_r": -0.20532386554806045
+    },
+    "none": {
+     "n": 1188,
+     "exp_r": -0.17560034323906284
+    },
+    "ny_am": {
+     "n": 466,
+     "exp_r": -0.20043121426032998
+    },
+    "ny_pm": {
+     "n": 221,
+     "exp_r": -0.1725823517527719
+    }
+   },
+   "passed": false,
+   "verdict": "TIDAK LOLOS"
+  },
+  "cisd": {
+   "n": 7817,
+   "exp_r_real": -0.19571468951352444,
+   "exp_r_placebo": -0.18255413987720018,
+   "delta": -0.013160549636324239,
+   "paired_t": -0.6039460393316245,
+   "t_real_vs_zero": -12.214105415438633,
+   "walk_forward": {
+    "graded": 8,
+    "positive": 3,
+    "p": 0.85546875,
+    "deltas": [
+     0.0131,
+     0.0222,
+     -0.0459,
+     -0.0723,
+     -0.0321,
+     -0.0047,
+     -0.0677,
+     0.0822
+    ]
+   },
+   "by_killzone": {
+    "asia": {
+     "n": 1115,
+     "exp_r": -0.1892426744302254
+    },
+    "london": {
+     "n": 1121,
+     "exp_r": -0.20845316064803326
+    },
+    "london_close": {
+     "n": 741,
+     "exp_r": -0.13376664268755695
+    },
+    "none": {
+     "n": 2941,
+     "exp_r": -0.19245450687016877
+    },
+    "ny_am": {
+     "n": 1181,
+     "exp_r": -0.19213422888983273
+    },
+    "ny_pm": {
+     "n": 718,
+     "exp_r": -0.2690527041720547
+    }
+   },
+   "passed": false,
+   "verdict": "TIDAK LOLOS"
+  },
+  "sweep_against": {
+   "n": 4506,
+   "exp_r_real": -0.24043512115069093,
+   "exp_r_placebo": -0.22142652909194493,
+   "delta": -0.019008592058746013,
+   "paired_t": -0.6650587578096825,
+   "t_real_vs_zero": -11.489764730872789,
+   "walk_forward": {
+    "graded": 8,
+    "positive": 4,
+    "p": 0.63671875,
+    "deltas": [
+     -0.1053,
+     0.0303,
+     -0.0578,
+     0.0462,
+     0.0019,
+     0.0642,
+     -0.0219,
+     -0.1099
+    ]
+   },
+   "by_killzone": {
+    "asia": {
+     "n": 621,
+     "exp_r": -0.23632454532255145
+    },
+    "london": {
+     "n": 599,
+     "exp_r": -0.30990354143174886
+    },
+    "london_close": {
+     "n": 489,
+     "exp_r": -0.186521835190662
+    },
+    "none": {
+     "n": 1744,
+     "exp_r": -0.20899400309809932
+    },
+    "ny_am": {
+     "n": 673,
+     "exp_r": -0.29281343586742664
+    },
+    "ny_pm": {
+     "n": 380,
+     "exp_r": -0.25855981787366916
+    }
+   },
+   "passed": false,
+   "verdict": "TIDAK LOLOS"
+  }
+ },
+ "oracle": {
+  "n": 1340,
+  "exp_r_real": 0.5338641199999136,
+  "exp_r_placebo": -0.20779114739846133,
+  "delta": 0.7416552673983748,
+  "paired_t": 13.794990657940856,
+  "t_real_vs_zero": 13.111189672555117,
+  "walk_forward": {
+   "graded": 8,
+   "positive": 8,
+   "p": 0.00390625,
+   "deltas": [
+    0.8209,
+    0.6434,
+    0.7743,
+    0.7233,
+    0.3953,
+    0.8515,
+    0.8646,
+    0.8609
+   ]
+  },
+  "by_killzone": {
+   "asia": {
+    "n": 169,
+    "exp_r": 0.42915101365933533
+   },
+   "london": {
+    "n": 167,
+    "exp_r": 0.509750882345371
+   },
+   "london_close": {
+    "n": 114,
+    "exp_r": 0.5939646705885967
+   },
+   "none": {
+    "n": 560,
+    "exp_r": 0.5129444734029447
+   },
+   "ny_am": {
+    "n": 169,
+    "exp_r": 0.6231722942567015
+   },
+   "ny_pm": {
+    "n": 161,
+    "exp_r": 0.6052547009791793
+   }
+  },
+  "passed": true,
+  "verdict": "LOLOS"
+ },
+ "any_passed": []
+}

@@ -58,12 +58,22 @@ def summarise(rows: list[dict]) -> dict:
     return out
 
 
+#: Sisi gerbang yang dikontrol. `above` untuk supply_demand dan order_block,
+#: tempat populasi yang ditradingkan ada di ATAS gerbang departure. `below`
+#: untuk fvg, tempat gerbangnya TERBALIK: cuma 129 dari 3.928 zona lolos
+#: gerbang, jadi mencetak sisi atas untuk fvg mencetak n=18 per sel dan
+#: mengontrol populasi yang tidak pernah diorder. Run pertama melakukan itu dan
+#: memberi angka 5m dan 1m yang IDENTIK sampai tiga desimal, yang mustahil
+#: untuk dua resolusi berbeda dan itu yang membuatnya ketahuan.
+SIDES = ("above", "below")
+
+
 def _read(cell: dict, fine: str, field: str):
     v = (cell.get(f"fine_{fine}") or {}).get(field)
     return None if v is None or (isinstance(v, float) and math.isnan(v)) else v
 
 
-def conclude(cells: dict) -> dict:
+def conclude(cells: dict, side: str = "above") -> dict:
     """Ringkasan yang MEMISAHKAN dua pertanyaan, karena jawabannya berbeda.
 
     Versi pertama fungsi ini menjawab satu kalimat, "TIDAK BERTAHAN, resolusi
@@ -82,11 +92,12 @@ def conclude(cells: dict) -> dict:
     Jadi yang dijawab per detektor, bukan sekali untuk semuanya: supply_demand
     mempertahankan tanda positifnya di rasio 30, order_block tidak.
     """
-    out: dict = {"per_detector": {}}
+    out: dict = {"per_detector": {}, "side": side}
     usable = []
     for label, cell in cells.items():
         name = label.split(" ")[0]
-        a, b = _read(cell, "5m", "exp_r_above"), _read(cell, "1m", "exp_r_above")
+        field = f"exp_r_{side}"
+        a, b = _read(cell, "5m", field), _read(cell, "1m", field)
         d5, d1 = _read(cell, "5m", "difference"), _read(cell, "1m", "difference")
         if a is None or b is None:
             continue
@@ -111,10 +122,15 @@ def conclude(cells: dict) -> dict:
              if v["exp_above_keeps_sign_at_ratio_30"]]
     loses = [n for n, v in out["per_detector"].items()
              if not v["exp_above_keeps_sign_at_ratio_30"]]
+    # DUA HAL DINAMAI SENDIRI, bukan "H1" dan "H2". Label itu milik
+    # `lowtf_costed`, dan file ini juga dipakai untuk `fvg_inverted` yang H1-nya
+    # adalah pertanyaan yang BERBEDA. Verdict yang memakai label studi lain
+    # terbaca seperti menjawab studi itu, dan run fvg pertama betul-betul
+    # mencetak "H1 TIDAK bertahan" untuk sesuatu yang bukan H1-nya fvg.
     out["verdict"] = (
-        ("H1 BERTAHAN di setiap sel" if out["separation_survives"]
-         else "H1 TIDAK bertahan")
-        + "; H2 menyusut di "
+        ("SEPARASI gerbang bertahan di setiap sel"
+         if out["separation_survives"] else "SEPARASI gerbang TIDAK bertahan")
+        + f"; ekspektasi sisi {side} menyusut di "
         + ("setiap sel" if out["all_exp_above_shrink"] else "sebagian sel")
         + (f", tanda bertahan untuk {', '.join(keeps)}" if keeps else "")
         + (f", HILANG untuk {', '.join(loses)}" if loses else "")
@@ -148,7 +164,7 @@ def selfcheck() -> int:
     # Separasi yang ikut mati harus terbaca berbeda.
     got = conclude({"a X 30m": cell(0.11, 0.05, d1=-0.01)})
     assert got["separation_survives"] is False
-    assert got["verdict"].startswith("H1 TIDAK bertahan")
+    assert got["verdict"].startswith("SEPARASI gerbang TIDAK bertahan")
 
     # Tumbuh, bukan menyusut, tidak boleh dilaporkan sebagai menyusut.
     got = conclude({"a X 30m": cell(0.05, 0.11)})
@@ -165,6 +181,18 @@ def selfcheck() -> int:
 def main() -> int:
     if "--selfcheck" in sys.argv:
         return selfcheck()
+    # `--names` MENAMBAH detektor yang dikontrol tanpa menggeser `NAMES`.
+    # Konstanta itu adalah kontrol untuk `lowtf_costed`, dan mengubahnya berarti
+    # kontrol itu berhenti mengontrol studi yang ia ditulis untuk mengontrol.
+    side = "above"
+    if "--side" in sys.argv:
+        side = sys.argv[sys.argv.index("--side") + 1]
+        if side not in SIDES:
+            print(f"--side harus salah satu dari {SIDES}", file=sys.stderr)
+            return 2
+    names = NAMES
+    if "--names" in sys.argv:
+        names = tuple(sys.argv[sys.argv.index("--names") + 1].split(","))
     out: dict = {
         "question": "apakah +0,1125 R dan +0,0858 R di 30m bertahan saat "
                     "diresolusi 1 menit (rasio 30) alih-alih 5 menit (rasio 6)",
@@ -172,9 +200,10 @@ def main() -> int:
         "caveat": "riwayat 1m cuma 103 hari XAUUSD dan 69 hari BTCUSD; kedua "
                   "resolusi dipotong ke rentang bar-kasar yang SAMA sebelum "
                   "dibandingkan",
+        "side": side,
         "cells": {},
     }
-    for name in NAMES:
+    for name in names:
         for symbol, interval in CELLS:
             got: dict = {}
             rows_by_fine: dict[str, list[dict]] = {}
@@ -198,14 +227,16 @@ def main() -> int:
                     }
             label = f"{name} {symbol} {interval}"
             out["cells"][label] = got
-            a = (got.get("fine_5m") or {}).get("exp_r_above")
-            b = (got.get("fine_1m") or {}).get("exp_r_above")
-            print(f"{label:34s} 5m {'None' if a is None else round(a, 4):>9}  "
+            a = (got.get("fine_5m") or {}).get(f"exp_r_{side}")
+            b = (got.get("fine_1m") or {}).get(f"exp_r_{side}")
+            n_key = f"n_{side}"
+            print(f"{label:34s} sisi {side:5s} "
+                  f"5m {'None' if a is None else round(a, 4):>9}  "
                   f"1m {'None' if b is None else round(b, 4):>9}  "
-                  f"n_atas_1m {(got.get('fine_1m') or {}).get('n_above')}",
+                  f"n_1m {(got.get('fine_1m') or {}).get(n_key)}",
                   file=sys.stderr)
 
-    out.update(conclude(out["cells"]))
+    out.update(conclude(out["cells"], side))
     print(f"VERDICT: {out['verdict']}", file=sys.stderr)
     json.dump(out, sys.stdout, indent=1, ensure_ascii=False)
     print(file=sys.stdout)

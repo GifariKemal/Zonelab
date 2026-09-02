@@ -1,0 +1,124 @@
+{
+ "status": "BACAAN, bukan hipotesis; 16 sel dan tidak satu pun dipraregistrasi. Sel positif di sini jadi praregistrasi berikutnya dengan Bonferroni atas 16, bukan kesimpulan.",
+ "why": "keberatan sah terhadap continuation_backtest bukan entry-nya tapi exit-nya: target 2R memotong bagian yang berlari, dan rally XAU 2 September 2026 berjarak 4 sampai 6 R",
+ "stop_atr": 1.0,
+ "targets": [
+  2.0,
+  3.0,
+  4.0,
+  6.0
+ ],
+ "interval": "1h",
+ "fine": "5m",
+ "broker": "exness_raw",
+ "arms": {
+  "bos": {
+   "n": 1551,
+   "rr_2.0": {
+    "exp_r": -0.09359703952448999,
+    "t_vs_zero": -2.5738392702675497,
+    "hit_rate": 0.3481624758220503
+   },
+   "rr_3.0": {
+    "exp_r": -0.08753988944937796,
+    "t_vs_zero": -1.95690589837181,
+    "hit_rate": 0.26305609284332687
+   },
+   "rr_4.0": {
+    "exp_r": -0.08539538035132685,
+    "t_vs_zero": -1.6539680185509789,
+    "hit_rate": 0.21405544809800128
+   },
+   "rr_6.0": {
+    "exp_r": 0.022741347514213504,
+    "t_vs_zero": 0.3483834336134978,
+    "hit_rate": 0.1760154738878143
+   },
+   "monotone_improving": true,
+   "best_target": 6.0,
+   "any_positive": true
+  },
+  "choch": {
+   "n": 1576,
+   "rr_2.0": {
+    "exp_r": -0.15973790721589118,
+    "t_vs_zero": -4.500188356175772,
+    "hit_rate": 0.32741116751269034
+   },
+   "rr_3.0": {
+    "exp_r": -0.15290766342406628,
+    "t_vs_zero": -3.51922490882226,
+    "hit_rate": 0.24746192893401014
+   },
+   "rr_4.0": {
+    "exp_r": -0.18014543133255936,
+    "t_vs_zero": -3.6365392837483714,
+    "hit_rate": 0.1935279187817259
+   },
+   "rr_6.0": {
+    "exp_r": -0.1213710471449916,
+    "t_vs_zero": -1.979028950173255,
+    "hit_rate": 0.15355329949238578
+   },
+   "monotone_improving": false,
+   "best_target": 6.0,
+   "any_positive": false
+  },
+  "cisd": {
+   "n": 4008,
+   "rr_2.0": {
+    "exp_r": -0.12314692344843003,
+    "t_vs_zero": -5.4769491783406545,
+    "hit_rate": 0.3398203592814371
+   },
+   "rr_3.0": {
+    "exp_r": -0.12849724507540455,
+    "t_vs_zero": -4.675409659230452,
+    "hit_rate": 0.25399201596806387
+   },
+   "rr_4.0": {
+    "exp_r": -0.13015120787768264,
+    "t_vs_zero": -4.114582443668054,
+    "hit_rate": 0.20508982035928144
+   },
+   "rr_6.0": {
+    "exp_r": -0.07401044688630577,
+    "t_vs_zero": -1.8904667197803382,
+    "hit_rate": 0.1624251497005988
+   },
+   "monotone_improving": false,
+   "best_target": 6.0,
+   "any_positive": false
+  },
+  "sweep_against": {
+   "n": 2271,
+   "rr_2.0": {
+    "exp_r": -0.1368632217180523,
+    "t_vs_zero": -4.599845067842671,
+    "hit_rate": 0.3368560105680317
+   },
+   "rr_3.0": {
+    "exp_r": -0.1110194903633596,
+    "t_vs_zero": -3.025173793805292,
+    "hit_rate": 0.26023778071334214
+   },
+   "rr_4.0": {
+    "exp_r": -0.07635047261543901,
+    "t_vs_zero": -1.7825249969933035,
+    "hit_rate": 0.2170849845882871
+   },
+   "rr_6.0": {
+    "exp_r": 0.002811723597286201,
+    "t_vs_zero": 0.05251161595020709,
+    "hit_rate": 0.17393218846323205
+   },
+   "monotone_improving": true,
+   "best_target": 6.0,
+   "any_positive": true
+  }
+ },
+ "any_cell_positive": [
+  "bos",
+  "sweep_against"
+ ]
+}

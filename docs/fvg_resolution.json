@@ -1,0 +1,72 @@
+{
+ "question": "apakah +0,1125 R dan +0,0858 R di 30m bertahan saat diresolusi 1 menit (rasio 30) alih-alih 5 menit (rasio 6)",
+ "gate_atr": 2.0,
+ "caveat": "riwayat 1m cuma 103 hari XAUUSD dan 69 hari BTCUSD; kedua resolusi dipotong ke rentang bar-kasar yang SAMA sebelum dibandingkan",
+ "side": "below",
+ "cells": {
+  "fvg XAUUSD 30m": {
+   "shared_coarse_bars": [
+    57802,
+    61058
+   ],
+   "fine_5m": {
+    "ratio_fine_per_coarse": 6,
+    "n_above": 18,
+    "n_below": 405,
+    "exp_r_above": 0.2580384937086621,
+    "exp_r_below": 0.18685305330969515,
+    "t_above_vs_zero": 1.8851642114516838,
+    "difference": 0.07118544039896696,
+    "welch_t": 0.4687382407010811
+   },
+   "fine_1m": {
+    "ratio_fine_per_coarse": 30,
+    "n_above": 18,
+    "n_below": 405,
+    "exp_r_above": 0.2580384937086621,
+    "exp_r_below": 0.1354116511959817,
+    "t_above_vs_zero": 1.8851642114516838,
+    "difference": 0.12262684251268041,
+    "welch_t": 0.8066594753224356
+   }
+  },
+  "fvg BTCUSD 30m": {
+   "shared_coarse_bars": [
+    87283,
+    90524
+   ],
+   "fine_5m": {
+    "ratio_fine_per_coarse": 6,
+    "n_above": 12,
+    "n_below": 393,
+    "exp_r_above": 0.1643312662029624,
+    "exp_r_below": 0.1316592521665231,
+    "t_above_vs_zero": 1.1096912002267068,
+    "difference": 0.032672014036439295,
+    "welch_t": 0.19213170036260022
+   },
+   "fine_1m": {
+    "ratio_fine_per_coarse": 30,
+    "n_above": 12,
+    "n_below": 393,
+    "exp_r_above": 0.06521451803223192,
+    "exp_r_below": 0.12353118250451667,
+    "t_above_vs_zero": 0.44767661324483354,
+    "difference": -0.05831666447228474,
+    "welch_t": -0.34685774856530976
+   }
+  }
+ },
+ "per_detector": {
+  "fvg": {
+   "exp_above_keeps_sign_at_ratio_30": true,
+   "exp_above_shrinks": true,
+   "separation_keeps_sign": false
+  }
+ },
+ "cells_compared": 2,
+ "all_exp_above_shrink": true,
+ "separation_survives": false,
+ "exp_above_survives": true,
+ "verdict": "SEPARASI gerbang TIDAK bertahan; ekspektasi sisi below menyusut di setiap sel, tanda bertahan untuk fvg"
+}

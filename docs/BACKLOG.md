@@ -81,7 +81,73 @@ atas primitif yang sudah ada.
 | 9 | Opening Range Gap | Antara harga pertama sesi 09:30 dan penutupan hari sebelumnya | `gaps.py` hanya menangani batas 17:00/18:00 |
 | 10 | IPDA data range | Tertinggi dan terendah bergulir 20, 40, 60 hari perdagangan | Tidak ada |
 | 11 | Rejection block | Zona **sumbu** panjang lilin yang menyapu likuiditas lalu ditolak | Tidak ada. OB didefinisikan pada badan, ini pada sumbu |
-| 12 | Volume imbalance | Celah badan ke badan, sumbu boleh tumpang tindih | Dinamai lalu ditolak di `imbalance.py` |
+| 12 | Volume imbalance | Celah badan ke badan, sumbu boleh tumpang tindih | **DIUKUR DAN DITOLAK 2 September 2026**, lihat bagian 3b di bawah. Geometrinya ada di 25,19 persen bar XAUUSD 30m, dan ukuran median-nya 0,0058 ATR |
+
+### Bagian 3b: volume imbalance, diukur lalu ditolak (2 September 2026)
+
+Ditanya apakah Zonelab perlu menambah grup SMC. Dua penyelidikan dijalankan
+paralel: inventaris registry sendiri, dan daftar konsep SMC kanonik dari enam
+sumber luar termasuk satu library open-source yang menyebut objeknya satu per
+satu. Keduanya bertemu di satu jawaban: hampir seluruh vocabulary SMC sudah ada
+di 21 layer yang ada, dengan nama lain.
+
+Peta aliasnya yang berguna, bukan panjang daftarnya:
+
+| Nama SMC | Sudah ada sebagai |
+|---|---|
+| MSS | identik dengan CHoCH di keenam sumber; repo punya keduanya |
+| EQH / EQL | `liquidity.equal_levels`, `REQH`/`REQL` |
+| Turtle soup, stop hunt, liquidity grab | satu kondisi, tiga nama: `Break` kind `SWEEP` |
+| Mitigation block | tidak satu pun dari enam sumber memberi kondisi yang memisahkannya dari order block; pertanyaannya dijawab `ZoneState.MITIGATED` |
+| BPR | overlap FVG dan IFVG, dan `poi.confluence` sudah menghitung overlap lintas keluarga |
+| Liquidity void, vacuum block | `imbalance._gap` |
+| Inducement | ditolak tertulis di `app/liquidity.py:93-118`, dan definisi tersempit tanpa angka karangan sudah jadi field `swept_at` di event MSS |
+| PD array | dealing range premium/discount |
+| CE, mean threshold | 50 persen dari array, operator yang sama dengan equilibrium |
+| BISI / SIBI | FVG bullish dan bearish |
+| Silver bullet, unicorn, judas swing, 2022 model, MMXM | template komposit dari killzone plus block plus sweep, bukan kondisi harga baru |
+
+Yang TERSISA setelah peta itu: volume imbalance. Geometrinya body-to-body pada
+dua bar berdampingan, dan itu jatuh tepat di celah antara dua detector yang ada.
+`imbalance._gap` wick-to-wick pada tiga bar; `chart_gaps` menuntut tidak ada
+overlap sama sekali. Body yang tidak overlap sementara wick-nya bersentuhan tidak
+akan pernah tertangkap keduanya.
+
+`tools/volume_imbalance.py` mengukurnya tanpa menambah satu baris pun ke `app/`:
+detector-nya hidup di file studi dan disuntikkan ke `DETECTORS` sementara, trik
+yang sama yang `detectors_costed.resolved_as` sudah pakai.
+
+**Hasilnya, dan ia bukan "n terlalu kecil".**
+
+| | XAUUSD 30m | BTCUSD 30m |
+|---|---|---|
+| bar yang punya geometrinya | 10.076 (25,19 persen) | 8.536 (21,34 persen) |
+| ukuran median | 0,0058 ATR | 0,0025 ATR |
+| persentil 99 | 0,1548 ATR | 0,0410 ATR |
+| terbesar yang pernah ada | 0,9529 ATR | 0,1642 ATR |
+| lolos `min_gap_atr` 0,1 | 158 (1,57 persen) | 3 (0,035 persen) |
+
+Geometrinya sangat umum dan ukurannya dua orde di bawah gap minimum yang engine
+gambar: median 0,0350 dalam harga lawan ATR median 5,07. Di BTCUSD yang TERBESAR
+sepanjang 40.000 bar cuma 0,1642 ATR. Dari 158 yang lolos ambang di XAUUSD,
+hanya 4 yang bertahan lewat filter state, karena celah sekecil itu langsung
+tersentuh pada bar berikutnya. Sisi yang bisa ditradingkan berakhir n=18 dengan
+t = +0,32.
+
+Dan H2 gagal juga: 3 dari 4 zona yang bertahan overlap sebuah FVG di bar yang
+berdekatan, fraksi duplikat 0,75 lawan ambang 0,5 yang dituliskan sebelum
+angkanya dilihat.
+
+> [!NOTE]
+> Satu dugaan gugur di sini dan dicatat supaya tidak diulang. Saya menduga VI
+> jarang karena deret kontinu membuat `open[i+1] == close[i]`. Terukur, itu
+> SALAH: 98,4 persen bar XAUUSD dan 84,3 persen bar BTCUSD punya open yang beda
+> dari close sebelumnya, dengan diskontinuitas median 0,035 dan 0,890 dalam
+> harga. Diskontinuitasnya umum. Yang kecil ukurannya relatif terhadap ATR.
+
+Kesimpulan: volume imbalance BUKAN zona di timeframe ini, ia artefak
+mikrostruktur. Sebuah stop di luar celah median 0,035 akan berada di dalam
+spread. Ditolak, dan ini penolakan terukur kelima di dokumen ini.
 
 > [!WARNING]
 > **Dua tempat sumber benar-benar tidak sepakat, jangan dikarang satu aturan.**

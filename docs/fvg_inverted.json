@@ -1,0 +1,175 @@
+{
+ "preregistration": {
+  "source": "tools/fvg_inverted.py, 2026-09-02",
+  "h1": "exp_R fvg di BAWAH gerbang > 0 di 30m",
+  "h2": "exp_R di bawah gerbang > exp_R di atas, yaitu gerbangnya tetap terbalik di 30m",
+  "prior": "1h dan 4h: selisih -0,1005 dengan t=-4,48 dan exp_r_below +0,0938 di n=16200, satu-satunya angka positif di detectors_costed.json, belum diuji lawan nol",
+  "t_threshold_bonferroni_2": 2.241402727604945,
+  "gate_atr": 2.0,
+  "folds": 8,
+  "min_sign_folds": 7,
+  "cells": [
+   "XAUUSD 30m",
+   "BTCUSD 30m"
+  ],
+  "caveat": "bar halus 5m, rasio 6, batas ATAS; kontrol resolusi wajib sebelum order"
+ },
+ "cells": {
+  "XAUUSD 30m": {
+   "bars": 61139,
+   "n_below": 1939,
+   "n_above": 62,
+   "exp_r_below": 0.21780488991144586,
+   "exp_r_above": 0.1507657076741917,
+   "t_below_vs_zero": 5.990304966499443,
+   "readable": true
+  },
+  "BTCUSD 30m": {
+   "bars": 90615,
+   "n_below": 1860,
+   "n_above": 67,
+   "exp_r_below": 0.2198348742202337,
+   "exp_r_above": 0.16229838851947878,
+   "t_below_vs_zero": 6.071710699947679,
+   "readable": true
+  }
+ },
+ "pooled": {
+  "n_below": 3799,
+  "n_above": 129,
+  "exp_r_below": 0.21879877535875975,
+  "exp_r_above": 0.15675554966360433,
+  "t_below_vs_zero": 8.52669828326616,
+  "difference": 0.06204322569515541,
+  "welch_t": 1.0035897874387347
+ },
+ "walk_forward_h2_difference": {
+  "folds": [
+   {
+    "fold": 1,
+    "n_below": 469,
+    "n_above": 23,
+    "purged": 1,
+    "difference": -0.31450628920357016,
+    "readable": true
+   },
+   {
+    "fold": 2,
+    "n_below": 519,
+    "n_above": 10,
+    "purged": 0,
+    "readable": false
+   },
+   {
+    "fold": 3,
+    "n_below": 395,
+    "n_above": 17,
+    "purged": 0,
+    "readable": false
+   },
+   {
+    "fold": 4,
+    "n_below": 472,
+    "n_above": 13,
+    "purged": 3,
+    "readable": false
+   },
+   {
+    "fold": 5,
+    "n_below": 447,
+    "n_above": 13,
+    "purged": 0,
+    "readable": false
+   },
+   {
+    "fold": 6,
+    "n_below": 486,
+    "n_above": 19,
+    "purged": 1,
+    "readable": false
+   },
+   {
+    "fold": 7,
+    "n_below": 506,
+    "n_above": 14,
+    "purged": 1,
+    "readable": false
+   },
+   {
+    "fold": 8,
+    "n_below": 497,
+    "n_above": 20,
+    "purged": 2,
+    "difference": 0.05008110288823403,
+    "readable": true
+   }
+  ],
+  "graded": 2,
+  "positive": 1
+ },
+ "walk_forward_h1_below_side": {
+  "folds": [
+   {
+    "fold": 1,
+    "n_below": 469,
+    "purged": 1,
+    "exp_r": 0.243880525773558,
+    "readable": true
+   },
+   {
+    "fold": 2,
+    "n_below": 519,
+    "purged": 0,
+    "exp_r": 0.24221443353142408,
+    "readable": true
+   },
+   {
+    "fold": 3,
+    "n_below": 395,
+    "purged": 0,
+    "exp_r": 0.09967425893010602,
+    "readable": true
+   },
+   {
+    "fold": 4,
+    "n_below": 472,
+    "purged": 3,
+    "exp_r": 0.21772298737387305,
+    "readable": true
+   },
+   {
+    "fold": 5,
+    "n_below": 447,
+    "purged": 0,
+    "exp_r": 0.31792653063356263,
+    "readable": true
+   },
+   {
+    "fold": 6,
+    "n_below": 486,
+    "purged": 1,
+    "exp_r": 0.1875761470372562,
+    "readable": true
+   },
+   {
+    "fold": 7,
+    "n_below": 506,
+    "purged": 1,
+    "exp_r": 0.2487069898085843,
+    "readable": true
+   },
+   {
+    "fold": 8,
+    "n_below": 497,
+    "purged": 2,
+    "exp_r": 0.18721389161586685,
+    "readable": true
+   }
+  ],
+  "graded": 8,
+  "positive": 8
+ },
+ "verdict": "H1 lolos, H2 tidak: sisi bawah mengalahkan nol tapi bukan karena gerbangnya",
+ "h1_below_beats_zero": true,
+ "h2_gate_stays_inverted": false
+}

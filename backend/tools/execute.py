@@ -199,7 +199,50 @@ def by_method_ranked(row: tuple) -> tuple:
 #: positif adalah order_block SETELAH `--no-cisd-in-band`, +0,0244 R, dan itu
 #: pun belum pernah diuji lawan nol. Jadi memilih `order_block` di sini tanpa
 #: filter itu memilih populasi yang lebih buruk daripada default.
-ORDERABLE_LAYERS = ("supply_demand", "order_block")
+ORDERABLE_LAYERS = ("supply_demand", "order_block", "fvg")
+
+#: ARAH GERBANG DEPARTURE, per layer, dan `fvg` menghadap ke arah SEBALIKNYA.
+#:
+#: `fvg` masuk daftar di atas pada 2 September 2026 setelah keluar darinya di
+#: hari yang sama, dan pembalikan itu punya angkanya sendiri. Alasan ia keluar:
+#: di rig berbiaya 1 jam dan 4 jam gerbang departure 2,0 ATR TERBALIK untuknya,
+#: selisih -0,1005 R dengan Welch t = -4,48, artinya FVG yang LOLOS gerbang
+#: lebih buruk daripada yang tidak. Yang tidak pernah ditanyakan sesudahnya:
+#: sisi bawahnya sendiri berapa. `docs/detectors_costed.json` mencatat
+#: `exp_r_below` +0,0938 R di n=16.200, SATU-SATUNYA angka positif di seluruh
+#: file itu, dan ia tidak pernah diuji lawan nol.
+#:
+#: `tools/fvg_inverted.py` menanyakannya di 30 menit pada dua instrumen yang
+#: ditradingkan: sisi BAWAH gerbang +0,2188 R di n=3.799 dengan t lawan nol
+#: +8,53 lawan kritis 2,24, dan walk-forward 8 DARI 8 fold positif, tiap fold
+#: +0,0997 sampai +0,3179. Kontrol resolusinya (`docs/fvg_resolution.json`)
+#: dijalankan di bar 1 menit, rasio 30 lawan rasio 6: angkanya menyusut ke
+#: +0,1354 (XAUUSD) dan +0,1235 (BTCUSD) dan TANDANYA BERTAHAN. Di kontrol yang
+#: sama supply_demand jadi +0,0549 dan +0,0359, jadi fvg kira-kira tiga kali
+#: lebih besar setelah kontrol yang paling keras yang repo ini punya.
+#:
+#: GERBANGNYA SENDIRI TIDAK MEMISAHKAN di 30 menit, selisih +0,0620 dengan
+#: Welch t = +1,00, dan cuma 129 dari 3.928 zona yang lolos. Jadi `ceiling` di
+#: sini bukan klaim bahwa FVG kecil lebih baik daripada FVG besar. Ia klaim
+#: bahwa populasi yang TERUKUR adalah sisi bawah, dan memakai `floor` untuk fvg
+#: akan memasang order pada 129 zona yang tidak pernah diukur lawan nol
+#: sementara membuang 3.799 yang sudah.
+GATE_DIRECTION: dict[str, str] = {
+    "supply_demand": "floor",
+    "order_block": "floor",
+    "fvg": "ceiling",
+}
+
+#: Timeframe yang punya pengukuran untuk arah gerbang non-default.
+#:
+#: `fvg_inverted` mengukur 30 menit saja. Di 1 jam sisi bawahnya +0,0938 R tapi
+#: TIDAK PERNAH diuji lawan nol dan tidak punya walk-forward, dan di 15 menit
+#: tidak ada angka sama sekali karena riwayat 1 menit di mesin ini cuma 103 hari
+#: untuk XAUUSD dan 69 hari untuk BTCUSD. Membiarkan `--layer fvg` jalan di
+#: timeframe lain akan memasang order pada populasi yang belum pernah diukur
+#: sambil mengutip angka 30 menit, yang persis kelas kesalahan yang commit
+#: `bbeec8e` ada untuk memperbaikinya.
+MEASURED_INTERVALS: dict[str, tuple[str, ...]] = {"fvg": ("30m",)}
 
 
 def round_robin(rows: list[tuple]) -> list[tuple]:
@@ -272,6 +315,13 @@ def candidates(
             f"layer {layer!r} tidak ada di ORDERABLE_LAYERS {ORDERABLE_LAYERS}; "
             "lihat komentar di sana untuk angka yang membatasi daftarnya"
         )
+    allowed_intervals = MEASURED_INTERVALS.get(layer)
+    if allowed_intervals is not None and interval not in allowed_intervals:
+        raise ValueError(
+            f"layer {layer!r} cuma terukur di {allowed_intervals}, bukan "
+            f"{interval!r}. Lihat MEASURED_INTERVALS untuk kenapa: angkanya "
+            "diukur di satu timeframe dan tidak berlaku di yang lain"
+        )
     params = (
         SupplyDemandParams(max_zones_per_side=0)
         if layer == "supply_demand"
@@ -328,6 +378,7 @@ def candidates(
     fees = schedule(symbol, False, "exness_raw")
     nights = (HORIZON * step) / 86_400
     too_costly: list[tuple[str, float]] = []
+    above_gate: list[str] = []
     cisd_in_band: list[str] = []
 
     # ONE DEGREE UP, and the zones are detected THERE rather than on these bars.
@@ -414,7 +465,15 @@ def candidates(
     for zone in zones:
         if zone.first_test_time is not None:
             continue
-        if (zone.departure_atr or 0.0) < DEPARTURE_GATE_ATR:
+        # ARAHNYA PER LAYER, lihat `GATE_DIRECTION`. `floor` membuang yang di
+        # BAWAH gerbang, `ceiling` membuang yang di ATAS, dan untuk `fvg`
+        # arahnya terbalik karena populasi yang terukur ada di sisi bawahnya.
+        departure = zone.departure_atr or 0.0
+        if GATE_DIRECTION.get(layer, "floor") == "floor":
+            if departure < DEPARTURE_GATE_ATR:
+                continue
+        elif departure >= DEPARTURE_GATE_ATR:
+            above_gate.append(zone.id)
             continue
 
         # FILTER CISD-DI-DALAM-BLOCK, dan ia POPULASI bukan penolakan.
@@ -552,6 +611,12 @@ def candidates(
               f"{len(out)} kandidat memuat CISD dalam {RECENT_CISD_BARS} bar. "
               f"Di bar keputusan kondisinya hampir selalu salah, lihat "
               f"komentarnya di gerbang itu")
+    if above_gate:
+        print(f"  {len(above_gate)} zona ditolak karena DI ATAS gerbang "
+              f"{DEPARTURE_GATE_ATR} ATR (arah gerbang layer ini `ceiling`, "
+              f"populasi terukurnya sisi bawah): "
+              f"{', '.join(above_gate[:4])}"
+              f"{' ...' if len(above_gate) > 4 else ''}")
     if cisd_in_band:
         print(f"  {len(cisd_in_band)} zona ditolak filter CISD-di-dalam-band "
               f"(baru dalam {RECENT_CISD_BARS} bar): "
@@ -970,8 +1035,10 @@ def main() -> None:
         "--layer", default="supply_demand", choices=ORDERABLE_LAYERS,
         help="detektor yang dipasangi order. Daftarnya dibatasi ke yang punya "
              "populasi terukur di rig berbiaya, lihat ORDERABLE_LAYERS. "
-             "`fvg` TIDAK ADA di sana: gerbang departure-nya terbalik, "
-             "-0,1005 R dengan t=-4,48")
+             "`fvg` HANYA di 30m dan gerbangnya TERBALIK di sana: populasi "
+             "terukurnya sisi BAWAH gerbang, +0,2188 R di n=3.799 dengan t "
+             "lawan nol +8,53 dan walk-forward 8 dari 8, bertahan +0,1354 dan "
+             "+0,1235 di kontrol resolusi 1 menit")
     parser.add_argument(
         "--no-cisd-in-band", action="store_true",
         help="buang order block yang memuat level CISD baru (dalam 50 bar) di "

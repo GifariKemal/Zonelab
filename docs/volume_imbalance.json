@@ -1,0 +1,207 @@
+{
+ "preregistration": {
+  "source": "tools/volume_imbalance.py, 2026-09-02",
+  "h1": "exp_R zona volume imbalance > 0 di 30m, per sisi gerbang",
+  "h2": "populasi VI tidak duplikat FVG, fraksi overlap < 0.5",
+  "why": "satu-satunya geometri SMC yang tidak tertangkap detector mana pun: body-to-body dua bar berdampingan, di antara FVG (wick-to-wick tiga bar) dan chart gap (tanpa overlap)",
+  "refused_in_writing_at": "app/detect/imbalance.py:44-47",
+  "t_threshold_bonferroni_2": 2.241402727604945,
+  "gate_atr": 2.0,
+  "folds": 8,
+  "min_sign_folds": 7,
+  "cells": [
+   "XAUUSD 30m",
+   "BTCUSD 30m"
+  ],
+  "nothing_added_to_app": true,
+  "caveat": "bar halus 5m rasio 6, batas ATAS; kontrol resolusi 1m wajib sebelum menambah apa pun ke app/"
+ },
+ "size_census": {
+  "XAUUSD 30m": {
+   "bars": 40000,
+   "n_geometry": 10076,
+   "pct_of_bars": 25.190629765744145,
+   "size_atr_p50": 0.0057534650312617,
+   "size_atr_p90": 0.016909079625340356,
+   "size_atr_p99": 0.154840598182983,
+   "size_atr_max": 0.9528678428359673,
+   "min_gap_atr": 0.1,
+   "n_clearing_min_gap": 158,
+   "pct_clearing_min_gap": 1.5680825724493845,
+   "median_size_in_price": 0.03499999999985448,
+   "median_atr_in_price": 5.065911383615391
+  },
+  "BTCUSD 30m": {
+   "bars": 40000,
+   "n_geometry": 8536,
+   "pct_of_bars": 21.340533513337835,
+   "size_atr_p50": 0.002510741785871762,
+   "size_atr_p90": 0.015176579775824567,
+   "size_atr_p99": 0.04098880241612697,
+   "size_atr_max": 0.164201280309055,
+   "min_gap_atr": 0.1,
+   "n_clearing_min_gap": 3,
+   "pct_clearing_min_gap": 0.035145267104029994,
+   "median_size_in_price": 0.8999999999941792,
+   "median_atr_in_price": 354.4125760910483
+  }
+ },
+ "h2_duplicate_check": {
+  "XAUUSD 30m": {
+   "n_vi": 4,
+   "n_fvg": 302,
+   "n_vi_also_fvg": 3,
+   "fraction_duplicate": 0.75
+  },
+  "BTCUSD 30m": {
+   "n_vi": 0,
+   "n_fvg": 102,
+   "n_vi_also_fvg": 0,
+   "fraction_duplicate": null
+  }
+ },
+ "cells": {
+  "XAUUSD 30m": {
+   "bars": 61140,
+   "n_above": 0,
+   "n_below": 18,
+   "exp_r_above": null,
+   "exp_r_below": 0.22446836211152033
+  },
+  "BTCUSD 30m": {
+   "bars": 90616,
+   "n_above": 0,
+   "n_below": 0,
+   "exp_r_above": null,
+   "exp_r_below": null
+  }
+ },
+ "h2_max_duplicate_fraction": 0.75,
+ "h2_distinct_population": false,
+ "sides": {
+  "above": {
+   "n": 0,
+   "exp_r": null,
+   "t_vs_zero": null,
+   "walk_forward": {
+    "folds": [
+     {
+      "fold": 1,
+      "n": 0,
+      "purged": 0,
+      "readable": false
+     },
+     {
+      "fold": 2,
+      "n": 0,
+      "purged": 0,
+      "readable": false
+     },
+     {
+      "fold": 3,
+      "n": 0,
+      "purged": 0,
+      "readable": false
+     },
+     {
+      "fold": 4,
+      "n": 0,
+      "purged": 0,
+      "readable": false
+     },
+     {
+      "fold": 5,
+      "n": 0,
+      "purged": 0,
+      "readable": false
+     },
+     {
+      "fold": 6,
+      "n": 0,
+      "purged": 0,
+      "readable": false
+     },
+     {
+      "fold": 7,
+      "n": 0,
+      "purged": 0,
+      "readable": false
+     },
+     {
+      "fold": 8,
+      "n": 0,
+      "purged": 1,
+      "readable": false
+     }
+    ],
+    "graded": 0,
+    "positive": 0
+   },
+   "h1_passed": false,
+   "verdict": "TIDAK LOLOS"
+  },
+  "below": {
+   "n": 18,
+   "exp_r": 0.22446836211152033,
+   "t_vs_zero": 0.3224576078967549,
+   "walk_forward": {
+    "folds": [
+     {
+      "fold": 1,
+      "n": 6,
+      "purged": 0,
+      "readable": false
+     },
+     {
+      "fold": 2,
+      "n": 2,
+      "purged": 0,
+      "readable": false
+     },
+     {
+      "fold": 3,
+      "n": 2,
+      "purged": 0,
+      "readable": false
+     },
+     {
+      "fold": 4,
+      "n": 3,
+      "purged": 0,
+      "readable": false
+     },
+     {
+      "fold": 5,
+      "n": 0,
+      "purged": 0,
+      "readable": false
+     },
+     {
+      "fold": 6,
+      "n": 2,
+      "purged": 0,
+      "readable": false
+     },
+     {
+      "fold": 7,
+      "n": 0,
+      "purged": 0,
+      "readable": false
+     },
+     {
+      "fold": 8,
+      "n": 2,
+      "purged": 1,
+      "readable": false
+     }
+    ],
+    "graded": 0,
+    "positive": 0
+   },
+   "h1_passed": false,
+   "verdict": "TIDAK LOLOS"
+  }
+ },
+ "h1_passed_sides": [],
+ "verdict": "H1 TIDAK LOLOS di kedua sisi"
+}
