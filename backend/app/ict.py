@@ -223,6 +223,136 @@ MEASURED_AGAINST: dict[str, str] = {
 #: keras kalau operator mewajibkannya.
 
 
+#: SENSUS PER KLAUSA: objek apa yang ia baca, layer mana yang MENGGAMBAR objek
+#: itu, dan bagaimana ia diukur. Dijawab di satu tempat karena pertanyaannya
+#: datang berulang dan jawabannya tidak ada di mana pun sampai 2 September 2026:
+#: "apakah klausa ini punya drawing, deteksi, dan terwire".
+#:
+#: Ketujuh belasnya PUNYA DETEKSI - `evaluate` di bawah menghitung semuanya.
+#: Tidak satu pun TERWIRE ke keputusan: `Rules.required` default kosong dan
+#: `tests/test_failed_criteria_not_wired.py` menahannya. Yang berbeda-beda
+#: DRAWING-nya, dan itu isi tabel ini.
+#:
+#: Nilainya `(layer_id, catatan)`. `layer_id` None berarti objeknya TIDAK
+#: DIGAMBAR, dan catatannya menyebut kenapa - biasanya karena ia bacaan jam atau
+#: aritmetika plan, bukan bentuk di harga. `tests/test_clause_census.py`
+#: menuntut tabel ini menutup setiap klausa DAN setiap `layer_id` yang disebut
+#: benar-benar ada di `app/layers.py`, jadi klausa baru atau layer yang berganti
+#: nama membuatnya merah alih-alih membuatnya basi.
+CLAUSE_OBJECT: dict[str, tuple[str | None, str]] = {
+    "killzone": (
+        None,
+        "Bacaan jam dari `app/clock.py`, bukan bentuk di harga. TIDAK ADA "
+        "gambar killzone di mana pun di frontend, dicari 2 September 2026: satu "
+        "kemunculan kata itu di `src/lib/types.ts` dan itu sebuah komentar. "
+        "Sesinya digambar oleh layer `session` sebagai grid kuarter, yang objek "
+        "yang berbeda",
+    ),
+    "day_of_week": (
+        None,
+        "Bacaan jam. Hari dalam sepekan tidak punya bentuk di harga, dan "
+        "menggambarnya berarti menggambar kalender",
+    ),
+    "discount_or_premium": (
+        "liquidity",
+        "Membaca `dealing_range.position_at`. Frame dealing range digambar "
+        "layer `liquidity`, dan `levels-primitive.ts` memberinya prioritas "
+        "klaim label lebih dulu daripada period extreme justru karena "
+        "equilibrium-nya yang dibaca pembaca untuk premium lawan discount",
+    ),
+    "ote": (
+        "structure",
+        "Grid Fibonacci/OTE MENUMPANG layer `structure` dan bukan layer "
+        "sendiri: `app/drawing.py:138` mengisi `FibonacciAnchor` dari swing "
+        "confirmed terakhir di skala `swing`, jadi ia hanya muncul kalau "
+        "structure menyala DAN kedua sisi sudah confirmed. Tidak ada `ote` "
+        "maupun `fibonacci` di registry layer",
+    ),
+    "manipulation_quarter": (
+        "session",
+        "Membaca `quarterly.profile` plus grid `quarters`. Layer `session` "
+        "(Cycle grid) yang menggambar kuarternya. Family Quarterly Theory, "
+        "jadi ia DI LUAR sensus port MQL5 di `tools/mqh_parity.py`, yang cuma "
+        "menutup family ICT",
+    ),
+    "manipulation_seen": (
+        "dfr",
+        "Membaca `quarterly.manipulation_done`, yang butuh DFR-nya. Layer "
+        "`dfr` yang menggambar range-nya. Family Quarterly Theory, di luar "
+        "sensus port MQL5",
+    ),
+    "manipulation_after_accumulation": (
+        "dfr",
+        "Sumber yang sama dengan `manipulation_seen`, dan angkanya IDENTIK di "
+        "pengukurannya: n=1032, delta -0,135, t=-2,890. Dua klausa satu objek",
+    ),
+    "poi_families": (
+        "order_block",
+        "Membaca `poi.confluence` atas box dari SETIAP detektor zona, jadi "
+        "layer yang disebut di sini wakil dan bukan satu-satunya: keluarga "
+        "yang dihitung datang dari supply_demand, fvg, order_block, ifvg dan "
+        "breaker bersama-sama. Kelimanya PORTED dan 0 mismatch",
+    ),
+    "poi_clean": (
+        "order_block",
+        "Sumber yang sama dengan `poi_families`, sisi yang berlawanan: box "
+        "lawan-sisi di pita yang sama. Kelima detektor zona PORTED",
+    ),
+    "cisd_in_band": (
+        "cisd",
+        "Membaca `cisd.cisds`. Layer `cisd` menggambarnya dan ia PORTED ke "
+        "MQL5 dengan 0 mismatch di 349 event",
+    ),
+    "dfr_side": (
+        "dfr",
+        "Membaca `quarterly.defining_range`. Layer `dfr` menggambarnya. SATU-"
+        "SATUNYA klausa yang melewati ambang, dan ke arah SEBALIKNYA. Family "
+        "Quarterly Theory, di luar sensus port MQL5",
+    ),
+    "htf_nested": (
+        "supply_demand",
+        "Membaca `confluence.mark_nesting`, yang membandingkan zona timeframe "
+        "ini dengan zona timeframe di atasnya. Objeknya box HTF, digambar oleh "
+        "detektor zona yang sama dengan tanda proyeksi. PORTED",
+    ),
+    "bias_agrees": (
+        None,
+        "Membaca `bias.alignment`, sebuah arah yang diturunkan dari deret di "
+        "derajat `Rules.bias_degree`. Ia ANGKA dan bukan bentuk: tidak ada "
+        "layer `bias` di registry, dan panel yang menampilkannya menampilkan "
+        "kata",
+    ),
+    "ssmt": (
+        "ssmt",
+        "Membaca `ssmt.ssmt`. Layer `ssmt` menggambarnya, dan ia UNPORTED "
+        "dengan alasan terukur di `tools/mqh_parity.py:UNPORTED`. Ditradingkan "
+        "dengan biaya di `docs/event_backtest.json`: exp R -0,1318 lawan "
+        "kontrol -0,1076",
+    ),
+    "two_stage_confirmed": (
+        "ssmt",
+        "Membaca `ssmt.two_stage`, dua derajat SSMT berurutan. Objek dan layer "
+        "yang sama dengan `ssmt`. KONSTAN di 1855 trade, jadi ia tidak bisa "
+        "jadi kriteria apa pun",
+    ),
+    "min_rr": (
+        None,
+        "Membaca `plan.reward_r`, aritmetika plan atas entry, stop dan target. "
+        "Ketiga harga itu digambar sebagai garis plan, tapi RASIONYA angka dan "
+        "bukan bentuk. EA MQL5 punya perhitungan RR-nya sendiri, dan itu "
+        "divergensi yang `docs/QA-DETEKTOR.md` bagian 4 catat",
+    ),
+    "draw_agrees": (
+        "liquidity",
+        "Membaca `liquidity.dol_candidates`. Layer `liquidity` menggambar "
+        "level-levelnya dan ia PORTED dengan 0 mismatch di 416 level. Tapi "
+        "klausanya KONSTAN None: `app/ict.py` menolak menyimpulkan draw dan "
+        "tidak ada manusia yang menominasikannya di dalam harness, jadi yang "
+        "hilang bukan gambarnya melainkan penominasinya",
+    ),
+}
+
+
 #: Nilai `Rules.bias_degree` yang sah, diturunkan dari `app.bias.DEGREES`
 #: supaya menambah derajat di sana cukup sekali.
 BIAS_DEGREES: tuple[str, ...] = tuple(f"bias_{d}" for d in _BIAS_DEGREES)
