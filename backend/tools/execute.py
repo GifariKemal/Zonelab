@@ -154,6 +154,28 @@ def grounds(zone, plan) -> list[str]:
     ]
 
 
+
+def by_method(candidate: tuple) -> tuple:
+    """Kunci urut kandidat dalam satu pass: `(zone, plan, checklist)`.
+
+    `met` menurun, lalu `zone.id`. Tie-break-nya SENGAJA tidak menyeleksi;
+    seluruh alasannya ada di komentar tepat di atas pemanggilnya di
+    `candidates()`. Dikunci oleh `tests/test_order_key.py`.
+    """
+    zone, _plan, checklist = candidate
+    return (-checklist.met, zone.id)
+
+
+def by_method_ranked(row: tuple) -> tuple:
+    """Sama, untuk baris lintas simbol: `(symbol, interval, zone, plan, checklist)`.
+
+    Simbol ikut dalam kuncinya karena `zone.id` adalah `KIND-bartime` tanpa
+    simbol, jadi tanpa itu dua zona sejenis di bar yang sama pada dua instrumen
+    berbeda akan bertukar tempat antar-run.
+    """
+    symbol, _interval, zone, _plan, checklist = row
+    return (-checklist.met, symbol, zone.id)
+
 def candidates(
     symbol: str,
     interval: str,
@@ -382,9 +404,28 @@ def candidates(
                                           reward_r=plan.reward_r,
                                           always_open=always_open)))
 
-    # CHECKLIST FIRST, distance second. Two candidates that satisfy the method
-    # equally are then ordered by which price reaches first, which is what the
-    # measured population is about; between unequal ones the method wins.
+    # CHECKLIST FIRST, lalu zone id. Kalimat di sini dulu berbunyi "distance
+    # second, which is what the measured population is about", dan itu ternyata
+    # terbalik. Diukur 2 September 2026 di `docs/order_key.json`, n = 1847,
+    # ambang Bonferroni t = 2,69: `-abs(entry - close)` memberi Spearman rho
+    # demeaned -0,1073 pada t = -4,64, |t| TERBESAR di seluruh run dan tandanya
+    # salah, dan lift dua-teratasnya -0,0966 R pada t = -3,86 dengan
+    # walk-forward NOL dari 8 fold. Mendahulukan kandidat yang paling dekat
+    # memilih trade yang lebih buruk, konsisten di setiap fold.
+    #
+    # PENGGANTINYA SENGAJA TIDAK MENYELEKSI. Tujuh kunci diuji dan tidak satu
+    # pun lulus, termasuk yang menggantikan ini, jadi memilih salah satunya
+    # berarti menukar kunci yang terukur merugikan dengan kunci yang belum
+    # terukur apa-apa. `zone.id` deterministik, membuat urutan reproducible,
+    # dan setara dengan kontrol acak yang di studi itu keluar bersih di t 0,88
+    # dan 0,36. Yang didukung angka cuma membuang, bukan mengganti.
+    #
+    # `met` SENDIRI JUGA BELUM TERBUKTI, dan ia tetap di sini. Rho-nya -0,0356
+    # demeaned, praktis nol, tapi nol berbeda dari merugikan: tidak ada angka
+    # yang mengatakan mengurutkan dengannya lebih buruk daripada tidak. Ia
+    # dipertahankan karena membuangnya adalah keputusan yang tidak punya
+    # dukungan terukur, sama seperti menggantinya. Lihat
+    # `tests/test_order_key.py`, yang mengunci kedua kunci ini.
     # DICETAK, TIDAK DISEMBUNYIKAN. Sebuah gerbang yang membuang kandidat tanpa
     # mengatakan berapa banyak terlihat sama dengan pasar yang sedang sepi.
     if too_costly:
@@ -392,7 +433,7 @@ def candidates(
         print(f"  {len(too_costly)} zona ditolak gerbang biaya "
               f"(cost_r > {COST_TO_RISK_MAX}), terburuk {worst[1]:.3f} "
               f"pada {worst[0]}")
-    out.sort(key=lambda t: (-t[2].met, abs(t[1].entry - float(close[-1]))))
+    out.sort(key=by_method)
     return out, response, float(close[-1])
 
 
@@ -493,7 +534,11 @@ def gather(
                 (symbol, interval, zone, plan, checklist)
                 for zone, plan, checklist in pairs
             )
-    found.sort(key=lambda t: (-t[4].met, abs(t[3].entry - t[3].target)))
+    # Situs urut KEDUA, dan alasannya sama. `-abs(entry - target)` diuji
+    # sebagai `k_near_target` di studi yang sama dan ikut menyeberang ambang ke
+    # arah negatif di pengelompokan pekan: -0,0774 R pada t = -2,91, dengan
+    # walk-forward 2 dari 8. Lihat `by_method_ranked`.
+    found.sort(key=by_method_ranked)
     return found, blocked, series
 
 
