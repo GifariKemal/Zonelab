@@ -11,6 +11,7 @@ from __future__ import annotations
 import types
 
 import datetime
+import sys
 
 from app import journal
 from tools import flatten
@@ -293,3 +294,50 @@ def test_cancelling_uses_the_same_success_predicate_as_closing():
     refused = OrdersMT5(orders=[], send=FakeSend(retcode=0, comment="ok"))
     ok, why = flatten.cancel(refused, FakeOrder(ticket=5))
     assert not ok, "retcode 0 dari order_send BUKAN sukses"
+
+# ------------------------------------------------- simbol yang diperiksa
+
+
+def test_a_comma_list_is_read_as_many_symbols_and_the_venue_prefix_is_dropped():
+    """`tools/execute.py --symbol` has taken a comma list for a long time and
+    this one took a single name with a default of XAUUSD, so running it while the
+    book held XAUUSD AND BTCUSD closed the gold and printed nothing about the
+    rest, exit code zero. The prefix is dropped because the journal and the
+    switch hold `mt5:XAUUSD` while `positions_get` wants the bare ticker."""
+    assert flatten.wanted_symbols("XAUUSD") == ["XAUUSD"]
+    assert flatten.wanted_symbols("XAUUSD,BTCUSD") == ["XAUUSD", "BTCUSD"]
+    assert flatten.wanted_symbols("mt5:XAUUSD, mt5:BTCUSD") == ["XAUUSD", "BTCUSD"]
+    assert flatten.wanted_symbols("XAUUSD,,  ,BTCUSD") == ["XAUUSD", "BTCUSD"]
+    assert flatten.wanted_symbols("") == []
+
+
+class CountingMT5(FakeMT5):
+    """Mencatat simbol mana yang benar-benar ditanyakan ke terminal."""
+
+    def __init__(self, holding: dict | None = None):
+        super().__init__()
+        self.asked: list[str] = []
+        self.holding = holding or {}
+
+    def positions_get(self, symbol=None):
+        self.asked.append(symbol)
+        return self.holding.get(symbol, [])
+
+
+def test_every_requested_symbol_is_queried_even_when_the_first_holds_nothing(
+        tmp_path, monkeypatch, capsys):
+    """The half-fix has a specific shape: the old code returned as soon as the
+    FIRST symbol had no positions, so a book whose only open trade was on the
+    SECOND symbol was reported as "tidak ada posisi terbuka" and left alone."""
+    monkeypatch.setattr(journal, "DIRECTORY", tmp_path / ".journal")
+    held = Position(ticket=77, kind=0, at=0).on("BTCUSD")
+    mt5 = CountingMT5(holding={"BTCUSD": [held]})
+    monkeypatch.setattr(flatten, "_terminal",
+                        lambda: ((mt5, types.SimpleNamespace(login=1, trade_mode=0)), ""))
+    monkeypatch.setattr(sys, "argv", ["flatten", "--symbol", "XAUUSD,BTCUSD"])
+    flatten.main()
+    assert mt5.asked == ["XAUUSD", "BTCUSD"], mt5.asked
+    out = capsys.readouterr().out
+    assert "XAUUSD: tidak ada posisi terbuka" in out, out
+    assert "ticket 77" in out, out
+

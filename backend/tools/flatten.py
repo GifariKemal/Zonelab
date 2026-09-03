@@ -154,9 +154,28 @@ def cancel(mt5, order) -> tuple[bool, str]:
     return send_ok(mt5, sent)
 
 
+def wanted_symbols(arg: str) -> list[str]:
+    """Simbol yang harus diperiksa, dari satu argumen.
+
+    SATU SIMBOL PER RUN ADALAH SETENGAH PERBAIKAN YANG DIAM. Sampai 3 September
+    2026 `--symbol` hanya menerima satu nama dan defaultnya XAUUSD, sementara
+    `tools/execute.py --symbol` sudah lama menerima daftar koma dan buku hari itu
+    memegang XAUUSD DAN BTCUSD sekaligus. Menjalankan alat ini apa adanya
+    menutup posisi emas, mencetak "tidak ada posisi terbuka" untuk sisanya, dan
+    keluar dengan status nol - laporan yang benar untuk simbol yang ditanyakan
+    dan menyesatkan untuk pertanyaan yang sebenarnya diajukan operator.
+
+    Prefix venue dibuang, karena journal dan switch menyimpan `mt5:XAUUSD`
+    sementara `positions_get` mau `XAUUSD` telanjang.
+    """
+    return [part.strip().split(":")[-1] for part in arg.split(",") if part.strip()]
+
+
 def main() -> None:
     parser = argparse.ArgumentParser()
-    parser.add_argument("--symbol", default="XAUUSD")
+    parser.add_argument("--symbol", default="XAUUSD",
+                        help="satu simbol, atau daftar dipisah koma, "
+                             "sama seperti tools/execute.py")
     parser.add_argument("--send", action="store_true",
                         help="actually close. Without it nothing is sent and "
                              "nothing is journalled")
@@ -172,41 +191,42 @@ def main() -> None:
           f"sekarang {datetime.datetime.fromtimestamp(now, datetime.UTC):%m-%d %H:%M} UTC, "
           f"rollover {ROLLOVER_HOUR_UTC}:00 UTC")
 
-    positions = mt5.positions_get(symbol=args.symbol) or []
-    if not positions:
-        print("  tidak ada posisi terbuka")
-        return
+    for symbol in wanted_symbols(args.symbol):
+        positions = mt5.positions_get(symbol=symbol) or []
+        if not positions:
+            print(f"  {symbol}: tidak ada posisi terbuka")
+            continue
 
-    for position in positions:
-        placed = [e for e in journal.for_ticket(int(position.ticket))
-                  if e["event"] == "placed"]
-        head = (f"  ticket {position.ticket} {position.symbol} vol {position.volume} "
-                f"open {position.price_open} profit {position.profit}")
-        if not placed:
-            print(f"{head}\n      BUKAN milik journal ini, tidak disentuh")
-            continue
-        nights = rollovers(int(position.time), now)
-        if nights < 1:
-            print(f"{head}\n      belum menyeberang rollover, dibiarkan")
-            continue
-        if not args.send:
-            print(f"{head}\n      DRY RUN: sudah menyeberang {nights} rollover, "
-                  "akan ditutup")
-            continue
-        done, reason = close(mt5, position)
-        if not done:
-            print(f"{head}\n      GAGAL menutup: {reason}")
-            journal.record("refused", why=why_closed(nights, int(position.time)),
+        for position in positions:
+            placed = [e for e in journal.for_ticket(int(position.ticket))
+                      if e["event"] == "placed"]
+            head = (f"  ticket {position.ticket} {position.symbol} vol {position.volume} "
+                    f"open {position.price_open} profit {position.profit}")
+            if not placed:
+                print(f"{head}\n      BUKAN milik journal ini, tidak disentuh")
+                continue
+            nights = rollovers(int(position.time), now)
+            if nights < 1:
+                print(f"{head}\n      belum menyeberang rollover, dibiarkan")
+                continue
+            if not args.send:
+                print(f"{head}\n      DRY RUN: sudah menyeberang {nights} rollover, "
+                      "akan ditutup")
+                continue
+            done, reason = close(mt5, position)
+            if not done:
+                print(f"{head}\n      GAGAL menutup: {reason}")
+                journal.record("refused", why=why_closed(nights, int(position.time)),
+                               rule=RULE, zone_id=placed[0].get("zone_id"),
+                               ticket=int(position.ticket), blockers=[reason])
+                continue
+            journal.record("closed", why=why_closed(nights, int(position.time)),
                            rule=RULE, zone_id=placed[0].get("zone_id"),
-                           ticket=int(position.ticket), blockers=[reason])
-            continue
-        journal.record("closed", why=why_closed(nights, int(position.time)),
-                       rule=RULE, zone_id=placed[0].get("zone_id"),
-                       ticket=int(position.ticket),
-                       extra={"profit_at_close": position.profit,
-                              "swap_at_close": position.swap,
-                              "nights": nights})
-        print(f"{head}\n      DITUTUP, {nights} rollover")
+                           ticket=int(position.ticket),
+                           extra={"profit_at_close": position.profit,
+                                  "swap_at_close": position.swap,
+                                  "nights": nights})
+            print(f"{head}\n      DITUTUP, {nights} rollover")
 
 
 if __name__ == "__main__":
