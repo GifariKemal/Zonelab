@@ -14,7 +14,7 @@ dengan real tick, plus drawing-nya yang sebelumnya cuma satu huruf.
 |---|---|
 | Drawing breakout | Sebelumnya satu huruf. Sekarang empat bentuk |
 | Backtest MT5 | 7 sel arm 0, plus 3 arm varian, total 7.847 trade |
-| Kesepakatan lintas-rig | Port MQL5 mereproduksi detektor Python dalam 0,34 persen |
+| Kesepakatan lintas-rig | Dump parity: 654 event, nol mismatch di lima kolom |
 | Verdict | Null, dan tiap varian yang metodenya resepkan MEMPERBURUK |
 
 ## Drawing: satu bentuk jadi empat
@@ -176,6 +176,83 @@ melewati batas untuk menyapu stop lalu membalikkannya. Diukur, ia arm terburuk
 dari keempatnya. Konsisten dengan Mesfin (2026) di MNQ: liquidity grab, fade
 T=-14,12 dan follow T=-13,24 di 6.442 event, kedua arah signifikan negatif.
 
+## Dump parity: presisi deteksi, baris demi baris
+
+Bagian sebelumnya mencocokkan JUMLAH event, 895 lawan 892 atas 7.839 bar. Itu
+menjawab "apakah detektornya menyala sebanyak yang sama", bukan "apakah ia
+menyala di bar yang sama dengan harga yang sama".
+
+Yang menutup itu `zonelab_parity_wyckoff.csv`, ditulis `ZonelabParityDump.mq5`
+di dalam terminal bersama BAR yang dipakainya, jadi Python tidak menebak
+window-nya. Selisih apa pun sesudah itu murni logika detektor.
+
+Terukur, XAUUSD M30, 3000 bar:
+
+| | Python | MQL5 |
+|---|---|---|
+| event total | 654 | 654 |
+| spring | 198 | 198 |
+| upthrust | 151 | 151 |
+| sos | 165 | 165 |
+| sow | 140 | 140 |
+
+Nol mismatch pada `index`, `kind`, `level`, `tr_low`, `tr_high`, plus invarian
+lebar window. Seluruh run `mqh_parity` keluar `TOTAL MISMATCH: 0`.
+
+### Keempat angka dibandingkan, dan itu bukan kelengkapan
+
+`level` selalu SALAH SATU dari kedua tepi range. Jadi membandingkan `level`
+saja akan lolos secara hampa kalau MQL5 menghitung window range-nya dari bar
+yang berbeda: kedua sisi sepakat soal `level` sementara `tr_low` dan
+`tr_high`-nya berasal dari jendela yang tidak sama.
+
+Dibuktikan dengan suntikan. Loop window di `WyckoffDetector.mqh` diubah
+berhenti satu bar lebih awal, lalu dump-nya dijalankan ulang:
+
+```
+Python  : 654
+MQL5    : 724
+  spring    py   198  mq   157   MISMATCH
+  upthrust  py   151  mq   107   MISMATCH
+  sos       py   165  mq   235   MISMATCH
+  sow       py   140  mq   225   MISMATCH
+MISMATCH #2 bar 40:
+  level 4522.585 != 4520.896
+  tr_high 4522.585 != 4520.896
+MISMATCH #3 bar 46:
+  kind upthrust != sos
+TOTAL MISMATCH: 650
+```
+
+Bar 40 itu buktinya: `index` dan `kind` SAMA di kedua sisi, dan yang berbeda
+`level` plus `tr_high`. Sebuah pemeriksaan jumlah-saja akan melewatkannya. Dan
+bar 46 memperlihatkan konsekuensi yang lebih buruk: window yang bergeser satu
+bar mengubah KLASIFIKASINYA, upthrust jadi sos, yaitu false breakout terbaca
+sebagai breakout.
+
+### Dua kolom yang sengaja TIDAK dibandingkan
+
+`ticks` tidak dibandingkan. Python membaca `volume` lewat provider yang memilih
+`real_volume or tick_volume`; MQL5 membaca `iVolume` langsung dari terminal.
+Keduanya boleh berbeda tanpa ada yang salah, dan menuntutnya sama akan membuat
+komparator merah karena dua definisi yang keduanya benar. Ia ditulis supaya arm
+filter di `ZonelabWYK.mq5` bisa diaudit.
+
+`tr_from` tidak dibandingkan sebagai indeks absolut, karena kedua sisi
+menurunkannya dari `at - lookback`. Ia diperiksa sebagai INVARIAN lebar
+window, bukan sebagai nilai yang dicocokkan.
+
+### `wyckoff` keluar dari UNPORTED
+
+`tools/mqh_parity.py` mencatatnya UNPORTED sampai 3 September 2026 dengan
+alasan "measured null, bukan family ICT". Kedua bagian alasan itu benar; yang
+salah kesimpulannya. Null di rig Python pada resolusi bar tidak menyelesaikan
+apa yang MT5 katakan dengan real tick, dan rig Python tidak menguji eksekusi
+sama sekali.
+
+Sekarang ia di `PORTED_WYCKOFF`, bentuk kedelapan, dan satu satunya layer yang
+punya EA Strategy Tester DAN dump parity.
+
 ## Total yang diukur
 
 7 sel arm 0 (5.600 trade) plus 3 arm varian di M30 (1.846 trade) plus arm 0 M30
@@ -207,10 +284,10 @@ didaftarkan. Terverifikasi di sel berikutnya: keduabelas counter kembali,
 
 ## Yang belum diukur
 
-- **Perbandingan baris demi baris** nilai `level`, `tr_low`, `tr_high` per event
-  antara Python dan MQL5. Yang sudah dicocokkan JUMLAH event, bukan tiap harga.
-  Itu sebabnya `wyckoff` tetap di `UNPORTED` di `tools/mqh_parity.py` dengan
-  alasan yang diperbarui: punya EA, belum punya dump parity.
+- **Perbandingan parity di timeframe dan simbol LAIN.** Dump-nya dijalankan di
+  XAUUSD M30 saja, 654 event. Detektornya tidak punya cabang per simbol, jadi
+  tidak ada alasan menduga ia berbeda di tempat lain, tapi itu dugaan dan belum
+  diukur.
 - **Walk-forward per sel.** `--forward` ada di tool-nya dan belum dipakai untuk
   EA ini.
 - **Compression gate.** Masih arah yang belum tersentuh dan punya sisi bukti;

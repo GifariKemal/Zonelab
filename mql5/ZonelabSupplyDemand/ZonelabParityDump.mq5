@@ -32,8 +32,11 @@
 #include "ProjectionsDetector.mqh"
 #include "GapsDetector.mqh"
 #include "QuarterlyDetector.mqh"
+#include "WyckoffDetector.mqh"
 
 input int    InpBars               = 3000;
+//--- wyckoff (WyckoffParams, default shipped) ---
+input int    InpWykLookback        = 20;
 //--- supply/demand (SDParams, default shipped) ---
 input int    InpAtrPeriod          = 14;
 input double InpImpulseBodyRatio   = 0.5;
@@ -98,6 +101,43 @@ int WriteZones(string filename,const SDZone &zones[],int count)
                 IntegerToString((long)zones[i].time_from),
                 IntegerToString((long)zones[i].time_to),
                 IntegerToString(zones[i].base_from));
+   FileClose(h);
+   return count;
+  }
+
+
+//+------------------------------------------------------------------+
+//| BENTUK KEDELAPAN. Sebuah fase Wyckoff bukan box dan bukan level:
+//| ia satu bar, satu kelas, satu level yang disapu atau ditembus, DAN
+//| dua tepi range yang ia dibaca terhadapnya. Empat angka, dan
+//| keempatnya harus dibandingkan: `level` saja akan lolos secara hampa
+//| kalau MQL5 menghitung window range-nya dari bar yang berbeda,
+//| karena `level` selalu SALAH SATU dari kedua tepi itu.
+//|
+//| `ticks` ikut ditulis tapi TIDAK untuk dibandingkan dengan Python:
+//| Python membaca `volume` dari provider dan MQL5 membaca `iVolume`
+//| langsung, jadi keduanya boleh berbeda tanpa ada yang salah. Ia
+//| ditulis supaya arm filter di ZonelabWYK.mq5 bisa diaudit.
+//+------------------------------------------------------------------+
+int WriteWyckoff(string filename,const WykPhase &ph[],int count)
+  {
+   int h=FileOpen(filename,FILE_WRITE|FILE_CSV|FILE_ANSI|FILE_COMMON,",");
+   if(h==INVALID_HANDLE)
+     {
+      Print("PARITYDUMP gagal membuka ",filename," err=",GetLastError());
+      return -1;
+     }
+   FileWrite(h,"index","time","kind","level","tr_low","tr_high","tr_from","ticks");
+   for(int i=0;i<count;i++)
+      FileWrite(h,
+                IntegerToString(ph[i].at),
+                IntegerToString((long)ph[i].time_at),
+                IntegerToString((int)ph[i].kind),
+                DoubleToString(ph[i].level,DUMP_DIGITS),
+                DoubleToString(ph[i].tr_low,DUMP_DIGITS),
+                DoubleToString(ph[i].tr_high,DUMP_DIGITS),
+                IntegerToString(ph[i].tr_from),
+                IntegerToString(ph[i].ticks));
    FileClose(h);
    return count;
   }
@@ -530,6 +570,20 @@ int OnInit()
    // menjadi jalur kedua yang bisa menyimpang dari jalur yang di-ship.
    int nifvg=DetectIFVG(open_,high_,low_,close_,time_,atr,n,fp,ifvg);
    int nbrk =DetectBreaker(open_,high_,low_,close_,time_,atr,n,op,brk);
+
+   // Wyckoff, dan volume-nya dibaca terpisah karena `WriteBars` di atas tidak
+   // menulisnya: bar CSV-nya sudah dipakai tujuh komparator lain dan menambah
+   // kolom di sana akan memaksa ketujuhnya diubah bersamaan.
+   long wykvol[];
+   ArrayResize(wykvol,n);
+   for(int i=0;i<n;i++)
+      wykvol[i]=iVolume(_Symbol,_Period,n-i);
+   WykParams wp;
+   wp.lookback=InpWykLookback;
+   WykPhase wyk[];
+   int nwyk=DetectWyckoff(open_,high_,low_,close_,time_,wykvol,n,wp,wyk);
+   WriteWyckoff("zonelab_parity_wyckoff.csv",wyk,nwyk);
+   Print("PARITYDUMP wyckoff: ",nwyk," fase");
 
    WriteZones("zonelab_parity_sd.csv",sd,nsd);
    // Dedupe dibuang dari perbandingan detektor supaya selisih yang muncul

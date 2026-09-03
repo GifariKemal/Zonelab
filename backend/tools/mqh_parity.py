@@ -106,6 +106,27 @@ PORTED_QUARTERLY = {
     "dfr": "zonelab_parity_quarterly.csv",
 }
 
+#: Bentuk KEDELAPAN, dan satu satunya yang punya EA Strategy Tester DAN dump
+#: parity. `wyckoff` tercatat UNPORTED sampai 3 September 2026 dengan alasan
+#: "measured null, bukan family ICT", dan kedua bagian alasan itu benar - yang
+#: salah kesimpulannya. Null di rig Python pada resolusi bar tidak
+#: menyelesaikan apa yang MT5 katakan dengan real tick, dan rig Python tidak
+#: menguji EKSEKUSI sama sekali. Kedua rig itu pernah tidak sepakat TANDANYA di
+#: 6 dari 8 sel, jadi "sudah null di satu rig" bukan alasan untuk tidak
+#: menanyakannya di rig kedua.
+#:
+#: Terukur sesudah diport, `docs/QA-BREAKOUT.md`: 654 event di kedua sisi,
+#: per-kind cocok tepat (spring 198, upthrust 151, sos 165, sow 140), dan nol
+#: mismatch pada `index`, `kind`, `level`, `tr_low`, `tr_high` plus invarian
+#: lebar window. Outcome-nya juga null di rig kedua: tujuh sel arm agresif,
+#: 5.600 trade, median profit factor 1,00.
+#:
+#: DAN INI JUGA LAYER BREAKOUT. `sos` range breakout naik dikonfirmasi close,
+#: `sow` yang turun, `spring` dan `upthrust` false breakout di kedua sisi.
+PORTED_WYCKOFF = {
+    "wyckoff": "zonelab_parity_wyckoff.csv",
+}
+
 #: Layer ICT yang SENGAJA belum diport, dengan alasannya masing-masing.
 #: `tests/test_mql5_contract.py` menuntut ketiga dict ini bersama-sama menutup
 #: setiap layer berkeluarga ICT di `app.layers.LAYERS`, jadi layer baru harus
@@ -132,17 +153,6 @@ UNPORTED: dict[str, str] = {
         "di sembilan instrumen sepanjang riwayatnya, karena flat_atr 2,0 di "
         "bawah minimum yang pernah terjadi 2,085. Sebuah port yang mereplikasi "
         "kelas yang tidak pernah menyala mereplikasi cabang mati"
-    ),
-    "wyckoff": (
-        "PUNYA EA STRATEGY TESTER, BELUM PUNYA DUMP PARITY, dan bedanya "
-        "penting. Sejak 3 September 2026 ada WyckoffDetector.mqh plus "
-        "ZonelabWYK.mq5, jadi pertanyaan OUTCOME lawan real tick bisa "
-        "dijalankan; yang belum ada perbandingan baris demi baris lawan "
-        "app/wyckoff.py, jadi presisi DETEKSI-nya masih belum diukur. Rig "
-        "Python-nya sendiri MEASURED NULL, docs/wyckoff_outcomes.json: empat "
-        "fase lawan drift instrumennya sendiri di sembilan instrumen, t antara "
-        "-0,95 dan +0,27 lawan bar Bonferroni 2,50, dan 13 sampai 20 dari 36 "
-        "fold per-simbol positif. Bukan family ICT"
     ),
     "expectation": (
         "TAMPILAN PENGUKURAN, bukan objek pasar, jadi tidak ada yang bisa "
@@ -273,6 +283,90 @@ def compare(name: str, zones_py, zones_mq: list[dict]) -> int:
         print("  OK")
     return mismatches
 
+
+
+#: Nama kelas fase, urut sesuai `ENUM_WYK_KIND` di WyckoffDetector.mqh. Sebuah
+#: pergeseran urutan di salah satu sisi akan menukar spring dengan sos, jadi
+#: pemetaannya ditulis sekali di sini dan dipakai kedua arah.
+WYK_KIND = ("spring", "upthrust", "sos", "sow")
+
+
+def compare_wyckoff(name: str, phases_py, rows_mq: list[dict]) -> int:
+    """Komparator BENTUK KEDELAPAN: satu bar, satu kelas, satu level, dua tepi.
+
+    KEEMPAT ANGKA DIBANDINGKAN, dan itu bukan kelengkapan. `level` selalu SALAH
+    SATU dari kedua tepi range, jadi membandingkan `level` saja akan lolos
+    secara hampa kalau MQL5 menghitung window range-nya dari bar yang berbeda:
+    kedua sisi akan sepakat soal `level` sementara `tr_low` dan `tr_high`-nya
+    berasal dari jendela yang tidak sama.
+
+    `ticks` TIDAK dibandingkan, dan alasannya bukan kelalaian: Python membaca
+    `volume` lewat provider yang memilih `real_volume or tick_volume`, MQL5
+    membaca `iVolume` langsung dari terminal. Keduanya boleh berbeda tanpa ada
+    yang salah, dan menuntutnya sama akan membuat komparator ini merah karena
+    dua definisi yang keduanya benar.
+
+    `tr_from` juga tidak dibandingkan langsung sebagai indeks absolut karena
+    keduanya sudah terikat: `tr_from == at - lookback` di kedua sisi, jadi ia
+    diperiksa sebagai INVARIAN, bukan sebagai nilai yang dicocokkan.
+    """
+    py = sorted(phases_py, key=lambda p: (p.at, p.kind))
+    mq = sorted(rows_mq, key=lambda r: (int(r["index"]), WYK_KIND[int(r["kind"])]))
+
+    print(f"\n=== {name} ===")
+    print(f"  Python  : {len(py)}")
+    print(f"  MQL5    : {len(mq)}")
+
+    mismatches = 0
+    if len(py) != len(mq):
+        print(f"  COUNT MISMATCH: {len(py)} != {len(mq)}")
+        mismatches += 1
+
+    per_kind_py: dict[str, int] = {}
+    per_kind_mq: dict[str, int] = {}
+    for p in py:
+        per_kind_py[p.kind] = per_kind_py.get(p.kind, 0) + 1
+    for r in mq:
+        k = WYK_KIND[int(r["kind"])]
+        per_kind_mq[k] = per_kind_mq.get(k, 0) + 1
+    for kind in WYK_KIND:
+        a, b = per_kind_py.get(kind, 0), per_kind_mq.get(kind, 0)
+        flag = "" if a == b else "   MISMATCH"
+        print(f"    {kind:9s} py {a:5d}  mq {b:5d}{flag}")
+
+    for pp, rm in zip(py, mq):
+        problems = []
+        if pp.at != int(rm["index"]):
+            problems.append(f"index {pp.at} != {rm['index']}")
+        if pp.kind != WYK_KIND[int(rm["kind"])]:
+            problems.append(f"kind {pp.kind} != {WYK_KIND[int(rm['kind'])]}")
+        if pp.knowable_at != pp.at:
+            problems.append("knowable_at bergeser dari at di sisi Python")
+        # Harga: keduanya high atau low bar apa adanya, tanpa aritmetika, jadi
+        # toleransinya boleh seketat representasi double-nya sendiri. Yang
+        # membatasi justru DUMP_DIGITS di sisi MQL5, yang menulis lima desimal.
+        for field in ("level", "tr_low", "tr_high"):
+            a = getattr(pp, field)
+            b = float(rm[field])
+            if abs(a - b) > 1e-5 * max(1.0, abs(a)):
+                problems.append(f"{field} {a} != {b}")
+        # INVARIAN, bukan nilai yang dicocokkan: kedua sisi menurunkan
+        # `tr_from` dari `at - lookback`, jadi yang diuji apakah keduanya
+        # memakai lookback yang sama.
+        if pp.at - pp.tr_from != int(rm["index"]) - int(rm["tr_from"]):
+            problems.append(
+                f"lebar window {pp.at - pp.tr_from} != "
+                f"{int(rm['index']) - int(rm['tr_from'])}"
+            )
+        if problems:
+            mismatches += 1
+            if mismatches <= 10:
+                print(f"  MISMATCH #{mismatches} bar {pp.at}:")
+                for problem in problems:
+                    print(f"    {problem}")
+    if mismatches == 0:
+        print("  OK")
+    return mismatches
 
 
 def compare_events(name: str, events_py, events_mq: list[dict]) -> int:
@@ -1090,6 +1184,21 @@ def main() -> None:
         read_zones(root / "zonelab_parity_quarterly.csv"),
         2,
     )
+    # Wyckoff, BENTUK KEDELAPAN. Sampai 3 September 2026 layer ini tercatat
+    # UNPORTED, dan sesudah EA Strategy Tester-nya ada ia masih belum punya
+    # perbandingan baris demi baris - jadi presisi DETEKSI-nya dicocokkan
+    # JUMLAH dan bukan tiap harga. Ini yang menutup itu.
+    wyk_path = root / "zonelab_parity_wyckoff.csv"
+    if wyk_path.exists():
+        from app.wyckoff import phases as wyckoff_phases
+        wyk_py = wyckoff_phases(candles, lookback=20)
+        total += compare_wyckoff("wyckoff", wyk_py, read_zones(wyk_path))
+    else:
+        print("\n=== wyckoff ===")
+        print("  DUMP TIDAK ADA. Jalankan ulang dengan --run supaya "
+              "zonelab_parity_wyckoff.csv dihasilkan; melewatinya diam diam "
+              "akan membuat layer ini terlihat terukur padahal tidak.")
+        total += 1
 
     print(f"\nTOTAL MISMATCH: {total}")
     if unported:
