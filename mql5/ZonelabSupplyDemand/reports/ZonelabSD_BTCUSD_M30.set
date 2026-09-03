@@ -12,6 +12,7 @@ InpMaxBaseDrift=0.6
 InpMitigationPct=0.5
 InpMergeOverlapPct=0.6
 InpStopBufferAtr=0.25
+InpStopAtrMode=0
 InpRiskPercent=1.0
 InpBars=20000
 InpMagic=20260831
