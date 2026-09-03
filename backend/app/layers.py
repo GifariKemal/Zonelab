@@ -345,7 +345,9 @@ LAYERS: tuple[Layer, ...] = (
         params="wyckoff",
         note=(
             "Spring, upthrust, sign of strength and weakness over a rolling "
-            "trading range."
+            "trading range. This is also the BREAKOUT layer: sos and sow are "
+            "a range breakout confirmed by close, spring and upthrust are a "
+            "false breakout on either side."
         ),
         evidence=(
             "MEASURED NULL. docs/wyckoff_outcomes.json: four phases against "

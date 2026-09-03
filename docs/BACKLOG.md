@@ -216,6 +216,153 @@ containment, yang menuntut satu parameter baru.
 > tidak memberi urutan sama sekali. Kedua, liquidity void lawan vacuum block:
 > satu sumber menyamakannya, sumber lain membedakan berdasarkan jumlah lilin.
 
+### Bagian 3d: breakout, sudah ada tiga kali dan sebagian sudah null (3 September 2026)
+
+Ditanyakan apakah engine ini punya drawing breakout. Punya, di tiga tempat, dan
+tak satu pun dinamai begitu. Dicatat di sini supaya tidak diusulkan sebagai
+objek baru.
+
+#### Yang sudah ada
+
+| Konsep breakout | Di mana | Aturannya |
+|---|---|---|
+| Level breakout, close-confirmed | `app/detect/structure.py:27` BOS | "A break requires a bar to CLOSE beyond the swing. A wick through that closes back inside is a sweep" |
+| Range breakout, wick-based | `app/liquidity.py:222` ERL `taken_at` | "first bar that traded strictly through, else None" |
+| Range breakout, close-confirmed | `app/wyckoff.py` `sos` dan `sow` | close di atas TR high atau di bawah TR low, rolling 20 bar |
+| False breakout, kedua sisi | `app/wyckoff.py` `spring` dan `upthrust` | wick melewati tepi, close balik ke dalam |
+| Kelipatan range sesi | layer `projections` | sudah **null** |
+
+Jadi keempat kuadran breakout dan fakeout sudah tergambar, dan tiga vokabuler
+berbeda memberi nama berbeda ke objek yang sama.
+
+#### Yang sudah diukur, dan hasilnya
+
+`tools/wyckoff_outcomes.py`, praregistrasi 31 Agustus 2026, horizon 96 bar,
+kontrol `excess move = forward move - symbol drift`, sembilan instrumen, t
+kritis 2,498 sesudah koreksi:
+
+| fase | n | t | excess ATR | walk-forward |
+|---|---|---|---|---|
+| `sos` breakout naik | 19.667 | -0,95 | -0,134 | 13 dari 36 fold |
+| `sow` breakout turun | 15.420 | -0,75 | -0,104 | 16 dari 36 |
+| `spring` false breakdown | 15.941 | -0,27 | -0,036 | 17 dari 36 |
+| `upthrust` false breakout | 18.299 | +0,27 | +0,037 | 20 dari 36 |
+
+`sos` bukan cuma null: tandanya condong SALAH, dan 13 dari 36 fold positif itu
+di bawah kebetulan.
+
+Dua pengukuran bertetangga juga null di n besar. H6 menguji BOS, CHoCH dan sweep
+sebagai arah, n=9.210, t=2,27, magnitudo runtuh 13x antar paruh. Kontrol H9
+sendiri adalah break biasa tanpa sweep di depannya, delta +0,119, t=1,22,
+n=5.128. Dan `projections` mengukur kelipatan range sesi, null.
+
+#### Angka folklore yang tidak punya sumber
+
+Klaim "70 sampai 80 persen breakout gagal" **traceable ke satu orang**, Al
+Brooks, yang menyajikannya sebagai rule of thumb. Tidak ada dataset, sample
+size, periode, atau instrumen yang pernah diterbitkan untuknya. Tangga per
+timeframe yang beredar luas (68-72 persen di 1 menit, turun ke 40-45 persen di
+daily) berasal dari blog SEO tanpa sumber primer. Jangan dipakai sebagai
+baseline.
+
+#### Literatur akademis: decay, bukan edge
+
+| Sumber | Hasil |
+|---|---|
+| Lukac, Brorsen & Irwin (1988), 1978-1984 | price channel net 33,4 persen setahun |
+| Park & Irwin (2005), replikasi 12 market x 12 sistem | 1978-1984 **+4,13 persen**, 1985-2003 **-5,82 persen**, penuh -3,14 persen |
+| | 1985-2003: tidak ada satu sistem pun net positif untuk portfolio 12 market |
+| Sullivan, Timmermann & White (1999), 7.846 rule DJIA 1897-1996 | in-sample terbaik 17,17 persen, out-of-sample S&P futures snooping-adjusted **p = 0,90**, kriteria Sharpe p = 0,99 |
+| George & Hwang (2004), CRSP 1963-2001 | 52-week high 0,45 persen per bulan, t = 2,00 |
+
+Yang terakhir satu satunya hasil akademis kuat, dan ia **cross-sectional**: long
+saham yang dekat 52-week high-nya, short yang jauh. Itu bukan signal timing
+per-instrumen, jadi arsitektur Zonelab tidak bisa memakainya apa adanya.
+
+#### ORB, dan kenapa angka 1.637 persen itu menyesatkan
+
+Zarattini, Barbon & Aziz (2024), SSRN 4729284, 2016-2023, universe CRSP bebas
+survivorship bias:
+
+| Strategi | IRR | Sharpe | Hit |
+|---|---|---|---|
+| 5m ORB, semua saham | **3,2 persen** | 0,48 | 41,4 persen |
+| 5m ORB + filter relative volume, top-20 | 41,6 persen | 2,81 | 48,4 persen |
+| S&P 500 buy-and-hold | 14,2 persen | 0,78 | 54,9 persen |
+
+Baris pertama itu yang penting: **ORB tanpa filter KALAH dari buy-and-hold**.
+Angka 1.637 persen adalah hasil sesudah seleksi cross-sectional 20 saham
+teratas dari 7.000, bukan hasil ORB-nya.
+
+Dan kontra-buktinya pada satu instrumen: Mesfin (2026), arXiv 2605.04004, MNQ
+5 menit, 72.604 bar, 947 hari, walk-forward. Semua variant ORB gagal, gross
+edge ceiling 1,05 sampai 1,50 poin lawan friction 2,0 poin. Bedanya tiga dan
+ketiganya material: satu instrumen lawan cross-section, entry bar-close lawan
+stop order intrabar, window 25 menit lawan 5 menit.
+
+Paper yang sama juga mengukur objek yang Zonelab punya: **liquidity grab
+reversal**, 6.442 event, fade T=-14,12 dan follow T=-13,24, kedua arah
+signifikan negatif; dan **session range expansion** T=-10,96, arahnya terbalik,
+dengan penjelasan yang sama dengan memori `zonelab-intrabar-bias`: burst-nya
+habis DI DALAM bar itu.
+
+#### Dua nasihat praktisi yang diukur dan DITOLAK
+
+**"Tunggu retest."** Bulkowski, 8.765 pattern breakout turun sejak 2000:
+pullback terjadi 58 persen dari waktu, dan sesudah harga balik ke breakout
+price hasilnya 53 lawan 47, praktis coin flip. Lebih tajam: **97 persen tipe
+pattern dengan breakout naik perform LEBIH BAIK TANPA throwback**, dan 91
+persen untuk yang turun. Konfirmasi independen: ORB pullback entry di MNQ
+memberi 80,7 persen stop-out, n=83, mean net -4,44.
+
+**"Cari volume tinggi di break bar."** Bulkowski, 38.500 pattern: breakout naik
+dengan volume di atas rata-rata 30 hari memberi perbaikan performa "meager"
+sementara **failure-nya TRIPLE**, dan pullback-nya 66 persen lawan baseline 58
+persen. Breakout turun dengan volume LEBIH RENDAH justru outperform.
+
+Keduanya berarti: kalau retest atau volume tinggi digambar sebagai bagian dari
+objek breakout, gambarnya menyandikan asumsi yang datanya tolak.
+
+#### Yang genuinely BELUM ada, dan mana yang punya sisi bukti
+
+1. **Range dengan compression gate.** Rule channel-breakout STW menuntut
+   `high(n) <= (1 + x) * low(n)` sebelum sebuah break dihitung, dengan x dari
+   0,005 sampai 0,15. DFR Zonelab tidak punya syarat kompresi apa pun, jadi ia
+   memancarkan break dari range selebar apa pun. Ini **perbedaan populasi paling
+   tajam** di seluruh kategori, dan satu satunya yang punya sisi bukti: orbsetups
+   mengukur spread win rate 16,4pp antara range tersempit dan terlebar, meski
+   itu vendor dan metodenya tidak bisa diaudit.
+2. **Rolling n-bar high/low (Donchian).** Populasi berbeda dari fractal swing:
+   rolling-max n besar tidak memancarkan event sampai puncak lama dilewati,
+   sementara BOS memancarkan tiap kali swing lokal dilewati.
+3. **Band filter `b`.** Break harus melewati level plus b persen. Tidak ada.
+4. **Trigger close-based pada level yang bukan swing.** `pools` dan
+   `equal_levels` hanya punya `taken_at` wick-based.
+5. **Opening range sebagai objek range.** Anchor-nya sudah ada (`true_opens`,
+   quarter grid, `pools.SESSIONS`), objeknya belum. Tapi `projections` sudah
+   mengukur kelipatan range sesi dan hasilnya null, jadi ORB sebagai extension
+   ladder adalah hipotesis yang sudah mati di sini dengan anchor berbeda. Yang
+   belum diukur ARAHnya, dan itu masuk kategori hipotesis arah, kategori yang
+   sudah 12 kali mati di repo ini.
+6. **Boundary diagonal**: triangle, flag, wedge, neckline. Tidak ada primitive
+   trendline miring sama sekali. Dan untuk flag, pennant serta wedge
+   **literaturnya tidak punya rule kodabel**, jadi angkanya harus dikarang.
+   Satu satunya yang punya definisi algoritmik penuh Lo, Mamaysky & Wang (2000)
+   lewat kernel regression.
+
+#### Satu klaim yang tidak pernah diukur siapa pun
+
+**Close-beyond lawan wick-beyond, diukur berpasangan pada data yang sama.**
+Setiap rule akademis memakai close, setiap nasihat praktisi menuntut close, dan
+tidak ada satu pun studi yang mengukur keduanya bersebelahan lalu melaporkan
+selisihnya. Ironisnya Zarattini dkk memakai stop order di level, yaitu entry
+INTRABAR, dan justru itu varian yang punya angka positif published.
+
+Zonelab adalah satu dari sedikit tempat yang bisa mengukurnya murah, karena ia
+sudah punya kedua trigger terpasang di objek berbeda: `structure` close-based
+dan `liquidity` wick-based. Itu, bukan objek breakout baru, yang paling dekat
+dengan pertanyaan yang belum ada jawabannya.
+
 ## Bagian 4: objek dari `Referensi grup dan Bg Nas` yang belum diadopsi
 
 Frekuensi dihitung dari 51 gambar yang ada di folder itu pada 19 Agustus 2026.
