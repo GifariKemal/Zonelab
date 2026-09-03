@@ -10,7 +10,7 @@ import type {
 import type { CanvasRenderingTarget2D } from "fancy-canvas";
 
 import type { Candle } from "@/lib/types";
-import { ink, plateInk } from "./ink";
+import { ink, monoFont, plateInk } from "./ink";
 import { claimedLabels, labelFree, resetLabels } from "./structure-primitive";
 
 /**
@@ -115,7 +115,7 @@ class BreakRenderer implements IPrimitivePaneRenderer {
       resetLabels();
 
       ctx.save();
-      ctx.font = `${Math.round(9 * ky)}px ui-monospace, monospace`;
+      ctx.font = monoFont(9, ky);
       ctx.textBaseline = "top";
 
       for (const mark of this.marks) {

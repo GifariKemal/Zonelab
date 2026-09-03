@@ -55,7 +55,7 @@ import { FibonacciSeriesPrimitive } from "./fibonacci-primitive";
 import { VortexSeriesPrimitive } from "./vortex-primitive";
 import { WyckoffSeriesPrimitive } from "./wyckoff-primitive";
 import { PSPSeriesPrimitive } from "./psp-primitive";
-import { setInkTheme, sideRgba, token } from "./ink";
+import { monoStack, setInkTheme, sideRgba, token } from "./ink";
 import { claimedLabels, StructureSeriesPrimitive } from "./structure-primitive";
 import { ZoneSeriesPrimitive } from "./zone-primitive";
 
@@ -350,7 +350,11 @@ export function Chart({
       autoSize: true,
       layout: {
         ...themed.layout,
-        fontFamily: '"IBM Plex Mono", ui-monospace, monospace',
+        // `monoStack()`, bukan stack yang dieja ulang. Ini dulu ejaan KEEMPAT
+        // dari stack mono yang sama di repo ini, dan satu satunya yang tidak
+        // membaca token yang `next/font` pancarkan - jadi ia bekerja hanya
+        // selama nama family-nya kebetulan tidak di-hash.
+        fontFamily: monoStack(),
         fontSize: 11,
       },
       grid: themed.grid,

@@ -564,268 +564,291 @@ export default function Page() {
       data-workstation
       className="flex min-h-dvh flex-col bg-bg lg:h-dvh lg:min-h-0 lg:overflow-hidden"
     >
-      <header className="flex shrink-0 flex-wrap items-center gap-x-4 gap-y-2 border-b border-line px-4 py-2">
-        <div className="flex items-baseline gap-2">
-          <span className="text-[13px] font-semibold tracking-tight text-text">
-            Zonelab
-          </span>
-          {/* Read off the server's registry rather than typed here. The subtitle
-              said "Supply and demand" for as long as that was the only detector,
-              and went on saying it after four more shipped alongside a structure
-              overlay - a header that names one fifth of the engine. Counting the
-              registry is the one version of this line that cannot go stale the
-              next time a layer lands. */}
-          <span className="text-[10px] uppercase tracking-[0.16em] text-text-faint">
-            {config
-              ? `${layers.length} of ${config.layers.length} layers on`
-              : "Layers"}
-          </span>
-        </div>
+      {/* DUA BAND YANG DISENGAJA, bukan dua baris yang kebetulan.
+          Enam belas kontrol di sini butuh 2.348px konten dan paling lebar
+          hanya dapat 1.920px, jadi satu baris TIDAK MUNGKIN tanpa membuang
+          sesuatu - itu diukur, bukan dikira. Yang salah bukan jumlah barisnya
+          melainkan pembagiannya: dengan satu `flex-wrap` atas 16 anak, tempat
+          putusnya diputuskan lebar konten dan bukan artinya, dan hasilnya `HTF`
+          mendarat di baris pertama sementara `Clock` di baris kedua padahal
+          keduanya kontrol sejenis.
 
-        <div className="h-4 w-px bg-line" aria-hidden />
+          Sekarang pembagiannya menjawab dua pertanyaan berbeda. Band atas
+          "DATA APA": instrumen, sumber, jumlah bar, broker, dan bacaan OHLC
+          yang keempatnya hasilkan. Band bawah "DILIHAT BAGAIMANA": timeframe,
+          HTF, clock, plus kontrol sesi dan dua saklar panel.
 
-        <Picker
-          label="Symbol"
-          value={symbol}
-          onChange={setSymbol}
-          options={(config?.symbols ?? [{ id: "XAUUSD", providers: [] }]).map(
-            (s) => s.id,
-          )}
-        />
-        <Picker
-          label="Source"
-          value={provider}
-          onChange={setProvider}
-          // The current pick is ALWAYS an option, available or not. Filtering it
-          // out would leave a controlled `select` whose `value` matches no
-          // option, which renders blank - so a source that probed down would
-          // erase the picker instead of showing what is still pinned to it.
-          options={(config?.providers ?? [])
-            .filter((p) => p.available || p.id === provider)
-            .map((p) => p.id)}
-        />
-        <Picker
-          label="Bars"
-          value={String(bars)}
-          onChange={(v) => setBars(Number(v))}
-          // 1000 was the ceiling because binance hard-caps a page there. The
-          // local terminal has no such wall - 99,999 bars in 0.01s - so the
-          // top two are reachable on mt5 and clip to whatever a network source
-          // can actually serve on the others.
-          options={["200", "500", "1000", "2000", "5000"]}
-        />
-        {/* WHICH VENUE THE PLAN IS PRICED AT, and until 2026-08-20 there was no
-            way to say. The engine has had researched broker profiles all along
-            and only the measurement harness could reach them, so every plan on
-            screen was charged the generic row - a Dukascopy spread and a
-            commission the table's own comment calls unverified - while the
-            orders would fill somewhere else. Measured through this picker on
-            XAUUSD: the overnight carry goes from 1.00bp to 5.74bp on a long,
-            because the generic row has no equivalent of Exness's 4.545bp
-            per-night administration fee. "generic" is the empty pick. */}
-        {config?.brokers?.length ? (
+          Keduanya diukur muat sampai 1.280px: band atas 1.067px, band bawah
+          1.009px sebelum gap. Di bawah itu keduanya membungkus lagi, yang
+          memang jawaban yang benar. */}
+      <header className="flex shrink-0 flex-col gap-y-2 border-b border-line px-4 py-2">
+        <div className="flex flex-1 flex-wrap items-center gap-x-3 gap-y-2">
+          <div className="flex items-baseline gap-2">
+            <span className="text-[13px] font-semibold tracking-tight text-text">
+              Zonelab
+            </span>
+            {/* Read off the server's registry rather than typed here. The subtitle
+                said "Supply and demand" for as long as that was the only detector,
+                and went on saying it after four more shipped alongside a structure
+                overlay - a header that names one fifth of the engine. Counting the
+                registry is the one version of this line that cannot go stale the
+                next time a layer lands. */}
+            <span className="text-[10px] uppercase tracking-[0.16em] text-text-faint">
+              {config
+                ? `${layers.length} of ${config.layers.length} layers on`
+                : "Layers"}
+            </span>
+          </div>
+
+          <div className="h-4 w-px bg-line" aria-hidden />
+
           <Picker
-            label="Broker"
-            value={broker || "generic"}
-            onChange={(v) => setBroker(v === "generic" ? "" : v)}
-            options={["generic", ...config.brokers]}
+            label="Symbol"
+            value={symbol}
+            onChange={setSymbol}
+            options={(config?.symbols ?? [{ id: "XAUUSD", providers: [] }]).map(
+              (s) => s.id,
+            )}
           />
-        ) : null}
-
-        {/* The five-detector strip and the separate Structure button that used
-            to sit here are GONE. They were two controls for one idea - "draw
-            this" - shaped differently because the request had two fields, and
-            they hardcoded five ids the header had no business knowing. Every
-            drawing is now switched in the one menu in the left panel, which
-            builds itself from the server's registry. */}
-
-        <button
-          onClick={() => setLive((v) => !v)}
-          aria-pressed={live}
-          title="Muat ulang tiap 30 detik"
-          className={`num flex items-center gap-1.5 border px-2 py-1 text-[11px] uppercase tracking-wider transition-colors duration-[70ms] ${
-            live
-              ? "border-accent text-accent"
-              : "border-line-strong text-text-faint hover:text-text-dim"
-          } active:translate-y-px`}
-        >
-          <span
-            className={`inline-block h-1.5 w-1.5 rounded-full ${
-              live ? "bg-accent" : "bg-text-faint"
-            }`}
+          <Picker
+            label="Source"
+            value={provider}
+            onChange={setProvider}
+            // The current pick is ALWAYS an option, available or not. Filtering it
+            // out would leave a controlled `select` whose `value` matches no
+            // option, which renders blank - so a source that probed down would
+            // erase the picker instead of showing what is still pinned to it.
+            options={(config?.providers ?? [])
+              .filter((p) => p.available || p.id === provider)
+              .map((p) => p.id)}
           />
-          Live
-        </button>
-
-        {/* The handbook also sits under the toolbox, which is the panel it
-            explains, but that is the far end of a scroll through the twelve
-            sliders that are the reason to open it. */}
-        <Link
-          href="/docs"
-          className="flex items-center gap-1.5 border border-line-strong px-2 py-1 text-[11px] uppercase tracking-wider text-text-faint transition-colors duration-[70ms] hover:border-accent hover:text-accent active:translate-y-px"
-        >
-          <Icon name="book" className="size-3.5" />
-          Panduan
-        </Link>
-
-        <ThemeToggle />
-
-        {/* THE AUDIT BUTTON. Disabled until there is something to record, because
-            a snapshot of a failed draw is a snapshot of an error message. The
-            note is optional and inline rather than behind a dialog: a dialog
-            would make the act of recording cost more attention than reading the
-            chart, and then it would not get used. */}
-        <input
-          type="text"
-          value={snapshotNote}
-          onChange={(e) => setSnapshotNote(e.target.value)}
-          placeholder="note for the record"
-          aria-label="Snapshot note"
-          className="num w-40 border border-line-strong bg-transparent px-2 py-1 text-[11px] text-text placeholder:text-text-faint focus:border-accent"
-        />
-        <button
-          type="button"
-          onClick={takeSnapshot}
-          disabled={!data || snapshotBusy}
-          className="num border border-line-strong px-2 py-1 text-[11px] uppercase tracking-wider text-text-faint transition-colors duration-[70ms] hover:border-accent hover:text-accent disabled:cursor-not-allowed disabled:opacity-40 active:translate-y-px"
-        >
-          {snapshotBusy ? "Saving" : "Snapshot"}
-        </button>
-
-        <Picker
-          label="HTF"
-          value={htf}
-          onChange={setHtf}
-          options={[
-            "off",
-            // Only genuinely higher timeframes; anything at or below the
-            // chart's own would aggregate to nothing.
-            ...(config?.intervals ?? []).filter(
-              (id) => allIntervals.indexOf(id) > allIntervals.indexOf(interval),
-            ),
-          ]}
-        />
-
-        {htf !== "off" ? (
-          <>
+          <Picker
+            label="Bars"
+            value={String(bars)}
+            onChange={(v) => setBars(Number(v))}
+            // 1000 was the ceiling because binance hard-caps a page there. The
+            // local terminal has no such wall - 99,999 bars in 0.01s - so the
+            // top two are reachable on mt5 and clip to whatever a network source
+            // can actually serve on the others.
+            options={["200", "500", "1000", "2000", "5000"]}
+          />
+          {/* WHICH VENUE THE PLAN IS PRICED AT, and until 2026-08-20 there was no
+              way to say. The engine has had researched broker profiles all along
+              and only the measurement harness could reach them, so every plan on
+              screen was charged the generic row - a Dukascopy spread and a
+              commission the table's own comment calls unverified - while the
+              orders would fill somewhere else. Measured through this picker on
+              XAUUSD: the overnight carry goes from 1.00bp to 5.74bp on a long,
+              because the generic row has no equivalent of Exness's 4.545bp
+              per-night administration fee. "generic" is the empty pick. */}
+          {config?.brokers?.length ? (
             <Picker
-              label="Session"
-              value={sessionOffset}
-              onChange={setSessionOffset}
-              options={["0", "-2", "1", "2", "3"]}
+              label="Broker"
+              value={broker || "generic"}
+              onChange={(v) => setBroker(v === "generic" ? "" : v)}
+              options={["generic", ...config.brokers]}
             />
-            {/* Only offered with HTF on, because there is no lower timeframe to
-                refine from otherwise. Measured: it halves the stop and costs
-                4 to 10 points of survival, so it is a choice, not a default. */}
-            <Picker
-              label="Refine"
-              value={refine ? "on" : "off"}
-              onChange={(v) => setRefine(v === "on")}
-              options={["off", "on"]}
-            />
-          </>
-        ) : null}
-
-        {/* LAST of the selects on purpose. `e2e/sweep.mjs` reaches four of them
-            by index and says so in its own comment: inserting a control above
-            silently shifts every `nth()` there, and an assertion that quietly
-            starts driving the wrong picker still passes. */}
-        <Picker
-          label="Clock"
-          value={clock}
-          onChange={(v) => setClock(v as ClockZone)}
-          options={[...CLOCK_ZONES]}
-        />
-
-        <div className="flex border border-line-strong" role="group" aria-label="Timeframe">
-          {(config?.intervals ?? ["15m"]).map((id) => (
-            <button
-              key={id}
-              onClick={() => setInterval(id)}
-              aria-pressed={interval === id}
-              className={`num px-2 py-1 text-[11px] transition-colors duration-[70ms] ${
-                interval === id
-                  ? "bg-accent/15 text-accent"
-                  : "text-text-faint hover:text-text-dim"
-              } active:translate-y-px`}
-            >
-              {id}
-            </button>
-          ))}
-        </div>
-
-        {/* DUA TOMBOL, BUKAN SATU. Rail kiri adalah layer dan parameter, rail
-            kanan adalah checklist dan zone list, dan seorang pembaca yang
-            sedang menyetel parameter ingin membuang yang kanan sementara
-            seorang yang sedang membaca setup ingin membuang yang kiri. Satu
-            tombol untuk keduanya memaksa memilih di antara dua pekerjaan yang
-            tidak berhubungan. */}
-        <div className="flex items-center gap-1" role="group" aria-label="Panel">
-          {(
-            [
-              ["Panel kiri", railLeft, setRailLeft],
-              ["Panel kanan", railRight, setRailRight],
-            ] as const
-          ).map(([name, on, set]) => (
-            <button
-              key={name}
-              type="button"
-              role="switch"
-              aria-checked={on}
-              aria-label={name}
-              title={`${on ? "Sembunyikan" : "Tampilkan"} ${name.toLowerCase()}`}
-              onClick={() => set(!on)}
-              // `text-fg` DAN `text-fg-dim` TIDAK PERNAH ADA. Tak satu pun
-              // dideklarasikan di blok `@theme inline`, jadi Tailwind tidak
-              // memancarkan apa apa untuk keduanya dan kedua tombol ini mewarisi
-              // warna dari `body`. Akibatnya state MENYALA dan MATI keluar warna
-              // yang identik, dan `hover:text-fg` tidak melakukan apa pun sama
-              // sekali. Diukur di browser: keduanya rgb(228, 232, 237).
-              //
-              // Cacat kelas yang sama sudah pernah diperbaiki di
-              // `posko-panel.tsx` untuk `bg-panel-elevated`, dan ia kembali di
-              // sini karena tidak ada yang menjaganya. `e2e/theme.mjs` sekarang
-              // membandingkan setiap kelas `text-*` dan `bg-*` di `src/` lawan
-              // daftar token yang benar benar dideklarasikan.
-              className={`border px-1.5 py-1 transition-colors duration-[70ms] active:translate-y-px ${
-                on
-                  ? "border-line-strong bg-line/40 text-text"
-                  : "border-line text-text-faint hover:border-text-faint hover:text-text-dim"
-              }`}
-            >
-              <Icon
-                name={name === "Panel kiri" ? "panel_left" : "panel_right"}
-                className="size-4"
-                label={`${on ? "Sembunyikan" : "Tampilkan"} ${name.toLowerCase()}`}
-              />
-            </button>
-          ))}
-        </div>
-
-        <div className="ml-auto flex items-center gap-4">
-          {readout ? (
-            <div className="num flex gap-3 text-[11px]">
-              {(["open", "high", "low", "close"] as const).map((key) => (
-                <span key={key}>
-                  <span className="text-text-faint">{key[0].toUpperCase()}</span>{" "}
-                  <span
-                    className={
-                      readout.close >= readout.open ? "text-demand" : "text-supply"
-                    }
-                  >
-                    {readout[key].toFixed(decimals)}
-                  </span>
-                </span>
-              ))}
-            </div>
           ) : null}
-          <span
-            className="num text-[11px] text-text-faint"
-            aria-live="polite"
-            role="status"
+
+          {/* The five-detector strip and the separate Structure button that used
+              to sit here are GONE. They were two controls for one idea - "draw
+              this" - shaped differently because the request had two fields, and
+              they hardcoded five ids the header had no business knowing. Every
+              drawing is now switched in the one menu in the left panel, which
+              builds itself from the server's registry. */}
+
+          <button
+            onClick={() => setLive((v) => !v)}
+            aria-pressed={live}
+            title="Muat ulang tiap 30 detik"
+            className={`num flex items-center gap-1.5 border px-2 py-1 text-[11px] uppercase tracking-wider transition-colors duration-[70ms] ${
+              live
+                ? "border-accent text-accent"
+                : "border-line-strong text-text-faint hover:text-text-dim"
+            } active:translate-y-px`}
           >
-            {loading ? "loading" : `${candles.length} bars`}
-          </span>
+            <span
+              className={`inline-block h-1.5 w-1.5 rounded-full ${
+                live ? "bg-accent" : "bg-text-faint"
+              }`}
+            />
+            Live
+          </button>
+
+          <div className="ml-auto flex items-center gap-4">
+            {readout ? (
+              <div className="num flex gap-3 text-[11px]">
+                {(["open", "high", "low", "close"] as const).map((key) => (
+                  <span key={key}>
+                    <span className="text-text-faint">{key[0].toUpperCase()}</span>{" "}
+                    <span
+                      className={
+                        readout.close >= readout.open ? "text-demand" : "text-supply"
+                      }
+                    >
+                      {readout[key].toFixed(decimals)}
+                    </span>
+                  </span>
+                ))}
+              </div>
+            ) : null}
+            <span
+              className="num text-[11px] text-text-faint"
+              aria-live="polite"
+              role="status"
+            >
+              {loading ? "loading" : `${candles.length} bars`}
+            </span>
+          </div>
+        </div>
+
+        <div className="flex flex-1 flex-wrap items-center gap-x-3 gap-y-2">
+          <div className="flex border border-line-strong" role="group" aria-label="Timeframe">
+            {(config?.intervals ?? ["15m"]).map((id) => (
+              <button
+                key={id}
+                onClick={() => setInterval(id)}
+                aria-pressed={interval === id}
+                className={`num px-2 py-1 text-[11px] transition-colors duration-[70ms] ${
+                  interval === id
+                    ? "bg-accent/15 text-accent"
+                    : "text-text-faint hover:text-text-dim"
+                } active:translate-y-px`}
+              >
+                {id}
+              </button>
+            ))}
+          </div>
+
+          <Picker
+            label="HTF"
+            value={htf}
+            onChange={setHtf}
+            options={[
+              "off",
+              // Only genuinely higher timeframes; anything at or below the
+              // chart's own would aggregate to nothing.
+              ...(config?.intervals ?? []).filter(
+                (id) => allIntervals.indexOf(id) > allIntervals.indexOf(interval),
+              ),
+            ]}
+          />
+
+          {htf !== "off" ? (
+            <>
+              <Picker
+                label="Session"
+                value={sessionOffset}
+                onChange={setSessionOffset}
+                options={["0", "-2", "1", "2", "3"]}
+              />
+              {/* Only offered with HTF on, because there is no lower timeframe to
+                  refine from otherwise. Measured: it halves the stop and costs
+                  4 to 10 points of survival, so it is a choice, not a default. */}
+              <Picker
+                label="Refine"
+                value={refine ? "on" : "off"}
+                onChange={(v) => setRefine(v === "on")}
+                options={["off", "on"]}
+              />
+            </>
+          ) : null}
+
+          {/* LAST of the selects on purpose. `e2e/sweep.mjs` reaches four of them
+              by index and says so in its own comment: inserting a control above
+              silently shifts every `nth()` there, and an assertion that quietly
+              starts driving the wrong picker still passes. */}
+          <Picker
+            label="Clock"
+            value={clock}
+            onChange={(v) => setClock(v as ClockZone)}
+            options={[...CLOCK_ZONES]}
+          />
+
+          <div className="h-4 w-px bg-line" aria-hidden />
+          {/* The handbook also sits under the toolbox, which is the panel it
+              explains, but that is the far end of a scroll through the twelve
+              sliders that are the reason to open it. */}
+          <Link
+            href="/docs"
+            className="flex items-center gap-1.5 border border-line-strong px-2 py-1 text-[11px] uppercase tracking-wider text-text-faint transition-colors duration-[70ms] hover:border-accent hover:text-accent active:translate-y-px"
+          >
+            <Icon name="book" className="size-3.5" />
+            Panduan
+          </Link>
+
+          <ThemeToggle />
+
+          {/* THE AUDIT BUTTON. Disabled until there is something to record, because
+              a snapshot of a failed draw is a snapshot of an error message. The
+              note is optional and inline rather than behind a dialog: a dialog
+              would make the act of recording cost more attention than reading the
+              chart, and then it would not get used. */}
+          <input
+            type="text"
+            value={snapshotNote}
+            onChange={(e) => setSnapshotNote(e.target.value)}
+            placeholder="note for the record"
+            aria-label="Snapshot note"
+            className="num w-40 border border-line-strong bg-transparent px-2 py-1 text-[11px] text-text placeholder:text-text-faint focus:border-accent"
+          />
+          <button
+            type="button"
+            onClick={takeSnapshot}
+            disabled={!data || snapshotBusy}
+            className="num border border-line-strong px-2 py-1 text-[11px] uppercase tracking-wider text-text-faint transition-colors duration-[70ms] hover:border-accent hover:text-accent disabled:cursor-not-allowed disabled:opacity-40 active:translate-y-px"
+          >
+            {snapshotBusy ? "Saving" : "Snapshot"}
+          </button>
+
+          {/* DUA TOMBOL, BUKAN SATU. Rail kiri adalah layer dan parameter, rail
+              kanan adalah checklist dan zone list, dan seorang pembaca yang
+              sedang menyetel parameter ingin membuang yang kanan sementara
+              seorang yang sedang membaca setup ingin membuang yang kiri. Satu
+              tombol untuk keduanya memaksa memilih di antara dua pekerjaan yang
+              tidak berhubungan. */}
+          <div className="flex items-center gap-1" role="group" aria-label="Panel">
+            {(
+              [
+                ["Panel kiri", railLeft, setRailLeft],
+                ["Panel kanan", railRight, setRailRight],
+              ] as const
+            ).map(([name, on, set]) => (
+              <button
+                key={name}
+                type="button"
+                role="switch"
+                aria-checked={on}
+                aria-label={name}
+                title={`${on ? "Sembunyikan" : "Tampilkan"} ${name.toLowerCase()}`}
+                onClick={() => set(!on)}
+                // `text-fg` DAN `text-fg-dim` TIDAK PERNAH ADA. Tak satu pun
+                // dideklarasikan di blok `@theme inline`, jadi Tailwind tidak
+                // memancarkan apa apa untuk keduanya dan kedua tombol ini mewarisi
+                // warna dari `body`. Akibatnya state MENYALA dan MATI keluar warna
+                // yang identik, dan `hover:text-fg` tidak melakukan apa pun sama
+                // sekali. Diukur di browser: keduanya rgb(228, 232, 237).
+                //
+                // Cacat kelas yang sama sudah pernah diperbaiki di
+                // `posko-panel.tsx` untuk `bg-panel-elevated`, dan ia kembali di
+                // sini karena tidak ada yang menjaganya. `e2e/theme.mjs` sekarang
+                // membandingkan setiap kelas `text-*` dan `bg-*` di `src/` lawan
+                // daftar token yang benar benar dideklarasikan.
+                className={`border px-1.5 py-1 transition-colors duration-[70ms] active:translate-y-px ${
+                  on
+                    ? "border-line-strong bg-line/40 text-text"
+                    : "border-line text-text-faint hover:border-text-faint hover:text-text-dim"
+                }`}
+              >
+                <Icon
+                  name={name === "Panel kiri" ? "panel_left" : "panel_right"}
+                  className="size-4"
+                  label={`${on ? "Sembunyikan" : "Tampilkan"} ${name.toLowerCase()}`}
+                />
+              </button>
+            ))}
+          </div>
+
         </div>
       </header>
 

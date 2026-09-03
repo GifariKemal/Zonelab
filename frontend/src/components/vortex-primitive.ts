@@ -9,7 +9,7 @@ import type { CanvasRenderingTarget2D } from "fancy-canvas";
 
 import type { VortexDial } from "@/lib/types";
 import { claimedLabels } from "./structure-primitive";
-import { ink, plateInk } from "./ink";
+import { ink, monoFont, plateInk } from "./ink";
 
 /**
  * The 3-6-9 dial: six cycle rings, nine sectors, and where the newest bar sits.
@@ -254,7 +254,7 @@ class VortexRenderer implements IPrimitivePaneRenderer {
       });
 
       // ---- sector digits ---------------------------------------------------
-      ctx.font = `${Math.round(8 * ky)}px ui-monospace, monospace`;
+      ctx.font = monoFont(8, ky);
       ctx.fillStyle = SECTOR_NUM;
       ctx.textAlign = "center";
       ctx.textBaseline = "middle";
@@ -272,7 +272,7 @@ class VortexRenderer implements IPrimitivePaneRenderer {
       // Monthly, Quarterly, Yearly - so one letter is enough and the line stays
       // inside the dial's own width. This is the only part that moves.
       const caption = rings.map((r) => `${r.label[0]}${r.sector}`).join(" ");
-      ctx.font = `${Math.round(9 * ky)}px ui-monospace, monospace`;
+      ctx.font = monoFont(9, ky);
       ctx.textAlign = "left";
       const tw = ctx.measureText(caption).width / kx;
       const bx = cx - tw / 2 - 3;

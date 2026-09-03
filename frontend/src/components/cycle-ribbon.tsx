@@ -5,7 +5,7 @@ import type { IChartApi, Time } from "lightweight-charts";
 
 import { subscribeTheme } from "@/lib/theme";
 import { DEGREES, type SessionQuarter } from "@/lib/types";
-import { ink, monoStack, roleInk, tokenRgba } from "./ink";
+import { ink, monoFont, roleInk, tokenRgba } from "./ink";
 
 /**
  * The quarter ribbon, in its own strip beneath the chart.
@@ -220,7 +220,7 @@ export function CycleRibbon({
       // ribbon adalah satu satunya teks di app yang digambar dengan font
       // berbeda dari tetangganya. Variabelnya dibaca dari `<html>` karena
       // `next/font` yang menamainya, dan namanya di-hash per build.
-      ctx.font = `9px ${monoStack()}`;
+      ctx.font = monoFont(9, 1);
       ctx.textBaseline = "middle";
 
       const scale = chart.timeScale();

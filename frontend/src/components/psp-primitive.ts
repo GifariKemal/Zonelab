@@ -10,8 +10,9 @@ import type {
 import type { CanvasRenderingTarget2D } from "fancy-canvas";
 
 import type { PSPReading } from "@/lib/types";
-import { ink, plateInk } from "./ink";
+import { ink, monoFont, plateInk } from "./ink";
 import { claimedLabels, labelFree } from "./structure-primitive";
+import { strokeLine } from "./pixel";
 
 /**
  * PRECISION SWING POINTS: the swept level, and a tick at the bar that rejected it.
@@ -51,14 +52,14 @@ class PSPRenderer implements IPrimitivePaneRenderer {
       const height = scope.bitmapSize.height;
 
       ctx.save();
-      ctx.font = `${Math.round(9 * ky)}px ui-monospace, monospace`;
+      ctx.font = monoFont(9, ky);
       ctx.textBaseline = "middle";
-      ctx.lineWidth = Math.max(1, Math.round(kx));
+      ctx.lineWidth = strokeLine(0, kx, 1).width;
 
       for (const row of this.rows) {
         if (row.y < 0 || row.y * ky > height) continue;
         const x = Math.round(row.x * kx);
-        const y = Math.round(row.y * ky) + 0.5;
+        const y = strokeLine(row.y, ky, 1).centre;
         // The swept level, from the bar it was the open of to the bar that
         // swept it. That span IS the object: a level with no reach drawn is a
         // dot the reader cannot place in time.

@@ -11,7 +11,8 @@ import type { CanvasRenderingTarget2D } from "fancy-canvas";
 
 import type { DefiningRangeBand } from "@/lib/types";
 import { claimedLabels, labelFree, LABEL_GUTTER } from "./structure-primitive";
-import { INKS, plateInk } from "./ink";
+import { INKS, monoFont, plateInk } from "./ink";
+import { positionsBox, strokeLine } from "./pixel";
 
 /**
  * THE DEFINING RANGE: the band, its 50% line, and its projections.
@@ -92,26 +93,36 @@ class DFRRenderer implements IPrimitivePaneRenderer {
       const gutter = LABEL_GUTTER * kx;
 
       ctx.save();
-      ctx.font = `${Math.round(9 * ky)}px ui-monospace, monospace`;
+      ctx.font = monoFont(9, ky);
       ctx.textBaseline = "middle";
-      ctx.lineWidth = Math.max(1, Math.round(kx));
+      ctx.lineWidth = strokeLine(0, kx, 1).width;
 
       for (const b of this.bands) {
-        const x1 = Math.round(b.x1 * kx);
-        const x2 = Math.round(b.x2 * kx);
-        const top = Math.round(Math.min(b.yHigh, b.yLow) * ky);
-        const bottom = Math.round(Math.max(b.yHigh, b.yLow) * ky);
+        // Kedua tepi dibulatkan LALU diselisihkan, lewat `positionsBox`. Pola
+        // lama membulatkan tiap tepi lalu memakai `max(1, x2 - x1)`, yang
+        // kehilangan satu device pixel di tepi kanan dan bawah dan bisa
+        // berselisih dari cara shape sebelahnya membulatkan tepi yang sama.
+        const box = positionsBox(b.x1, b.x2, kx);
+        const band = positionsBox(
+          Math.min(b.yHigh, b.yLow),
+          Math.max(b.yHigh, b.yLow),
+          ky,
+        );
+        const x1 = box.position;
+        const x2 = box.position + box.length;
+        const top = band.position;
+        const bottom = band.position + band.length;
 
         // The band itself: a faint wash and a solid outline, CLOSED on the right
         // because the window it describes ended.
         ctx.fillStyle = `rgba(${INK}, 0.05)`;
-        ctx.fillRect(x1, top, Math.max(1, x2 - x1), Math.max(1, bottom - top));
+        ctx.fillRect(box.position, band.position, box.length, band.length);
         ctx.strokeStyle = `rgba(${INK}, 0.55)`;
         ctx.setLineDash([]);
-        ctx.strokeRect(x1, top, Math.max(1, x2 - x1), Math.max(1, bottom - top));
+        ctx.strokeRect(box.position, band.position, box.length, band.length);
 
         if (this.showEquilibrium && b.yEq !== null && bottom - top >= MIN_BOX_PX * ky) {
-          const y = Math.round(b.yEq * ky) + 0.5;
+          const y = strokeLine(b.yEq, ky, 1).centre;
           ctx.strokeStyle = `rgba(${INK}, 0.45)`;
           ctx.setLineDash([3 * kx, 3 * kx]);
           ctx.beginPath();
@@ -136,7 +147,7 @@ class DFRRenderer implements IPrimitivePaneRenderer {
         ctx.strokeStyle = `rgba(${INK}, 0.40)`;
         const onPane = b.levels.filter((l) => l.y >= 0 && l.y * ky <= height);
         for (const level of onPane) {
-          const y = Math.round(level.y * ky) + 0.5;
+          const y = strokeLine(level.y, ky, 1).centre;
           ctx.beginPath();
           ctx.moveTo(x1, y);
           ctx.lineTo(width - gutter, y);

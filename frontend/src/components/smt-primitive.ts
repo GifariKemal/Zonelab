@@ -11,7 +11,7 @@ import type { CanvasRenderingTarget2D } from "fancy-canvas";
 
 import type { SMTDivergence } from "@/lib/types";
 import { claimedLabels, labelFree } from "./structure-primitive";
-import { ink, plateInk } from "./ink";
+import { ink, monoFont, plateInk } from "./ink";
 
 /**
  * Regular SMT marker — a diamond at the quarter where one instrument took
@@ -47,7 +47,7 @@ class SMTRenderer implements IPrimitivePaneRenderer {
       const width = scope.bitmapSize.width;
 
       ctx.save();
-      ctx.font = `${Math.round(9 * ky)}px ui-monospace, monospace`;
+      ctx.font = monoFont(9, ky);
       ctx.textBaseline = "middle";
       ctx.lineWidth = Math.max(1, Math.round(kx));
 

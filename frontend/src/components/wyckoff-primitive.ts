@@ -10,7 +10,7 @@ import type {
 import type { CanvasRenderingTarget2D } from "fancy-canvas";
 
 import type { WyckoffPhase } from "@/lib/types";
-import { ink, plateInk } from "./ink";
+import { ink, monoFont, plateInk } from "./ink";
 import { claimedLabels, labelFree } from "./structure-primitive";
 
 /**
@@ -47,7 +47,7 @@ class WyckoffRenderer implements IPrimitivePaneRenderer {
       const height = scope.bitmapSize.height;
 
       ctx.save();
-      ctx.font = `${Math.round(9 * ky)}px ui-monospace, monospace`;
+      ctx.font = monoFont(9, ky);
       ctx.textBaseline = "middle";
 
       for (const row of this.rows) {

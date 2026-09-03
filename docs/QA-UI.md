@@ -15,7 +15,9 @@ membuktikan tiap gate baru tidak hampa.
 | Icon interaktif | 40 glyph, digambar tangan | 1 SVG jadi 73 SVG di halaman |
 | Interaction state | Hover, press, focus di tiap kontrol | 0 varian `active:` jadi 22 |
 | Warna di chrome | Glyph layer memakai ink yang layer itu cat | 0 warna baru, 5 ink family yang sudah ada |
-| Retina | Sudah benar sebelum audit | 14 dari 14 primitive pakai DPR |
+| Retina | **Laporan pertama saya salah**, 58 persen garis kabur di skala 2 | 119 garis straddle jadi 0 |
+| Header | Dua band yang disengaja, bukan dua baris yang kebetulan | konten butuh 2.348px, viewport 1.920px |
+| Font canvas | 16 deklarasi dalam 4 bentuk jadi 1 | 13 dari 16 tidak pernah sampai ke Plex |
 | Presisi warna | Diturunkan numerik, bukan dipilih | lihat tabel kontras di bawah |
 | Loading dan error state | Skeleton kerangka plus error yang menyebut langkahnya | loading 645-674ms terukur, tiga run per provider |
 
@@ -219,23 +221,179 @@ Satu keluarga, grid 16, stroke 1,5, `currentColor` saja. Fill hanya di dua
 tempat dan keduanya membawa arti: body candle yang memang padat, dan zona yang
 memang punya isi.
 
-## Retina, yang sudah benar sebelum audit
+## Retina, dan koreksi atas laporan saya sendiri
 
-**14 dari 14** canvas primitive sudah menghitung DPR lewat
-`useBitmapCoordinateSpace` dan `scope.horizontalPixelRatio` /
-`scope.verticalPixelRatio`. Tidak ada satu pun yang menggambar di CSS pixel saja.
-`cycle-ribbon.tsx` adalah satu satunya canvas di luar sistem primitive dan ia
-mengurus DPR-nya sendiri.
+Laporan pertama saya berbunyi "sudah benar sebelum audit", dengan alasan bahwa
+**14 dari 14** canvas primitive membaca `scope.horizontalPixelRatio` dan
+`scope.verticalPixelRatio` lewat `useBitmapCoordinateSpace`. Klaim tentang
+KODE-nya benar dan masih benar. Klaim tentang EFEK-nya salah, dan alat ukurnya
+yang membuatnya salah.
 
-Riset mengonfirmasi ini pendekatan yang benar, dan mengutip SKILL.md resmi
-lightweight-charts: `Mixing these causes blur or sub-pixel jitter on HiDPI
-displays`.
+### Kenapa pengukuran pertama tidak bisa menunjukkan apa pun
 
-Satu hal yang **belum** dipakai dan bisa: docs lightweight-charts menyediakan
-helper `positionsLine(positionMedia, pixelRatio, desiredWidthMedia)` dan
-`positionsBox(position1Media, position2Media, pixelRatio)` supaya posisi
-integer-nya konsisten dengan rendering logic internal library. Primitive di sini
-menghitung sendiri. Belum diukur apakah ada selisih yang terlihat.
+Ia memakai `deviceScaleFactor` per-context milik Playwright. Ia melaporkan
+`window.devicePixelRatio` sama dengan 2 ke JS, jadi ia terlihat cukup. Ia tidak
+memberi fancy-canvas sebuah device-pixel content box, dan itu yang fancy-canvas
+baca.
+
+Sensus bitmap seluruh canvas chart:
+
+| deviceScaleFactor | devicePixelRatio | ratio bitmap canvas |
+|---|---|---|
+| 1 | 1 | 1,00 |
+| 2 | 2 | **1,00** |
+| 3 | 3 | **1,00** |
+
+Sama di halaman minimal tanpa satu baris kode Zonelab, jadi bukan cacat kami.
+Dan bukan artefak `matchMedia` juga: `(resolution: 2dppx)` menjawab `true`, dan
+canvas kontrol yang diskalakan tangan jadi 200x100 untuk CSS 100x50.
+
+Yang bekerja `--force-device-scale-factor=2` sebagai **argumen browser**. Di
+sana ratio bitmap-nya 2,00 dan lightweight-charts menskalakan benar. Selama
+`scope.horizontalPixelRatio` selalu 1, jalur DPR di 14 primitive itu tidak
+pernah dieksekusi sama sekali.
+
+### Cacatnya, sesudah bisa diukur
+
+Setiap garis tipis digambar dengan pola `round(v * k) + 0.5` dan lebar
+`max(1, round(k))`. Pada `k = 1` itu **benar**: stroke lebar 1 yang dipusatkan
+di setengah pixel menutupi tepat satu baris. Pada `k = 2` stroke lebar 2 yang
+dipusatkan di setengah pixel menutupi separuh baris atas, seluruh baris tengah,
+dan separuh baris bawah.
+
+Diukur dari profil alpha tiap garis tipis di 14 kolom canvas:
+
+| | garis pas | lunak | tepi |
+|---|---|---|---|
+| skala 1, sebelum | 133 | 0 | - |
+| skala 2, sebelum | 87 | **119** | median **0,50** |
+| skala 1, sesudah | 125 | 0 | - |
+| skala 2, sesudah | 122 | 8 | 0,05 sampai 0,18 |
+
+Alpha tepi tepat 0,50 adalah tanda buku teks stroke yang mengangkangi batas
+device pixel. Delapan yang tersisa ujung dash dan garis diagonal, yang secara
+definisi tidak bisa disejajarkan ke grid. Yang dijaga karena itu bukan "nol
+garis lunak" melainkan **nol straddle**.
+
+**Panjang run tidak dipakai memutuskan**, dan itu penting: rule 1,5px yang
+memang dipakai project ini SAH menempati tiga baris di skala 2. Percobaan
+pertama menghitung panjang run dan melaporkan 110 garis di 3 baris, yang tidak
+bisa dibedakan dari rule 1,5px yang benar. Profil alpha tidak bergantung lebar.
+
+### Kedua helper itu tidak diekspor package-nya
+
+Docs plugin lightweight-charts menyebut `positionsLine` dan `positionsBox` wajib
+dipakai supaya posisi integer-nya konsisten dengan rendering logic internal
+library. `grep -r positionsLine node_modules/lightweight-charts/` mengembalikan
+**nol** di 5.2.1. Keduanya ditulis ulang di `src/components/pixel.ts` dengan
+semantik yang didokumentasikan, plus `strokeLine` untuk garis putus putus yang
+tidak bisa memakai `fillRect` karena `setLineDash` hanya berlaku pada path, dan
+pola dash adalah encoding identitas detector di repo ini.
+
+`demo()` di file itu mengunci aritmetikanya dan **dijalankan sekali saat modul
+dimuat**: hasilnya masuk ke `console.error` kalau gagal, jadi `e2e/sweep.mjs`
+yang menuntut nol console error ikut merah, dan ke `window.__pixelDemo` supaya
+`e2e/retina.mjs` bisa menegaskannya langsung. Sebuah fungsi verifikasi yang
+tidak dipanggil siapa pun adalah dokumentasi.
+
+### Dua bug DPR lain yang ikut ketemu
+
+`zone-primitive.ts` menggambar stroke dalam untuk box terbalik dengan inset 3,5
+dan 7 yang dituliskan langsung dalam device pixel. Pada skala 2 stroke itu duduk
+3 device pixel dari border luar alih alih 6, dan pada box 9 device pixel ia
+menempel ke border luarnya. Satu satunya cue yang selamat di box tiga pixel
+adalah "kotak di dalam kotak", dan cue itu hilang kalau kedua kotaknya
+bersentuhan.
+
+`rect()` di file yang sama membulatkan awal dan LEBAR secara terpisah, jadi tepi
+kanan sebuah box bisa jatuh satu device pixel dari tempat box sebelahnya
+membulatkan tepi yang sama. `positionsBox` membulatkan kedua tepi lalu
+menyelisihkannya.
+
+## Header, dan kenapa satu baris tidak mungkin
+
+Diukur: 16 kontrol di header butuh **2.348px** konten, dan viewport paling lebar
+yang diuji memberi **1.920px**. Satu baris tidak mungkin tanpa membuang sesuatu.
+Header-nya sendiri 78px, yaitu 7,4 persen dari viewport 1.050px.
+
+Yang salah bukan jumlah barisnya melainkan pembagiannya. Dengan satu
+`flex-wrap` atas 16 anak, tempat putusnya diputuskan lebar konten dan bukan
+artinya, dan hasilnya terbaca di sensus: `HTF` mendarat di baris pertama
+sementara `Clock` di baris kedua, padahal keduanya kontrol sejenis.
+
+Satu hipotesis saya **tidak terbukti** dan tidak diklaim: saya menduga titik
+putusnya bergeser saat jumlah digit harga berubah. Diuji dengan berganti dari
+XAUUSD (4.400) ke BTCUSD (77.860): **nol** elemen berpindah baris.
+
+Sekarang pembagiannya menjawab dua pertanyaan berbeda. Band atas "data apa":
+instrumen, sumber, jumlah bar, broker, dan bacaan OHLC yang keempatnya
+hasilkan. Band bawah "dilihat bagaimana": timeframe, HTF, clock, plus kontrol
+sesi dan dua saklar panel. Terukur muat sampai 1.280px, band atas 1.067px dan
+band bawah 1.009px sebelum gap, keduanya satu baris 27px. Di bawah itu keduanya
+membungkus lagi, yang memang jawaban yang benar.
+
+## Font, satu deklarasi dari empat
+
+Sensus `ctx.font` di `src/components`, sebelum:
+
+| bentuk | situs | sampai ke Plex |
+|---|---|---|
+| `round(9 * ky)px ui-monospace, monospace` | 11 | tidak |
+| `round(10 * ky)px ui-monospace, monospace` | 2 | tidak |
+| `500 ...px "IBM Plex Mono", ui-monospace, monospace` | 2 | ya |
+| `9px monoStack()` | 1 | ya |
+
+Jadi **13 dari 16** teks di canvas digambar dengan monospace bawaan sistem, yang
+di Windows Consolas, sementara caption zona dan label struktur digambar dengan
+Plex. Dua font di satu canvas, di objek yang bersebelahan.
+
+Selisihnya bukan sekadar bentuk huruf. Diukur di browser, string caption
+`DBR 4437.556`:
+
+| ukuran | ui-monospace | Plex Mono | selisih |
+|---|---|---|---|
+| 9px | 59,38px | 64,80px | +9,1% |
+| 10px | 65,98px | 72,00px | +9,1% |
+
+Per karakter di 10px: 5,5px jadi 6,0px. `labels.mjs` tetap 9/9 sesudah
+perubahan, jadi lebar tambahan itu tidak membuat tabrakan caption baru.
+
+Semuanya sekarang lewat `monoFont(px, ratio, weight)` di `ink.ts`. `weight` ada
+karena dua situs memang memakai 500 dan itu disengaja; yang dihapus bukan
+pilihannya melainkan empat cara menuliskannya. `chart.tsx` juga berhenti mengeja
+stack itu sebagai literal, yang tadinya ejaan keempat.
+
+### Dan angka yang jadi basi karenanya
+
+`LABEL_GUTTER = 46` di `structure-primitive.ts` dibenarkan oleh komentar yang
+berbunyi bahwa tag terpanjang enam karakter dan 10px ui-monospace mengukur 5,5px
+per karakter, jadi 33px plus 8px padding.
+
+Per karakternya benar. Klaim "enam karakter" **salah, dan sudah salah sebelum
+perubahan saya**: `PDH/PDL` tujuh karakter dan mengukur 38,5px, jadi totalnya
+46,5px dan sudah melewati 46. Di Plex ia 42px, totalnya 50px.
+
+Yang menjaga kolom itu bukan konstantanya. Tiap tag diukur `measureText` saat
+digambar, dan logika penggabungan di `levels-primitive.ts` menjatuhkan tag yang
+tidak muat. `e2e/labels.mjs` memeriksanya dari bitmap: nol label mengangkangi
+edge pane, 9/9, sesudah font-nya berganti. Konstanta itu lantai kolomnya, bukan
+jaminan lebarnya, dan komentarnya sekarang mengatakan begitu.
+
+## Text, sensus duplikat
+
+Dua puluh string muncul lebih dari sekali di satu layar. Sebagian besar penanda
+per baris yang memang harus berulang: 22 `Diukur`, 21 `Bukti`, 14 `Apa ini`, 10
+`ATR`, 6 `Fresh`. Menghapusnya akan menghapus informasi.
+
+Satu yang benar benar cacat: **`Clock` dipakai dua hal berbeda yang terlihat
+sekaligus**. Header punya picker `Clock` yang memilih zona waktu; Presets punya
+tombol `Clock` yang menyalakan layer waktu. Seseorang yang mengklik yang kedua
+punya alasan bagus untuk mengira ia mengubah setelan yang pertama. Tombol itu
+sekarang `Time grid`, dan `id`-nya tetap `clock` karena itu kunci yang tersimpan
+di localStorage pembaca.
+
+`e2e/theme.mjs` menjaganya per **pasangan tipe kontrol**, bukan per string,
+supaya penanda per baris tidak dihitung sebagai tabrakan.
 
 ## Gate
 
@@ -249,7 +407,9 @@ cd frontend && node e2e/labels.mjs .playwright-shots       # 9/9
 cd frontend && node e2e/sweep.mjs .playwright-shots        # 158/158
 cd frontend && node e2e/expectation-path.mjs .playwright-shots
 cd frontend && node e2e/clickthrough.mjs .playwright-shots
-cd frontend && node e2e/theme.mjs .playwright-shots        # 52 check
+cd frontend && node e2e/theme.mjs .playwright-shots        # 54 check
+cd frontend && node e2e/retina.mjs .playwright-shots       # 10 check, 2 skala device
+cd frontend && npm run e2e:pixels                          # 7/7 geometri zona
 ```
 
 ## Suntikan yang membuktikan `theme.mjs` tidak hampa
@@ -268,6 +428,9 @@ Tiap cacat dikembalikan, harness dijalankan, lalu dicabut lagi.
 | Langganan theme dihapus dari `Toolbox` | FAIL, `rgba(161,132,195,.95)` lalu `rgba(161,132,195,.95)` |
 | Theme toggle dinaikkan ke `py-1.5` | FAIL, `chrome di atas chart 134px` |
 | Skeleton versi 15 kolom dikembalikan | FAIL, `15 elemen berlatar lebih tinggi dari sepertiga pane` |
+| Pola `round(v*k)+0.5` dikembalikan di `levels-primitive` | FAIL, `straddle 116`, tepi 0,47 sampai 0,50 |
+| `ctx.font` bentuk lama dikembalikan di `psp-primitive` | FAIL, file dan bentuknya disebut |
+| Label preset dikembalikan ke `Clock` | FAIL, tabrakan nama terdeteksi |
 | Nilai `SIDE.light.demand` di `ink.ts` diubah | FAIL pytest, `At index 0 diff: 31 != 21` |
 | Heks pasangan dikembalikan ke `zone-panel.tsx` | FAIL pytest, `mengeja ulang pasangan itu` |
 
@@ -379,17 +542,18 @@ hidup berbulan bulan tanpa ada yang tahu.
   terlihat. Ia tidak dilipat dengan sengaja: itu pernyataan tentang uang yang
   sudah dipasang di broker, dan melipat informasi keselamatan di balik fold
   bukan perbaikan. Prose Presets yang dilipat, dan itu deskripsi fitur.
-- **Header masih membungkus ke dua baris di 1600px.** Ada 16 kontrol di sana,
-  tingginya 78px, dan itu 130px chrome bersama dua banner. Belum diukur apakah
-  pengelompokan bisa mengembalikannya ke satu baris tanpa menyembunyikan
-  sesuatu. Ambang 132px di `theme.mjs` menjaga supaya ia tidak tumbuh lagi
-  tanpa ada yang tahu.
+- **Dua varian `pixel-truth.mjs` merah, dan sudah merah sebelum pekerjaan ini.**
+  `e2e:pixels-ifvg` 6/7 dan `e2e:pixels-brk` 5/7, dengan skor identik di HEAD
+  sebelum satu baris diubah. Keduanya gagal di `enough edges are legible to
+  measure anything at all`, yaitu 8 box breaker yang bertumpuk di harga
+  sehingga probe tidak bisa mengisolasi tepinya. Itu properti keluaran detector
+  di simbol dan timeframe itu, bukan cacat gambar, dan keduanya tidak ada di
+  daftar gate CLAUDE.md. Belum ditelusuri.
 - **Jumlah check `sweep.mjs` tidak stabil terhadap suntingan saya sendiri.** Ia
   158 sebelum sesi ini, terbaca 159 sekali di tengah sesi, dan 158 lagi
   sekarang. Nama seluruh check identik antara HEAD dan tree kerja, jadi tidak
   ada yang hilang diam diam, tapi kenapa sempat 159 belum ditelusuri.
-- **Helper `positionsLine` / `positionsBox` belum dipakai.** Lihat bagian
-  Retina.
+
 - **`--info` dan ink family `levels` berjarak 3,6 derajat.** Aman sekarang
   karena keduanya di permukaan berbeda. Belum diukur kalau itu berubah.
 - **Jarak L\* accent ke supply di theme GELAP masih 1,4 poin** dengan hue hanya

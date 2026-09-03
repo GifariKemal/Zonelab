@@ -183,6 +183,29 @@ const NOT_COLOUR = new Set([
         naked.length ? naked.slice(0, 4).join(" | ") : `${exempt.length} pengecualian tercatat`);
 }
 
+// ===================================== satu deklarasi font untuk canvas
+// Statis, karena sebuah `ctx.font` yang salah tidak melempar apa pun - ia
+// menggambar teks yang sama dengan font yang berbeda, dan itu hanya terlihat
+// kalau dua objek yang bersebelahan kebetulan dibandingkan.
+//
+// Sensus sebelum diperbaiki: 16 `ctx.font` di 15 file dalam EMPAT bentuk, dan
+// 13 di antaranya tidak pernah sampai ke IBM Plex Mono. Diukur, string caption
+// yang sama 59,38px di monospace sistem lawan 64,80px di Plex pada 9px, jadi
+// selisihnya 9,1 persen dan bukan sekadar bentuk huruf.
+{
+  const stray = [];
+  for (const f of files) {
+    if (f.endsWith(".css")) continue;
+    const text = readFileSync(f, "utf-8");
+    for (const m of text.matchAll(/ctx\.font\s*=\s*([^;]+);/g)) {
+      const rhs = m[1].trim();
+      if (!rhs.startsWith("monoFont(")) stray.push(`${f}: ${rhs.slice(0, 46)}`);
+    }
+  }
+  check("tiap ctx.font di canvas lewat monoFont", stray.length === 0,
+        stray.length ? stray.slice(0, 3).join(" | ") : "16 situs, satu bentuk");
+}
+
 const unknown = new Map();
 for (const f of files) {
   if (f.endsWith(".css")) continue;
@@ -446,6 +469,49 @@ if (seen.dark_canvas && seen.light_canvas) {
   const ribbons = await page.locator("canvas").count();
   check("nol pageerror sesudah berganti theme hidup", errs.length === 0,
         errs.slice(0, 2).join(" | ") || `${ribbons} canvas`);
+
+  // DUA KONTROL BERBEDA TIDAK BOLEH BERBAGI NAMA YANG TERLIHAT.
+  // Sensus teks menemukan satu: header punya picker `Clock` yang memilih ZONA
+  // WAKTU, dan Presets punya tombol `Clock` yang menyalakan LAYER waktu.
+  // Keduanya terlihat sekaligus, dan seseorang yang mengklik yang kedua punya
+  // alasan bagus untuk mengira ia mengubah setelan yang pertama. Tombol itu
+  // sekarang "Time grid".
+  //
+  // Yang TIDAK dihitung tabrakan: penanda per baris yang memang harus berulang
+  // - 22 "Diukur", 21 "Bukti", 14 "Apa ini" - dan nilai slider yang kebetulan
+  // sama. Itu sebabnya perbandingannya per PASANGAN TIPE kontrol dan bukan per
+  // string.
+  {
+    const clash = await page.evaluate(() => {
+      const named = new Map();
+      const kind = (el) =>
+        el.getAttribute("role") === "switch" ? "switch"
+        : el.tagName === "SELECT" ? "select"
+        : el.tagName === "SUMMARY" ? "summary"
+        : el.tagName === "A" ? "link"
+        : el.getAttribute("aria-pressed") !== null ? "toggle"
+        : "button";
+      for (const el of document.querySelectorAll(
+        'button, select, a[href], [role="switch"]',
+      )) {
+        if (el.offsetParent === null) continue;
+        const name = (
+          el.getAttribute("aria-label")
+          || el.closest("label")?.innerText
+          || el.innerText
+          || ""
+        ).trim();
+        if (name.length < 3 || name.length > 40) continue;
+        if (!named.has(name)) named.set(name, new Set());
+        named.get(name).add(kind(el));
+      }
+      return [...named.entries()]
+        .filter(([, kinds]) => kinds.size > 1)
+        .map(([name, kinds]) => `${name} (${[...kinds].join(" + ")})`);
+    });
+    check("nol nama kontrol yang dipakai dua tipe kontrol berbeda",
+          clash.length === 0, clash.join(" | ") || "tak ada tabrakan");
+  }
 
   // GLYPH LAYER DI RAIL juga membawa warna ink, dan ia punya jalur kegagalan
   // SENDIRI: tabelnya dibaca per render, tapi `Toolbox` di-memo dan prop-nya

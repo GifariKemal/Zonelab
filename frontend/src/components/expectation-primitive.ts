@@ -10,8 +10,9 @@ import type {
 import type { CanvasRenderingTarget2D } from "fancy-canvas";
 
 import type { ExpectationFan, QuantileSet } from "@/lib/types";
-import { ink, plateInk } from "./ink";
+import { ink, monoFont, plateInk } from "./ink";
 import { claimedLabels, labelFree, LABEL_GUTTER } from "./structure-primitive";
+import { strokeLine } from "./pixel";
 
 /**
  * THE EXPECTATION FAN: the measured distribution of resolved R for this symbol,
@@ -77,13 +78,13 @@ class ExpectationRenderer implements IPrimitivePaneRenderer {
       const x2 = width - gutter;
 
       ctx.save();
-      ctx.font = `${Math.round(9 * ky)}px ui-monospace, monospace`;
+      ctx.font = monoFont(9, ky);
       ctx.textBaseline = "middle";
-      ctx.lineWidth = Math.max(1, Math.round(kx));
+      ctx.lineWidth = strokeLine(0, kx, 1).width;
 
       for (const row of this.rows) {
         if (row.y < 0 || row.y * ky > height) continue;
-        const y = Math.round(row.y * ky) + 0.5;
+        const y = strokeLine(row.y, ky, 1).centre;
         const alpha = row.bold ? 0.85 : 0.40;
         ctx.strokeStyle = ink(INK, alpha);
         ctx.setLineDash(row.bold ? [] : [2 * kx, 3 * kx]);
@@ -102,7 +103,7 @@ class ExpectationRenderer implements IPrimitivePaneRenderer {
         ctx.beginPath();
         this.path.forEach((p, i) => {
           const px = Math.round(p.x * kx);
-          const py = Math.round(p.y * ky) + 0.5;
+          const py = strokeLine(p.y, ky, 1).centre;
           if (i === 0) ctx.moveTo(px, py);
           else ctx.lineTo(px, py);
         });

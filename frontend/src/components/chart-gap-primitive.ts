@@ -10,8 +10,9 @@ import type {
 import type { CanvasRenderingTarget2D } from "fancy-canvas";
 
 import type { ChartGap } from "@/lib/types";
-import { ink, plateInk } from "./ink";
+import { ink, monoFont, plateInk } from "./ink";
 import { claimedLabels, labelFree, LABEL_GUTTER } from "./structure-primitive";
+import { strokeLine } from "./pixel";
 
 /**
  * BREAKAWAY AND MEASURING GAPS: the unfilled band at the bar that gapped, plus
@@ -46,9 +47,9 @@ class ChartGapRenderer implements IPrimitivePaneRenderer {
       const gutter = LABEL_GUTTER * kx;
 
       ctx.save();
-      ctx.font = `${Math.round(9 * ky)}px ui-monospace, monospace`;
+      ctx.font = monoFont(9, ky);
       ctx.textBaseline = "middle";
-      ctx.lineWidth = Math.max(1, Math.round(kx));
+      ctx.lineWidth = strokeLine(0, kx, 1).width;
 
       for (const row of this.rows) {
         const x = Math.round(row.x * kx);
@@ -66,7 +67,7 @@ class ChartGapRenderer implements IPrimitivePaneRenderer {
         // The measuring target, dashed, to the label gutter. A breakaway gap
         // sends none, and then nothing is drawn.
         const yT =
-          row.yTarget === null ? null : Math.round(row.yTarget * ky) + 0.5;
+          row.yTarget === null ? null : strokeLine(row.yTarget, ky, 1).centre;
         if (yT !== null && yT >= 0 && yT <= height) {
           ctx.setLineDash([2 * kx, 3 * kx]);
           ctx.strokeStyle = ink(INK, 0.40);

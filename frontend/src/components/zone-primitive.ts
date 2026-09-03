@@ -11,7 +11,8 @@ import type {
 
 import type { Zone, ZoneKind, ZoneState } from "@/lib/types";
 import { LABEL_GUTTER, claimedLabels, labelFree } from "./structure-primitive";
-import { plateInk, sideRgba } from "./ink";
+import { monoFont, plateInk, sideRgba } from "./ink";
+import { positionsBox, strokeLine } from "./pixel";
 
 /** Lifecycle as a SHARE of the ink budget rather than as an absolute alpha.
  *  A fresh zone should still read at a glance from across the desk and a broken
@@ -208,11 +209,18 @@ interface Box {
  *  border are painted in separate passes and a half-pixel disagreement between
  *  them reads as an edge drawn in the wrong place. */
 function rect(box: Box, kx: number, ky: number) {
+  // KEDUA TEPI DIBULATKAN LALU DISELISIHKAN, lewat `positionsBox`. Versi lama
+  // membulatkan awalnya dan LEBARNYA terpisah - `round(left * kx)` dan
+  // `round((right - left) * kx)` - jadi tepi kanan sebuah box bisa jatuh satu
+  // device pixel dari tempat box sebelahnya membulatkan tepi yang SAMA, dan
+  // dua zona yang berbagi harga meninggalkan celah atau bertumpuk.
+  const h = positionsBox(box.left, box.right, kx);
+  const v = positionsBox(box.top, box.bottom, ky);
   return {
-    x: Math.round(box.left * kx),
-    y: Math.round(box.top * ky),
-    w: Math.max(Math.round((box.right - box.left) * kx), 2),
-    h: Math.max(Math.round((box.bottom - box.top) * ky), 2),
+    x: h.position,
+    y: v.position,
+    w: Math.max(h.length, 2),
+    h: Math.max(v.length, 2),
   };
 }
 
@@ -338,9 +346,16 @@ class ZoneEdgeRenderer implements IPrimitivePaneRenderer {
           // it is on the proximal rule below, see KIND_DASH.
           ctx.save();
           ctx.strokeStyle = rgba(zone.side, edge * (crowded ? 0.5 : 1));
-          ctx.lineWidth = (selected ? 2.5 : box.projected ? 2 : 1) * ky;
+          // OFFSET-NYA SETENGAH LEBAR STROKE, bukan tetap 0,5. Keduanya sama
+          // saat lebarnya 1, yang berlaku pada skala 1; pada skala 2 lebarnya
+          // 2 dan offset 0,5 membuat border-nya mengangkangi batas device
+          // pixel. Menariknya masuk setengah lebar membuat stroke-nya jatuh
+          // TEPAT di dalam batas box, jadi border-nya juga tidak lagi bocor
+          // satu baris ke luar geometri yang `e2e/pixel-truth.mjs` ukur.
+          const lw = strokeLine(0, ky, selected ? 2.5 : box.projected ? 2 : 1).width;
+          ctx.lineWidth = lw;
           if (!zone.confirmed) ctx.setLineDash([4 * kx, 3 * kx]);
-          ctx.strokeRect(x + 0.5, y + 0.5, w - 1, h - 1);
+          ctx.strokeRect(x + lw / 2, y + lw / 2, Math.max(w - lw, 1), Math.max(h - lw, 1));
 
           // An INVERTED box gets a second stroke set inside the first. An IFVG or
           // a BRK is not new geometry: it is an existing box read from the other
@@ -354,7 +369,20 @@ class ZoneEdgeRenderer implements IPrimitivePaneRenderer {
           // would be stating the opposite of the measurement. It says "this band
           // changed role", which is a fact about the drawing, and nothing else.
           if (zone.inverted_at !== null && w > 8 && h > 8) {
-            ctx.strokeRect(x + 3.5, y + 3.5, w - 7, h - 7);
+            // INSET-NYA DISKALAKAN, dan sebelumnya tidak. `3.5` dan `7` adalah
+            // angka device pixel yang dituliskan langsung, jadi pada skala 2
+            // stroke dalam ini duduk 3 device pixel dari border luar alih alih
+            // 6 - separuh jarak yang dimaksud, dan pada box 9 device pixel ia
+            // menempel ke border luarnya. Satu satunya cue yang selamat di box
+            // tiga pixel adalah "kotak di dalam kotak", dan cue itu hilang
+            // kalau kedua kotaknya bersentuhan.
+            const inset = 3 * ky;
+            ctx.strokeRect(
+              x + inset + lw / 2,
+              y + inset + lw / 2,
+              Math.max(w - 2 * inset - lw, 1),
+              Math.max(h - 2 * inset - lw, 1),
+            );
           }
           ctx.restore();
         }
@@ -378,10 +406,19 @@ class ZoneEdgeRenderer implements IPrimitivePaneRenderer {
         // lands on the top or bottom border by construction, dotting it removes
         // ink from a row that still carries a solid border underneath, which is
         // what keeps `pixel-truth.mjs` reading the same edges it always did.
-        const py = Math.round(box.proximalY * ky);
+        // 1,5px, DAN INI SITUS YANG `globals.css` SUDAH TULIS ANGKANYA.
+        // Catatan di sana berbunyi: "a 1.5px rule centred on the pixel grid
+        // spreads its alpha across two rows at about 0.75 each", dan itu
+        // sebabnya `--zone-edge-far` harus dinaikkan dari 0,38 ke 0,50 supaya
+        // stroke ini lolos floor `pixel-truth.mjs`. `strokeLine` menghapus
+        // penyebaran itu: pada skala 1 lebarnya jadi 2 baris PENUH, pada skala
+        // 2 jadi 3 baris penuh. Arahnya menaikkan coverage terukur, jadi 0,50
+        // tetap di atas floor - `e2e/pixel-truth.mjs` yang mengonfirmasi.
+        const rule = strokeLine(box.proximalY, ky, 1.5);
+        const py = rule.centre;
         ctx.save();
         ctx.strokeStyle = rgba(zone.side, Math.min(1, edge + 0.1));
-        ctx.lineWidth = 1.5 * ky;
+        ctx.lineWidth = rule.width;
         ctx.setLineDash(tokenDash(KIND_DASH[zone.kind]).map((n) => n * kx));
         ctx.beginPath();
         ctx.moveTo(x, py);
@@ -424,7 +461,7 @@ class ZoneLabelRenderer implements IPrimitivePaneRenderer {
       const ky = scope.verticalPixelRatio;
 
       ctx.save();
-      ctx.font = `500 ${10 * ky}px "IBM Plex Mono", ui-monospace, monospace`;
+      ctx.font = monoFont(10, ky, 500);
       ctx.textBaseline = "middle";
 
       // Nearest first, with the pointed-at box ahead of everything. When the

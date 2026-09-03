@@ -59,8 +59,18 @@ export const PRESETS: Preset[] = [
     layers: ["supply_demand", "fvg", "order_block", "ifvg", "breaker"],
   },
   {
+    // LABEL-NYA "Time grid", BUKAN "Clock", dan itu memperbaiki tabrakan nama.
+    // Header punya picker `Clock` yang memilih ZONA WAKTU, dan tombol ini
+    // menyalakan LAYER waktu. Keduanya terlihat sekaligus di satu layar, dan
+    // sensus teks menemukan keduanya: `span@371,48` lawan `button@60,320`.
+    // Seseorang yang mengklik "Clock" di Presets punya alasan bagus untuk
+    // mengira ia mengubah setelan clock.
+    //
+    // `id` TETAP "clock", karena ia kunci yang tersimpan di localStorage
+    // pembaca. Mengubahnya akan membuat setiap preset tersimpan yang cocok
+    // dengan set ini berhenti dikenali, dan label bukan alasan yang cukup.
     id: "clock",
-    label: "Clock",
+    label: "Time grid",
     note: "Time only: quarters, true opens and the defining range. No price objects.",
     layers: ["session", "dfr"],
     params: {

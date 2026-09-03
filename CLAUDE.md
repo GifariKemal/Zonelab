@@ -119,6 +119,7 @@ cd frontend && npm run build                            # exit 0
 > cd frontend && node e2e/expectation-path.mjs .playwright-shots # garis path menggambar
 > cd frontend && node e2e/clickthrough.mjs .playwright-shots     # tiap kontrol diklik
 > cd frontend && node e2e/theme.mjs .playwright-shots            # dua theme, angka warnanya dibaca balik
+> cd frontend && node e2e/retina.mjs .playwright-shots           # garis canvas mendarat di grid device pixel
 > ```
 >
 > `theme.mjs` masuk 3 September 2026 bersama light mode. Ia menghitung ulang
@@ -132,6 +133,23 @@ cd frontend && npm run build                            # exit 0
 > satu byte bergeser karena harga bergerak. Yang mengukur sekarang: kunci
 > dibaca dari CSS-nya bukan dari browser, dan saklarnya diklik di halaman yang
 > sudah hidup lalu luminance rata rata canvas harus MELEWATI 0,5.
+>
+> `retina.mjs` masuk 3 September 2026, dan ia satu satunya harness yang
+> meluncurkan browser dengan `--force-device-scale-factor`. Alasannya bukan
+> selera: `deviceScaleFactor` per-context milik Playwright melaporkan
+> `devicePixelRatio` 2 ke JS tapi TIDAK memberi fancy-canvas device-pixel
+> content box, jadi bitmap canvas lightweight-charts tetap 1x di
+> deviceScaleFactor 1, 2 dan 3, dan `scope.horizontalPixelRatio` selalu 1. Satu
+> laporan "retina sudah benar" pernah ditulis di atas pengukuran itu, dan
+> terbukti salah begitu flag-nya benar: 58 persen garis tipis mengangkangi batas
+> device pixel dengan alpha tepi tepat 0,50. Sekarang nol.
+>
+> Kalau perubahannya menyentuh apa pun yang menggambar di canvas, `retina.mjs`
+> yang mengikat, dan posisi harus datang dari `src/components/pixel.ts`. Pola
+> `Math.round(v * k) + 0.5` BENAR di skala 1 dan salah di skala 2, jadi ia tidak
+> bisa ditemukan dengan melihat layar 1x. Font canvas juga: semuanya lewat
+> `monoFont()` di `ink.ts`, karena 13 dari 16 `ctx.font` pernah tidak sampai ke
+> IBM Plex Mono sementara 3 sampai, dan selisih lebarnya 9,1 persen.
 >
 > Kalau perubahannya menyentuh warna, token, atau `src/components/icons.tsx`,
 > `theme.mjs` yang mengikat. Ia juga menjaga dua peta yang bentuk kegagalannya

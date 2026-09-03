@@ -10,7 +10,8 @@ import type {
 } from "lightweight-charts";
 
 import type { StructureEvent, StructureScale, SwingPoint } from "@/lib/types";
-import { INKS, plateInk } from "./ink";
+import { INKS, monoFont, plateInk } from "./ink";
+import { strokeLine } from "./pixel";
 
 /**
  * Market structure, drawn as annotation and never as a call.
@@ -201,13 +202,31 @@ export function resetLabels(): void {
  * "NDOG" are struck through the same way. A line through a name is worse than
  * either object alone, because the reader cannot tell which of the two is lying.
  *
- * 46 rather than a measured-per-frame maximum, and it is sized from a
- * measurement rather than chosen: the tags these two files can produce are at
- * most six characters ("LDN L?", "T90mO", "EV-D", "NWOG"), and 10px
- * ui-monospace measures 5.5px per character on this machine - 33px, plus 8px of
- * padding on the two sides. A per-frame maximum would move the whole column
- * every time a pool went partial, and a column that moves is a column the eye
- * has to find again.
+ * 46 rather than a measured-per-frame maximum. A per-frame maximum would move
+ * the whole column every time a pool went partial, and a column that moves is a
+ * column the eye has to find again.
+ *
+ * ANGKA DI SINI PERNAH SALAH DUA KALI, dan keduanya dicatat karena keduanya
+ * kelas kesalahan yang sama: sebuah konstanta yang dibenarkan oleh aritmetika
+ * yang tidak dijalankan ulang.
+ *
+ * Versi pertama berbunyi "the tags these two files can produce are at most six
+ * characters, and 10px ui-monospace measures 5.5px per character - 33px, plus
+ * 8px of padding". Per karakternya benar, 5,5px terukur. Klaim "enam karakter"
+ * SALAH: `PDH/PDL` tujuh karakter dan mengukur 38,5px, jadi totalnya 46,5px dan
+ * sudah melewati 46 bahkan sebelum font berganti.
+ *
+ * Lalu font canvas dipindah ke IBM Plex Mono pada 3 September 2026, karena 13
+ * dari 16 `ctx.font` di repo ini tidak pernah sampai ke Plex sementara 3
+ * sampai. Plex mengukur 6,0px per karakter di 10px, jadi `PDH/PDL` jadi 42px
+ * dan totalnya 50px.
+ *
+ * YANG MENJAGA KOLOM INI BUKAN KONSTANTA ITU, dan itu jawaban sebenarnya. Tiap
+ * tag diukur `measureText` saat digambar, dan logika penggabungan di
+ * `levels-primitive.ts` menjatuhkan tag yang tidak muat alih alih membiarkannya
+ * meluap. `e2e/labels.mjs` memeriksanya dari bitmap: nol label mengangkangi
+ * edge pane, 9/9, sesudah font-nya berganti. Konstanta ini lantai kolomnya,
+ * bukan jaminan lebarnya.
  */
 export const LABEL_GUTTER = 46;
 
@@ -313,7 +332,7 @@ class StructureRenderer implements IPrimitivePaneRenderer {
       for (const segment of this.segments) {
         const { event } = segment;
         const s = SCALE[event.scale];
-        const y = Math.round(segment.y * ky) + 0.5;
+        const y = strokeLine(segment.y, ky, 1).centre;
         const x1 = Math.round(segment.x1 * kx);
         const x2 = Math.round(segment.x2 * kx);
 
@@ -369,7 +388,7 @@ class StructureRenderer implements IPrimitivePaneRenderer {
       for (const segment of ordered) {
         const { event } = segment;
         const s = SCALE[event.scale];
-        const y = Math.round(segment.y * ky) + 0.5;
+        const y = strokeLine(segment.y, ky, 1).centre;
         const x1 = Math.round(segment.x1 * kx);
         const x2 = Math.round(segment.x2 * kx);
         if (x2 - x1 < LABEL_MIN_WIDTH) continue;
@@ -383,7 +402,7 @@ class StructureRenderer implements IPrimitivePaneRenderer {
         if (x2 <= 0 || x1 >= width) continue;
 
         ctx.save();
-        ctx.font = `500 ${s.font * ky}px "IBM Plex Mono", ui-monospace, monospace`;
+        ctx.font = monoFont(s.font, ky, 500);
         ctx.textBaseline = "middle";
 
         const text = caption(event);

@@ -10,7 +10,7 @@ import type {
 import type { CanvasRenderingTarget2D } from "fancy-canvas";
 
 import { LABEL_GUTTER, claimedLabels, labelFree } from "./structure-primitive";
-import { ink, plateInk } from "./ink";
+import { ink, monoFont, plateInk } from "./ink";
 
 /**
  * Fibonacci / OTE grid over one structural swing.
@@ -71,7 +71,7 @@ class FibRenderer implements IPrimitivePaneRenderer {
       const width = scope.bitmapSize.width;
 
       ctx.save();
-      ctx.font = `${Math.round(9 * ky)}px ui-monospace, monospace`;
+      ctx.font = monoFont(9, ky);
       ctx.textBaseline = "middle";
       ctx.lineWidth = Math.max(1, Math.round(kx));
       // Where the pane stops belonging to lines and starts belonging to names.
@@ -92,8 +92,9 @@ class FibRenderer implements IPrimitivePaneRenderer {
 
         // Label, clamped to the right edge - which is INSIDE the gutter the ray
         // just stopped at, so the plate sits in the column rather than over the
-        // line. The widest tag here is "-1.000" at 9px ui-monospace, about 33px
-        // with its padding, so it fits the 46px column with room to spare.
+        // line. Tag terlebar di file ini "-1.000", dan angkanya diperbarui saat
+        // font canvas dipindah ke Plex: 29,7px di ui-monospace 9px jadi 32,4px
+        // di Plex 9px, plus 6px padding, totalnya 38,4px di kolom 46px.
         // Reuses the shared claim list so a Fibonacci label cannot land on a PDH
         // or a zone caption.
         const pad = Math.round(3 * kx);

@@ -24,6 +24,7 @@
     "e2e:pixels-brk": "node e2e/pixel-truth.mjs .playwright-shots/pixel-brk 15m 500 breaker",
     "e2e:clicks": "node e2e/click-everything.mjs .playwright-shots",
     "e2e:theme": "node e2e/theme.mjs .playwright-shots",
+    "e2e:retina": "node e2e/retina.mjs .playwright-shots",
     "e2e:clickthrough": "node e2e/clickthrough.mjs .playwright-shots",
     "e2e:offscreen": "node e2e/offscreen-zones.mjs 1h 500",
     "e2e:clock": "node e2e/clock.mjs .playwright-shots",

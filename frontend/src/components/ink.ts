@@ -190,6 +190,29 @@ export function monoStack(): string {
   return token("--font-plex-mono", "ui-monospace") + ", ui-monospace, monospace";
 }
 
+/** SATU deklarasi font untuk seluruh canvas, dan alasannya sebuah sensus.
+ *
+ *  Sebelum ini ada 16 `ctx.font` di 15 file, dalam EMPAT bentuk berbeda:
+ *
+ *    11 situs  `${round(9 * ky)}px ui-monospace, monospace`
+ *     2 situs  `${round(10 * ky)}px ui-monospace, monospace`
+ *     2 situs  `500 ${...}px "IBM Plex Mono", ui-monospace, monospace`
+ *     1 situs  `9px ${monoStack()}`
+ *
+ *  Jadi 13 dari 16 teks di canvas TIDAK PERNAH sampai ke IBM Plex Mono, dan 3
+ *  sampai. Caption zona dan label struktur digambar dengan Plex; caption gap,
+ *  pool, divergence, DFR, quarter dan sisanya digambar dengan monospace bawaan
+ *  sistem, yang di Windows Consolas. Dua font di satu canvas, di objek yang
+ *  bersebelahan.
+ *
+ *  `weight` ada karena dua situs itu memang memakai 500 dan itu disengaja: label
+ *  struktur dan caption zona adalah teks yang paling sering dibaca di chart.
+ *  Yang dihapus bukan pilihannya, melainkan empat cara menuliskannya.
+ */
+export function monoFont(px: number, ratio: number, weight = 400): string {
+  return `${weight} ${Math.round(px * ratio)}px ${monoStack()}`;
+}
+
 /** Empat peran quarter, satu tabel per theme.
  *
  *  `cycle-ribbon.tsx` memegang palette-nya sendiri dan itu palette keenam di

@@ -20,7 +20,8 @@ import type {
   TierHorizon,
 } from "@/lib/types";
 import { LABEL_GUTTER, claimedLabels, labelFree } from "./structure-primitive";
-import { INKS, plateInk } from "./ink";
+import { INKS, monoFont, plateInk } from "./ink";
+import { strokeLine } from "./pixel";
 
 /**
  * Four price-anchored overlays in one primitive: opening gaps, event horizons,
@@ -254,9 +255,15 @@ class LevelsRenderer implements IPrimitivePaneRenderer {
       const height = scope.bitmapSize.height;
 
       ctx.save();
-      ctx.font = `${Math.round(10 * ky)}px ui-monospace, monospace`;
+      ctx.font = monoFont(10, ky);
       ctx.textBaseline = "middle";
-      const stroke = Math.max(1, Math.round(kx));
+      // LEBAR DAN PUSAT DARI SATU PANGGILAN. Keduanya dulu dihitung terpisah:
+      // `stroke = max(1, round(kx))` di sini, dan `round(y * ky) + 0.5` di
+      // setiap situs gambar. Pada `kx = 2` pasangan itu menyebarkan garis ke
+      // TIGA baris device pixel dengan tepi alpha 0,5. Lihat `pixel.ts` untuk
+      // angkanya, dan `e2e/retina.mjs` yang menghitungnya ulang.
+      const rule = (yMedia: number) => strokeLine(yMedia, ky, 1);
+      const stroke = strokeLine(0, kx, 1).width;
       // The right-hand column that belongs to names. EVERY horizontal line in
       // this file stops here, including the gap band's own frame and midline,
       // which used to run to `width` and therefore straight through whatever
@@ -282,16 +289,18 @@ class LevelsRenderer implements IPrimitivePaneRenderer {
         ctx.strokeStyle = ink(band.gap.approximate ? FADED.line : STANDING.line);
         ctx.lineWidth = stroke;
         ctx.beginPath();
-        ctx.moveTo(left, top + 0.5);
-        ctx.lineTo(gutter, top + 0.5);
-        ctx.moveTo(left, bottom + 0.5);
-        ctx.lineTo(gutter, bottom + 0.5);
+        const topRule = rule(band.yTop);
+        const bottomRule = rule(band.yBottom);
+        ctx.moveTo(left, topRule.centre);
+        ctx.lineTo(gutter, topRule.centre);
+        ctx.moveTo(left, bottomRule.centre);
+        ctx.lineTo(gutter, bottomRule.centre);
         ctx.stroke();
 
         // The consequent encroachment. Dashed, and the same visual move the
         // quarter box makes with its own 50% for the same reason: the midline is
         // the measurement, the frame is only the container.
-        const ce = Math.round(band.yCe * ky) + 0.5;
+        const ce = rule(band.yCe).centre;
         ctx.setLineDash([2 * kx, 4 * kx]);
         ctx.strokeStyle = ink(STANDING.line);
         ctx.beginPath();
@@ -351,7 +360,21 @@ class LevelsRenderer implements IPrimitivePaneRenderer {
         ctx.setLineDash([]);
         ctx.strokeStyle = ink(STANDING.line);
         ctx.lineWidth = stroke;
-        ctx.strokeRect(left, top, Math.max(1, right - left), Math.max(1, bottom - top));
+        // DITARIK MASUK SETENGAH LEBAR STROKE. Sebuah `strokeRect` pada
+        // koordinat integer dengan lebar 2 membagi dirinya di kedua sisi batas
+        // pixel, jadi keempat sisinya jadi tiga baris dengan tepi alpha 0,5.
+        // Ini situs terakhir yang tersisa lunak setelah delapan file lain
+        // diperbaiki: diukur, ia 8 dari 147 garis tipis di skala 2.
+        //
+        // `+ 1` pada panjangnya karena `positionsBox` inklusif kedua tepinya,
+        // yang membuat dua level berbagi harga membulatkan tepi yang sama ke
+        // tempat yang sama.
+        ctx.strokeRect(
+          left + stroke / 2,
+          top + stroke / 2,
+          Math.max(1, right - left + 1 - stroke),
+          Math.max(1, bottom - top + 1 - stroke),
+        );
 
         const tw = ctx.measureText(stack.tag).width;
         const pad = 3 * kx;
@@ -392,7 +415,7 @@ class LevelsRenderer implements IPrimitivePaneRenderer {
         const tag = merged.get(index);
         // A ray whose name went into a neighbour's merged label still draws its
         // line; it just does not draw a second name for the same row.
-        const y = Math.round(ray.y * ky) + 0.5;
+        const y = rule(ray.y).centre;
         const x = Math.round(ray.x * kx);
         const tw = tag ? ctx.measureText(tag).width : 0;
         const pad = LABEL_PAD * kx;
@@ -434,7 +457,7 @@ class LevelsRenderer implements IPrimitivePaneRenderer {
 
       // --- deviation projections: short segments with their multiple ----------
       for (const seg of this.segments) {
-        const y = Math.round(seg.y * ky) + 0.5;
+        const y = rule(seg.y).centre;
         const x1 = Math.round(seg.x1 * kx);
         // Kept out of the name column like everything else, and the label with
         // it. A projection stack sits beside its own range, which on a live
@@ -473,7 +496,7 @@ class LevelsRenderer implements IPrimitivePaneRenderer {
 
       // --- CISD: the run's own level, and a tick on the bar that broke it -----
       for (const mark of this.marks) {
-        const y = Math.round(mark.y * ky) + 0.5;
+        const y = rule(mark.y).centre;
         const x1 = Math.round(mark.x1 * kx);
         const x2 = Math.round(mark.x2 * kx);
 

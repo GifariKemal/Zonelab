@@ -11,8 +11,9 @@ import type { CanvasRenderingTarget2D } from "fancy-canvas";
 
 import type { NewsEvent, SessionQuarter, TrueOpenLevel } from "@/lib/types";
 import { cycleWeekday, sessionOpenName } from "@/lib/clock";
-import { INKS } from "./ink";
+import { INKS, monoFont } from "./ink";
 import { LABEL_GUTTER, claimedLabels, labelFree } from "./structure-primitive";
+import { strokeLine } from "./pixel";
 
 /**
  * The New York cycle grid: quarter boxes and true opens.
@@ -253,7 +254,7 @@ class SessionRenderer implements IPrimitivePaneRenderer {
       });
 
       ctx.save();
-      ctx.font = `${Math.round(10 * ky)}px ui-monospace, monospace`;
+      ctx.font = monoFont(10, ky);
       ctx.textBaseline = "top";
 
       // The right-hand column that belongs to ray names. Every horizontal line
@@ -300,6 +301,12 @@ class SessionRenderer implements IPrimitivePaneRenderer {
         const left = Math.round(box.x1 * kx);
         const right = Math.round(box.x2 * kx);
         if (right - left < 2) continue;
+        // `left` dan `mid` di blok ini SUDAH koordinat bitmap, jadi
+        // `strokeLine` yang menerima koordinat media tidak berlaku. Yang
+        // berlaku aritmetika yang sama: untuk menutupi baris `left` sampai
+        // `left + rule - 1`, pusatnya `left + rule / 2`. Pola lama memakai
+        // `left + 0.5` apa pun lebarnya, yang benar hanya saat lebarnya 1.
+        const rule = strokeLine(0, kx, 1).width;
 
         if (w.fill > 0) {
           ctx.fillStyle = ink(w.fill);
@@ -311,10 +318,10 @@ class SessionRenderer implements IPrimitivePaneRenderer {
         // next one's open - the grid tiles time exactly, which the accuracy
         // harness checks on 73,956 quarters.
         ctx.strokeStyle = ink(w.line);
-        ctx.lineWidth = Math.max(1, Math.round(kx));
+        ctx.lineWidth = rule;
         ctx.beginPath();
-        ctx.moveTo(left + 0.5, 0);
-        ctx.lineTo(left + 0.5, height);
+        ctx.moveTo(left + rule / 2, 0);
+        ctx.lineTo(left + rule / 2, height);
         ctx.stroke();
 
         // THE MIDLINE, dashed, which is the measurement rather than the frame:
@@ -324,8 +331,8 @@ class SessionRenderer implements IPrimitivePaneRenderer {
           ctx.setLineDash([3 * kx, 3 * kx]);
           ctx.strokeStyle = ink(w.line * 0.9);
           ctx.beginPath();
-          ctx.moveTo(mid + 0.5, 0);
-          ctx.lineTo(mid + 0.5, height);
+          ctx.moveTo(mid + rule / 2, 0);
+          ctx.lineTo(mid + rule / 2, height);
           ctx.stroke();
           ctx.setLineDash([]);
         }
@@ -381,7 +388,7 @@ class SessionRenderer implements IPrimitivePaneRenderer {
 
       // --- true opens: a ray, and its name at the right edge ------------------
       for (const ray of this.rays) {
-        const y = Math.round(ray.y * ky) + 0.5;
+        const y = strokeLine(ray.y, ky, 1).centre;
         const x = Math.round(ray.x * kx);
         // The session degree says the NAME of the session it opens; every other
         // degree keeps its tag. `tw` is measured from whatever comes back, so a
@@ -409,7 +416,7 @@ class SessionRenderer implements IPrimitivePaneRenderer {
         // the move an approximate gap band already makes, for the same reason.
         ctx.setLineDash(ray.level.approximate ? [4 * kx, 3 * kx] : []);
         ctx.strokeStyle = levelInk(ray.level.approximate ? 0.55 : 0.85);
-        ctx.lineWidth = Math.max(1, Math.round(kx));
+        ctx.lineWidth = strokeLine(0, kx, 1).width;
         ctx.beginPath();
         ctx.moveTo(x, y);
         ctx.lineTo(Math.max(x, stop), y);
@@ -431,10 +438,10 @@ class SessionRenderer implements IPrimitivePaneRenderer {
       // unlike a quarter boundary this is not something the clock guarantees -
       // it is a third party's published schedule and it can move or be wrong.
       for (const mark of this.news) {
-        const x = Math.round(mark.x * kx) + 0.5;
+        const x = strokeLine(mark.x, kx, 1).centre;
         ctx.setLineDash([2 * ky, 5 * ky]);
         ctx.strokeStyle = "rgba(217, 164, 65, 0.55)";
-        ctx.lineWidth = Math.max(1, Math.round(kx));
+        ctx.lineWidth = strokeLine(0, kx, 1).width;
         ctx.beginPath();
         ctx.moveTo(x, 0);
         ctx.lineTo(x, height);
