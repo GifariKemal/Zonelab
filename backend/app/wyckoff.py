@@ -14,9 +14,35 @@ can actually say:
   - a SIGN OF WEAKNESS (SOW): a close below the TR low.
 
 All five are geometry on bars, classified no-lookahead from the bars that
-precede the event. Nothing here has been measured against outcomes, and the
-structure primitives these map onto (sweep, break) are already measured null in
-H6 and H9 - so this is a reading, never a bias.
+precede the event.
+
+SUDAH DIUKUR SEKARANG, DAN HASILNYA NULL. Baris ini dulu berbunyi "nothing here
+has been measured against outcomes", dan itu berhenti benar pada 31 Agustus 2026
+ketika `tools/wyckoff_outcomes.py` menjalankannya. Klaim yang diuji: apakah tiap
+fase mendahului move arah yang ia NAMAI, di atas drift instrumennya sendiri.
+Horizon 96 bar, kontrol `excess move = forward move - symbol drift`, sembilan
+instrumen (XAUUSD, XAGUSD, XPTUSD, EURUSD, GBPUSD, USDJPY, AUDUSD, US30, USOIL),
+t kritis 2,498 sesudah koreksi.
+
+  fase        n        t        excess ATR   walk-forward
+  sos      19.667    -0,95      -0,134       13 dari 36 fold positif
+  sow      15.420    -0,75      -0,104       16 dari 36
+  spring   15.941    -0,27      -0,036       17 dari 36
+  upthrust 18.299    +0,27      +0,037       20 dari 36
+
+DAN ITU MENJAWAB PERTANYAAN "APAKAH KITA PUNYA BREAKOUT". Punya, di sini: `sos`
+adalah range breakout naik yang dikonfirmasi close, `sow` yang turun, dan
+`spring`/`upthrust` adalah false breakout di kedua sisi. Keempat kuadran itu
+sudah digambar DAN sudah diukur. `sos` bukan cuma null, tandanya condong SALAH:
+sebuah close di atas TR high mendahului move 0,134 ATR di BAWAH drift
+instrumennya, dengan 13 dari 36 fold positif, yaitu di bawah kebetulan.
+
+Dua pengukuran bertetangga juga null di n besar: H6 menguji BOS, CHoCH dan sweep
+sebagai arah (n=9.210, t=2,27, magnitudo runtuh 13x antar paruh), dan kontrol H9
+sendiri adalah break biasa tanpa sweep di depannya (delta +0,119, t=1,22,
+n=5.128).
+
+Jadi ini reading, bukan bias, dan itu bukan kehati-hatian melainkan hasil ukur.
 """
 
 from __future__ import annotations
