@@ -278,3 +278,66 @@ def test_both_shelf_arms_exist_and_the_degenerate_one_is_labelled():
     judged = inspect.getsource(sh.main)
     assert 'summarise(pooled, "on_shelf")' in judged
     assert 'reading_at_touch_degenerate' in judged
+
+
+# ----------------------------------------------------- entry_probability
+
+def test_the_h2_rule_is_looser_than_the_house_standard_and_says_so():
+    """DINYATAKAN, bukan diperbaiki diam-diam.
+
+    Aturan H2 yang dipraregistrasi adalah `positif >= graded - 1`. Untuk 7 fold
+    itu berarti 6 dari 7, yang uji tandanya memberi p = 0,0625 dan TIDAK
+    melewati 0,05. Standar rumah di setiap studi lain di repo ini 7 dari 8, p =
+    0,0352.
+
+    `fvg` lolos aturan itu dengan skill rata-rata +0,0136 di 6 dari 7 fold. Jadi
+    ia lolos aturan yang ditulis dan TIDAK lolos standar rumah, dan kedua hal
+    itu harus bisa dinyatakan sekaligus. Mengetatkan aturannya sekarang, setelah
+    melihat hasilnya, adalah post-hoc; yang benar mencatat jaraknya.
+
+    Test ini mengunci aturannya apa adanya supaya ia tidak diam-diam diperlonggar
+    lagi, dan mengunci bahwa 6 dari 8 tetap gagal.
+    """
+    import tools.entry_probability as ep
+
+    assert ep.judge_h2({"graded": 7, "positive": 6, "mean_skill": 0.01})[0] is True
+    assert ep.judge_h2({"graded": 8, "positive": 6, "mean_skill": 0.01})[0] is False
+    assert ep.judge_h2({"graded": 7, "positive": 5, "mean_skill": 0.01})[0] is False
+    # Skill rata-rata negatif tidak boleh lolos betapa pun banyak fold positif.
+    assert ep.judge_h2({"graded": 8, "positive": 8, "mean_skill": -0.001})[0] is False
+
+
+def test_the_walk_forward_never_trains_on_the_future():
+    """Fold k dilatih pada fold SEBELUMNYA saja, dan base rate-nya dari train.
+
+    Base rate yang diambil dari test adalah jawaban yang bocor, dan sebuah model
+    yang dibandingkan ke jawaban akan terlihat lebih buruk daripada seharusnya.
+    """
+    import inspect
+
+    import tools.entry_probability as ep
+
+    src = inspect.getsource(ep.walk_forward_skill)
+    assert 'r["pos"] < lo' in src, "train harus SEBELUM fold ini"
+    assert "float(ytr.mean())" in src, "base rate harus dari train"
+    assert "_standardise(xtr, xte)" in src, "skala harus dari train"
+
+
+def test_the_logistic_fit_is_deterministic_and_can_learn():
+    """Tanpa keacakan, dan ia harus bisa belajar sinyal jelas.
+
+    Kalau tidak bisa, angka null di studi itu tidak bisa dibedakan dari model
+    yang rusak. Dan kalau tidak deterministik, hasilnya tidak bisa direplikasi.
+    """
+    import numpy as np
+
+    import tools.entry_probability as ep
+
+    rng = np.random.default_rng(7)
+    x = rng.normal(size=(600, 2))
+    y = (x[:, 0] > 0).astype(np.float64)
+    a = ep.fit_logistic(x, y)
+    b = ep.fit_logistic(x, y)
+    assert np.array_equal(a, b), "dua run harus identik sampai bit terakhir"
+    assert ep.brier(ep.predict(a, x), y) < 0.10
+    assert ep.selfcheck() == 0

@@ -1,0 +1,500 @@
+{
+ "preregistration": {
+  "source": "tools/entry_probability.py, 2026-09-03",
+  "question": "probabilitas terkalibrasi bahwa order ini resolve ke target atau ke stop, BUKAN prediksi arah",
+  "why_not_direction": "dua belas hipotesis arah praregistrasi mati; arah sudah ditentukan sisi zona, yang tidak diketahui apakah ia resolve",
+  "h1": "distribusi hasil berbeda antar populasi",
+  "h2": "setidaknya satu fitur knowable menggeser probabilitas di luar sampel, Brier skill lawan base rate",
+  "h2_prior": "kemungkinan besar GAGAL, dan itu tetap berguna",
+  "features": [
+   "departure",
+   "cost_r",
+   "height_atr",
+   "profit_zone_rr",
+   "age_bars",
+   "range_pos",
+   "in_killzone",
+   "is_demand"
+  ],
+  "model": "regresi logistik ditulis tangan di numpy, deterministik, tanpa scipy atau sklearn",
+  "buckets": {
+   "full_stop": "R <= -0.99",
+   "small_loss": "-0.99 < R <= -0.01",
+   "small_win": "-0.01 < R < 1.5",
+   "target": "R >= 1.5"
+  },
+  "t_threshold_bonferroni_2": 2.241402727604945,
+  "gate_atr": 2.0,
+  "folds": 8,
+  "min_cell": 100,
+  "cells": [
+   "XAUUSD 30m",
+   "BTCUSD 30m"
+  ],
+  "caveat": "bar halus 5m rasio 6; P(target) batas ATAS"
+ },
+ "base_rates": {
+  "supply_demand XAUUSD 30m": {
+   "all": {
+    "n": 1794,
+    "p_full_stop": 0.34448160535117056,
+    "p_small_loss": 0.09866220735785954,
+    "p_small_win": 0.5072463768115942,
+    "p_target": 0.049609810479375696,
+    "exp_r": -0.030634537368254337,
+    "p_target_ci95": [
+     0.0396,
+     0.0597
+    ]
+   },
+   "above_gate": {
+    "n": 456,
+    "p_full_stop": 0.3508771929824561,
+    "p_small_loss": 0.06578947368421052,
+    "p_small_win": 0.5043859649122807,
+    "p_target": 0.07894736842105263,
+    "exp_r": 0.11440654606193179,
+    "p_target_ci95": [
+     0.0542,
+     0.1037
+    ]
+   },
+   "below_gate": {
+    "n": 1338,
+    "p_full_stop": 0.3423019431988042,
+    "p_small_loss": 0.10986547085201794,
+    "p_small_win": 0.5082212257100149,
+    "p_target": 0.03961136023916293,
+    "exp_r": -0.08006557925477517,
+    "p_target_ci95": [
+     0.0292,
+     0.0501
+    ]
+   }
+  },
+  "supply_demand BTCUSD 30m": {
+   "all": {
+    "n": 1703,
+    "p_full_stop": 0.3499706400469759,
+    "p_small_loss": 0.1103934233705226,
+    "p_small_win": 0.4914856136230182,
+    "p_target": 0.048150322959483266,
+    "exp_r": -0.05806474374879585,
+    "p_target_ci95": [
+     0.038,
+     0.0583
+    ]
+   },
+   "above_gate": {
+    "n": 437,
+    "p_full_stop": 0.3295194508009153,
+    "p_small_loss": 0.07780320366132723,
+    "p_small_win": 0.5217391304347826,
+    "p_target": 0.07093821510297482,
+    "exp_r": 0.11573949443496212,
+    "p_target_ci95": [
+     0.0469,
+     0.095
+    ]
+   },
+   "below_gate": {
+    "n": 1266,
+    "p_full_stop": 0.3570300157977883,
+    "p_small_loss": 0.12164296998420221,
+    "p_small_win": 0.48104265402843605,
+    "p_target": 0.04028436018957346,
+    "exp_r": -0.11805878173165704,
+    "p_target_ci95": [
+     0.0295,
+     0.0511
+    ]
+   }
+  },
+  "order_block XAUUSD 30m": {
+   "all": {
+    "n": 2740,
+    "p_full_stop": 0.32153284671532845,
+    "p_small_loss": 0.08175182481751825,
+    "p_small_win": 0.5372262773722628,
+    "p_target": 0.05948905109489051,
+    "exp_r": 0.05191485177910565,
+    "p_target_ci95": [
+     0.0506,
+     0.0683
+    ]
+   },
+   "above_gate": {
+    "n": 1741,
+    "p_full_stop": 0.3210798391728891,
+    "p_small_loss": 0.07237219988512349,
+    "p_small_win": 0.5416427340608846,
+    "p_target": 0.06490522688110281,
+    "exp_r": 0.08807507394162684,
+    "p_target_ci95": [
+     0.0533,
+     0.0765
+    ]
+   },
+   "below_gate": {
+    "n": 999,
+    "p_full_stop": 0.32232232232232233,
+    "p_small_loss": 0.0980980980980981,
+    "p_small_win": 0.5295295295295295,
+    "p_target": 0.05005005005005005,
+    "exp_r": -0.011103112970593448,
+    "p_target_ci95": [
+     0.0365,
+     0.0636
+    ]
+   }
+  },
+  "order_block BTCUSD 30m": {
+   "all": {
+    "n": 2729,
+    "p_full_stop": 0.3151337486258703,
+    "p_small_loss": 0.10663246610480029,
+    "p_small_win": 0.5207035544155368,
+    "p_target": 0.0575302308537926,
+    "exp_r": 0.03512250761545442,
+    "p_target_ci95": [
+     0.0488,
+     0.0663
+    ]
+   },
+   "above_gate": {
+    "n": 1772,
+    "p_full_stop": 0.3064334085778781,
+    "p_small_loss": 0.09988713318284424,
+    "p_small_win": 0.5270880361173815,
+    "p_target": 0.06659142212189616,
+    "exp_r": 0.08394251670996228,
+    "p_target_ci95": [
+     0.055,
+     0.0782
+    ]
+   },
+   "below_gate": {
+    "n": 957,
+    "p_full_stop": 0.33124346917450365,
+    "p_small_loss": 0.11912225705329153,
+    "p_small_win": 0.5088819226750261,
+    "p_target": 0.04075235109717868,
+    "exp_r": -0.055273580279496366,
+    "p_target_ci95": [
+     0.0282,
+     0.0533
+    ]
+   }
+  },
+  "fvg XAUUSD 30m": {
+   "all": {
+    "n": 2001,
+    "p_full_stop": 0.4052973513243378,
+    "p_small_loss": 0.059470264867566215,
+    "p_small_win": 0.39480259870064965,
+    "p_target": 0.14042978510744628,
+    "exp_r": 0.21863558704630348,
+    "p_target_ci95": [
+     0.1252,
+     0.1557
+    ]
+   },
+   "above_gate": {
+    "n": 62,
+    "p_full_stop": 0.11290322580645161,
+    "p_small_loss": 0.12903225806451613,
+    "p_small_win": 0.7419354838709677,
+    "p_target": 0.016129032258064516,
+    "exp_r": 0.1507657076741917,
+    "p_target_ci95": [
+     0.0,
+     0.0475
+    ]
+   },
+   "below_gate": {
+    "n": 1939,
+    "p_full_stop": 0.41464672511603917,
+    "p_small_loss": 0.05724600309437854,
+    "p_small_win": 0.3837029396596184,
+    "p_target": 0.1444043321299639,
+    "exp_r": 0.22080574306542208,
+    "p_target_ci95": [
+     0.1288,
+     0.16
+    ]
+   }
+  },
+  "fvg BTCUSD 30m": {
+   "all": {
+    "n": 1931,
+    "p_full_stop": 0.4199896426721906,
+    "p_small_loss": 0.05541170378042465,
+    "p_small_win": 0.3863283272915588,
+    "p_target": 0.138270326255826,
+    "exp_r": 0.2191268081063967,
+    "p_target_ci95": [
+     0.1229,
+     0.1537
+    ]
+   },
+   "above_gate": {
+    "n": 67,
+    "p_full_stop": 0.14925373134328357,
+    "p_small_loss": 0.11940298507462686,
+    "p_small_win": 0.7014925373134329,
+    "p_target": 0.029850746268656716,
+    "exp_r": 0.16229838851947878,
+    "p_target_ci95": [
+     0.0,
+     0.0706
+    ]
+   },
+   "below_gate": {
+    "n": 1864,
+    "p_full_stop": 0.42972103004291845,
+    "p_small_loss": 0.053111587982832616,
+    "p_small_win": 0.375,
+    "p_target": 0.14216738197424894,
+    "exp_r": 0.22116946052717115,
+    "p_target_ci95": [
+     0.1263,
+     0.158
+    ]
+   }
+  }
+ },
+ "feature_lift": {
+  "supply_demand p_win": {
+   "folds": [
+    {
+     "fold": 2,
+     "n_train": 431,
+     "n_test": 438,
+     "brier_model": 0.26618032876870373,
+     "brier_base": 0.2502985067546042,
+     "skill": -0.06345152522092468,
+     "readable": true
+    },
+    {
+     "fold": 3,
+     "n_train": 869,
+     "n_test": 384,
+     "brier_model": 0.2616373114134384,
+     "brier_base": 0.24899566119013028,
+     "skill": -0.050770564285676834,
+     "readable": true
+    },
+    {
+     "fold": 4,
+     "n_train": 1253,
+     "n_test": 454,
+     "brier_model": 0.24908893148643135,
+     "brier_base": 0.24919228625988146,
+     "skill": 0.0004147591203618184,
+     "readable": true
+    },
+    {
+     "fold": 5,
+     "n_train": 1707,
+     "n_test": 429,
+     "brier_model": 0.2484766675941067,
+     "brier_base": 0.2470943348195395,
+     "skill": -0.0055943523576804655,
+     "readable": true
+    },
+    {
+     "fold": 6,
+     "n_train": 2136,
+     "n_test": 454,
+     "brier_model": 0.24653964997321492,
+     "brier_base": 0.24845310346549312,
+     "skill": 0.007701467462425726,
+     "readable": true
+    },
+    {
+     "fold": 7,
+     "n_train": 2590,
+     "n_test": 468,
+     "brier_model": 0.23934980938510922,
+     "brier_base": 0.24351995043114733,
+     "skill": 0.017124432879749518,
+     "readable": true
+    },
+    {
+     "fold": 8,
+     "n_train": 3058,
+     "n_test": 439,
+     "brier_model": 0.24607961274992085,
+     "brier_base": 0.25314542617065783,
+     "skill": 0.027912072233031604,
+     "readable": true
+    }
+   ],
+   "graded": 7,
+   "positive": 4,
+   "mean_skill": -0.009523387166959043,
+   "passes": false,
+   "verdict": "TIDAK LOLOS, base rate tetap estimasi terbaik"
+  },
+  "order_block p_win": {
+   "folds": [
+    {
+     "fold": 2,
+     "n_train": 674,
+     "n_test": 731,
+     "brier_model": 0.24866755099387283,
+     "brier_base": 0.24044565300936935,
+     "skill": -0.034194413089194464,
+     "readable": true
+    },
+    {
+     "fold": 3,
+     "n_train": 1405,
+     "n_test": 626,
+     "brier_model": 0.24731310324823197,
+     "brier_base": 0.2518754569378752,
+     "skill": 0.018113530175226877,
+     "readable": true
+    },
+    {
+     "fold": 4,
+     "n_train": 2031,
+     "n_test": 700,
+     "brier_model": 0.2412110904203427,
+     "brier_base": 0.24095001140616845,
+     "skill": -0.0010835401610922446,
+     "readable": true
+    },
+    {
+     "fold": 5,
+     "n_train": 2731,
+     "n_test": 676,
+     "brier_model": 0.24190410527023562,
+     "brier_base": 0.24362678143456726,
+     "skill": 0.007070963849654999,
+     "readable": true
+    },
+    {
+     "fold": 6,
+     "n_train": 3407,
+     "n_test": 686,
+     "brier_model": 0.23877690908659405,
+     "brier_base": 0.24176772381306674,
+     "skill": 0.012370612087100441,
+     "readable": true
+    },
+    {
+     "fold": 7,
+     "n_train": 4093,
+     "n_test": 675,
+     "brier_model": 0.2359794166166707,
+     "brier_base": 0.24063649431955064,
+     "skill": 0.019353164681229162,
+     "readable": true
+    },
+    {
+     "fold": 8,
+     "n_train": 4768,
+     "n_test": 701,
+     "brier_model": 0.24678126720901147,
+     "brier_base": 0.24987346636281044,
+     "skill": 0.01237506006063549,
+     "readable": true
+    }
+   ],
+   "graded": 7,
+   "positive": 5,
+   "mean_skill": 0.004857911086222895,
+   "passes": false,
+   "verdict": "TIDAK LOLOS, base rate tetap estimasi terbaik"
+  },
+  "fvg p_win": {
+   "folds": [
+    {
+     "fold": 2,
+     "n_train": 491,
+     "n_test": 529,
+     "brier_model": 0.25207216162828716,
+     "brier_base": 0.25297839130365,
+     "skill": 0.0035822414345070275,
+     "readable": true
+    },
+    {
+     "fold": 3,
+     "n_train": 1020,
+     "n_test": 413,
+     "brier_model": 0.2615351978637197,
+     "brier_base": 0.2529621685829533,
+     "skill": -0.03389055892741166,
+     "readable": true
+    },
+    {
+     "fold": 4,
+     "n_train": 1433,
+     "n_test": 493,
+     "brier_model": 0.24667818541553224,
+     "brier_base": 0.25037635817045195,
+     "skill": 0.014770455093855328,
+     "readable": true
+    },
+    {
+     "fold": 5,
+     "n_train": 1926,
+     "n_test": 462,
+     "brier_model": 0.2409703070414311,
+     "brier_base": 0.24832469774531676,
+     "skill": 0.029616025996046402,
+     "readable": true
+    },
+    {
+     "fold": 6,
+     "n_train": 2388,
+     "n_test": 499,
+     "brier_model": 0.24605817438889646,
+     "brier_base": 0.24907038642320875,
+     "skill": 0.012093818448549287,
+     "readable": true
+    },
+    {
+     "fold": 7,
+     "n_train": 2887,
+     "n_test": 522,
+     "brier_model": 0.24261795792384552,
+     "brier_base": 0.24898054379283494,
+     "skill": 0.025554550456293623,
+     "readable": true
+    },
+    {
+     "fold": 8,
+     "n_train": 3409,
+     "n_test": 522,
+     "brier_model": 0.2384639366220595,
+     "brier_base": 0.2493847522940805,
+     "skill": 0.04379103201603485,
+     "readable": true
+    }
+   ],
+   "graded": 7,
+   "positive": 6,
+   "mean_skill": 0.013645366359696407,
+   "passes": true,
+   "verdict": "LOLOS, fitur menggeser probabilitas di luar sampel"
+  }
+ },
+ "pooled_all": {
+  "n": 12898,
+  "p_full_stop": 0.35486121879361143,
+  "p_small_loss": 0.08574972864009923,
+  "p_small_win": 0.478833927740735,
+  "p_target": 0.08055512482555435,
+  "exp_r": 0.07325764263045297,
+  "p_target_ci95": [
+   0.0759,
+   0.0853
+  ]
+ },
+ "h2_passing": [
+  "fvg p_win"
+ ],
+ "verdict": "H2 lolos di ['fvg p_win']"
+}

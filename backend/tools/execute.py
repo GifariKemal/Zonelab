@@ -53,6 +53,7 @@ from app.ict import (
 from app.indicators import wilder_atr
 from app.models import ImbalanceParams, LotSpec, SupplyDemandParams, ZoneSide
 from app.plan import DEPARTURE_GATE_ATR, build
+from app.probability import outcome_odds, summary as odds_line
 from app.portfolio import Book, Held, admits, aligned
 from app.poi import confluence, other_boxes
 from app.providers.base import INTERVALS
@@ -912,6 +913,17 @@ def cycle(
                 # yang terpenuhi; yang berubah kalimatnya berhenti mengklaim mutu.
                 f"  klausa terpenuhi {checklist.met}/{len(checklist.conditions)}"
                 f" (bacaan, bukan peringkat)")
+        # PELUANG DILEKATKAN DI TIAP KANDIDAT, dan sisinya dipilih dari sisi
+        # gerbang layer ini bukan dari `zone.departure_atr` mentah. Untuk `fvg`
+        # gerbangnya TERBALIK, jadi populasi yang benar-benar diorder adalah
+        # sisi BAWAH (n=1939, P(target) 14,4%) dan bukan sisi atas (n=62,
+        # P(target) 1,6%). Melaporkan sisi yang salah akan mencetak peluang dari
+        # populasi yang tidak pernah diorder.
+        odds = outcome_odds(
+            layer, symbol, interval,
+            cleared_gate=(GATE_DIRECTION.get(layer, "floor") == "floor"),
+        )
+        head += chr(10) + "      " + odds_line(odds)
         if already:
             print(f"{head}\n      SUDAH pernah diorder, ticket {already[0]}")
             skipped += 1
