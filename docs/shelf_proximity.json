@@ -1,0 +1,254 @@
+{
+ "preregistration": {
+  "source": "tools/shelf_proximity.py, 2026-09-02",
+  "question": "apakah shelf S&R dalam X ATR dari tepi zona mengkondisikan resolved R",
+  "why": "containment tidak bisa diukur, 1 dari 3.496 dan 0 dari 3.931 (docs/shelf_conditioned.json)",
+  "x_is_not_chosen": "seluruh grid dinilai dan Bonferroni menghitung kedelapan selnya; X adalah kondisi yang diuji, jadi memilihnya setelah melihat hasil adalah memilih hasilnya",
+  "xs": [
+   0.25,
+   0.5,
+   1.0,
+   2.0
+  ],
+  "detectors": [
+   "supply_demand",
+   "fvg"
+  ],
+  "judged_cells": 8,
+  "t_threshold_bonferroni": 2.7343687865331816,
+  "pinned_at": "kelahiran zona, time_from",
+  "judged_variant": "shelf masih BERDIRI di kelahiran",
+  "read_variant": "abaikan taken_at, dilaporkan tidak dinilai",
+  "two_sided": true,
+  "min_group": 30,
+  "folds": 8,
+  "min_sign_folds": 7,
+  "swing_n": 10,
+  "min_touches": 2
+ },
+ "cells": {
+  "supply_demand XAUUSD 30m": {
+   "shelves": 381,
+   "n_rows": 1793,
+   "n_within_0.25_standing": 4,
+   "n_within_0.25_any": 495,
+   "n_within_0.5_standing": 7,
+   "n_within_0.5_any": 583,
+   "n_within_1.0_standing": 26,
+   "n_within_1.0_any": 756,
+   "n_within_2.0_standing": 81,
+   "n_within_2.0_any": 1020
+  },
+  "supply_demand BTCUSD 30m": {
+   "shelves": 711,
+   "n_rows": 1703,
+   "n_within_0.25_standing": 3,
+   "n_within_0.25_any": 1089,
+   "n_within_0.5_standing": 13,
+   "n_within_0.5_any": 1179,
+   "n_within_1.0_standing": 22,
+   "n_within_1.0_any": 1305,
+   "n_within_2.0_standing": 68,
+   "n_within_2.0_any": 1423
+  },
+  "fvg XAUUSD 30m": {
+   "shelves": 381,
+   "n_rows": 2001,
+   "n_within_0.25_standing": 0,
+   "n_within_0.25_any": 335,
+   "n_within_0.5_standing": 0,
+   "n_within_0.5_any": 447,
+   "n_within_1.0_standing": 2,
+   "n_within_1.0_any": 666,
+   "n_within_2.0_standing": 17,
+   "n_within_2.0_any": 1015
+  },
+  "fvg BTCUSD 30m": {
+   "shelves": 711,
+   "n_rows": 1931,
+   "n_within_0.25_standing": 0,
+   "n_within_0.25_any": 928,
+   "n_within_0.5_standing": 0,
+   "n_within_0.5_any": 1134,
+   "n_within_1.0_standing": 1,
+   "n_within_1.0_any": 1367,
+   "n_within_2.0_standing": 25,
+   "n_within_2.0_any": 1573
+  }
+ },
+ "grid": {
+  "supply_demand X=0.25": {
+   "n_near": 7,
+   "n_far": 3489,
+   "exp_r_near": 0.30489596498850363,
+   "exp_r_far": -0.04441871321231503,
+   "difference": 0.3493146782008187,
+   "welch_t": 2.337390447590383,
+   "walk_forward": {
+    "graded": 0,
+    "positive": 0
+   },
+   "separates": false,
+   "verdict": "TIDAK MEMISAHKAN",
+   "reading_ignoring_taken": {
+    "n_near": 1584,
+    "n_far": 1912,
+    "exp_r_near": -0.06691832334684769,
+    "exp_r_far": -0.024499997103264053,
+    "difference": -0.04241832624358364,
+    "welch_t": -1.3659657869817172
+   }
+  },
+  "supply_demand X=0.5": {
+   "n_near": 20,
+   "n_far": 3476,
+   "exp_r_near": 0.7670462874011721,
+   "exp_r_far": -0.048384218754565896,
+   "difference": 0.815430506155738,
+   "welch_t": 3.952139062710324,
+   "walk_forward": {
+    "graded": 0,
+    "positive": 0
+   },
+   "separates": false,
+   "verdict": "TIDAK MEMISAHKAN",
+   "reading_ignoring_taken": {
+    "n_near": 1762,
+    "n_far": 1734,
+    "exp_r_near": -0.054518798649636616,
+    "exp_r_far": -0.032745383749820015,
+    "difference": -0.0217734148998166,
+    "welch_t": -0.6955581452946994
+   }
+  },
+  "supply_demand X=1.0": {
+   "n_near": 48,
+   "n_far": 3448,
+   "exp_r_near": 0.3180646448174989,
+   "exp_r_far": -0.04875571971986298,
+   "difference": 0.3668203645373619,
+   "welch_t": 2.738284711709821,
+   "walk_forward": {
+    "graded": 0,
+    "positive": 0
+   },
+   "separates": false,
+   "verdict": "TIDAK MEMISAHKAN",
+   "reading_ignoring_taken": {
+    "n_near": 2061,
+    "n_far": 1435,
+    "exp_r_near": -0.04574983636190562,
+    "exp_r_far": -0.04080293094143564,
+    "difference": -0.00494690542046998,
+    "welch_t": -0.15277083708227449
+   }
+  },
+  "supply_demand X=2.0": {
+   "n_near": 149,
+   "n_far": 3347,
+   "exp_r_near": 0.12936613759638999,
+   "exp_r_far": -0.05142461103815647,
+   "difference": 0.18079074863454647,
+   "welch_t": 1.938325103199622,
+   "walk_forward": {
+    "graded": 3,
+    "positive": 3
+   },
+   "separates": false,
+   "verdict": "TIDAK MEMISAHKAN",
+   "reading_ignoring_taken": {
+    "n_near": 2443,
+    "n_far": 1053,
+    "exp_r_near": -0.044855861169582616,
+    "exp_r_far": -0.04108238348106104,
+    "difference": -0.0037734776885215773,
+    "welch_t": -0.1061333065036156
+   }
+  },
+  "fvg X=0.25": {
+   "n_near": 0,
+   "n_far": 3932,
+   "exp_r_near": null,
+   "exp_r_far": 0.21887682505928419,
+   "walk_forward": {
+    "graded": 0,
+    "positive": 0
+   },
+   "separates": false,
+   "verdict": "TIDAK MEMISAHKAN",
+   "reading_ignoring_taken": {
+    "n_near": 1263,
+    "n_far": 2669,
+    "exp_r_near": 0.20527482574103398,
+    "exp_r_far": 0.22531343994836248,
+    "difference": -0.020038614207328498,
+    "welch_t": -0.4054812952022494
+   }
+  },
+  "fvg X=0.5": {
+   "n_near": 0,
+   "n_far": 3932,
+   "exp_r_near": null,
+   "exp_r_far": 0.21887682505928419,
+   "walk_forward": {
+    "graded": 0,
+    "positive": 0
+   },
+   "separates": false,
+   "verdict": "TIDAK MEMISAHKAN",
+   "reading_ignoring_taken": {
+    "n_near": 1581,
+    "n_far": 2351,
+    "exp_r_near": 0.19272671997761737,
+    "exp_r_far": 0.23646224238557736,
+    "difference": -0.04373552240796,
+    "welch_t": -0.9005658677415607
+   }
+  },
+  "fvg X=1.0": {
+   "n_near": 3,
+   "n_far": 3929,
+   "exp_r_near": -0.0643501854592129,
+   "exp_r_far": 0.2190930839118053,
+   "difference": -0.28344326937101816,
+   "welch_t": -0.5313055531021618,
+   "walk_forward": {
+    "graded": 0,
+    "positive": 0
+   },
+   "separates": false,
+   "verdict": "TIDAK MEMISAHKAN",
+   "reading_ignoring_taken": {
+    "n_near": 2033,
+    "n_far": 1899,
+    "exp_r_near": 0.2067862534353668,
+    "exp_r_far": 0.2318205491832568,
+    "difference": -0.025034295747890012,
+    "welch_t": -0.4999750235415058
+   }
+  },
+  "fvg X=2.0": {
+   "n_near": 42,
+   "n_far": 3890,
+   "exp_r_near": 0.27048184649001683,
+   "exp_r_far": 0.21831965002070045,
+   "difference": 0.052162196469316385,
+   "welch_t": 0.33614119346655064,
+   "walk_forward": {
+    "graded": 0,
+    "positive": 0
+   },
+   "separates": false,
+   "verdict": "TIDAK MEMISAHKAN",
+   "reading_ignoring_taken": {
+    "n_near": 2588,
+    "n_far": 1344,
+    "exp_r_near": 0.19769803509766987,
+    "exp_r_far": 0.2596586021579879,
+    "difference": -0.06196056706031805,
+    "welch_t": -1.1236586299975504
+   }
+  }
+ },
+ "separating": []
+}

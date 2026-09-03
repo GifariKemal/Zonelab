@@ -251,6 +251,72 @@ def parse_report(path: Path) -> dict:
     return out
 
 
+#: Counter yang tiap EA cetak di `OnDeinit`, dan yang sampai 2 September 2026
+#: tidak pernah dibaca siapa pun.
+#:
+#: Ia hilang di dua lapis sekaligus. `Print` tidak masuk ke report `.htm`, jadi
+#: 260 file di `reports/` tidak memuat satu pun darinya; dan log agent tester
+#: ditulis UTF-16LE di pohon `MetaQuotes\Tester\<id>\Agent-*\logs\`, terpisah
+#: dari data folder terminal, jadi ia tidak ikut ke mana-mana.
+#:
+#: Angkanya yang menjawab pertanyaan yang report tidak bisa jawab: berapa zona
+#: yang dilihat EA, berapa yang dilewati karena tidak punya target, dan berapa
+#: yang dilewati karena harga sudah lewat. Tanpa itu, selisih jumlah trade
+#: antara rig Python dan Strategy Tester - 953 lawan 622 untuk fvg XAUUSD M30 -
+#: cuma bisa ditebak.
+COUNTERS = ("zones fresh", "orders placed", "orders failed",
+            "skipped price", "skipped no-target")
+AGENT_LOGS = Path(os.environ.get("APPDATA", "")) / "MetaQuotes" / "Tester"
+
+
+def _agent_log_sizes() -> dict[Path, int]:
+    """Ukuran tiap log agent sekarang, untuk mengambil DELTA-nya nanti."""
+    out: dict[Path, int] = {}
+    if not AGENT_LOGS.exists():
+        return out
+    for path in AGENT_LOGS.glob("*/Agent-*/logs/*.log"):
+        try:
+            out[path] = path.stat().st_size
+        except OSError:
+            continue
+    return out
+
+
+def read_counters(before: dict[Path, int]) -> dict:
+    """Counter EA dari BAGIAN log yang tumbuh selama sel ini berjalan.
+
+    Delta, bukan seluruh file: log hari ini memuat setiap sel yang sudah jalan
+    hari itu, dan membaca semuanya akan melaporkan counter sel lain sebagai
+    milik sel ini. Log-nya juga 62 MB, jadi membacanya utuh per sel mahal tanpa
+    alasan.
+
+    UTF-16LE dengan fallback UTF-8: MT5 menulis yang pertama, dan sebuah
+    `decode` yang salah tebak mengembalikan string kosong tanpa error, yang akan
+    terbaca sebagai "EA tidak mencetak apa pun".
+    """
+    found: dict = {}
+    for path in _agent_log_sizes():
+        start = before.get(path, 0)
+        try:
+            with path.open("rb") as fh:
+                fh.seek(start)
+                raw = fh.read()
+        except OSError:
+            continue
+        if not raw:
+            continue
+        text = raw.decode("utf-16-le", errors="ignore")
+        if not any(name in text for name in COUNTERS):
+            text = raw.decode("utf-8", errors="ignore")
+        for name in COUNTERS:
+            hits = re.findall(rf"{re.escape(name)}: (\d+)", text)
+            if hits:
+                # Yang TERAKHIR, karena `OnDeinit` mencetak sekali di akhir dan
+                # sebuah log yang memuat dua run memuat dua nilai.
+                found[name.replace(" ", "_").replace("-", "_")] = int(hits[-1])
+    return found
+
+
 def run_cell(cell: dict, args) -> dict:
     expert = cell["expert"]
     tag = f"{expert}_{cell['symbol']}_{cell['period']}{args.tag_suffix}"
@@ -291,6 +357,7 @@ def run_cell(cell: dict, args) -> dict:
         report.unlink()
 
     kill_terminal()
+    before_logs = _agent_log_sizes()
     started = time.time()
     subprocess.run(
         [str(TERMINAL), f"/config:{ini}"],
@@ -313,6 +380,7 @@ def run_cell(cell: dict, args) -> dict:
         "cell": tag, "status": "ok", "seconds": elapsed,
         "report": f"mql5/ZonelabSupplyDemand/reports/{tag}.htm",
         **parse_report(report),
+        "ea_counters": read_counters(before_logs),
     }
 
 

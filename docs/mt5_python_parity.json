@@ -1,0 +1,309 @@
+{
+ "question": "apakah rig Python dan Strategy Tester MQL5 setuju TANDA-nya di periode yang sama",
+ "window": [
+  "2026.01.01",
+  "2026.08.31"
+ ],
+ "matched": "periode saja",
+ "not_matched": {
+  "resolution": "MQL5 real tick, Python bar 5m; kontrol resolusi sudah menunjukkan yang lebih halus menyusutkan",
+  "costs": "MQL5 spread terminal, Python jadwal exness_raw",
+  "lookback": "EA InpBars=3000, Python deret penuh",
+  "units": "R per trade lawan Profit Factor; yang dibandingkan tanda"
+ },
+ "cells": {
+  "supply_demand XAUUSD 30m": {
+   "python": {
+    "full_series": {
+     "n": 1793,
+     "exp_r": -0.030093898515698984,
+     "t_vs_zero": -1.3648606884491863,
+     "win_rate": 0.5499163413273843
+    },
+    "mql5_window": {
+     "n": 851,
+     "exp_r": -0.007995715000383841,
+     "t_vs_zero": -0.23672362525924012,
+     "win_rate": 0.5605170387779084
+    },
+    "window": [
+     "2026.01.01",
+     "2026.08.31"
+    ]
+   },
+   "mql5": {
+    "cell": "ZonelabSD_XAUUSD_M30",
+    "status": "ok",
+    "Profit Factor": "1.34",
+    "Total Trades": "209",
+    "Expected Payoff": "27.84",
+    "Total Net Profit": "5 819.16",
+    "History Quality": "100% real ticks",
+    "Profit Trades (% of total)": "69 (33.01%)"
+   },
+   "comparison": {
+    "python_sign_in_window": -1,
+    "mql5_sign": 1,
+    "agree": false
+   }
+  },
+  "supply_demand BTCUSD 30m": {
+   "python": {
+    "full_series": {
+     "n": 1703,
+     "exp_r": -0.05806474374879585,
+     "t_vs_zero": -2.6188804600294997,
+     "win_rate": 0.5290663534938345
+    },
+    "mql5_window": {
+     "n": 1231,
+     "exp_r": -0.037763550039200545,
+     "t_vs_zero": -1.4640951023244193,
+     "win_rate": 0.545085296506905
+    },
+    "window": [
+     "2026.01.01",
+     "2026.08.31"
+    ]
+   },
+   "mql5": {
+    "cell": "ZonelabSD_BTCUSD_M30",
+    "status": "ok",
+    "Profit Factor": "0.94",
+    "Total Trades": "337",
+    "Expected Payoff": "-3.36",
+    "Total Net Profit": "-1 132.91",
+    "History Quality": "100% real ticks",
+    "Profit Trades (% of total)": "105 (31.16%)"
+   },
+   "comparison": {
+    "python_sign_in_window": -1,
+    "mql5_sign": -1,
+    "agree": true
+   }
+  },
+  "fvg XAUUSD 30m": {
+   "python": {
+    "full_series": {
+     "n": 2001,
+     "exp_r": 0.21863558704630348,
+     "t_vs_zero": 6.192437736490901,
+     "win_rate": 0.5322338830584707
+    },
+    "mql5_window": {
+     "n": 953,
+     "exp_r": 0.3024319812554338,
+     "t_vs_zero": 5.37850590172762,
+     "win_rate": 0.5582371458551941
+    },
+    "window": [
+     "2026.01.01",
+     "2026.08.31"
+    ]
+   },
+   "mql5": {
+    "cell": "ZonelabFVG_XAUUSD_M30",
+    "status": "ok",
+    "Profit Factor": "0.86",
+    "Total Trades": "622",
+    "Expected Payoff": "-8.11",
+    "Total Net Profit": "-5 045.66",
+    "History Quality": "100% real ticks",
+    "Profit Trades (% of total)": "201 (32.32%)"
+   },
+   "comparison": {
+    "python_sign_in_window": 1,
+    "mql5_sign": -1,
+    "agree": false
+   }
+  },
+  "fvg BTCUSD 30m": {
+   "python": {
+    "full_series": {
+     "n": 1931,
+     "exp_r": 0.2191268081063967,
+     "t_vs_zero": 6.256776401598082,
+     "win_rate": 0.520973588814086
+    },
+    "mql5_window": {
+     "n": 1379,
+     "exp_r": 0.18153620553175742,
+     "t_vs_zero": 4.583053936803686,
+     "win_rate": 0.514140681653372
+    },
+    "window": [
+     "2026.01.01",
+     "2026.08.31"
+    ]
+   },
+   "mql5": {
+    "cell": "ZonelabFVG_BTCUSD_M30",
+    "status": "ok",
+    "Profit Factor": "0.87",
+    "Total Trades": "885",
+    "Expected Payoff": "-7.15",
+    "Total Net Profit": "-6 326.46",
+    "History Quality": "100% real ticks",
+    "Profit Trades (% of total)": "280 (31.64%)"
+   },
+   "comparison": {
+    "python_sign_in_window": 1,
+    "mql5_sign": -1,
+    "agree": false
+   }
+  },
+  "order_block XAUUSD 30m": {
+   "python": {
+    "full_series": {
+     "n": 2740,
+     "exp_r": 0.05191485177910565,
+     "t_vs_zero": 2.724675147607039,
+     "win_rate": 0.5864963503649635
+    },
+    "mql5_window": {
+     "n": 1304,
+     "exp_r": 0.05884092002610918,
+     "t_vs_zero": 2.0119153727781023,
+     "win_rate": 0.5874233128834356
+    },
+    "window": [
+     "2026.01.01",
+     "2026.08.31"
+    ]
+   },
+   "mql5": {
+    "cell": "ZonelabOB_XAUUSD_M30",
+    "status": "ok",
+    "Profit Factor": "0.92",
+    "Total Trades": "851",
+    "Expected Payoff": "-3.97",
+    "Total Net Profit": "-3 379.83",
+    "History Quality": "100% real ticks",
+    "Profit Trades (% of total)": "356 (41.83%)"
+   },
+   "comparison": {
+    "python_sign_in_window": 1,
+    "mql5_sign": -1,
+    "agree": false
+   }
+  },
+  "order_block BTCUSD 30m": {
+   "python": {
+    "full_series": {
+     "n": 2728,
+     "exp_r": 0.035501951349917564,
+     "t_vs_zero": 1.9529724963941482,
+     "win_rate": 0.5685483870967742
+    },
+    "mql5_window": {
+     "n": 1909,
+     "exp_r": 0.0332888542358139,
+     "t_vs_zero": 1.5865078437498958,
+     "win_rate": 0.5683603981141959
+    },
+    "window": [
+     "2026.01.01",
+     "2026.08.31"
+    ]
+   },
+   "mql5": {
+    "cell": "ZonelabOB_BTCUSD_M30",
+    "status": "ok",
+    "Profit Factor": "1.00",
+    "Total Trades": "1254",
+    "Expected Payoff": "-0.20",
+    "Total Net Profit": "-249.91",
+    "History Quality": "100% real ticks",
+    "Profit Trades (% of total)": "581 (46.33%)"
+   },
+   "comparison": {
+    "python_sign_in_window": 1,
+    "mql5_sign": 0,
+    "agree": false
+   }
+  },
+  "ifvg XAUUSD 30m": {
+   "python": {
+    "full_series": {
+     "n": 1888,
+     "exp_r": 0.20496178128573242,
+     "t_vs_zero": 5.474821199091103,
+     "win_rate": 0.46875
+    },
+    "mql5_window": {
+     "n": 894,
+     "exp_r": 0.1658726181912822,
+     "t_vs_zero": 3.137741864900416,
+     "win_rate": 0.46196868008948544
+    },
+    "window": [
+     "2026.01.01",
+     "2026.08.31"
+    ]
+   },
+   "mql5": {
+    "cell": "ZonelabIFVG_XAUUSD_M30",
+    "status": "ok",
+    "Profit Factor": "1.14",
+    "Total Trades": "397",
+    "Expected Payoff": "11.40",
+    "Total Net Profit": "4 525.09",
+    "History Quality": "100% real ticks",
+    "Profit Trades (% of total)": "112 (28.21%)"
+   },
+   "comparison": {
+    "python_sign_in_window": 1,
+    "mql5_sign": 1,
+    "agree": true
+   }
+  },
+  "ifvg BTCUSD 30m": {
+   "python": {
+    "full_series": {
+     "n": 1860,
+     "exp_r": 0.20537358810548959,
+     "t_vs_zero": 5.109843002283815,
+     "win_rate": 0.47096774193548385
+    },
+    "mql5_window": {
+     "n": 1322,
+     "exp_r": 0.18247950498891127,
+     "t_vs_zero": 4.019722584652011,
+     "win_rate": 0.4697428139183056
+    },
+    "window": [
+     "2026.01.01",
+     "2026.08.31"
+    ]
+   },
+   "mql5": {
+    "cell": "ZonelabIFVG_BTCUSD_M30",
+    "status": "ok",
+    "Profit Factor": "0.84",
+    "Total Trades": "549",
+    "Expected Payoff": "-8.41",
+    "Total Net Profit": "-4 619.25",
+    "History Quality": "100% real ticks",
+    "Profit Trades (% of total)": "169 (30.78%)"
+   },
+   "comparison": {
+    "python_sign_in_window": 1,
+    "mql5_sign": -1,
+    "agree": false
+   }
+  }
+ },
+ "agree": [
+  "supply_demand BTCUSD 30m",
+  "ifvg XAUUSD 30m"
+ ],
+ "disagree": [
+  "supply_demand XAUUSD 30m",
+  "fvg XAUUSD 30m",
+  "fvg BTCUSD 30m",
+  "order_block XAUUSD 30m",
+  "order_block BTCUSD 30m",
+  "ifvg BTCUSD 30m"
+ ],
+ "verdict": "2 sel setuju tandanya, 6 tidak"
+}

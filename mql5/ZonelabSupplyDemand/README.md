@@ -178,9 +178,72 @@ ada di emas. Cara memperbaikinya bukan tuning zona, tapi menambah filter arah
 
 ## Bandingkan dengan Python
 
-Setelah tester jalan, bandingkan R expectancy vs `python -m tools.costed --symbol
-mt5:XAUUSD --interval 15m`. Kalau beda, bedanya adalah efek tick/intrabar yang
-selama ini diaproksimasi OHLC oleh Python.
+Dijalankan 2 September 2026 lewat `python -m tools.mt5_python_parity`, yang
+memotong baris rig Python ke jendela tanggal run MQL5 supaya periodenya tidak
+lagi jadi perbedaan. Hasilnya di `docs/mt5_python_parity.json`.
+
+**Enam dari delapan sel tidak setuju TANDA-nya.**
+
+| sel, 30m | Python di jendela sama | MQL5 | setuju |
+|---|---|---|---|
+| fvg XAUUSD | +0,3024 R, t=+5,38, n=953 | PF 0,86, 622 trade | tidak |
+| fvg BTCUSD | +0,1815 R, t=+4,58, n=1379 | PF 0,87, 885 trade | tidak |
+| supply_demand XAUUSD | -0,0080 R, n=851 | PF 1,34, 209 trade | tidak |
+| supply_demand BTCUSD | -0,0378 R, n=1231 | PF 0,94, 337 trade | ya |
+| order_block XAUUSD | +0,0588 R, n=1304 | PF 0,92, 851 trade | tidak |
+| order_block BTCUSD | +0,0333 R, n=1909 | PF 1,00, 1254 trade | tidak |
+| ifvg XAUUSD | +0,1659 R, t=+3,14, n=894 | PF 1,14, 397 trade | ya |
+| ifvg BTCUSD | +0,1825 R, t=+4,02, n=1322 | PF 0,84, 549 trade | tidak |
+
+> [!WARNING]
+> Kalimat yang berdiri di sini sebelumnya, "kalau beda, bedanya adalah efek
+> tick/intrabar yang selama ini diaproksimasi OHLC oleh Python", adalah asumsi
+> yang ditulis sebagai fakta, dan pengukurannya MENOLAKNYA. Efek resolusi akan
+> mendorong SATU arah. Yang terukur tidak: untuk fvg Python menang dan MQL5
+> kalah, untuk supply_demand XAUUSD justru sebaliknya.
+
+Biaya juga bukan penjelasannya, dan arahnya bahkan berlawanan per instrumen.
+Spread XAUUSD nyata di terminal 0,09 lawan asumsi jadwal `exness_raw` sekitar
+0,059, jadi Python MEREMEHKAN 1,5 kali; spread BTCUSD nyata 2,75 lawan asumsi
+sekitar 9,7, jadi Python MELEBIHKAN 3,5 kali. Rata-rata `cost_r` di rig Python
+0,036 sampai 0,124 R per trade, terlalu kecil untuk membalik +0,30 R.
+
+Yang tersisa dan belum diisolasi, terukur sejauh ini:
+
+- **Populasi berbeda 32 persen.** Counter EA-nya kini tertangkap (lihat bagian
+  berikut): `ZonelabFVG_XAUUSD_M30` memasang 650 order, melewati 75 tanpa
+  target, 1 karena harga sudah lewat, dan 8 gagal, sementara rig Python
+  menyelesaikan 953 trade di jendela yang sama.
+- **`InpBars` = 3000.** EA memindai 3.000 bar terakhir tiap tick, sekitar 62
+  hari di M30, sementara Python memakai deret penuh. Zona yang lahir lebih dari
+  3.000 bar sebelum sentuhannya tidak ada di sisi MQL5.
+- **ATR untuk stop berbeda di TIGA tempat.** EA memakai `atr[base_from-1]`, API
+  Zonelab memakai `atr[-1]` untuk setiap zona (`app/main.py:991`), dan komentar
+  di `ZonelabFVG.mq5:154-158` sudah mencatat itu sebagai pertanyaan terbuka.
+  `InpStopAtrMode=1` adalah saklarnya, dan sel `_atrlast` hanya pernah
+  dijalankan untuk H4 dan H1, tidak untuk M30.
+- **Satuannya beda.** PF ditimbang uang dengan sizing risk-persen di atas saldo
+  yang berbunga; ekspektasi R menimbang tiap trade sama. Keduanya tidak dipaksa
+  jadi satu angka, jadi yang dibandingkan tanda dan urutan.
+
+### Counter EA sekarang ikut tersimpan
+
+Sampai 2 September 2026 lima `Print` di `OnDeinit` tiap EA hilang di dua lapis:
+`Print` tidak masuk ke report `.htm`, dan log agent tester ditulis UTF-16LE di
+pohon `MetaQuotes\Tester\<id>\Agent-*\logs\` yang terpisah dari data folder
+terminal. 260 file di `reports/` tidak memuat satu pun. `tools/mt5_backtest.py`
+kini membaca DELTA log agent per sel dan menyimpannya sebagai `ea_counters`,
+jadi "berapa zona yang dilihat EA dan berapa yang dilewati kenapa" jadi bagian
+dari catatan alih-alih hilang.
+
+Terbaca pertama kali:
+
+| sel | order dipasang | tanpa target | harga lewat | gagal |
+|---|---|---|---|---|
+| ZonelabFVG_XAUUSD_M30 | 650 | 75 | 1 | 8 |
+| ZonelabFVG_BTCUSD_M30 | 916 | 66 | 0 | 0 |
+| ZonelabSD_XAUUSD_M30 | 252 | 0 | 0 | 3 |
+| ZonelabSD_BTCUSD_M30 | 362 | 0 | 0 | 0 |
 
 ## Batasan v1
 
