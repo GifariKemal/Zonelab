@@ -11,9 +11,10 @@ membuktikan tiap gate baru tidak hampa.
 
 | Yang diminta | Status | Angkanya |
 |---|---|---|
-| Light mode | Terpasang, default tetap dark | 40 check di `e2e/theme.mjs` hijau |
+| Light mode | Terpasang, default tetap dark | 47 check di `e2e/theme.mjs` hijau |
 | Icon interaktif | 40 glyph, digambar tangan | 1 SVG jadi 73 SVG di halaman |
 | Interaction state | Hover, press, focus di tiap kontrol | 0 varian `active:` jadi 22 |
+| Warna di chrome | Glyph layer memakai ink yang layer itu cat | 0 warna baru, 5 ink family yang sudah ada |
 | Retina | Sudah benar sebelum audit | 14 dari 14 primitive pakai DPR |
 | Presisi warna | Diturunkan numerik, bukan dipilih | lihat tabel kontras di bawah |
 
@@ -244,10 +245,10 @@ cd frontend && npm run check                               # exit 0
 cd frontend && npm run build                               # exit 0
 cd frontend && node e2e/wiring.mjs .playwright-shots       # exit 0
 cd frontend && node e2e/labels.mjs .playwright-shots       # 9/9
-cd frontend && node e2e/sweep.mjs .playwright-shots        # 159/159
+cd frontend && node e2e/sweep.mjs .playwright-shots        # 158/158
 cd frontend && node e2e/expectation-path.mjs .playwright-shots
 cd frontend && node e2e/clickthrough.mjs .playwright-shots
-cd frontend && node e2e/theme.mjs .playwright-shots        # 40 check
+cd frontend && node e2e/theme.mjs .playwright-shots        # 47 check
 ```
 
 ## Suntikan yang membuktikan `theme.mjs` tidak hampa
@@ -263,6 +264,8 @@ Tiap cacat dikembalikan, harness dijalankan, lalu dicabut lagi.
 | Urutan demand/supply dibalik di terang | FAIL `supply L* 29,8, demand 46,4` |
 | Seluruh handler repaint theme dihapus | FAIL `luminance rata rata 0,080 lalu 0,080` |
 | `active:translate-y-px` dihapus dari tab zona | FAIL, file dan kelasnya disebut |
+| Langganan theme dihapus dari `Toolbox` | FAIL, `rgba(161,132,195,.95)` lalu `rgba(161,132,195,.95)` |
+| Theme toggle dinaikkan ke `py-1.5` | FAIL, `chrome di atas chart 134px` |
 | Nilai `SIDE.light.demand` di `ink.ts` diubah | FAIL pytest, `At index 0 diff: 31 != 21` |
 | Heks pasangan dikembalikan ke `zone-panel.tsx` | FAIL pytest, `mengeja ulang pasangan itu` |
 
@@ -290,6 +293,32 @@ yang sama:
    seluruh canvas, dan ia harus **melewati** 0,5, bukan sekadar berubah. Terukur
    sesudah diperbaiki: **0,080 lalu 0,912**.
 
+**Tinggi chrome, dan dua percobaan yang gagal sebelum yang ketiga mengukur.**
+Theme toggle masuk dengan `py-1.5` dan jadi empat piksel lebih tinggi dari 14
+kontrol header lain. Header naik dari 78 ke 82, tinggi chart turun dari 591 ke
+588, dan sebuah caption di y 688,5 setinggi 12px mulai menggantung melewati
+edge bawah pane. `e2e/labels.mjs` jatuh dari 9/9 ke 8/9 dengan box yang sama di
+dua run berurutan, jadi bukan flaky. Tidak ada yang terlihat salah di layar, dan
+tiga piksel bukan sesuatu yang bisa dilihat mata.
+
+Percobaan pertama menuntut semua kontrol header **setinggi sama**. Ia menolak
+keadaan yang benar: kontrol di sana memang 24 sampai 27px karena font, border
+dan padding-nya berbeda.
+
+Percobaan kedua menuntut **rentangnya** paling banyak 4px. Ia **lolos dengan
+cacatnya disuntikkan**: toggle jadi 28px dan seluruh klaster bergeser ke 25-28,
+jadi rentangnya tetap 3. Diukur, bukan dikira.
+
+Yang mengikat akhirnya hal yang sesungguhnya rusak: tinggi chrome di atas chart,
+diperiksa lawan tinggi viewport. 130px lolos, 134px merah.
+
+Satu jebakan lagi, dan ia sudah tercatat di memori project ini: suntikan pertama
+untuk cacat itu **tidak pernah terjadi**. Pola `sed` saya tidak cocok, dan
+`grep -c "py-1.5"` yang saya percaya menghitung `py-1.5` di dalam komentar yang
+saya sendiri baru tulis. Harness-nya hijau karena kodenya tidak pernah berubah,
+bukan karena check-nya lemah. Suntikan kedua memakai `assert` atas jumlah
+kecocokan sebelum menulis, lalu menunggu 35 detik recompile Next.
+
 Dan scanner statisnya sendiri sempat merah karena alasan yang salah: ia membaca
 `text-fg` dari **komentar yang menjelaskan bahwa `text-fg` sudah dihapus**.
 Sebuah pengukur yang menghitung catatan tentang cacat sebagai cacat akan tetap
@@ -303,9 +332,15 @@ adalah harness yang dimatikan orang. Komentar sekarang dibuang sebelum dipindai.
   terlihat. Ia tidak dilipat dengan sengaja: itu pernyataan tentang uang yang
   sudah dipasang di broker, dan melipat informasi keselamatan di balik fold
   bukan perbaikan. Prose Presets yang dilipat, dan itu deskripsi fitur.
-- **Header masih membungkus ke dua baris di 1600px.** Ada 16 kontrol di sana.
-  Belum diukur apakah pengelompokan bisa mengembalikannya ke satu baris tanpa
-  menyembunyikan sesuatu.
+- **Header masih membungkus ke dua baris di 1600px.** Ada 16 kontrol di sana,
+  tingginya 78px, dan itu 130px chrome bersama dua banner. Belum diukur apakah
+  pengelompokan bisa mengembalikannya ke satu baris tanpa menyembunyikan
+  sesuatu. Ambang 132px di `theme.mjs` menjaga supaya ia tidak tumbuh lagi
+  tanpa ada yang tahu.
+- **Jumlah check `sweep.mjs` tidak stabil terhadap suntingan saya sendiri.** Ia
+  158 sebelum sesi ini, terbaca 159 sekali di tengah sesi, dan 158 lagi
+  sekarang. Nama seluruh check identik antara HEAD dan tree kerja, jadi tidak
+  ada yang hilang diam diam, tapi kenapa sempat 159 belum ditelusuri.
 - **Helper `positionsLine` / `positionsBox` belum dipakai.** Lihat bagian
   Retina.
 - **`--info` dan ink family `levels` berjarak 3,6 derajat.** Aman sekarang

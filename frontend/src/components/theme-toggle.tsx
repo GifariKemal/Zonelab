@@ -48,7 +48,13 @@ export function ThemeToggle() {
           onClick={() => setTheme(id)}
           aria-pressed={choice === id}
           title={`Theme: ${text}`}
-          className={`flex items-center px-2 py-1.5 text-[11px] transition-colors duration-[70ms] active:translate-y-px ${
+          // `py-1`, BUKAN `py-1.5`, dan selisihnya bisa diukur. Semua kontrol lain
+          // di header ini tinggi 26px; 1.5 membuat yang ini 30px, dan empat
+          // piksel itu menaikkan tinggi header dari 78 ke 82 lalu memotong
+          // tinggi chart dari 591 ke 588. `e2e/labels.mjs` menangkapnya: sebuah
+          // caption di y 688,5 setinggi 12px mulai menggantung melewati edge
+          // bawah pane, 8/9 lawan 9/9.
+          className={`flex items-center px-2 py-1 text-[11px] transition-colors duration-[70ms] active:translate-y-px ${
             choice === id
               ? "bg-accent/15 text-accent"
               : "text-text-faint hover:bg-line/60 hover:text-text-dim"

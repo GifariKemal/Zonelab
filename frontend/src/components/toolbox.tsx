@@ -20,6 +20,7 @@ import {
   TIER_REDUCTIONS,
 } from "@/lib/types";
 import { AutoTradePanel } from "./autotrade-panel";
+import { subscribeTheme, themeServerSnapshot, themeSnapshot } from "@/lib/theme";
 import { ink } from "./ink";
 import { Icon, LAYER_ICON, ROLE_ICON } from "./icons";
 import {
@@ -1602,6 +1603,16 @@ export const Toolbox = memo(function Toolbox({
 
   const odds = meta?.odds as Record<string, OutcomeOdds> | undefined;
 
+  // Dibaca per render supaya ia mengikuti theme. Lihat `layerSwatch`.
+  //
+  // DAN RENDER-NYA HARUS DIPICU, yang setengah lainnya. Membaca tabel per
+  // render tidak menolong kalau tidak ada yang me-render: `Toolbox` di-`memo`
+  // dan prop-nya tidak berubah saat theme berganti, jadi tanpa langganan ini
+  // panel bertahan di warna theme lama sampai ada yang menggeser slider.
+  // Nilainya sendiri tidak dipakai; yang dipakai efek re-render-nya.
+  useSyncExternalStore(subscribeTheme, themeSnapshot, themeServerSnapshot);
+  const swatches = layerSwatch();
+
   // ONE copy of the row, and it stays one copy: writing the JSX twice is how a
   // grouping quietly loses the evidence disclosure the other one keeps.
   const layerRow = (layer: LayerInfo) => {
@@ -1614,7 +1625,7 @@ export const Toolbox = memo(function Toolbox({
           label={layer.label}
           value={live}
           onChange={() => toggle(layer.id)}
-          swatch={LAYER_SWATCH[layer.id]}
+          swatch={swatches[layer.id]}
           icon={layer.id}
         />
         <p className="mt-0.5 text-[11px] leading-relaxed text-text-dim">{layer.note}</p>
@@ -2431,26 +2442,55 @@ function Toggle({
    *  daripada 21 nama yang tersebar di call site. */
   icon?: string;
 }) {
+  // Dua warna berarti layer itu mencat arah, dan satu glyph tidak bisa membawa
+  // keduanya. Satu warna berarti glyph-nya bisa memakainya langsung.
+  const twoTone = (swatch?.length ?? 0) > 1;
+  const tint = !twoTone && swatch?.length === 1 ? swatch[0] : undefined;
   return (
     <label className="group/toggle flex cursor-pointer items-center justify-between gap-2 rounded-[2px] transition-colors duration-[70ms] hover:bg-line/50">
       <span className="flex min-w-0 items-center gap-1.5">
-        {icon && LAYER_ICON[icon] ? (
-          <Icon
-            name={LAYER_ICON[icon]}
-            className={`size-4 shrink-0 transition-colors duration-[70ms] ${
-              value ? "text-text" : "text-text-faint group-hover/toggle:text-text-dim"
-            }`}
-          />
-        ) : null}
-        {swatch?.length ? (
+        {/* ICON MEMBAWA WARNA INK LAYER-NYA, dan itu bukan dekorasi.
+            Sebelumnya ada dua elemen di sini: sebuah swatch 2,5px yang
+            mendokumentasikan warna cat layer, dan icon abu abu di sebelahnya.
+            Keduanya menjawab pertanyaan berbeda dan salah satunya hampir tidak
+            terbaca pada 2,5px. Sekarang glyph-nya SENDIRI dicat dengan ink itu,
+            jadi satu elemen menjawab keduanya: bentuknya bilang objek apa,
+            warnanya bilang warna apa di chart.
+
+            Ini juga satu satunya cara menambah warna ke rail ini yang tidak
+            melanggar apa pun. Riset mengukur plafon kategori yang masih bisa
+            dibedakan di bawah deuteranopia, dengan hijau, merah dan emas sudah
+            dipesan: EMPAT. Tujuh role tidak bisa dapat tujuh warna. Tapi lima
+            ink family sudah ada, sudah lolos pagar 43 derajat, dan sudah
+            terpasang di canvas, jadi memakainya di sini menambah NOL warna
+            baru.
+
+            Lima box detector tetap memakai swatch dua warna, karena keduanya
+            mencat DUA warna: demand dan supply adalah satu satunya tempat di
+            app ini warna membawa arah, dan sebuah glyph satu warna akan memilih
+            salah satunya lalu berbohong.
+
+            State on dan off dibawa OPACITY, bukan hue, supaya warnanya tetap
+            benar saat layer-nya mati. */}
+        {twoTone ? (
           <span
             aria-hidden
-            className="flex h-2.5 w-2.5 shrink-0 flex-col overflow-hidden rounded-[1px]"
+            className="flex h-2.5 w-2.5 shrink-0 flex-col overflow-hidden rounded-[1px] transition-opacity duration-[70ms]"
+            style={{ opacity: value ? 1 : 0.55 }}
           >
-            {swatch.map((c) => (
+            {swatch?.map((c) => (
               <span key={c} className="flex-1" style={{ backgroundColor: c }} />
             ))}
           </span>
+        ) : null}
+        {icon && LAYER_ICON[icon] ? (
+          <Icon
+            name={LAYER_ICON[icon]}
+            className={`size-4 shrink-0 transition-opacity duration-[70ms] ${
+              tint ? "" : value ? "text-text" : "text-text-faint"
+            }`}
+            style={tint ? { color: tint, opacity: value ? 1 : 0.62 } : undefined}
+          />
         ) : null}
         <span
           className={`truncate text-[12px] transition-colors duration-[70ms] ${
@@ -2493,35 +2533,45 @@ function Toggle({
   );
 }
 
-/** Which ink each layer draws in, for the swatch beside its switch.
+/** Which ink each layer draws in, for the glyph beside its switch.
+ *
+ *  SEBUAH FUNGSI, DAN ITU BUKAN GAYA. Ia dulu `const` level modul, jadi
+ *  `ink(...)` dipanggil SEKALI saat modul dimuat, dengan tabel yang aktif saat
+ *  itu - yaitu selalu gelap, karena `setInkTheme` baru berjalan di dalam effect
+ *  chart. Hasilnya swatch dan glyph di rail ini akan beku di warna theme gelap
+ *  sementara canvas di sebelahnya sudah berganti, dan tidak ada error apa pun.
+ *  Dipanggil per render, jadi ia membaca tabel yang sedang aktif.
+ *
  *
  *  Keyed by layer id and kept beside the menu that renders it, because it is a
  *  fact about the CANVAS and the canvas states it in `components/ink.ts`. The
  *  five box detectors share the demand/supply pair - the two colours that mean
  *  something - and `checklist` has no entry at all because it draws nothing; a
  *  swatch on a report would be a promise of ink that never arrives. */
-const LAYER_SWATCH: Record<string, readonly string[]> = {
-  supply_demand: ["var(--demand)", "var(--supply)"],
-  fvg: ["var(--demand)", "var(--supply)"],
-  order_block: ["var(--demand)", "var(--supply)"],
-  ifvg: ["var(--demand)", "var(--supply)"],
-  breaker: ["var(--demand)", "var(--supply)"],
-  structure: [ink("structure", 0.95)],
-  session: [ink("grid", 0.95)],
-  gaps: [ink("levels", 0.95)],
-  cisd: [ink("levels", 0.95)],
-  pools: [ink("levels", 0.95)],
-  liquidity: [ink("levels", 0.95)],
-  vortex: [ink("grid", 0.72)],
-  projections: [ink("levels", 0.95)],
-  ssmt: [ink("ssmt", 0.95)],
-  dfr: [ink("dfr", 0.95)],
-  expectation: [ink("levels", 0.95)],
-  chart_gaps: [ink("levels", 0.95)],
-  wyckoff: [ink("structure", 0.85)],
-  psp: [ink("ssmt", 0.85)],
-  news: ["var(--accent)"],
-};
+function layerSwatch(): Record<string, readonly string[]> {
+  return {
+    supply_demand: ["var(--demand)", "var(--supply)"],
+    fvg: ["var(--demand)", "var(--supply)"],
+    order_block: ["var(--demand)", "var(--supply)"],
+    ifvg: ["var(--demand)", "var(--supply)"],
+    breaker: ["var(--demand)", "var(--supply)"],
+    structure: [ink("structure", 0.95)],
+    session: [ink("grid", 0.95)],
+    gaps: [ink("levels", 0.95)],
+    cisd: [ink("levels", 0.95)],
+    pools: [ink("levels", 0.95)],
+    liquidity: [ink("levels", 0.95)],
+    vortex: [ink("grid", 0.72)],
+    projections: [ink("levels", 0.95)],
+    ssmt: [ink("ssmt", 0.95)],
+    dfr: [ink("dfr", 0.95)],
+    expectation: [ink("levels", 0.95)],
+    chart_gaps: [ink("levels", 0.95)],
+    wyckoff: [ink("structure", 0.85)],
+    psp: [ink("ssmt", 0.85)],
+    news: ["var(--accent)"],
+  };
+}
 
 function Segmented({
   label,

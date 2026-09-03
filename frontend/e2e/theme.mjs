@@ -343,6 +343,52 @@ for (const theme of ["dark", "light"]) {
   check(`${theme}: ${states.total} kontrol terlihat`, states.total > 80,
         `tanpa transition ${states.noTransition}`);
 
+  // CHROME TIDAK BOLEH MEMAKAN CHART, dan ini diukur setelah dua percobaan
+  // yang lebih pintar gagal.
+  //
+  // Yang terjadi: theme toggle masuk dengan `py-1.5` dan jadi empat piksel
+  // lebih tinggi dari 14 kontrol header lain. Header naik dari 78 ke 82,
+  // tinggi chart turun dari 591 ke 588, dan sebuah caption di y 688,5 setinggi
+  // 12px mulai menggantung melewati edge bawah pane. `e2e/labels.mjs` jatuh ke
+  // 8/9. Tidak ada yang terlihat salah di layar, dan tiga piksel bukan sesuatu
+  // yang bisa dilihat mata.
+  //
+  // Percobaan pertama menuntut semua kontrol header SETINGGI SAMA. Ia menolak
+  // keadaan yang benar: kontrol di sana memang 24 sampai 27px karena font,
+  // border dan padding-nya berbeda.
+  //
+  // Percobaan kedua menuntut RENTANGNYA <= 4px. Ia lolos dengan cacatnya
+  // disuntikkan: toggle jadi 28px dan seluruh klaster bergeser ke 25-28, jadi
+  // rentangnya tetap 3. Diukur, bukan dikira.
+  //
+  // Yang mengikat karena itu hal yang sesungguhnya rusak: TINGGI CHART. Ia
+  // diperiksa lawan tinggi viewport, jadi ambangnya tidak bergantung ukuran
+  // window, dan pesannya menunjuk langsung ke chrome yang tumbuh.
+  const layout = await page.evaluate(() => {
+    const ws = document.querySelector("[data-workstation]");
+    const main = ws?.querySelector("main");
+    const head = ws?.querySelector("header");
+    if (!ws || !main || !head) return null;
+    const above = [...ws.children]
+      .filter((e) => e !== main.parentElement && e.tagName !== "DIV")
+      .reduce((n, e) => n + Math.round(e.getBoundingClientRect().height), 0);
+    return {
+      chart: Math.round(main.getBoundingClientRect().height),
+      chrome: above,
+      header: Math.round(head.getBoundingClientRect().height),
+      viewport: window.innerHeight,
+    };
+  });
+  {
+    // 130px pada viewport 1000: header 78 plus dua banner 26. Ambangnya 132
+    // supaya dua piksel gerakan font tidak membuatnya merah, dan cacat 4px
+    // yang sudah terjadi tetap tertangkap.
+    const ok = layout && layout.chrome <= 132;
+    check(`${theme}: chrome di atas chart ${layout?.chrome}px`, Boolean(ok),
+          `header ${layout?.header}, chart ${layout?.chart} dari viewport `
+          + `${layout?.viewport}, ambang 132`);
+  }
+
   await page.screenshot({ path: `${SHOTS}/theme-${theme}.png` });
   await ctx.close();
 }
@@ -400,6 +446,33 @@ if (seen.dark_canvas && seen.light_canvas) {
   const ribbons = await page.locator("canvas").count();
   check("nol pageerror sesudah berganti theme hidup", errs.length === 0,
         errs.slice(0, 2).join(" | ") || `${ribbons} canvas`);
+
+  // GLYPH LAYER DI RAIL juga membawa warna ink, dan ia punya jalur kegagalan
+  // SENDIRI: tabelnya dibaca per render, tapi `Toolbox` di-memo dan prop-nya
+  // tidak berubah saat theme berganti. Tanpa langganan di dalamnya panel
+  // bertahan di warna lama sementara canvas di sebelahnya sudah berganti, dan
+  // tidak ada error apa pun. Diukur pada `structure`, satu satunya ink family
+  // yang glyph-nya tidak dua warna dan mudah ditunjuk.
+  const glyphColour = async () =>
+    await page.evaluate(() => {
+      const row = [...document.querySelectorAll("label")]
+        .find((l) => l.textContent?.trim().startsWith("Market structure"));
+      const svg = row?.querySelector("svg");
+      return svg ? getComputedStyle(svg).color : null;
+    });
+  await page.getByRole("group", { name: "Theme" })
+    .getByRole("button", { name: "Gelap" }).click();
+  await page.waitForTimeout(600);
+  const glyphDark = await glyphColour();
+  await page.getByRole("group", { name: "Theme" })
+    .getByRole("button", { name: "Terang" }).click();
+  await page.waitForTimeout(600);
+  const glyphLight = await glyphColour();
+  check("glyph layer di rail ikut berganti warna ink",
+        Boolean(glyphDark) && Boolean(glyphLight) && glyphDark !== glyphLight,
+        `${glyphDark} lalu ${glyphLight}`
+        + (glyphDark === glyphLight
+           ? " - tabel swatch beku atau Toolbox tidak berlangganan theme" : ""));
   await page.screenshot({ path: `${SHOTS}/theme-switched.png` });
   await ctx.close();
 }

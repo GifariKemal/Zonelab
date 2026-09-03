@@ -176,16 +176,28 @@ for (const layer of registry) {
   check(`${layer.id} has a toggle named "${layer.label}"`, found === 1, `${found} found`);
   if (found !== 1) continue;
 
-  // The swatch is an aria-hidden span inside the label, so it is located
-  // structurally rather than by name - it has no accessible name by design,
-  // because it duplicates information the label already carries.
+  // TINTA LAYER SEKARANG DIBAWA GLYPH-NYA, bukan swatch terpisah, kecuali untuk
+  // lima box detector yang mencat DUA warna dan karena itu tetap memakai swatch
+  // dua bagian. Check ini dulu menghitung `span[aria-hidden] > span` saja dan
+  // jadi merah untuk 16 layer saat tintanya pindah - padahal informasinya tidak
+  // hilang, ia pindah ke tempat yang lebih terbaca. Yang ditanya sekarang tetap
+  // pertanyaan yang sama: apakah tinta layer ini TERLIHAT di barisnya.
   const row = panel.locator("label").filter({ hasText: layer.label }).first();
   const swatch = await row.locator("span[aria-hidden] > span").count();
+  const glyphInk = await row.locator("svg").first().evaluate(
+    (el) => {
+      const c = getComputedStyle(el).color;
+      // `currentColor` yang diwarisi dari teks BUKAN tinta layer. Yang dihitung
+      // hanya glyph yang punya warna sendiri, yaitu yang `style`-nya disetel.
+      return el.getAttribute("style")?.includes("color") ? c : null;
+    },
+  ).catch(() => null);
+  const shown = swatch > 0 || Boolean(glyphInk);
   const wantsSwatch = layer.id !== "checklist";
   check(
     `${layer.id} ${wantsSwatch ? "shows its ink" : "shows no ink, drawing nothing"}`,
-    wantsSwatch ? swatch > 0 : swatch === 0,
-    `${swatch} swatch parts`,
+    wantsSwatch ? shown : !shown,
+    `${swatch} swatch parts, glyph ${glyphInk ?? "tanpa tinta sendiri"}`,
   );
 }
 

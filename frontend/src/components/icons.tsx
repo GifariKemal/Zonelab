@@ -354,15 +354,21 @@ export function Icon({
   name,
   className = "size-4",
   label,
+  style,
 }: {
   name: IconName;
   className?: string;
   label?: string;
+  /** Hanya untuk memberi glyph warna ink layer-nya. Warna TIDAK datang dari
+   *  file ini; ia datang dari `LAYER_SWATCH`, yang membacanya dari `ink.ts`,
+   *  yang memegang satu tabel per theme. */
+  style?: React.CSSProperties;
 }) {
   return (
     <svg
       viewBox="0 0 16 16"
       className={className}
+      style={style}
       fill="none"
       stroke="currentColor"
       strokeWidth="1.5"
