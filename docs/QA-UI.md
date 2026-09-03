@@ -11,12 +11,13 @@ membuktikan tiap gate baru tidak hampa.
 
 | Yang diminta | Status | Angkanya |
 |---|---|---|
-| Light mode | Terpasang, default tetap dark | 47 check di `e2e/theme.mjs` hijau |
+| Light mode | Terpasang, default tetap dark | 52 check di `e2e/theme.mjs` hijau |
 | Icon interaktif | 40 glyph, digambar tangan | 1 SVG jadi 73 SVG di halaman |
 | Interaction state | Hover, press, focus di tiap kontrol | 0 varian `active:` jadi 22 |
 | Warna di chrome | Glyph layer memakai ink yang layer itu cat | 0 warna baru, 5 ink family yang sudah ada |
 | Retina | Sudah benar sebelum audit | 14 dari 14 primitive pakai DPR |
 | Presisi warna | Diturunkan numerik, bukan dipilih | lihat tabel kontras di bawah |
+| Loading dan error state | Skeleton kerangka plus error yang menyebut langkahnya | loading 645-674ms terukur, tiga run per provider |
 
 ## Yang audit temukan, dan bukan soal selera
 
@@ -248,7 +249,7 @@ cd frontend && node e2e/labels.mjs .playwright-shots       # 9/9
 cd frontend && node e2e/sweep.mjs .playwright-shots        # 158/158
 cd frontend && node e2e/expectation-path.mjs .playwright-shots
 cd frontend && node e2e/clickthrough.mjs .playwright-shots
-cd frontend && node e2e/theme.mjs .playwright-shots        # 47 check
+cd frontend && node e2e/theme.mjs .playwright-shots        # 52 check
 ```
 
 ## Suntikan yang membuktikan `theme.mjs` tidak hampa
@@ -266,6 +267,7 @@ Tiap cacat dikembalikan, harness dijalankan, lalu dicabut lagi.
 | `active:translate-y-px` dihapus dari tab zona | FAIL, file dan kelasnya disebut |
 | Langganan theme dihapus dari `Toolbox` | FAIL, `rgba(161,132,195,.95)` lalu `rgba(161,132,195,.95)` |
 | Theme toggle dinaikkan ke `py-1.5` | FAIL, `chrome di atas chart 134px` |
+| Skeleton versi 15 kolom dikembalikan | FAIL, `15 elemen berlatar lebih tinggi dari sepertiga pane` |
 | Nilai `SIDE.light.demand` di `ink.ts` diubah | FAIL pytest, `At index 0 diff: 31 != 21` |
 | Heks pasangan dikembalikan ke `zone-panel.tsx` | FAIL pytest, `mengeja ulang pasangan itu` |
 
@@ -324,6 +326,51 @@ Dan scanner statisnya sendiri sempat merah karena alasan yang salah: ia membaca
 Sebuah pengukur yang menghitung catatan tentang cacat sebagai cacat akan tetap
 merah selamanya sesudah diperbaiki, dan harness yang tidak bisa jadi hijau
 adalah harness yang dimatikan orang. Komentar sekarang dibuang sebelum dipindai.
+
+## Loading dan error state
+
+**Diukur dulu sebelum dibangun**, karena skeleton untuk 200ms lebih buruk
+daripada tidak ada: ia berkedip. Waktu dari `domcontentloaded` sampai chart
+pertama muncul, tiga run per provider di mesin ini:
+
+| provider | run | median |
+|---|---|---|
+| synthetic | 663, 645, 674 ms | 663 ms |
+| mt5 | 645, 667, 633 ms | 645 ms |
+
+Itu di atas ambang 100ms yang Nielsen sebut sebagai batas "terasa seketika",
+jadi ia terlihat, dan di bawah satu detik, jadi spinner terasa salah.
+
+Yang ada di sana sebelumnya teks `Loading candles.` terpusat di pane, yang
+membuat layout **melompat** saat data datang karena tidak ada yang menahan
+tempatnya.
+
+**Percobaan pertama skeleton gugur karena screenshot-nya.** Ia menggambar 15
+kolom setinggi 38 sampai 74 persen, dan hasilnya terbaca sebagai **bar chart
+yang sungguhan**. Sebuah placeholder yang bisa disalahbaca sebagai harga lebih
+buruk daripada tidak ada placeholder, karena satu detik pertama seseorang
+mungkin membacanya sebagai harga. Yang digambar sekarang hanya sumbu dan
+gridline: tidak mungkin dibaca sebagai harga, tetap menahan tempat yang sama,
+dan separuh jumlah elemennya.
+
+Check yang menjaga itu juga salah di versi pertamanya: ia melaporkan 4
+pelanggaran yang ternyata **gridline vertikal**, lebar 1px dan tinggi penuh.
+Garis 1px tidak bisa dibaca sebagai bar harga. Predikatnya sekarang menuntut
+tinggi **dan** lebar. Diuji dengan versi bar dikembalikan: 15 pelanggaran,
+merah.
+
+Error state-nya dulu `No data to chart.` di tengah pane: benar, dan jalan
+buntu. Ia tidak menyebut provider mana yang gagal, tidak menyebut simbol mana,
+dan tidak menawarkan satu pun langkah, padahal pesan error-nya sudah ada di
+state dan cuma tidak ditampilkan. Sekarang ia menyebut simbol, provider, kode
+HTTP-nya, dan tiga langkah yang benar benar memperbaiki kegagalan ini di mesin
+ini.
+
+Keduanya dijaga dengan **memicu**, bukan menunggu: request drawing-nya ditahan
+tanpa dijawab untuk loading, dan dipalsukan 503 untuk error. Screenshot yang
+dikejar `waitForTimeout` akan menangkap keadaan yang berbeda tiap run. Tidak
+ada jalur normal yang melewati kedua state itu, jadi sebuah cacat di sana bisa
+hidup berbulan bulan tanpa ada yang tahu.
 
 ## Yang belum dikerjakan, dinyatakan bukan disembunyikan
 

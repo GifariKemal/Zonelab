@@ -540,6 +540,61 @@ if (inkDark && inkLight && seen.dark && seen.light) {
   }
 }
 
+// ======================================== skeleton dan error state, keduanya
+// KEDUANYA DIPICU, TIDAK DITUNGGU. Loading berlangsung 645 sampai 674 ms di
+// mesin ini, jadi sebuah screenshot yang dikejar `waitForTimeout` akan
+// menangkap keadaan yang berbeda tiap run. Request drawing-nya ditahan dan
+// dipalsukan gagal, jadi kedua state itu dipegang selama yang dibutuhkan.
+//
+// Keduanya dijaga karena keduanya adalah hal pertama yang dilihat orang dan
+// yang paling mudah membusuk tanpa ada yang tahu: tidak ada jalur normal yang
+// melewatinya, jadi sebuah cacat di sini bisa hidup berbulan bulan.
+for (const [label, status, want] of [
+  ["skeleton", null, /MEMUAT CANDLE/i],
+  ["error", 503, /Tidak ada chart untuk/i],
+]) {
+  const ctx = await browser.newContext({ viewport: { width: 1400, height: 900 } });
+  const page = await ctx.newPage();
+  const errs = [];
+  page.on("pageerror", (e) => errs.push(String(e).slice(0, 120)));
+  // Tanpa `fulfill` dan tanpa `abort`, request-nya menggantung - yang persis
+  // keadaan loading yang panjang.
+  await page.route("**/api/draw**", (r) => {
+    if (status) r.fulfill({ status, body: "provider probe down" });
+  });
+  await page.goto(`${BASE}/?provider=synthetic`, { waitUntil: "domcontentloaded" });
+  await page.waitForTimeout(status ? 7000 : 4000);
+  const body = await page.locator("main").innerText().catch(() => "");
+  check(`state ${label} merender isinya`, want.test(body),
+        body.replace(/\s+/g, " ").slice(0, 90) || "(kosong)");
+  if (label === "skeleton") {
+    // BUKAN DERET HARGA. Versi pertama skeleton ini menggambar 15 kolom
+    // setinggi 38 sampai 74 persen, dan screenshot-nya terbaca sebagai bar
+    // chart sungguhan. Sebuah placeholder yang bisa disalahbaca sebagai harga
+    // lebih buruk daripada tidak ada placeholder, karena satu detik pertama
+    // seseorang mungkin membacanya sebagai harga. Yang diperiksa: tak satu pun
+    // elemen berlatar di dalamnya lebih tinggi dari sepertiga pane.
+    const tall = await page.evaluate(() => {
+      const main = document.querySelector("main");
+      const h = main.getBoundingClientRect().height;
+      // LEBARNYA IKUT DIHITUNG, dan versi pertama check ini lupa: ia
+      // melaporkan 4 pelanggaran yang ternyata GRIDLINE VERTIKAL, lebar 1px
+      // dan tinggi penuh. Sebuah garis 1px tidak bisa dibaca sebagai bar
+      // harga. Yang bar-like harus tinggi DAN lebar.
+      return [...main.querySelectorAll("div")].filter((e) => {
+        const r = e.getBoundingClientRect();
+        return r.height > h / 3 && r.width > 6
+               && getComputedStyle(e).backgroundColor !== "rgba(0, 0, 0, 0)";
+      }).length;
+    });
+    check("skeleton tidak bisa disalahbaca sebagai deret harga", tall === 0,
+          `${tall} elemen berlatar lebih tinggi dari sepertiga pane`);
+  }
+  check(`state ${label} nol pageerror`, errs.length === 0, errs.slice(0, 2).join(" | "));
+  await page.screenshot({ path: `${SHOTS}/state-${label}.png` });
+  await ctx.close();
+}
+
 await browser.close();
 console.log(`\n${failed === 0 ? "kedua theme lolos" : `${failed} GAGAL`}`);
 process.exit(failed === 0 ? 0 : 1);

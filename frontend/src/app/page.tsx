@@ -56,6 +56,125 @@ const SOURCE_NOTE: Record<string, string> = {
     "Dukascopy spot ticks, bid and ask, so this is the one network source that yields a measured spread. Its own venue, not your broker's.",
 };
 
+/** Bentuk chart-nya, sebelum datanya ada.
+ *
+ *  DIUKUR DULU SEBELUM DIBANGUN, karena skeleton untuk 200ms lebih buruk
+ *  daripada tidak ada: ia berkedip. Waktu dari `domcontentloaded` sampai chart
+ *  pertama muncul, tiga run per provider di mesin ini: synthetic 663, 645, 674
+ *  ms; mt5 645, 667, 633 ms. Median 663 dan 645. Itu di atas ambang 100ms yang
+ *  Nielsen sebut sebagai batas "terasa seketika", jadi ia terlihat, dan di
+ *  bawah satu detik, jadi spinner terasa salah.
+ *
+ *  Yang digambar BENTUK LAYOUT-nya, bukan sebuah indikator: sumbu harga di
+ *  kanan, sumbu waktu di bawah, dan gridline di tengah. Alasannya bukan gaya -
+ *  teks "Loading candles." yang terpusat membuat layout MELOMPAT saat data
+ *  datang, karena tidak ada yang menahan tempatnya. Skeleton ini menahan
+ *  tempat yang sama dengan chart-nya.
+ *
+ *  Denyutnya opacity, bukan transform, dan itu pilihan untuk data tool: opacity
+ *  tidak MEMINDAHKAN apa pun yang sedang dibaca orang. Aturan
+ *  `prefers-reduced-motion` di `globals.css` sudah membekukannya jadi statis
+ *  untuk yang memintanya, jadi tidak ada media query kedua di sini.
+ */
+function ChartSkeleton() {
+  // KERANGKA, BUKAN DERET. Versi pertama menggambar lima belas kolom setinggi
+  // 38 sampai 74 persen, dan screenshot-nya menyelesaikan pertanyaannya
+  // sendiri: ia terbaca sebagai BAR CHART yang sungguhan. Sebuah placeholder
+  // yang bisa disalahbaca sebagai data lebih buruk daripada tidak ada
+  // placeholder, karena satu detik pertama seseorang mungkin membacanya
+  // sebagai harga.
+  //
+  // Yang digambar sekarang hanya sumbu dan gridline: tak mungkin dibaca
+  // sebagai harga, tetap menahan tempat yang sama dengan chart-nya, dan
+  // separuh jumlah elemennya.
+  return (
+    <div className="flex h-full flex-col" aria-hidden>
+      <div className="flex min-h-0 flex-1">
+        <div className="relative min-w-0 flex-1">
+          {[14, 28, 42, 56, 70, 84].map((top) => (
+            <div
+              key={top}
+              className="absolute inset-x-4 h-px bg-line"
+              style={{ top: `${top}%` }}
+            />
+          ))}
+          {[18, 38, 58, 78].map((left) => (
+            <div
+              key={left}
+              className="absolute inset-y-4 w-px bg-line"
+              style={{ left: `${left}%` }}
+            />
+          ))}
+          <p className="absolute inset-x-0 top-1/2 -translate-y-1/2 animate-pulse text-center text-[11px] uppercase tracking-[0.16em] text-text-faint">
+            Memuat candle
+          </p>
+        </div>
+        <div className="flex w-[68px] shrink-0 flex-col justify-between border-l border-line py-4">
+          {Array.from({ length: 9 }, (_, i) => (
+            <div key={i} className="mx-2 h-[7px] rounded-[1px] bg-line" />
+          ))}
+        </div>
+      </div>
+      <div className="flex shrink-0 justify-between border-t border-line px-4 py-2">
+        {Array.from({ length: 6 }, (_, i) => (
+          <div key={i} className="h-[7px] w-9 rounded-[1px] bg-line" />
+        ))}
+      </div>
+    </div>
+  );
+}
+
+
+/** Kenapa tidak ada chart, dan apa yang bisa dilakukan.
+ *
+ *  Yang ada di sini sebelumnya `No data to chart.` di tengah pane: benar, dan
+ *  jalan buntu. Ia tidak menyebut provider mana yang gagal, tidak menyebut
+ *  simbol mana, dan tidak menawarkan satu pun langkah. Pesan error-nya sendiri
+ *  sudah ada di state dan cuma tidak ditampilkan.
+ *
+ *  Tiga langkah di bawah bukan karangan; ketiganya jalur yang benar benar
+ *  memperbaiki kegagalan ini di mesin ini, dan urutannya dari yang paling
+ *  sering. Lihat `docs/QA-PRODUKSI.md` untuk kenapa provider bisa turun sendiri.
+ */
+function ChartError({
+  message,
+  provider,
+  symbol,
+}: {
+  message: string;
+  provider: string;
+  symbol: string;
+}) {
+  return (
+    <div className="flex h-full items-center justify-center px-6">
+      <div className="max-w-[46ch]">
+        <p className="flex items-start gap-2 text-[12px] font-semibold text-info">
+          <Icon name="alert" className="mt-0.5 size-4 shrink-0" />
+          <span>
+            Tidak ada chart untuk <span className="num">{symbol}</span> dari{" "}
+            <span className="num">{provider}</span>.
+          </span>
+        </p>
+        <p className="mt-2 border-l border-line-strong pl-2 text-[11px] leading-relaxed text-text-dim">
+          <span className="num">{message}</span>
+        </p>
+        <ul className="mt-3 space-y-1 text-[11px] leading-relaxed text-text-faint">
+          <li>Ganti Source ke provider lain, lalu lihat apakah simbolnya ada di sana.</li>
+          <li>
+            Kalau Source-nya <span className="num">mt5</span>, pastikan terminal
+            MetaTrader 5 di mesin ini hidup dan sudah login.
+          </li>
+          <li>
+            Kalau semua Source gagal, backend di{" "}
+            <span className="num">:8100</span> yang mati. Jalankan{" "}
+            <span className="num">start.bat</span> lagi.
+          </li>
+        </ul>
+      </div>
+    </div>
+  );
+}
+
 export default function Page() {
   const [config, setConfig] = useState<ServerConfig | null>(null);
   const [symbol, setSymbol] = useState("XAUUSD");
@@ -920,12 +1039,10 @@ export default function Page() {
                 onHover={setHovered}
                 onClipped={setClipped}
               />
+            ) : error ? (
+              <ChartError message={error} provider={provider} symbol={symbol} />
             ) : (
-              <div className="flex h-full items-center justify-center">
-                <p className="text-[12px] text-text-faint">
-                  {error ? "No data to chart." : "Loading candles."}
-                </p>
-              </div>
+              <ChartSkeleton />
             )}
           </div>
         </main>
