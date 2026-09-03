@@ -567,6 +567,14 @@ sepertiga** kontrol app dan melaporkannya sebagai lengkap. Kedua saklar itu
 punya harness sendiri, `e2e/rails.mjs` 9/9, yang memang memeriksa panel hilang
 lalu kembali.
 
+Satu run memberi **210 dari 223** sementara lima run lain memberi 223/223.
+Daftar kegagalannya tidak tertangkap ke file dan tidak tereproduksi dalam lima
+percobaan berikutnya, jadi sebabnya belum diketahui. Ia crawler dengan 223
+langkah yang bergantung timing di atas dev server yang saat itu sudah menerima
+sekitar empat puluh peluncuran browser, tapi itu dugaan dan bukan pengukuran.
+Dicatat di sini supaya tidak hilang; kalau ia muncul lagi, arahkan output-nya ke
+file sebelum menyimpulkan.
+
 Dibuktikan tidak hampa: `onChange` di saklar layer diganti no-op, dan harness
 itu jatuh ke 163/165 dengan tangkapan yang benar, `panel says "0 drawn"`.
 
