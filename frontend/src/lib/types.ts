@@ -1280,6 +1280,12 @@ export interface DrawResponse {
      *  A live call returned 3531 here, and the chart said nothing. */
     feed_lag_seconds?: number;
     fetched_at?: number;
+    /** Peluang hasil terukur per layer yang BISA DIORDER, untuk simbol dan
+     *  timeframe response ini. Dikirim di sini dan bukan di `/api/config`
+     *  karena angkanya bergantung keduanya, dan config tidak tahu keduanya.
+     *  Layer yang populasinya belum diukur tidak muncul sama sekali, bukan
+     *  muncul sebagai nol. */
+    odds?: Record<string, OutcomeOdds>;
     supply_demand?: Record<string, number>;
     fvg?: Record<string, number>;
     order_block?: Record<string, number>;
@@ -1520,6 +1526,48 @@ export interface LayerInfo {
    *  backend decides membership - `docs/ADOPSI.md` separates ICT from SMC from
    *  Quarterly Theory, and a copy of that judgement over here would drift. */
   family: string | null;
+  /** PERAN dalam sebuah keputusan, dan ini yang mengelompokkan menu.
+   *
+   *  `family` menjawab "dari doktrin siapa" dan itu tetap berguna sebagai label
+   *  per baris. Ia buruk sebagai heading, dan itu terlihat: 7 dari 21 layer
+   *  tidak punya family sama sekali, jadi mereka jatuh ke heading TIPE dan menu
+   *  jadi campuran dua sumbu. `supply_demand` berakhir sendirian di bawah
+   *  "detectors" padahal ia satu satunya yang menyala default.
+   *
+   *  Dibaca sebagai string buram, alasan yang sama dengan `kind` dan `family`:
+   *  peran baru di `app/layers.py` mengelompokkan dirinya sendiri tanpa suntingan
+   *  di sini. */
+  role: string;
+  /** Bisa dipasangi order. Bendera per BARIS, bukan heading, supaya ia duduk
+   *  bersama peluang terukurnya alih-alih memecah menu jadi dua kolom yang
+   *  harus dibaca bersamaan. */
+  orderable: boolean;
+  /** Arah gerbang departure: `floor` membuang yang di bawah 2,0 ATR, `ceiling`
+   *  membuang yang di atas. `ceiling` benar untuk `fvg` karena gerbangnya
+   *  terukur TERBALIK. Null untuk layer yang tidak bisa diorder. */
+  gate: string | null;
+  /** Timeframe yang punya pengukuran, atau null kalau tidak dibatasi. */
+  measured_intervals: string[] | null;
+}
+
+/** Distribusi hasil terukur untuk satu populasi, dari `docs/entry_probability.json`.
+ *
+ *  EMPAT ANGKA, BUKAN SATU WIN RATE, dan itu bukan gaya. P(R > 0) untuk
+ *  supply_demand XAUUSD 30m adalah 0,5496, yang terbaca "menang 55 persen"
+ *  padahal target 1,5R hanya kena 4,9 persen dan hampir setiap kemenangan
+ *  adalah exit horizon kecil rata-rata +0,445 R. Satu angka di sebelah sebuah
+ *  order akan salah baca sebelas kali lipat. */
+export interface OutcomeOdds {
+  n: number;
+  p_full_stop: number;
+  p_small_loss: number;
+  p_small_win: number;
+  p_target: number;
+  exp_r: number;
+  /** Wald 95 persen untuk P(target), angka yang paling mudah disalahbaca. */
+  p_target_ci95: [number, number];
+  /** Populasi persisnya, termasuk sisi gerbang mana yang dibaca. */
+  population: string;
 }
 
 export interface ServerConfig {

@@ -19,6 +19,7 @@ from .detect.supply_demand import cap_per_side
 from .layers import DETECTOR_IDS, LAYERS, PARAMS_BY_ID
 from .models import Candle, DrawRequest, Drawing, FibonacciAnchor, Zone, ZoneState
 from .overlays import BAR_OVERLAYS, bar_overlays, session_grid
+from .probability import outcome_odds
 from .profit_zone import mark_crowding, mark_profit_zones
 from .providers import INTERVALS
 from .refine import refine_zones
@@ -194,6 +195,24 @@ _HANDLERS: dict[str, _Handler] = {
 }
 
 
+def _odds_for(symbol: str, interval: str) -> dict[str, dict]:
+    """Peluang hasil terukur per layer yang bisa diorder, untuk sel ini.
+
+    Sisi gerbangnya diambil dari `Layer.gate`, bukan diturunkan ulang: untuk
+    `fvg` gerbangnya TERBALIK, jadi populasi yang benar-benar diorder ada di
+    sisi BAWAH (n=1939, P(target) 0,1444) dan bukan sisi atas (n=62, 0,0161).
+    """
+    out: dict[str, dict] = {}
+    for layer in LAYERS:
+        if not layer.orderable:
+            continue
+        got = outcome_odds(layer.id, symbol, interval,
+                           cleared_gate=(layer.gate or "floor") == "floor")
+        if got is not None:
+            out[layer.id] = got
+    return out
+
+
 def build(
     rows: list[Candle],
     request: DrawRequest,
@@ -232,6 +251,17 @@ def build(
         "next_close_at": as_of + 2 * step if rows else 0,
         "feed_lag_seconds": max(0, int(time.time()) - (as_of + step)) if rows else 0,
         "fetched_at": int(time.time()),
+        # PELUANG TERUKUR, dikirim DI SINI dan bukan di `/api/config`, karena
+        # angkanya bergantung simbol dan timeframe dan config tidak tahu
+        # keduanya. Sebuah tabel yang dikirim sekali lalu dipilih di klien akan
+        # memaksa UI menurunkan sendiri sisi gerbang mana yang berlaku, dan itu
+        # definisi kedua yang bisa melenceng dari `Layer.gate`.
+        #
+        # Hanya layer yang bisa diorder yang punya entri: sebuah peluang di
+        # sebelah layer yang tidak bisa diorder menjawab pertanyaan yang tidak
+        # ada. Populasi yang belum diukur tidak muncul sama sekali, bukan
+        # muncul sebagai nol.
+        "odds": _odds_for(request.symbol, request.interval),
     }
 
     wanted = set(request.layers)

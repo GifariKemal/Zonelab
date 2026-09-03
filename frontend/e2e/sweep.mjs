@@ -220,13 +220,19 @@ const menuLabels = (await allSwitchLabels()).filter((l) =>
   registryLabels.includes(l));
 const missing = registryLabels.filter((l) => !menuLabels.includes(l));
 const extra = menuLabels.filter((l) => !registryLabels.includes(l));
-// Relative order inside a group: take the registry's labels for that family,
-// keep only the ones the menu shows, and require the menu to show them in that
-// same sequence.
-const outOfOrder = [...new Set(registry.map((l) => l.family ?? `kind:${l.kind}`))]
+// Relative order inside a group: take the registry's labels for that ROLE, keep
+// only the ones the menu shows, and require the menu to show them in that same
+// sequence.
+//
+// KEYED ON `role` SINCE 3 September 2026. It was `family ?? kind:${kind}`, which
+// mirrored a menu that headed with doctrine and then fell through to type for
+// whatever was left - two axes in one list, with seven of twenty-one layers
+// landing under a type heading. The assertion is unchanged; only the key it
+// groups by moved, because the menu it checks moved.
+const outOfOrder = [...new Set(registry.map((l) => l.role))]
   .filter((group) => {
     const want = registry
-      .filter((l) => (l.family ?? `kind:${l.kind}`) === group)
+      .filter((l) => l.role === group)
       .map((l) => l.label);
     const got = menuLabels.filter((l) => want.includes(l));
     return want.length !== got.length || want.some((l, i) => got[i] !== l);

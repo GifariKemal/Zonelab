@@ -76,11 +76,50 @@ class Layer:
     #: at all. None of those five belong under an ICT heading, so none of them
     #: carry one.
     family: str | None = None
+    #: PERAN dalam sebuah keputusan, dan ini yang mengelompokkan menu.
+    #:
+    #: `family` menjawab "dari doktrin siapa" dan itu tetap berguna sebagai
+    #: label per baris. Ia BURUK sebagai heading menu, dan itu terlihat: 7 dari
+    #: 21 layer tidak punya family sama sekali, jadi mereka jatuh ke heading
+    #: TIPE (`detectors`, `overlays`, `reports`) dan menu jadi campuran dua
+    #: sumbu yang berbeda. `supply_demand` berakhir sendirian di bawah
+    #: "detectors" padahal ia satu satunya yang menyala secara default dan box
+    #: dengan bukti terkuat.
+    #:
+    #: Seorang trader yang memilih layer bertanya "benda ini menjawab apa",
+    #: bukan "ini bukunya siapa". Jadi `role` yang jadi heading dan `family`
+    #: turun jadi keterangan.
+    #:
+    #: BUKAN "bisa diorder". Itu fakta per layer yang hidup di
+    #: `tools/execute.py:ORDERABLE_LAYERS`, dan ia dikirim sebagai bendera per
+    #: baris supaya ia duduk bersama peluang terukurnya alih-alih memecah menu
+    #: jadi dua kolom yang harus dibaca bersamaan.
+    role: str = "Lainnya"
+    #: Boleh dipasangi order, dan angka yang membatasi daftarnya.
+    #:
+    #: SEBELUMNYA INI DAFTAR KEDUA. `tools/execute.py` memegang
+    #: `ORDERABLE_LAYERS`, `GATE_DIRECTION` dan `MEASURED_INTERVALS` sebagai tiga
+    #: struktur berisi id layer, dan komentar di atas menjelaskan persis kenapa
+    #: itu berbahaya: sebuah daftar kedua berisi id layer melenceng dari yang
+    #: pertama tanpa suara. Faktanya sekarang hidup di sini dan `execute.py`
+    #: menurunkannya, jadi menambah layer di satu tempat tidak bisa lagi
+    #: meninggalkan tempat yang lain.
+    #:
+    #: `gate` adalah ARAH gerbang departure. `floor` membuang yang di bawah 2,0
+    #: ATR; `ceiling` membuang yang di atas, dan itu benar untuk `fvg` karena
+    #: gerbangnya terukur TERBALIK.
+    orderable: bool = False
+    gate: str | None = None
+    #: Timeframe yang punya pengukuran. `None` berarti tidak dibatasi.
+    measured_intervals: tuple[str, ...] | None = None
 
 
 LAYERS: tuple[Layer, ...] = (
     Layer(
         id="supply_demand",
+        orderable=True,
+        gate="floor",
+        role="Zona",
         label="Supply and demand",
         kind="detector",
         params="supply_demand",
@@ -98,6 +137,10 @@ LAYERS: tuple[Layer, ...] = (
     ),
     Layer(
         id="fvg",
+        orderable=True,
+        gate="ceiling",
+        measured_intervals=("30m",),
+        role="Zona",
         family="ICT",
         label="Fair value gap",
         kind="detector",
@@ -110,6 +153,9 @@ LAYERS: tuple[Layer, ...] = (
     ),
     Layer(
         id="order_block",
+        orderable=True,
+        gate="floor",
+        role="Zona",
         family="ICT",
         label="Order block",
         kind="detector",
@@ -119,6 +165,7 @@ LAYERS: tuple[Layer, ...] = (
     ),
     Layer(
         id="ifvg",
+        role="Zona",
         family="ICT",
         label="Inverted fair value gap",
         kind="detector",
@@ -138,6 +185,7 @@ LAYERS: tuple[Layer, ...] = (
     ),
     Layer(
         id="breaker",
+        role="Zona",
         family="ICT",
         label="Breaker block",
         kind="detector",
@@ -150,6 +198,7 @@ LAYERS: tuple[Layer, ...] = (
     ),
     Layer(
         id="structure",
+        role="Struktur dan momentum",
         family="ICT",
         label="Market structure",
         kind="overlay",
@@ -168,6 +217,7 @@ LAYERS: tuple[Layer, ...] = (
     ),
     Layer(
         id="session",
+        role="Waktu",
         family="Quarterly Theory",
         label="Cycle grid",
         kind="overlay",
@@ -188,6 +238,7 @@ LAYERS: tuple[Layer, ...] = (
     ),
     Layer(
         id="vortex",
+        role="Bacaan, bukan objek pasar",
         label="3-6-9 dial",
         kind="overlay",
         params="session",
@@ -212,6 +263,7 @@ LAYERS: tuple[Layer, ...] = (
     ),
     Layer(
         id="gaps",
+        role="Celah harga",
         family="ICT",
         label="Opening gaps",
         kind="overlay",
@@ -230,6 +282,7 @@ LAYERS: tuple[Layer, ...] = (
     ),
     Layer(
         id="chart_gaps",
+        role="Celah harga",
         label="Breakaway and measuring gaps",
         kind="overlay",
         params="chart_gaps",
@@ -259,6 +312,7 @@ LAYERS: tuple[Layer, ...] = (
     ),
     Layer(
         id="psp",
+        role="Divergensi lintas instrumen",
         family="ICT",
         label="Precision swing point",
         kind="overlay",
@@ -285,6 +339,7 @@ LAYERS: tuple[Layer, ...] = (
     ),
     Layer(
         id="wyckoff",
+        role="Struktur dan momentum",
         label="Wyckoff phases",
         kind="overlay",
         params="wyckoff",
@@ -306,6 +361,7 @@ LAYERS: tuple[Layer, ...] = (
     ),
     Layer(
         id="cisd",
+        role="Struktur dan momentum",
         family="ICT",
         label="Change in state of delivery",
         kind="overlay",
@@ -324,6 +380,7 @@ LAYERS: tuple[Layer, ...] = (
     ),
     Layer(
         id="dfr",
+        role="Waktu",
         family="Quarterly Theory",
         label="Defining range",
         kind="overlay",
@@ -351,6 +408,7 @@ LAYERS: tuple[Layer, ...] = (
     ),
     Layer(
         id="ssmt",
+        role="Divergensi lintas instrumen",
         family="ICT",
         label="SSMT divergence",
         kind="overlay",
@@ -380,6 +438,7 @@ LAYERS: tuple[Layer, ...] = (
     ),
     Layer(
         id="pools",
+        role="Likuiditas dan level",
         family="ICT",
         label="Liquidity pools",
         kind="overlay",
@@ -399,6 +458,7 @@ LAYERS: tuple[Layer, ...] = (
     ),
     Layer(
         id="liquidity",
+        role="Likuiditas dan level",
         family="ICT",
         label="Named levels",
         kind="overlay",
@@ -417,6 +477,7 @@ LAYERS: tuple[Layer, ...] = (
     ),
     Layer(
         id="projections",
+        role="Likuiditas dan level",
         family="ICT",
         label="Deviation projections",
         kind="overlay",
@@ -436,6 +497,7 @@ LAYERS: tuple[Layer, ...] = (
     ),
     Layer(
         id="expectation",
+        role="Bacaan, bukan objek pasar",
         label="Expectation fan",
         kind="overlay",
         params="expectation",
@@ -456,6 +518,7 @@ LAYERS: tuple[Layer, ...] = (
     ),
     Layer(
         id="news",
+        role="Waktu",
         label="Economic calendar",
         kind="overlay",
         params="news",
@@ -472,6 +535,7 @@ LAYERS: tuple[Layer, ...] = (
     ),
     Layer(
         id="checklist",
+        role="Bacaan, bukan objek pasar",
         label="Checklist",
         kind="report",
         params="checklist",
@@ -516,7 +580,7 @@ DETECTOR_IDS: frozenset[str] = frozenset(
 DEFAULT_LAYERS: tuple[str, ...] = ("supply_demand",)
 
 
-def catalogue() -> list[dict[str, str | None]]:
+def catalogue() -> list[dict[str, object]]:
     """The registry as the API serves it, so the UI has ONE source of truth.
 
     The frontend used to hardcode which ids were detectors, which were overlays,
@@ -532,6 +596,11 @@ def catalogue() -> list[dict[str, str | None]]:
             "note": layer.note,
             "evidence": layer.evidence,
             "family": layer.family,
+            "role": layer.role,
+            "orderable": layer.orderable,
+            "gate": layer.gate,
+            "measured_intervals": (list(layer.measured_intervals)
+                                   if layer.measured_intervals else None),
         }
         for layer in LAYERS
     ]

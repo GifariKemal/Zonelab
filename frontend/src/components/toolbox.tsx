@@ -6,6 +6,7 @@ import { memo, useEffect, useRef, useState, useSyncExternalStore } from "react";
 import type {
   DrawResponse,
   LayerInfo,
+  OutcomeOdds,
   LayerParams,
   ServerConfig,
 } from "@/lib/types";
@@ -1583,17 +1584,25 @@ export const Toolbox = memo(function Toolbox({
   // doctrine on with one click is deliberately not possible - twelve layers
   // arriving at once is the "sixteen layers is a focus problem" note two
   // hundred lines down, not a convenience.
-  const families = menu
-    .map((l) => l.family)
-    .filter((f): f is string => Boolean(f))
-    .filter((f, i, all) => all.indexOf(f) === i);
-  // Only the ungrouped ones fall through to the kind headings, or a layer would
-  // be drawn twice and carry two switches for one id.
-  const kinds = [...new Set(menu.filter((l) => !l.family).map((l) => l.kind))];
+  // GROUPED BY ROLE, and role alone. The menu used to head with `family` and
+  // then fall through to `kind` for whatever was left, which mixed two axes:
+  // ICT and Quarterly Theory are DOCTRINES, detectors and overlays are TYPES.
+  // Seven of twenty-one layers carry no family, so they landed under type
+  // headings - and `supply_demand`, the only layer on by default and the
+  // best-evidenced box here, stood alone under "detectors".
+  //
+  // A reader choosing a layer asks what the thing ANSWERS, not whose book it
+  // came from. So role heads and family drops to a per-row label. Still not a
+  // list typed here: a role added in `app/layers.py` groups itself.
+  const roles = menu
+    .map((l) => l.role)
+    .filter((r): r is string => Boolean(r))
+    .filter((r, i, all) => all.indexOf(r) === i);
 
-  // ONE copy of the row. Both groupings call it, and writing the JSX twice is
-  // how the family rows would quietly lose the evidence disclosure that the
-  // kind rows keep.
+  const odds = meta?.odds as Record<string, OutcomeOdds> | undefined;
+
+  // ONE copy of the row, and it stays one copy: writing the JSX twice is how a
+  // grouping quietly loses the evidence disclosure the other one keeps.
   const layerRow = (layer: LayerInfo) => {
     const live = on(layer.id);
     const own = live && !drawn.has(layer.params) ? knobs(layer.params) : null;
@@ -1607,6 +1616,22 @@ export const Toolbox = memo(function Toolbox({
           swatch={LAYER_SWATCH[layer.id]}
         />
         <p className="mt-0.5 text-[11px] leading-relaxed text-text-dim">{layer.note}</p>
+        {/* DOKTRIN TURUN JADI LABEL. Ia dulu heading menu, dan sebagai heading
+            ia mencampur sumbu: tujuh layer tanpa doktrin jatuh ke heading tipe.
+            Sebagai label ia menjawab pertanyaan yang memang ia jawab, "ini
+            bukunya siapa", tanpa mengklaim mengelompokkan apa pun. */}
+        {layer.family ? (
+          <p className="mt-0.5 text-[10px] uppercase tracking-[0.12em] text-text-faint">
+            {FAMILY_LONG[layer.family] ?? layer.family}
+          </p>
+        ) : null}
+        {/* BISA DIORDER, dan peluang terukurnya, di baris yang sama.
+            Keduanya menjawab satu pertanyaan - "kalau saya pasang ini, apa yang
+            biasanya terjadi" - jadi memisahkannya ke dua tempat memaksa pembaca
+            menggabungkannya sendiri. `orderable` datang dari `Layer.orderable`
+            dan bukan dari daftar di sini, karena daftar kedua berisi id layer
+            adalah cara keduanya melenceng diam-diam. */}
+        {layer.orderable ? <OrderableRow layer={layer} odds={odds?.[layer.id]} /> : null}
         {/* EVERY row carries this, and the summary says "Bukti" rather than
             "Apa ini" so the reader can tell there is a measurement statement to
             read. Two of these layers came out significantly NEGATIVE as
@@ -1695,23 +1720,12 @@ export const Toolbox = memo(function Toolbox({
         />
       ) : null}
 
-      {/* Family first. `docs/ADOPSI.md` is what decides membership, and it
-          separates ICT from SMC from Quarterly Theory rather than folding them
-          together, so the menu does too. */}
-      {families.map((family) => (
-        <Group key={family} title={FAMILY_LONG[family] ?? family}>
-          {menu.filter((layer) => layer.family === family).map(layerRow)}
-        </Group>
-      ))}
-
-      {kinds.map((kind) => (
-        // ponytail: `${kind}s` rather than a kind-to-heading map. Three kinds
-        // ship and all three pluralise this way; a map would be one more list
-        // that has to be edited when the backend grows a fourth.
-        <Group key={kind} title={`${kind}s`}>
-          {menu
-            .filter((layer) => !layer.family && layer.kind === kind)
-            .map(layerRow)}
+      {/* One heading per role, in the registry's own order. Every layer lands
+          in exactly one, so none is drawn twice and none falls through to a
+          type heading. */}
+      {roles.map((role) => (
+        <Group key={role} title={role}>
+          {menu.filter((layer) => layer.role === role).map(layerRow)}
         </Group>
       ))}
 
@@ -1963,6 +1977,68 @@ function elapsed(seconds: number): string {
   if (minutes < 1) return `${seconds}s`;
   if (minutes < 120) return `${minutes}m`;
   return `${Math.round(minutes / 60)}h`;
+}
+
+/** Bahwa layer ini bisa dipasangi order, dan apa yang biasanya terjadi kalau
+ *  dipasang.
+ *
+ *  EMPAT ANGKA, BUKAN SATU. Satu win rate akan menipu sebelas kali lipat:
+ *  P(R > 0) untuk supply_demand XAUUSD 30m adalah 0,5496, yang terbaca "menang
+ *  55 persen" padahal target 1,5R hanya kena 4,9 persen dan 48,9 persen dari
+ *  hasilnya adalah untung KECIL rata-rata +0,445 R. Kolom "untung kecil" ada
+ *  justru supaya jarak itu terlihat, bukan sebagai pelengkap.
+ *
+ *  BELUM DIUKUR DIKATAKAN, BUKAN DIISI NOL. Sebuah timeframe yang populasinya
+ *  tidak pernah lewat rig berbiaya tidak punya peluang, dan mengisinya dengan
+ *  rata-rata global akan memberi angka yang terlihat sah untuk setup yang tidak
+ *  pernah dilihat siapa pun. */
+function OrderableRow({ layer, odds }: { layer: LayerInfo; odds?: OutcomeOdds }) {
+  const pct = (v: number) => `${(v * 100).toFixed(1)}%`;
+  return (
+    <div className="mt-1.5 border-l border-line-strong pl-2">
+      <p className="text-[10px] uppercase tracking-[0.16em] text-text-faint">
+        Bisa diorder
+        {layer.gate === "ceiling" ? " . gerbang terbalik" : null}
+        {layer.measured_intervals?.length
+          ? ` . ${layer.measured_intervals.join(", ")} saja`
+          : null}
+      </p>
+      {odds ? (
+        <>
+          <dl className="mt-1 grid grid-cols-4 gap-x-2 text-[11px] leading-tight">
+            <div>
+              <dt className="block min-h-[2.2em] text-text-faint">target</dt>
+              <dd className="tabular-nums text-text">{pct(odds.p_target)}</dd>
+            </div>
+            <div>
+              <dt className="block min-h-[2.2em] text-text-faint">untung kecil</dt>
+              <dd className="tabular-nums text-text-dim">{pct(odds.p_small_win)}</dd>
+            </div>
+            <div>
+              <dt className="block min-h-[2.2em] text-text-faint">rugi sebagian</dt>
+              <dd className="tabular-nums text-text-dim">{pct(odds.p_small_loss)}</dd>
+            </div>
+            <div>
+              <dt className="block min-h-[2.2em] text-text-faint">stop penuh</dt>
+              <dd className="tabular-nums text-text-dim">{pct(odds.p_full_stop)}</dd>
+            </div>
+          </dl>
+          {/* n DAN INTERVAL DI SETIAP BARIS. Peluang dari 62 trade dan dari
+              1.939 tidak boleh terbaca sama, dan interval kepercayaan adalah
+              satu satunya hal yang membedakan keduanya di layar. */}
+          <p className="mt-1 text-[10px] leading-relaxed text-text-faint">
+            target CI 95 {pct(odds.p_target_ci95[0])}-{pct(odds.p_target_ci95[1])} .
+            ekspektasi {odds.exp_r >= 0 ? "+" : ""}
+            {odds.exp_r.toFixed(4)} R . n={odds.n}
+          </p>
+        </>
+      ) : (
+        <p className="mt-1 text-[11px] leading-relaxed text-text-dim">
+          Peluang belum diukur untuk simbol dan timeframe ini.
+        </p>
+      )}
+    </div>
+  );
 }
 
 function Group({

@@ -51,6 +51,7 @@ from app.ict import (
     setup as ict_setup,
 )
 from app.indicators import wilder_atr
+from app.layers import LAYERS
 from app.models import ImbalanceParams, LotSpec, SupplyDemandParams, ZoneSide
 from app.plan import DEPARTURE_GATE_ATR, build
 from app.probability import outcome_odds, summary as odds_line
@@ -200,50 +201,36 @@ def by_method_ranked(row: tuple) -> tuple:
 #: positif adalah order_block SETELAH `--no-cisd-in-band`, +0,0244 R, dan itu
 #: pun belum pernah diuji lawan nol. Jadi memilih `order_block` di sini tanpa
 #: filter itu memilih populasi yang lebih buruk daripada default.
-ORDERABLE_LAYERS = ("supply_demand", "order_block", "fvg")
-
-#: ARAH GERBANG DEPARTURE, per layer, dan `fvg` menghadap ke arah SEBALIKNYA.
+#: DITURUNKAN DARI `app/layers.py`, TIDAK DITULIS ULANG DI SINI.
 #:
-#: `fvg` masuk daftar di atas pada 2 September 2026 setelah keluar darinya di
-#: hari yang sama, dan pembalikan itu punya angkanya sendiri. Alasan ia keluar:
-#: di rig berbiaya 1 jam dan 4 jam gerbang departure 2,0 ATR TERBALIK untuknya,
-#: selisih -0,1005 R dengan Welch t = -4,48, artinya FVG yang LOLOS gerbang
-#: lebih buruk daripada yang tidak. Yang tidak pernah ditanyakan sesudahnya:
-#: sisi bawahnya sendiri berapa. `docs/detectors_costed.json` mencatat
-#: `exp_r_below` +0,0938 R di n=16.200, SATU-SATUNYA angka positif di seluruh
-#: file itu, dan ia tidak pernah diuji lawan nol.
+#: Ketiga struktur di bawah dulu daftar literal berisi id layer, dan komentar
+#: `Layer.family` di `app/layers.py` sudah menjelaskan kenapa itu berbahaya:
+#: sebuah daftar kedua berisi id layer melenceng dari yang pertama tanpa suara,
+#: dan sebuah layer yang salah terdaftar tetap menggambar, tetap menjawab 200,
+#: dan terlihat benar. Menambah layer baru sekarang cukup di satu tempat.
 #:
-#: `tools/fvg_inverted.py` menanyakannya di 30 menit pada dua instrumen yang
-#: ditradingkan: sisi BAWAH gerbang +0,2188 R di n=3.799 dengan t lawan nol
-#: +8,53 lawan kritis 2,24, dan walk-forward 8 DARI 8 fold positif, tiap fold
-#: +0,0997 sampai +0,3179. Kontrol resolusinya (`docs/fvg_resolution.json`)
-#: dijalankan di bar 1 menit, rasio 30 lawan rasio 6: angkanya menyusut ke
-#: +0,1354 (XAUUSD) dan +0,1235 (BTCUSD) dan TANDANYA BERTAHAN. Di kontrol yang
-#: sama supply_demand jadi +0,0549 dan +0,0359, jadi fvg kira-kira tiga kali
-#: lebih besar setelah kontrol yang paling keras yang repo ini punya.
+#: ANGKA YANG MEMBATASI DAFTARNYA, tetap dicatat di sini karena ia milik jalur
+#: order. Hanya dua detektor pernah lewat rig berbiaya, `docs/detectors_costed.json`.
+#: `order_block` PASS: -0,0429 R di atas gerbang lawan -0,1192 di bawah, selisih
+#: +0,0764 dengan Welch t = +6,95, 17 dari 18 sel, walk-forward 8 dari 8.
+#: `fvg` GAGAL di sana, -0,1005 dengan t = -4,48 dan 3 dari 17 sel, artinya
+#: gerbangnya TERBALIK - lalu `tools/fvg_inverted.py` mengukur sisi BAWAH-nya di
+#: 30 menit dan menemukan +0,2188 R di n=3.799 dengan t lawan nol +8,53 dan
+#: walk-forward 8 dari 8, bertahan +0,1354 dan +0,1235 di kontrol resolusi 1
+#: menit. Karena itu `fvg` masuk dengan gerbang `ceiling` dan hanya di 30m.
 #:
-#: GERBANGNYA SENDIRI TIDAK MEMISAHKAN di 30 menit, selisih +0,0620 dengan
-#: Welch t = +1,00, dan cuma 129 dari 3.928 zona yang lolos. Jadi `ceiling` di
-#: sini bukan klaim bahwa FVG kecil lebih baik daripada FVG besar. Ia klaim
-#: bahwa populasi yang TERUKUR adalah sisi bawah, dan memakai `floor` untuk fvg
-#: akan memasang order pada 129 zona yang tidak pernah diukur lawan nol
-#: sementara membuang 3.799 yang sudah.
+#: TIDAK SATU PUN POSITIF SENDIRI di rig 1 jam: supply_demand -0,0153 R,
+#: order_block -0,0429 dengan t sendiri -6,21.
+ORDERABLE_LAYERS: tuple[str, ...] = tuple(
+    layer.id for layer in LAYERS if layer.orderable
+)
 GATE_DIRECTION: dict[str, str] = {
-    "supply_demand": "floor",
-    "order_block": "floor",
-    "fvg": "ceiling",
+    layer.id: (layer.gate or "floor") for layer in LAYERS if layer.orderable
 }
-
-#: Timeframe yang punya pengukuran untuk arah gerbang non-default.
-#:
-#: `fvg_inverted` mengukur 30 menit saja. Di 1 jam sisi bawahnya +0,0938 R tapi
-#: TIDAK PERNAH diuji lawan nol dan tidak punya walk-forward, dan di 15 menit
-#: tidak ada angka sama sekali karena riwayat 1 menit di mesin ini cuma 103 hari
-#: untuk XAUUSD dan 69 hari untuk BTCUSD. Membiarkan `--layer fvg` jalan di
-#: timeframe lain akan memasang order pada populasi yang belum pernah diukur
-#: sambil mengutip angka 30 menit, yang persis kelas kesalahan yang commit
-#: `bbeec8e` ada untuk memperbaikinya.
-MEASURED_INTERVALS: dict[str, tuple[str, ...]] = {"fvg": ("30m",)}
+MEASURED_INTERVALS: dict[str, tuple[str, ...]] = {
+    layer.id: layer.measured_intervals
+    for layer in LAYERS if layer.measured_intervals
+}
 
 
 def round_robin(rows: list[tuple]) -> list[tuple]:
