@@ -88,7 +88,7 @@ def _venue(symbol: str, source: str) -> str:
 def resolved(symbol: str, interval: str, fine: str, bars: int = 99_999,
              flat: bool = True, entry_depth: float = 0.0,
              breakeven_at: float | None = None,
-             source: str = "mt5") -> list[dict]:
+             source: str = "mt5", scale_at: str = "touch") -> list[dict]:
     """Trade yang sama, diselesaikan di bar `fine`.
 
     Zona, entry, stop, target dan biaya dihitung persis seperti `costed.trades`.
@@ -145,7 +145,32 @@ def resolved(symbol: str, interval: str, fine: str, bars: int = 99_999,
             continue
         if int(time[touch]) < first_fine:
             continue
-        scale = float(atr[touch - 1])
+        # ATR MANA YANG MENSIZING STOP, dan repo ini memakai TIGA konvensi
+        # berbeda untuk pertanyaan yang sama sampai 3 September 2026.
+        #
+        #   rig ini dan `costed.trades`   atr[touch - 1]
+        #   jalur order `execute.py:331`  wilder_atr(...)[-1], bar TERAKHIR
+        #   EA MQL5 default               atr[base_from - 1], bar sebelum base
+        #
+        # Itu berarti setiap angka terukur di repo ini disizing dengan ATR di
+        # bar SENTUHAN, sementara order hidup disizing dengan ATR di bar
+        # KEPUTUSAN. Untuk sebuah limit yang terisi berhari-hari kemudian
+        # keduanya berbeda, jadi order hidup TIDAK berada di populasi yang
+        # diukur.
+        #
+        # Bahwa ini bukan detail sudah terbukti di sisi MQL5: mengganti
+        # `InpStopAtrMode` dari 0 ke 1 memindahkan ZonelabFVG XAUUSD M30 dari
+        # PF 0,86 (net -5.065) ke PF 1,00 (net +175) pada 622 trade yang IDENTIK.
+        #
+        # `scale_at` ada supaya selisihnya bisa diukur, bukan diperdebatkan.
+        # Default `touch` mempertahankan setiap angka yang sudah tercatat.
+        if scale_at == "birth":
+            born = index_of.get(zone.time_from)
+            if born is None or born < 1:
+                continue
+            scale = float(atr[born - 1])
+        else:
+            scale = float(atr[touch - 1])
         if scale <= 0:
             continue
         at_touch = zone.model_copy(update={

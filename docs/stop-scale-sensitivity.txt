@@ -1,0 +1,13 @@
+sel                          mode         n     exp_r   t vs 0  P(target)   P(stop)
+fvg XAUUSD                   touch     2001   +0.2186    +6.19     0.1404    0.4053
+fvg XAUUSD                   birth     2001   +0.2119    +5.49     0.1324    0.4123
+fvg BTCUSD                   touch     1932   +0.2192    +6.26     0.1382    0.4198
+fvg BTCUSD                   birth     1932   +0.2268    +6.29     0.1382    0.4224
+supply_demand XAUUSD         touch     1794   -0.0306    -1.39     0.0496    0.3445
+supply_demand XAUUSD         birth     1794   -0.0386    -1.77     0.0485    0.3462
+supply_demand BTCUSD         touch     1703   -0.0581    -2.62     0.0482    0.3500
+supply_demand BTCUSD         birth     1703   -0.0556    -2.50     0.0487    0.3494
+order_block XAUUSD           touch     2740   +0.0519    +2.72     0.0595    0.3215
+order_block XAUUSD           birth     2740   +0.0486    +2.37     0.0595    0.3285
+order_block BTCUSD           touch     2729   +0.0351    +1.93     0.0575    0.3151
+order_block BTCUSD           birth     2729   +0.0252    +1.39     0.0557    0.3206

@@ -341,3 +341,36 @@ def test_the_logistic_fit_is_deterministic_and_can_learn():
     assert np.array_equal(a, b), "dua run harus identik sampai bit terakhir"
     assert ep.brier(ep.predict(a, x), y) < 0.10
     assert ep.selfcheck() == 0
+
+
+# ------------------------------------------------------- konvensi stop
+
+def test_the_rig_can_size_the_stop_the_way_the_live_path_does():
+    """TIGA konvensi ada di repo ini untuk satu pertanyaan, dan itu terukur.
+
+      rig (`intrabar.py:148`, `costed.py:168`)  atr[touch - 1]
+      jalur order (`execute.py:331`)            wilder_atr(...)[-1]
+      EA MQL5 default                           atr[base_from - 1]
+
+    Artinya setiap angka terukur disizing dengan ATR di bar SENTUHAN sementara
+    order hidup disizing dengan ATR di bar KEPUTUSAN. `scale_at` ada supaya
+    selisihnya bisa diukur, dan default `touch` mempertahankan setiap angka yang
+    sudah tercatat.
+
+    Yang diukur 3 September 2026: selisihnya paling besar 0,01 R dan tandanya
+    tidak pernah berbalik, jadi order hidup TIDAK salah sizing dengan cara yang
+    berarti. Di sisi MQL5 konvensi yang sama menggeser 5.240 USD pada 622 trade
+    identik, karena sizing risk-persen membagi dengan jarak stop sehingga LOT
+    ikut berubah dan Profit Factor ditimbang uang. R skala-invarian, PF tidak.
+    """
+    import inspect
+
+    from tools import intrabar
+
+    sig = inspect.signature(intrabar.resolved)
+    assert "scale_at" in sig.parameters
+    assert sig.parameters["scale_at"].default == "touch", (
+        "default harus mempertahankan angka yang sudah tercatat")
+    src = inspect.getsource(intrabar.resolved)
+    assert 'if scale_at == "birth":' in src
+    assert "atr[born - 1]" in src and "atr[touch - 1]" in src
