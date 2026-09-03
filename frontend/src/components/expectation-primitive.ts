@@ -10,7 +10,7 @@ import type {
 import type { CanvasRenderingTarget2D } from "fancy-canvas";
 
 import type { ExpectationFan, QuantileSet } from "@/lib/types";
-import { ink } from "./ink";
+import { ink, plateInk } from "./ink";
 import { claimedLabels, labelFree, LABEL_GUTTER } from "./structure-primitive";
 
 /**
@@ -119,7 +119,7 @@ class ExpectationRenderer implements IPrimitivePaneRenderer {
         const box = { x: x / kx, y: (this.captionY * ky - h / 2) / ky, w: w / kx, h: h / ky };
         if (labelFree(box, claimedLabels)) {
           claimedLabels.push(box);
-          ctx.fillStyle = "rgba(11, 13, 16, 0.78)";
+          ctx.fillStyle = plateInk(0.78);
           ctx.fillRect(x, Math.round(this.captionY * ky) - h / 2, w, h);
           ctx.fillStyle = ink(INK, 0.95);
           ctx.fillText(this.caption, x + pad, Math.round(this.captionY * ky));

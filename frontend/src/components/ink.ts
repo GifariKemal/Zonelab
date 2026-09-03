@@ -60,11 +60,171 @@ export const INKS = {
   levels: [137, 183, 207],
 } as const;
 
+/** TANGGA YANG SAMA, DIBALIK ARAHNYA, untuk background terang.
+ *
+ *  Di atas #0b0d10 yang paling menonjol adalah yang paling TERANG, jadi tangga
+ *  L* di atas naik 44,0 -> 72,0 dengan `levels` di puncaknya. Di atas #f1f3f5
+ *  yang menonjol adalah yang paling GELAP, jadi tangganya harus turun atau
+ *  urutan penekanannya terbalik: grid akan jadi objek paling keras di layar dan
+ *  named price ray jadi yang paling samar, yaitu kebalikan dari maksudnya.
+ *
+ *  Yang dipertahankan persis: HUE tiap family, sampai satu desimal. Yang
+ *  dicerminkan: L*-nya, lewat 100 - L* - 8. Hasilnya diukur, bukan dinilai:
+ *
+ *    family      dark L*  light L*   dark kontras  light kontras   hue
+ *    grid           44,0      48,0          3,49:1         4,33:1  212,7
+ *    dfr            54,0      38,0          5,00:1         6,26:1  232,0
+ *    structure      59,9      32,1          6,12:1         7,78:1  267,6
+ *    ssmt           65,9      26,1          7,45:1         9,66:1  321,9
+ *    levels         72,0      20,0          9,02:1        11,82:1  200,6
+ *
+ *  Rentang greyscale paling redup lawan paling tajam 2,73:1 di terang lawan
+ *  2,59:1 di gelap, dan tak satu pun dari lima hue jatuh dalam 43 derajat dari
+ *  demand, supply atau accent di kedua theme. `e2e/theme.mjs` menghitung ulang
+ *  keduanya dari browser.
+ */
+const INKS_LIGHT = {
+  grid: [90, 116, 147],
+  dfr: [78, 86, 138],
+  structure: [91, 61, 126],
+  ssmt: [96, 43, 77],
+  levels: [26, 51, 64],
+} as const;
+
 export type InkName = keyof typeof INKS;
+
+/** THEME AKTIF, DIPEGANG MODUL INI, dan siapa yang menuliskannya penting.
+ *
+ *  Canvas tidak bisa membaca kelas CSS, jadi ia tidak ikut berganti sendiri
+ *  saat atribut `data-theme` berubah. `chart.tsx` yang berlangganan pergantian
+ *  theme lalu memanggil `setInkTheme` DAN memaksa repaint, karena keduanya
+ *  harus terjadi bersama: mengubah palette tanpa repaint hanya mengecat ulang
+ *  objek berikutnya yang kebetulan digambar, jadi setengah chart tertinggal di
+ *  theme lama sampai ada yang menggeser sumbu waktu.
+ *
+ *  Dibaca dari variabel modul, bukan dari `document` tiap panggilan. `ink()`
+ *  dipanggil beberapa ratus kali per frame saat pan, dan satu pembacaan DOM per
+ *  panggilan adalah biaya yang tidak perlu dibayar untuk nilai yang berubah
+ *  paling sering sekali per sesi.
+ *
+ *  Kalau wiring itu putus, warnanya BASI dan bukan salah - yaitu kelas cacat
+ *  yang paling sulit dilihat. `e2e/theme.mjs` mengganti theme lalu membaca
+ *  bitmap canvas-nya kembali dan gagal kalau pikselnya tidak ikut berubah.
+ */
+let active: "dark" | "light" = "dark";
+
+export function setInkTheme(next: "dark" | "light"): void {
+  active = next;
+}
+
+export function inkTheme(): "dark" | "light" {
+  return active;
+}
 
 /** `rgba(...)` for a family at one alpha. A function rather than a table of
  *  pre-built strings, because the alphas are per-shape and there are dozens. */
 export function ink(name: InkName, alpha: number): string {
-  const [r, g, b] = INKS[name];
+  const [r, g, b] = active === "light" ? INKS_LIGHT[name] : INKS[name];
+  return `rgba(${r}, ${g}, ${b}, ${alpha})`;
+}
+
+/** PELAT DI BAWAH LABEL, satu definisi untuk lima belas tempat yang memakainya.
+ *
+ *  Sampai sekarang tiap primitive menulis `rgba(11, 13, 16, a)` sendiri, yaitu
+ *  `--bg` dieja ulang dalam desimal, di 15 baris tersebar di 13 file. Di theme
+ *  terang setiap satu dari lima belas itu akan mengecat pelat HITAM di bawah
+ *  teks gelap, dan labelnya hilang. Satu fungsi, jadi ada satu tempat yang
+ *  harus benar.
+ */
+const PLATE = { dark: "11, 13, 16", light: "241, 243, 245" } as const;
+
+export function plateInk(alpha: number): string {
+  return `rgba(${PLATE[active]}, ${alpha})`;
+}
+
+/** Pasangan semantik untuk canvas, dari tabel yang sama dengan CSS.
+ *
+ *  `globals.css` memperingatkan bahwa LIMA TEMPAT memegang pasangan ini dan
+ *  harus bergerak bersama. Ini yang keenam kalau ditulis sebagai literal lagi,
+ *  jadi ia tidak ditulis sebagai literal: `zone-primitive.ts` dan `chart.tsx`
+ *  memanggil ke sini, dan lima tempat itu turun jadi tiga.
+ */
+const SIDE = {
+  dark: { demand: [31, 143, 95], supply: [239, 143, 134] },
+  light: { demand: [21, 80, 55], supply: [186, 73, 62] },
+} as const;
+
+export function sideRgb(side: "demand" | "supply"): readonly [number, number, number] {
+  return SIDE[active][side] as readonly [number, number, number];
+}
+
+export function sideRgba(side: "demand" | "supply", alpha: number): string {
+  const [r, g, b] = SIDE[active][side];
+  return `rgba(${r}, ${g}, ${b}, ${alpha})`;
+}
+
+/** Nilai token CSS apa adanya, untuk yang bukan canvas.
+ *
+ *  `chart.tsx` mengonfigurasi lightweight-charts dengan string warna biasa dan
+ *  bukan lewat canvas kita, jadi ia bisa membaca token yang sesungguhnya alih
+ *  alih menyalin heksanya. Enam belas heks literal di file itu turun jadi nol.
+ */
+export function token(name: string, fallback: string): string {
+  if (typeof document === "undefined") return fallback;
+  const got = getComputedStyle(document.documentElement)
+    .getPropertyValue(name)
+    .trim();
+  return got || fallback;
+}
+
+/** Family mono yang benar benar terpasang, untuk canvas yang di luar sistem
+ *  primitive.
+ *
+ *  `next/font` memancarkan nama family-nya ke `--font-plex-mono` di `<html>`,
+ *  dan sebuah canvas tidak bisa memakai kelas CSS jadi ia harus membacanya.
+ *  `cycle-ribbon.tsx` selama ini menulis `9px ui-monospace, monospace` dan
+ *  karena itu satu satunya teks di app yang digambar dengan font berbeda dari
+ *  setiap angka lain di layar.
+ */
+export function monoStack(): string {
+  return token("--font-plex-mono", "ui-monospace") + ", ui-monospace, monospace";
+}
+
+/** Empat peran quarter, satu tabel per theme.
+ *
+ *  `cycle-ribbon.tsx` memegang palette-nya sendiri dan itu palette keenam di
+ *  app ini. Ia pindah ke sini bukan demi kerapian: keempat warna itu dipilih
+ *  untuk background gelap dan ketiganya di atas L* 60, jadi di atas kertas
+ *  terang ribbon-nya akan hilang sama sekali. Versi terangnya dicerminkan
+ *  dengan cara yang sama dengan `INKS_LIGHT`, hue dipertahankan dan L*
+ *  dibalik.
+ */
+const ROLE_INK = {
+  dark: {
+    Q1: "168, 162, 148", Q2: "192, 138, 130",
+    Q3: "156, 184, 156", Q4: "134, 152, 176",
+  },
+  light: {
+    Q1: "92, 85, 68", Q2: "120, 62, 54",
+    Q3: "62, 96, 62", Q4: "58, 78, 106",
+  },
+} as const;
+
+export function roleInk(quarter: string): string {
+  const table = ROLE_INK[active];
+  return (table as Record<string, string>)[quarter] ?? table.Q1;
+}
+
+/** Token warna sebagai `rgba(...)` dengan alpha sendiri, untuk canvas.
+ *
+ *  Sebuah canvas butuh alpha per stroke dan token CSS-nya heks tanpa alpha,
+ *  jadi tiga tempat di `cycle-ribbon.tsx` mengeja `--text-faint`, `--text` dan
+ *  `--accent` dalam desimal. Ketiganya diam saat theme berganti. Fungsi ini
+ *  membaca token yang sebenarnya lalu memasang alpha-nya.
+ */
+export function tokenRgba(name: string, alpha: number, fallback: string): string {
+  const hex = token(name, fallback).replace("#", "");
+  if (hex.length !== 6) return fallback;
+  const [r, g, b] = [0, 2, 4].map((i) => parseInt(hex.slice(i, i + 2), 16));
   return `rgba(${r}, ${g}, ${b}, ${alpha})`;
 }

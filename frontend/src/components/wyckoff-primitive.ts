@@ -10,7 +10,7 @@ import type {
 import type { CanvasRenderingTarget2D } from "fancy-canvas";
 
 import type { WyckoffPhase } from "@/lib/types";
-import { ink } from "./ink";
+import { ink, plateInk } from "./ink";
 import { claimedLabels, labelFree } from "./structure-primitive";
 
 /**
@@ -60,7 +60,7 @@ class WyckoffRenderer implements IPrimitivePaneRenderer {
         const box = { x: x / kx, y: (y - h / 2) / ky, w: w / kx, h: h / ky };
         if (!labelFree(box, claimedLabels)) continue;
         claimedLabels.push(box);
-        ctx.fillStyle = "rgba(11, 13, 16, 0.78)";
+        ctx.fillStyle = plateInk(0.78);
         ctx.fillRect(x, y - h / 2, w, h);
         ctx.fillStyle = ink(INK, 0.85);
         ctx.fillText(row.tag, x + pad, y);

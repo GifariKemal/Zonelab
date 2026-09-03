@@ -39,7 +39,7 @@ export default function Docs() {
       <header className="sticky top-0 z-10 flex flex-wrap items-center gap-x-4 gap-y-2 border-b border-line bg-bg/95 px-4 py-2 backdrop-blur">
         <Link
           href="/"
-          className="text-[13px] font-semibold tracking-tight text-text transition-colors hover:text-accent"
+          className="text-[13px] font-semibold tracking-tight text-text transition-colors duration-[70ms] hover:text-accent active:opacity-70"
         >
           Zonelab
         </Link>
@@ -48,7 +48,7 @@ export default function Docs() {
         </span>
         <Link
           href="/"
-          className="num ml-auto border border-line px-3 py-1 text-[11px] uppercase tracking-wider text-text-dim transition-colors hover:border-accent hover:text-accent"
+          className="num ml-auto border border-line px-3 py-1 text-[11px] uppercase tracking-wider text-text-dim transition-colors duration-[70ms] hover:border-accent hover:text-accent active:translate-y-px"
         >
           Kembali ke chart
         </Link>
@@ -66,7 +66,7 @@ export default function Docs() {
               <li key={id}>
                 <a
                   href={`#${id}`}
-                  className="flex gap-2 border-l border-line py-px pl-2 pr-1 text-text-dim transition-colors hover:border-accent hover:text-accent"
+                  className="flex gap-2 border-l border-line py-px pl-2 pr-1 text-text-dim transition-colors duration-[70ms] hover:border-accent hover:text-accent active:opacity-70"
                 >
                   <span className="text-text-faint">
                     {String(i + 1).padStart(2, "0")}

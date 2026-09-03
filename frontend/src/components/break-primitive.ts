@@ -10,7 +10,7 @@ import type {
 import type { CanvasRenderingTarget2D } from "fancy-canvas";
 
 import type { Candle } from "@/lib/types";
-import { ink } from "./ink";
+import { ink, plateInk } from "./ink";
 import { claimedLabels, labelFree, resetLabels } from "./structure-primitive";
 
 /**
@@ -182,7 +182,7 @@ class BreakRenderer implements IPrimitivePaneRenderer {
           };
           if (labelFree(rect, claimedLabels)) {
             claimedLabels.push(rect);
-            ctx.fillStyle = "rgba(11, 13, 16, 0.82)";
+            ctx.fillStyle = plateInk(0.82);
             ctx.fillRect(rect.x, rect.y, rect.w, rect.h);
             ctx.fillStyle = ink("grid", 0.95);
             // From the PLATE, not from the mark. The plate is what moved when

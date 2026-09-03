@@ -10,7 +10,7 @@ import type {
 } from "lightweight-charts";
 
 import type { StructureEvent, StructureScale, SwingPoint } from "@/lib/types";
-import { INKS } from "./ink";
+import { INKS, plateInk } from "./ink";
 
 /**
  * Market structure, drawn as annotation and never as a call.
@@ -432,7 +432,7 @@ class StructureRenderer implements IPrimitivePaneRenderer {
         // that fails: grey text at half alpha over a green candle body is not
         // quiet, it is unreadable, and an unreadable caption is not restraint. So
         // the plate carries the quietness instead of the absence of one.
-        ctx.fillStyle = `rgba(11, 13, 16, ${s.plate})`;
+        ctx.fillStyle = plateInk(s.plate);
         ctx.fillRect(box.x, box.y, box.w, box.h);
         ctx.fillStyle = ink(s.text);
         // `box.x`, not `x1`. The text sits half the plate's own padding in from

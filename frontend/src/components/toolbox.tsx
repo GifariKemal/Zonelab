@@ -21,6 +21,7 @@ import {
 } from "@/lib/types";
 import { AutoTradePanel } from "./autotrade-panel";
 import { ink } from "./ink";
+import { Icon, LAYER_ICON, ROLE_ICON } from "./icons";
 import {
   PRESETS,
   applyPreset,
@@ -1614,6 +1615,7 @@ export const Toolbox = memo(function Toolbox({
           value={live}
           onChange={() => toggle(layer.id)}
           swatch={LAYER_SWATCH[layer.id]}
+          icon={layer.id}
         />
         <p className="mt-0.5 text-[11px] leading-relaxed text-text-dim">{layer.note}</p>
         {/* DOKTRIN TURUN JADI LABEL. Ia dulu heading menu, dan sebagai heading
@@ -1821,7 +1823,7 @@ export const Toolbox = memo(function Toolbox({
       <div className="mt-auto flex flex-col gap-2 border-t border-line p-3">
         <button
           onClick={onReset}
-          className="w-full border border-line-strong px-3 py-2 text-[11px] uppercase tracking-wider text-text-dim transition-colors hover:border-accent hover:text-accent"
+          className="w-full border border-line-strong px-3 py-2 text-[11px] uppercase tracking-wider text-text-dim transition-colors duration-[70ms] hover:border-accent hover:text-accent active:translate-y-px"
         >
           Reset parameters
         </button>
@@ -1830,7 +1832,7 @@ export const Toolbox = memo(function Toolbox({
             says it, and the link sits under the panel it explains. */}
         <Link
           href="/docs"
-          className="w-full border border-line px-3 py-2 text-center text-[11px] uppercase tracking-wider text-text-faint transition-colors hover:border-accent hover:text-accent"
+          className="w-full border border-line px-3 py-2 text-center text-[11px] uppercase tracking-wider text-text-faint transition-colors duration-[70ms] hover:border-accent hover:text-accent active:translate-y-px"
         >
           Buku panduan
         </Link>
@@ -1893,10 +1895,10 @@ function Presets({
               const next = applyPreset(preset, params);
               onPreset(next.layers, next.params);
             }}
-            className={`border px-1.5 py-0.5 text-[11px] transition-colors ${
+            className={`border px-1.5 py-0.5 text-[11px] transition-colors duration-[70ms] active:translate-y-px ${
               active?.id === preset.id
-                ? "border-accent text-accent"
-                : "border-line-strong text-text-faint hover:text-text-dim"
+                ? "border-accent bg-accent/10 text-accent hover:bg-accent/20"
+                : "border-line-strong text-text-faint hover:border-text-faint hover:text-text-dim"
             }`}
           >
             {preset.label}
@@ -1920,7 +1922,7 @@ function Presets({
           onChange={(e) => setName(e.target.value)}
           placeholder="name this set"
           aria-label="Preset name"
-          className="min-w-0 flex-1 border border-line-strong bg-transparent px-1.5 py-0.5 text-[11px] text-text placeholder:text-text-faint focus:border-accent focus:outline-none"
+          className="min-w-0 flex-1 border border-line-strong bg-transparent px-1.5 py-0.5 text-[11px] text-text placeholder:text-text-faint focus:border-accent"
         />
         <button
           type="button"
@@ -1932,7 +1934,7 @@ function Presets({
             saveCurrent(name, layers, params);
             setName("");
           }}
-          className="border border-line-strong px-1.5 py-0.5 text-[11px] text-text-faint transition-colors hover:border-accent hover:text-accent disabled:opacity-40"
+          className="border border-line-strong px-1.5 py-0.5 text-[11px] text-text-faint transition-colors duration-[70ms] hover:border-accent hover:text-accent disabled:opacity-40 active:translate-y-px"
         >
           Save
         </button>
@@ -1945,7 +1947,7 @@ function Presets({
               key={preset.id}
               type="button"
               onClick={() => removeSaved(preset.label)}
-              className="border border-line px-1.5 py-0.5 text-[11px] text-text-faint transition-colors hover:border-supply hover:text-supply"
+              className="border border-line px-1.5 py-0.5 text-[11px] text-text-faint transition-colors duration-[70ms] hover:border-supply hover:text-supply active:translate-y-px"
             >
               forget {preset.label}
             </button>
@@ -1953,12 +1955,17 @@ function Presets({
         </div>
       ) : null}
 
-      <Note>
-        A preset sets which layers are on and the minimum each needs to draw
-        anything - three of the seventeen are deliberately empty by default and
-        would otherwise switch on and show nothing. It never touches a threshold
-        you have tuned, and it never decides anything from the market.
-      </Note>
+      {/* MASUK KE DALAM FOLD, dan ini menutup migrasi yang belum selesai.
+          Docstring `Hint` sudah menyatakan doktrinnya: "The prose that used to
+          sit UNDER each control, always open, now lives in here too". Paragraf
+          ini terlewat, dan ia empat baris badan teks di rail kontrol yang lebar
+          232px - diukur di screenshot 1024px, ia sendirian memakan 108px tinggi
+          dari 768px yang ada. Tidak ada satu kata pun yang dihapus. */}
+      <Hint
+        k="presets.apa"
+        summary="Apa itu preset"
+        hint="A preset sets which layers are on and the minimum each needs to draw anything - three of the seventeen are deliberately empty by default and would otherwise switch on and show nothing. It never touches a threshold you have tuned, and it never decides anything from the market."
+      />
     </Group>
   );
 }
@@ -2055,8 +2062,21 @@ function Group({
 }) {
   return (
     <section className="border-b border-line px-3 py-3">
-      <h3 className="mb-3 text-[10px] font-semibold uppercase tracking-[0.16em] text-text-faint">
-        {title}
+      {/* HEADING PUNYA BOBOT SEKARANG, dan itu memperbaiki cacat yang terukur:
+          sebelumnya heading grup memakai tier teks paling redup pada ukuran
+          font paling kecil di panel, jadi ia lebih sulit dibaca daripada isi
+          yang ia kepalai. Sekarang ia setingkat lebih terang dari isinya, punya
+          glyph role-nya, dan punya rule yang mengikat keduanya - jadi tujuh
+          grup terbaca sebagai tujuh grup tanpa perlu dieja.
+
+          Glyph-nya dari `ROLE_ICON`, dan warnanya diwarisi bukan disetel:
+          warna di app ini berarti sisi, dan sebuah heading tidak punya sisi. */}
+      <h3 className="mb-3 flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-[0.16em] text-text-dim">
+        {ROLE_ICON[title] ? (
+          <Icon name={ROLE_ICON[title]} className="size-3.5 shrink-0 text-text-faint" />
+        ) : null}
+        <span>{title}</span>
+        <span aria-hidden className="ml-1 h-px flex-1 bg-line" />
       </h3>
       {inert ? (
         <p className="mb-3 border-l border-line-strong pl-2 text-[11px] leading-relaxed text-text-faint">
@@ -2126,7 +2146,7 @@ function Slider({
           step={step}
           value={value}
           onChange={(e) => onChange(Number(e.target.value))}
-          className="h-1 w-full cursor-pointer appearance-none rounded bg-line-strong"
+          className="range h-1 w-full cursor-pointer appearance-none rounded bg-line-strong transition-colors duration-[70ms] hover:bg-text-faint"
         />
       </label>
       {flag ? (
@@ -2188,12 +2208,22 @@ function Hint({
   return (
     <details
       ref={ref}
-      className="mt-1"
+      className="group/hint mt-1"
       onToggle={(e) =>
         sessionStorage.setItem(OPEN_KEY + k, e.currentTarget.open ? "1" : "0")
       }
     >
-      <summary className="w-fit cursor-pointer text-[11px] text-text-faint transition-colors hover:text-text-dim">
+      {/* MARKER-NYA MILIK KITA SEKARANG. Segitiga bawaan browser digambar
+          berbeda di tiap engine dan tidak bisa dianimasikan, dan ada 35
+          disclosure di panel ini - jadi 35 penanda yang tidak sinkron dengan
+          apa pun. Chevron di bawah berputar 90 derajat saat terbuka, yang
+          membuat "terbuka" terbaca dari bentuk dan bukan hanya dari isinya
+          yang muncul. */}
+      <summary className="marker-none flex w-fit cursor-pointer items-center gap-1 text-[11px] text-text-faint transition-colors duration-[70ms] hover:text-text-dim active:translate-y-px">
+        <Icon
+          name="chevron"
+          className="size-3 shrink-0 transition-transform duration-[70ms] group-open/hint:rotate-90"
+        />
         {summary}
       </summary>
       {hint ? <Prose>{hint}</Prose> : null}
@@ -2265,10 +2295,10 @@ function Degrees({
                   on ? selected.filter((d) => d !== degree) : [...selected, degree],
                 )
               }
-              className={`border px-1.5 py-0.5 text-[11px] transition-colors ${
+              className={`border px-1.5 py-0.5 text-[11px] transition-colors duration-[70ms] active:translate-y-px ${
                 on
-                  ? "border-accent text-accent"
-                  : "border-line-strong text-text-faint hover:text-text-dim"
+                  ? "border-accent bg-accent/10 text-accent hover:bg-accent/20"
+                  : "border-line-strong text-text-faint hover:border-text-faint hover:text-text-dim"
               }`}
             >
               {degree}
@@ -2319,10 +2349,10 @@ function Chips({
                   on ? selected.filter((s) => s !== option) : [...selected, option],
                 )
               }
-              className={`num border px-1.5 py-0.5 text-[11px] transition-colors ${
+              className={`num border px-1.5 py-0.5 text-[11px] transition-colors duration-[70ms] active:translate-y-px ${
                 on
-                  ? "border-accent text-accent"
-                  : "border-line-strong text-text-faint hover:text-text-dim"
+                  ? "border-accent bg-accent/10 text-accent hover:bg-accent/20"
+                  : "border-line-strong text-text-faint hover:border-text-faint hover:text-text-dim"
               }`}
             >
               {option}
@@ -2361,10 +2391,10 @@ function Timeframes({
                     : BIAS_TIMEFRAMES.filter((t) => t === tf || selected.includes(t)),
                 )
               }
-              className={`num border px-1.5 py-0.5 text-[11px] transition-colors ${
+              className={`num border px-1.5 py-0.5 text-[11px] transition-colors duration-[70ms] active:translate-y-px ${
                 on
-                  ? "border-accent text-accent"
-                  : "border-line-strong text-text-faint hover:text-text-dim"
+                  ? "border-accent bg-accent/10 text-accent hover:bg-accent/20"
+                  : "border-line-strong text-text-faint hover:border-text-faint hover:text-text-dim"
               }`}
             >
               {tf}
@@ -2385,6 +2415,7 @@ function Toggle({
   value,
   onChange,
   swatch,
+  icon,
 }: {
   label: string;
   value: boolean;
@@ -2395,10 +2426,22 @@ function Toggle({
    *  detectors, because they draw two: demand and supply are the one place in
    *  this app where colour carries meaning rather than identity. */
   swatch?: readonly string[];
+  /** Layer id, untuk mengambil glyph-nya. Bukan nama icon langsung: satu peta
+   *  di `icons.tsx` yang bisa dibandingkan lawan registry lebih mudah dijaga
+   *  daripada 21 nama yang tersebar di call site. */
+  icon?: string;
 }) {
   return (
-    <label className="flex cursor-pointer items-center justify-between gap-2">
+    <label className="group/toggle flex cursor-pointer items-center justify-between gap-2 rounded-[2px] transition-colors duration-[70ms] hover:bg-line/50">
       <span className="flex min-w-0 items-center gap-1.5">
+        {icon && LAYER_ICON[icon] ? (
+          <Icon
+            name={LAYER_ICON[icon]}
+            className={`size-4 shrink-0 transition-colors duration-[70ms] ${
+              value ? "text-text" : "text-text-faint group-hover/toggle:text-text-dim"
+            }`}
+          />
+        ) : null}
         {swatch?.length ? (
           <span
             aria-hidden
@@ -2409,20 +2452,39 @@ function Toggle({
             ))}
           </span>
         ) : null}
-        <span className="truncate text-[12px] text-text-dim">{label}</span>
+        <span
+          className={`truncate text-[12px] transition-colors duration-[70ms] ${
+            value ? "text-text" : "text-text-dim"
+          }`}
+        >
+          {label}
+        </span>
       </span>
+      {/* 70ms, dan angkanya dipinjam bukan dikarang: token motion IBM Carbon
+          menamai `duration-fast-01` 70ms dengan komentar "micro-interactions
+          such as button and toggle, instant response to user action". Apa pun
+          di atas 240ms tidak punya tempat di rail dengan 21 baris.
+
+          `active:` ada di sini karena SEBELUMNYA TIDAK ADA SATU PUN DI SELURUH
+          APP. Audit menghitung nol varian `active:` di `src/`: 55 tombol, 25
+          switch, 12 slider, dan tak satu pun memberi tanda bahwa ia sedang
+          ditekan. Geser satu piksel adalah tanda termurah yang masih terbaca,
+          dan `translate` dipilih ketimbang mengubah ukuran karena ia dikerjakan
+          compositor dan tidak memicu layout pada 21 baris sekaligus. */}
       <button
         type="button"
         role="switch"
         aria-checked={value}
         aria-label={label}
         onClick={() => onChange(!value)}
-        className={`h-4 w-8 shrink-0 border transition-colors ${
-          value ? "border-accent bg-accent/25" : "border-line-strong bg-transparent"
+        className={`h-4 w-8 shrink-0 border transition-colors duration-[70ms] active:translate-y-px ${
+          value
+            ? "border-accent bg-accent/25 hover:bg-accent/40"
+            : "border-line-strong bg-transparent hover:border-text-faint"
         }`}
       >
         <span
-          className={`block h-3 w-3 transition-transform ${
+          className={`block h-3 w-3 transition-transform duration-[70ms] ${
             value ? "translate-x-4 bg-accent" : "translate-x-0.5 bg-text-faint"
           }`}
         />
@@ -2485,10 +2547,10 @@ function Segmented({
             key={id}
             onClick={() => onChange(id)}
             aria-pressed={value === id}
-            className={`flex-1 px-2 py-1 text-[11px] transition-colors ${
+            className={`flex-1 px-2 py-1 text-[11px] transition-colors duration-[70ms] active:translate-y-px ${
               value === id
-                ? "bg-accent/15 text-accent"
-                : "text-text-faint hover:text-text-dim"
+                ? "bg-accent/15 text-accent hover:bg-accent/25"
+                : "text-text-faint hover:bg-line/60 hover:text-text-dim"
             }`}
           >
             {text}

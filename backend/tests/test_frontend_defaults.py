@@ -201,60 +201,82 @@ def test_every_degree_has_an_ink_weight_on_the_canvas():
 
 
 def test_one_place_owns_the_demand_and_supply_colours():
-    """Every hard-coded copy of the zone colour pair must equal globals.css.
+    """Satu tempat per theme memegang pasangan itu, dan tempat itu `ink.ts`.
 
-    `globals.css` already carries the warning: "FIVE PLACES HOLD THIS PAIR and
-    they must move together, or zones and candles end up different reds". On
-    2026-08-21 the pair moved from #2ea36f/#d4574f to #1f8f5f/#ef8f86 in
-    globals.css and zone-primitive.ts, and `e2e/pixel-truth.mjs` kept the old
-    values. That harness computes its edge-detection threshold FROM the colour,
-    so a stale copy does not fail the run - it mis-calibrates the probe and the
-    run stays green. It sat wrong for eleven days.
+    `globals.css` dulu membawa peringatan bahwa LIMA TEMPAT memegang pasangan
+    ini dan harus bergerak bersama, dan versi pertama test ini menegakkan
+    peringatan itu apa adanya: ia menuntut `const RGB = {` ada di
+    `zone-primitive.ts` dan heks literal ada di `chart.tsx`, lalu memeriksa
+    kelimanya setuju. Pada 21 Agustus 2026 pasangan itu bergerak dan
+    `e2e/pixel-truth.mjs` tertinggal sebelas hari; harness itu menghitung
+    threshold-nya DARI warnanya, jadi salinan basi tidak membuatnya merah, ia
+    membuatnya salah kalibrasi dan tetap hijau.
 
-    The warning was already written and was not enough, which is the whole
-    point of turning it into a test. `pixel-truth.mjs` now reads the tokens off
-    the page instead of holding a copy, so it is checked here for the ABSENCE
-    of one; the rest are checked for agreement.
+    Sekarang pertanyaannya berubah, karena arsitekturnya berubah. Menambah
+    theme terang membuat lima salinan jadi sepuluh, dan sepuluh salinan yang
+    harus setuju bukan masalah yang lebih baik dijaga test - ia masalah yang
+    lebih baik dihapus. `ink.ts` memegang keduanya lewat `sideRgba()`, dan yang
+    ditegakkan di sini bukan lagi "kelimanya setuju" melainkan "salinannya
+    tidak ada".
     """
     web = TYPES_TS.parents[2]
     css = (web / "src" / "app" / "globals.css").read_text(encoding="utf-8")
-    want = {
-        name: re.search(rf"--{name}:\s*(#[0-9a-f]{{6}});", css).group(1)
-        for name in ("demand", "supply")
-    }
 
-    primitive = (
-        web / "src" / "components" / "zone-primitive.ts"
-    ).read_text(encoding="utf-8")
-    block = primitive[primitive.index("const RGB = {") :][:200]
-    for name, hex_value in want.items():
-        triple = [int(hex_value[i : i + 2], 16) for i in (1, 3, 5)]
-        found = re.search(rf"{name}:\s*\[(\d+),\s*(\d+),\s*(\d+)\]", block)
-        assert found, f"zone-primitive.ts has no RGB triple for {name}"
-        assert [int(g) for g in found.groups()] == triple, (
-            f"zone-primitive.ts {name} is {found.groups()}, "
-            f"globals.css says {hex_value} = {triple}"
-        )
+    def pair(block: str) -> dict[str, str]:
+        return {
+            name: re.search(rf"--{name}:\s*(#[0-9a-f]{{6}});", block).group(1)
+            for name in ("demand", "supply")
+        }
 
+    dark_block = css[css.index(":root {") : css.index(':root[data-theme="light"]')]
+    light_block = css[css.index(':root[data-theme="light"]') :]
+    want = {"dark": pair(dark_block), "light": pair(light_block)}
+
+    # KEDUA THEME, dan itu setengah dari gunanya. Sebuah pasangan yang hanya
+    # benar di gelap akan mencetak candle hijau theme gelap di atas kertas.
+    ink = (web / "src" / "components" / "ink.ts").read_text(encoding="utf-8")
+    table = ink[ink.index("const SIDE = {") :]
+    table = table[: table.index("} as const")]
+    for theme, colours in want.items():
+        arm = table[table.index(f"{theme}: {{") :]
+        arm = arm[: arm.index("}")]
+        for name, hex_value in colours.items():
+            triple = [int(hex_value[i : i + 2], 16) for i in (1, 3, 5)]
+            found = re.search(rf"{name}:\s*\[(\d+),\s*(\d+),\s*(\d+)\]", arm)
+            assert found, f"ink.ts SIDE.{theme} tidak punya triple untuk {name}"
+            assert [int(g) for g in found.groups()] == triple, (
+                f"ink.ts SIDE.{theme}.{name} adalah {found.groups()}, "
+                f"globals.css bilang {hex_value} = {triple}"
+            )
+
+    # SALINANNYA TIDAK ADA. Tiap heks di bawah adalah pasangan itu dieja ulang,
+    # dan sebuah salinan diam saat theme berganti - kegagalan yang lebih buruk
+    # daripada salinan basi, karena ia SELALU salah di satu theme dan tidak
+    # pernah salah di theme tempat orang mengembangkannya.
+    every = {v for colours in want.values() for v in colours.values()}
+    every |= {"#2ea36f", "#d4574f"}  # pasangan sebelum 21 Agustus 2026
     for relative in (
         "src/components/chart.tsx",
         "src/components/zone-panel.tsx",
+        "src/components/zone-primitive.ts",
     ):
         source = (web / relative).read_text(encoding="utf-8")
-        stale = [
-            found
-            for found in re.findall(r"#[0-9a-f]{6}", source)
-            # Only the two roles this pair fills. Any other hex in these files
-            # is a different colour with a different owner.
-            if found in {"#2ea36f", "#d4574f"}
-        ]
-        assert not stale, f"{relative} still carries the pre-2026-08-21 pair: {stale}"
+        # Komentar dibuang: file file ini MENJELASKAN kenapa heksnya tidak lagi
+        # ada di sana, dan penjelasan itu menyebut heksnya.
+        code = re.sub(r"/\*.*?\*/", " ", source, flags=re.S)
+        code = re.sub("//.*", " ", code)
+        stale = [h for h in re.findall(r"#[0-9a-f]{6}", code) if h in every]
+        assert not stale, f"{relative} mengeja ulang pasangan itu: {stale}"
+
+    assert "const RGB = {" not in (
+        web / "src" / "components" / "zone-primitive.ts"
+    ).read_text(encoding="utf-8"), "tabel RGB lokal kembali ke zone-primitive.ts"
 
     harness = (web / "e2e" / "pixel-truth.mjs").read_text(encoding="utf-8")
     assert 'hex("--demand")' in harness and 'hex("--supply")' in harness, (
-        "pixel-truth.mjs must READ the palette off the page; a copy here goes "
-        "stale silently because the harness derives its threshold from it"
+        "pixel-truth.mjs harus MEMBACA palette dari halaman; salinan di sana "
+        "jadi basi tanpa suara karena harness itu menurunkan threshold darinya"
     )
     assert not re.search(r"RGB\s*=\s*\{\s*demand:\s*\[", harness), (
-        "pixel-truth.mjs has a hard-coded RGB table again"
+        "pixel-truth.mjs punya tabel RGB hard-coded lagi"
     )

@@ -117,7 +117,26 @@ cd frontend && npm run build                            # exit 0
 > cd frontend && node e2e/labels.mjs .playwright-shots           # peta tabrakan label (deterministik)
 > cd frontend && node e2e/sweep.mjs  .playwright-shots           # sapuan fitur penuh
 > cd frontend && node e2e/expectation-path.mjs .playwright-shots # garis path menggambar
+> cd frontend && node e2e/clickthrough.mjs .playwright-shots     # tiap kontrol diklik
+> cd frontend && node e2e/theme.mjs .playwright-shots            # dua theme, angka warnanya dibaca balik
 > ```
+>
+> `theme.mjs` masuk 3 September 2026 bersama light mode. Ia menghitung ulang
+> seluruh tabel kontras di kepala `globals.css` dari browser, di kedua theme,
+> jadi tabel itu tidak bisa jadi bohong diam diam. Dua check di dalamnya lahir
+> dari suntikan yang membuktikan versi pertamanya HAMPA: pemeriksaan
+> kelengkapan token lolos saat `--info` dihapus dari blok terang, karena custom
+> property MEWARIS dan `getComputedStyle` melaporkan nilai gelapnya; dan
+> pemeriksaan repaint canvas lolos saat SELURUH handler pergantian theme
+> dihapus, karena ia membandingkan byte PNG dari dua page load terpisah dan
+> satu byte bergeser karena harga bergerak. Yang mengukur sekarang: kunci
+> dibaca dari CSS-nya bukan dari browser, dan saklarnya diklik di halaman yang
+> sudah hidup lalu luminance rata rata canvas harus MELEWATI 0,5.
+>
+> Kalau perubahannya menyentuh warna, token, atau `src/components/icons.tsx`,
+> `theme.mjs` yang mengikat. Ia juga menjaga dua peta yang bentuk kegagalannya
+> sama dengan `LAYER_SWATCH`: tiap layer di registry harus punya glyph, dan
+> tiap role harus punya glyph.
 >
 > `labels.mjs` dipatok ke provider `synthetic` sejak 1 September 2026. Sebelum
 > itu ia membaca ekor MT5 hidup dan berubah hasil antar run di tree yang sama:

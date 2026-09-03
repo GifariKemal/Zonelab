@@ -18,6 +18,8 @@ import {
   subscribeRails,
 } from "@/lib/rails";
 import { Toolbox } from "@/components/toolbox";
+import { Icon } from "@/components/icons";
+import { ThemeToggle } from "@/components/theme-toggle";
 import { ChecklistPanel } from "@/components/checklist-panel";
 import { LiquidityPanel } from "@/components/liquidity-panel";
 import { PoskoPanel } from "@/components/posko-panel";
@@ -522,11 +524,11 @@ export default function Page() {
           onClick={() => setLive((v) => !v)}
           aria-pressed={live}
           title="Muat ulang tiap 30 detik"
-          className={`num flex items-center gap-1.5 border px-2 py-1 text-[11px] uppercase tracking-wider transition-colors ${
+          className={`num flex items-center gap-1.5 border px-2 py-1 text-[11px] uppercase tracking-wider transition-colors duration-[70ms] ${
             live
               ? "border-accent text-accent"
               : "border-line-strong text-text-faint hover:text-text-dim"
-          }`}
+          } active:translate-y-px`}
         >
           <span
             className={`inline-block h-1.5 w-1.5 rounded-full ${
@@ -541,10 +543,13 @@ export default function Page() {
             sliders that are the reason to open it. */}
         <Link
           href="/docs"
-          className="num border border-line-strong px-2 py-1 text-[11px] uppercase tracking-wider text-text-faint transition-colors hover:border-accent hover:text-accent"
+          className="flex items-center gap-1.5 border border-line-strong px-2 py-1 text-[11px] uppercase tracking-wider text-text-faint transition-colors duration-[70ms] hover:border-accent hover:text-accent active:translate-y-px"
         >
+          <Icon name="book" className="size-3.5" />
           Panduan
         </Link>
+
+        <ThemeToggle />
 
         {/* THE AUDIT BUTTON. Disabled until there is something to record, because
             a snapshot of a failed draw is a snapshot of an error message. The
@@ -557,13 +562,13 @@ export default function Page() {
           onChange={(e) => setSnapshotNote(e.target.value)}
           placeholder="note for the record"
           aria-label="Snapshot note"
-          className="num w-40 border border-line-strong bg-transparent px-2 py-1 text-[11px] text-text placeholder:text-text-faint focus:border-accent focus:outline-none"
+          className="num w-40 border border-line-strong bg-transparent px-2 py-1 text-[11px] text-text placeholder:text-text-faint focus:border-accent"
         />
         <button
           type="button"
           onClick={takeSnapshot}
           disabled={!data || snapshotBusy}
-          className="num border border-line-strong px-2 py-1 text-[11px] uppercase tracking-wider text-text-faint transition-colors hover:border-accent hover:text-accent disabled:cursor-not-allowed disabled:opacity-40"
+          className="num border border-line-strong px-2 py-1 text-[11px] uppercase tracking-wider text-text-faint transition-colors duration-[70ms] hover:border-accent hover:text-accent disabled:cursor-not-allowed disabled:opacity-40 active:translate-y-px"
         >
           {snapshotBusy ? "Saving" : "Snapshot"}
         </button>
@@ -619,11 +624,11 @@ export default function Page() {
               key={id}
               onClick={() => setInterval(id)}
               aria-pressed={interval === id}
-              className={`num px-2 py-1 text-[11px] transition-colors ${
+              className={`num px-2 py-1 text-[11px] transition-colors duration-[70ms] ${
                 interval === id
                   ? "bg-accent/15 text-accent"
                   : "text-text-faint hover:text-text-dim"
-              }`}
+              } active:translate-y-px`}
             >
               {id}
             </button>
@@ -651,13 +656,29 @@ export default function Page() {
               aria-label={name}
               title={`${on ? "Sembunyikan" : "Tampilkan"} ${name.toLowerCase()}`}
               onClick={() => set(!on)}
-              className={`num border px-2 py-1 text-[11px] uppercase tracking-wider transition-colors ${
+              // `text-fg` DAN `text-fg-dim` TIDAK PERNAH ADA. Tak satu pun
+              // dideklarasikan di blok `@theme inline`, jadi Tailwind tidak
+              // memancarkan apa apa untuk keduanya dan kedua tombol ini mewarisi
+              // warna dari `body`. Akibatnya state MENYALA dan MATI keluar warna
+              // yang identik, dan `hover:text-fg` tidak melakukan apa pun sama
+              // sekali. Diukur di browser: keduanya rgb(228, 232, 237).
+              //
+              // Cacat kelas yang sama sudah pernah diperbaiki di
+              // `posko-panel.tsx` untuk `bg-panel-elevated`, dan ia kembali di
+              // sini karena tidak ada yang menjaganya. `e2e/theme.mjs` sekarang
+              // membandingkan setiap kelas `text-*` dan `bg-*` di `src/` lawan
+              // daftar token yang benar benar dideklarasikan.
+              className={`border px-1.5 py-1 transition-colors duration-[70ms] active:translate-y-px ${
                 on
-                  ? "border-line-strong text-fg"
-                  : "border-line text-fg-dim hover:text-fg"
+                  ? "border-line-strong bg-line/40 text-text"
+                  : "border-line text-text-faint hover:border-text-faint hover:text-text-dim"
               }`}
             >
-              {name === "Panel kiri" ? "[<]" : "[>]"}
+              <Icon
+                name={name === "Panel kiri" ? "panel_left" : "panel_right"}
+                className="size-4"
+                label={`${on ? "Sembunyikan" : "Tampilkan"} ${name.toLowerCase()}`}
+              />
             </button>
           ))}
         </div>
@@ -713,7 +734,7 @@ export default function Page() {
           <button
             type="button"
             onClick={() => setSnapshotSaid(null)}
-            className="ml-2 uppercase tracking-wider text-text-faint transition-colors hover:text-accent"
+            className="ml-2 uppercase tracking-wider text-text-faint transition-colors duration-[70ms] hover:text-accent active:opacity-70"
           >
             dismiss
           </button>
@@ -731,12 +752,15 @@ export default function Page() {
       {data?.meta?.truncated_by_provider ? (
         <p
           role="status"
-          className="shrink-0 border-b border-accent/40 bg-accent/10 px-4 py-1 text-[11px] text-accent"
+          className="flex shrink-0 items-start gap-2 border-b border-info/40 bg-info/10 px-4 py-1 text-[11px] text-info"
         >
+          <Icon name="alert" className="mt-0.5 size-3.5 shrink-0" />
+          <span>
           {data.provider} returned {data.meta.bars_returned} of the{" "}
           {data.meta.bars_requested} bars requested, so the window is shorter
           than asked. Anything measured over a longer lookback than that is
           measured over history this source does not have.
+          </span>
         </p>
       ) : null}
 
@@ -757,8 +781,10 @@ export default function Page() {
       {hidden > 0 ? (
         <p
           role="status"
-          className="shrink-0 border-b border-accent/40 bg-accent/10 px-4 py-1 text-[11px] text-accent"
+          className="flex shrink-0 items-start gap-2 border-b border-info/40 bg-info/10 px-4 py-1 text-[11px] text-info"
         >
+          <Icon name="info" className="mt-0.5 size-3.5 shrink-0" />
+          <span>
           {hidden} of {zones.length} drawn{" "}
           {zones.length === 1 ? "zone is" : "zones are"} outside the price range
           on screen
@@ -769,6 +795,7 @@ export default function Page() {
               : " (below it)"}
           . The scale follows the candles, not the zones - zoom out or scroll the
           price axis to reach them. They are all listed in the panel on the right.
+          </span>
         </p>
       ) : null}
 
@@ -787,11 +814,23 @@ export default function Page() {
       {usable !== provider ? (
         <p
           role="status"
-          className="shrink-0 border-b border-accent/40 bg-accent/10 px-4 py-1 text-[11px] text-accent"
+          className="flex shrink-0 items-start gap-2 border-b border-info/40 bg-info/10 px-4 py-1 text-[11px] text-info"
         >
-          {provider} is not serving {symbol} right now, so everything on this
-          screen - chart, zones, plans, triad and account - was read from{" "}
-          {usable}. Pick {usable} in Source to pin it there.
+          {/* SEGITIGA, BUKAN LINGKARAN, dan itu satu satunya channel yang
+              tersisa untuk membedakan keduanya. Kedua banner ini dulu dicat
+              `--accent`, yang melanggar kalimat di `globals.css` bahwa accent
+              berarti "setelan yang kamu pilih". Keduanya sekarang `--info`,
+              dan yang satu ini lebih mendesak dari yang di atas - tapi hue
+              amber yang biasanya membawa urgensi cuma berjarak 12 derajat dari
+              accent emas di app ini, jadi warna tidak bisa memisahkan mereka.
+              Bentuk icon dan bobot teks yang memisahkan. */}
+          <Icon name="alert" className="mt-0.5 size-3.5 shrink-0" />
+          <span>
+            <b className="font-semibold">Source jatuh ke {usable}.</b>{" "}
+            {provider} is not serving {symbol} right now, so everything on this
+            screen - chart, zones, plans, triad and account - was read from{" "}
+            {usable}. Pick {usable} in Source to pin it there.
+          </span>
         </p>
       ) : null}
 

@@ -20,7 +20,7 @@ import type {
   TierHorizon,
 } from "@/lib/types";
 import { LABEL_GUTTER, claimedLabels, labelFree } from "./structure-primitive";
-import { INKS } from "./ink";
+import { INKS, plateInk } from "./ink";
 
 /**
  * Four price-anchored overlays in one primitive: opening gaps, event horizons,
@@ -328,7 +328,7 @@ class LevelsRenderer implements IPrimitivePaneRenderer {
           // tag sits at the band's birthplace, which is on top of the candles
           // that made it, and grey text on a candle body is not quiet, it is
           // unreadable.
-          ctx.fillStyle = "rgba(11, 13, 16, 0.85)";
+          ctx.fillStyle = plateInk(0.85);
           ctx.fillRect(rect.x - 2 * kx, rect.y, rect.w + 2 * kx, rect.h);
           ctx.fillStyle = ink(STANDING.label);
           ctx.fillText(tag, lx, ly);
@@ -363,7 +363,7 @@ class LevelsRenderer implements IPrimitivePaneRenderer {
         const rect = { x: lx, y: ly - 6 * ky, w: tw + pad, h: 12 * ky };
         if (labelFree(rect, claimedLabels)) {
           claimedLabels.push(rect);
-          ctx.fillStyle = "rgba(11, 13, 16, 0.85)";
+          ctx.fillStyle = plateInk(0.85);
           ctx.fillRect(rect.x - 2 * kx, rect.y, rect.w + 2 * kx, rect.h);
           ctx.fillStyle = ink(STANDING.label);
           ctx.fillText(stack.tag, lx, ly);
@@ -464,7 +464,7 @@ class LevelsRenderer implements IPrimitivePaneRenderer {
         const rect = { x: x2 + 3 * kx, y: y - 6 * ky, w: tw + 3 * kx, h: 12 * ky };
         if (labelFree(rect, claimedLabels)) {
           claimedLabels.push(rect);
-          ctx.fillStyle = "rgba(11, 13, 16, 0.85)";
+          ctx.fillStyle = plateInk(0.85);
           ctx.fillRect(rect.x - 2 * kx, rect.y, rect.w + 2 * kx, rect.h);
           ctx.fillStyle = ink(seg.faded ? FADED.label : STANDING.label);
           ctx.fillText(seg.tag, x2 + 3 * kx, y);

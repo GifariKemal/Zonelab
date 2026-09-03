@@ -11,7 +11,7 @@ import type { CanvasRenderingTarget2D } from "fancy-canvas";
 
 import type { SMTDivergence } from "@/lib/types";
 import { claimedLabels, labelFree } from "./structure-primitive";
-import { ink } from "./ink";
+import { ink, plateInk } from "./ink";
 
 /**
  * Regular SMT marker — a diamond at the quarter where one instrument took
@@ -77,7 +77,7 @@ class SMTRenderer implements IPrimitivePaneRenderer {
         if (!labelFree(box, claimedLabels)) continue;
         claimedLabels.push(box);
 
-        ctx.fillStyle = "rgba(11, 13, 16, 0.78)";
+        ctx.fillStyle = plateInk(0.78);
         ctx.fillRect(lx, y - h / 2, w, h);
         ctx.fillStyle = INK;
         ctx.fillText(m.tag, lx + pad, y);

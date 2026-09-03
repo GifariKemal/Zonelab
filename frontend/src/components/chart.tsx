@@ -41,6 +41,7 @@ import type {
 } from "@/lib/types";
 import { clockStamp, clockTick, ZONE_TAG, type ClockZone, type TickKind } from "@/lib/clock";
 import { priceDecimals } from "@/lib/price";
+import { resolve, subscribeTheme, themeSnapshot } from "@/lib/theme";
 import { BreakSeriesPrimitive } from "./break-primitive";
 import { ChartGapSeriesPrimitive } from "./chart-gap-primitive";
 import { CycleRibbon } from "./cycle-ribbon";
@@ -54,6 +55,7 @@ import { FibonacciSeriesPrimitive } from "./fibonacci-primitive";
 import { VortexSeriesPrimitive } from "./vortex-primitive";
 import { WyckoffSeriesPrimitive } from "./wyckoff-primitive";
 import { PSPSeriesPrimitive } from "./psp-primitive";
+import { setInkTheme, sideRgba, token } from "./ink";
 import { claimedLabels, StructureSeriesPrimitive } from "./structure-primitive";
 import { ZoneSeriesPrimitive } from "./zone-primitive";
 
@@ -187,6 +189,63 @@ function zoneAt(
   );
 }
 
+/** Opsi chart yang bergantung theme, di satu tempat.
+ *
+ *  Dipanggil dua kali: sekali saat chart dibuat, sekali setiap theme berganti.
+ *  Kalau kedua pemanggilan itu membaca daftar yang berbeda, satu permukaan akan
+ *  tertinggal di theme lama dan itu justru yang paling sulit dilihat - grid
+ *  chart yang masih gelap di atas kertas terang terbaca seperti bug rendering,
+ *  bukan seperti token yang lupa didaftarkan.
+ */
+function themedChartOptions() {
+  return {
+    layout: {
+      background: { type: ColorType.Solid as const, color: token("--bg", "#0b0d10") },
+      textColor: token("--chart-axis", "#8d99a8"),
+    },
+    grid: {
+      vertLines: { color: token("--chart-grid", "#141920") },
+      horzLines: { color: token("--chart-grid", "#141920") },
+    },
+    rightPriceScale: { borderColor: token("--line", "#1c222b") },
+    timeScale: { borderColor: token("--line", "#1c222b") },
+    crosshair: {
+      vertLine: {
+        color: token("--chart-cross", "#3b4653"),
+        labelBackgroundColor: token("--line-strong", "#2a323e"),
+      },
+      horzLine: {
+        color: token("--chart-cross", "#3b4653"),
+        labelBackgroundColor: token("--line-strong", "#2a323e"),
+      },
+    },
+  };
+}
+
+/** Warna candle, dari tabel yang sama dengan zona.
+ *
+ *  Riset atas TradingView Advanced Charts dan lightweight-charts menyarankan
+ *  MENGUNCI warna candle di luar sistem theme: keduanya memisahkan chrome dari
+ *  semantik secara struktural, dan `upColor`/`downColor` default library tidak
+ *  punya varian terang sama sekali. Saran itu tidak diambil di sini, dan
+ *  alasannya sebuah angka: supply salmon #ef8f86 hanya 1,60:1 lawan background
+ *  terang #f1f3f5. Sebuah candle turun pada kontras 1,6:1 tidak terbaca, dan
+ *  saran itu mengasumsikan background chart bernada tengah seperti punya
+ *  TradingView, bukan kertas. Yang dikunci di sini bukan nilainya melainkan
+ *  HUBUNGANNYA: hue tetap, urutan lightness tetap, jarak L* tetap 16,5.
+ */
+function candleColours() {
+  const opaque = (side: "demand" | "supply") => sideRgba(side, 1);
+  return {
+    upColor: opaque("demand"),
+    downColor: opaque("supply"),
+    borderUpColor: opaque("demand"),
+    borderDownColor: opaque("supply"),
+    wickUpColor: sideRgba("demand", 0.6),
+    wickDownColor: sideRgba("supply", 0.6),
+  };
+}
+
 export function Chart({
   candles,
   forming,
@@ -283,20 +342,20 @@ export function Chart({
   useEffect(() => {
     if (!host.current) return;
 
+    // Theme aktif dipasang ke `ink.ts` SEBELUM chart dibuat, karena primitive
+    // pertama sudah menggambar di frame yang sama.
+    setInkTheme(resolve(themeSnapshot()));
+    const themed = themedChartOptions();
     const instance = createChart(host.current, {
       autoSize: true,
       layout: {
-        background: { type: ColorType.Solid, color: "#0b0d10" },
-        textColor: "#8d99a8",
+        ...themed.layout,
         fontFamily: '"IBM Plex Mono", ui-monospace, monospace',
         fontSize: 11,
       },
-      grid: {
-        vertLines: { color: "#141920" },
-        horzLines: { color: "#141920" },
-      },
+      grid: themed.grid,
       rightPriceScale: {
-        borderColor: "#1c222b",
+        ...themed.rightPriceScale,
         scaleMargins: { top: 0.08, bottom: 0.08 },
         // DENSER THAN THE DEFAULT 2.5, where the number is spacing and not a
         // count: lower means labels sit closer, so more of them fit.
@@ -318,7 +377,7 @@ export function Chart({
         ensureEdgeTickMarksVisible: true,
       },
       timeScale: {
-        borderColor: "#1c222b",
+        ...themed.timeScale,
         timeVisible: true,
         // Bars open on the interval grid, so the seconds are always :00 and
         // saying so costs axis width for no information.
@@ -328,24 +387,20 @@ export function Chart({
       },
       crosshair: {
         mode: CrosshairMode.Normal,
-        vertLine: { color: "#3b4653", width: 1, style: 2, labelBackgroundColor: "#2a323e" },
-        horzLine: { color: "#3b4653", width: 1, style: 2, labelBackgroundColor: "#2a323e" },
+        vertLine: { ...themed.crosshair.vertLine, width: 1, style: 2 },
+        horzLine: { ...themed.crosshair.horzLine, width: 1, style: 2 },
       },
     });
 
     const candleSeries = instance.addSeries(CandlestickSeries, {
-      // `--demand` and `--supply` from globals.css, spelled out because the
-      // charting library takes strings and not CSS variables. The pair differs
-      // in lightness as well as hue so it survives greyscale and a red-green
-      // deficiency; globals.css carries the measurement and the list of the
-      // five files that must change together. A candle in one red and a zone
-      // in another is the failure that list exists to prevent.
-      upColor: "#1f8f5f",
-      downColor: "#ef8f86",
-      borderUpColor: "#1f8f5f",
-      borderDownColor: "#ef8f86",
-      wickUpColor: "#1f8f5f99",
-      wickDownColor: "#ef8f8699",
+      // `--demand` dan `--supply`, dari `ink.ts` dan tidak dieja ulang di sini.
+      // Library-nya menerima string dan bukan variabel CSS, jadi nilainya harus
+      // datang dari suatu tempat; yang berubah adalah tempatnya. Sebuah heks
+      // literal di sini akan diam saat theme berganti dan mencetak candle
+      // dengan hijau theme gelap di atas kertas terang sementara zona di
+      // sebelahnya sudah berganti - tepat kegagalan "candle satu merah, zona
+      // merah lain" yang daftar lima file itu ada untuk mencegahnya.
+      ...candleColours(),
     });
 
     // ATTACH ORDER IS LOAD-BEARING. Structure and zone borders both paint at
@@ -590,6 +645,38 @@ export function Chart({
       },
     });
   }, [chartApi, zone]);
+
+  /** THEME BERGANTI, DAN CANVAS TIDAK IKUT SENDIRI.
+   *
+   *  Kelas kontrol DOM berganti karena CSS; canvas tidak, karena ia dicat
+   *  dengan string warna yang sudah terlanjur dibaca. Jadi tiga hal harus
+   *  terjadi bersama di sini, dan urutannya mengikat:
+   *
+   *    1. `setInkTheme` menukar tabel yang `ink()`, `plateInk()` dan
+   *       `sideRgba()` baca. Tanpa ini semua primitive tetap di warna lama.
+   *    2. `applyOptions` pada chart dan series mengganti permukaan yang
+   *       dimiliki library, yaitu background, grid, sumbu dan candle.
+   *    3. `applyOptions` itu juga yang menginvalidasi pane, jadi primitive
+   *       dicat ulang dengan tabel yang baru. Kalau langkah 1 dilakukan tanpa
+   *       langkah 2, palette-nya berganti tapi tidak ada yang menggambar ulang,
+   *       dan setengah chart tertinggal di theme lama sampai ada yang menggeser
+   *       sumbu waktu.
+   *
+   *  Wiring ini adalah kelas cacat yang paling sulit dilihat karena hasilnya
+   *  warna BASI, bukan error. `e2e/theme.mjs` mengganti theme lalu membaca
+   *  bitmap canvas-nya kembali dan gagal kalau piksel chart tidak ikut berubah.
+   */
+  useEffect(() => {
+    const chartApiNow = chartApi;
+    if (!chartApiNow) return;
+    const repaint = () => {
+      setInkTheme(resolve(themeSnapshot()));
+      chartApiNow.applyOptions(themedChartOptions());
+      series.current?.applyOptions(candleColours());
+    };
+    repaint();
+    return subscribeTheme(repaint);
+  }, [chartApi]);
 
   useEffect(() => {
     if (!series.current || candles.length === 0) return;

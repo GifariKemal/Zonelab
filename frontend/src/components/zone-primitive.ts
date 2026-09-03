@@ -11,6 +11,7 @@ import type {
 
 import type { Zone, ZoneKind, ZoneState } from "@/lib/types";
 import { LABEL_GUTTER, claimedLabels, labelFree } from "./structure-primitive";
+import { plateInk, sideRgba } from "./ink";
 
 /** Lifecycle as a SHARE of the ink budget rather than as an absolute alpha.
  *  A fresh zone should still read at a glance from across the desk and a broken
@@ -78,16 +79,13 @@ const EDGE_ALPHA: Record<ZoneState, number> = {
  */
 const FILLED_NEAR_PRICE = 12;
 
-/** The same pair as `--demand` and `--supply` in globals.css, in channels
- *  because this paints to a canvas and needs alpha per stroke. Chosen so the
- *  two differ in LIGHTNESS as well as hue - L* 52.7 against 69.3, a greyscale
- *  contrast of 1.74:1 where the old pair managed 1.25:1 and was effectively one
- *  colour to a red-green deficient reader. See globals.css for the measurement
- *  and for the five files that hold this pair and must move together. */
-const RGB = {
-  demand: [31, 143, 95],
-  supply: [239, 143, 134],
-} as const;
+/* PASANGAN INI TIDAK LAGI DITULIS DI SINI. Ia dulu literal di file ini, salah
+   satu dari lima tempat yang `globals.css` peringatkan harus bergerak bersama.
+   Sekarang ia datang dari `ink.ts`, yang juga memegang versi terangnya - dan
+   sebuah literal di sini akan diam saja saat theme berganti, yang berarti zona
+   dicat dengan hijau theme gelap di atas kertas terang. Lima tempat jadi tiga:
+   globals.css, ink.ts, dan e2e/pixel-truth.mjs yang memodelkannya untuk membaca
+   border kembali dari bitmap. */
 
 const LABEL_MIN_HEIGHT = 15; // below this the box cannot hold legible text
 
@@ -181,8 +179,7 @@ const KIND_DASH: Record<ZoneKind, string> = {
 };
 
 function rgba(side: Zone["side"], alpha: number): string {
-  const [r, g, b] = RGB[side];
-  return `rgba(${r}, ${g}, ${b}, ${alpha})`;
+  return sideRgba(side, alpha);
 }
 
 interface Box {
@@ -550,7 +547,7 @@ class ZoneLabelRenderer implements IPrimitivePaneRenderer {
         // caption ink measures 6.1:1 for demand and 4.9:1 for supply against
         // #0b0d10 - both fine - and none of that survives a plate that does not
         // reach the background.
-        ctx.fillStyle = "rgba(11, 13, 16, 0.92)";
+        ctx.fillStyle = plateInk(0.92);
         ctx.fillRect(plate.x, plate.y, plate.w, plate.h);
 
         ctx.fillStyle = rgba(zone.side, zone.id === this.selectedId ? 1 : 0.9);

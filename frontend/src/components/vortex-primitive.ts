@@ -9,7 +9,7 @@ import type { CanvasRenderingTarget2D } from "fancy-canvas";
 
 import type { VortexDial } from "@/lib/types";
 import { claimedLabels } from "./structure-primitive";
-import { ink } from "./ink";
+import { ink, plateInk } from "./ink";
 
 /**
  * The 3-6-9 dial: six cycle rings, nine sectors, and where the newest bar sits.
@@ -72,7 +72,7 @@ const TRIANGLE = ink("grid", 0.72);
 const LIVE = ink("grid", 0.95);
 const CAPTION = ink("grid", 0.88);
 const SECTOR_NUM = ink("grid", 0.4);
-const PLATE = "rgba(11, 13, 16, 0.78)";
+const PLATE = plateInk(0.78);
 
 /** Below this the dial would be a smudge, so it is not drawn at all. An
  *  illegible instrument in the corner is worse than an absent one: it still

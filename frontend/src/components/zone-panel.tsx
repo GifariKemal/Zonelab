@@ -6,6 +6,7 @@ import { memo, useState } from "react";
 import { formatPrice } from "@/lib/price";
 import type { Advice, TradePlan, Zone } from "@/lib/types";
 import { clockStamp, type ClockZone } from "@/lib/clock";
+import { Icon } from "./icons";
 
 const STATE_LABEL: Record<Zone["state"], string> = {
   fresh: "Fresh",
@@ -177,8 +178,12 @@ export const ZonePanel = memo(function ZonePanel({
         </span>
       </header>
 
+      {/* `--info`, bukan `--accent`. Accent berarti "setelan yang kamu pilih";
+          kotak ini melaporkan keadaan chart dan bukan sebuah setelan. */}
       {hidden > 0 ? (
-        <p className="border-b border-accent/40 bg-accent/10 px-3 py-1.5 text-[11px] leading-relaxed text-accent">
+        <p className="flex items-start gap-2 border-b border-info/40 bg-info/10 px-3 py-1.5 text-[11px] leading-relaxed text-info">
+          <Icon name="info" className="mt-0.5 size-3.5 shrink-0" />
+          <span>
           {hidden} {hidden === 1 ? "zone is" : "zones are"} off the price range on
           screen
           {clipped.above > 0 && clipped.below > 0
@@ -187,6 +192,7 @@ export const ZonePanel = memo(function ZonePanel({
               ? ", above it"
               : ", below it"}
           . They are in the list; the chart cannot show them at this zoom.
+          </span>
         </p>
       ) : null}
 
@@ -254,11 +260,11 @@ export const ZonePanel = memo(function ZonePanel({
                 key={id}
                 onClick={() => setTab(id)}
                 aria-pressed={tab === id}
-                className={`flex-1 px-2 py-1.5 text-[11px] uppercase tracking-wider transition-colors ${
+                className={`flex-1 px-2 py-1.5 text-[11px] uppercase tracking-wider transition-colors duration-[70ms] ${
                   tab === id
                     ? "bg-accent/15 text-accent"
                     : "text-text-faint hover:text-text-dim"
-                }`}
+                } active:translate-y-px`}
               >
                 {label}
               </button>
@@ -321,17 +327,21 @@ function ZoneRow({
       // because it only counted buttons.
       data-testid="zone-row"
       onClick={() => onSelect(selected ? null : zone.id)}
-      className={`flex w-full items-center gap-2 border-b border-line px-3 py-2 text-left transition-colors ${
+      className={`flex w-full items-center gap-2 border-b border-line px-3 py-2 text-left transition-colors duration-[70ms] ${
         selected ? "bg-panel-2" : "hover:bg-panel-2/60"
-      }`}
+      } active:translate-y-px`}
     >
       <span
         aria-hidden
         className="h-6 w-[3px] shrink-0"
         style={{
-          // `--demand` / `--supply`, see globals.css for why the pair differs in
-          // lightness and for the five files that hold it.
-          background: zone.side === "demand" ? "#1f8f5f" : "#ef8f86",
+          // `var()`, BUKAN HEKS. Komentar lama di sini menyebut `--demand` dan
+          // `--supply` lalu menuliskan heksanya, yang membuat baris ini salah
+          // satu dari lima tempat yang harus bergerak bersama - dan yang paling
+          // mudah terlewat, karena ia terlihat sudah menyebut token-nya. Di
+          // theme terang sebuah heks di sini akan mencetak stripe hijau gelap
+          // di sebelah zona yang sudah berganti warna.
+          background: `var(--${zone.side})`,
           opacity: zone.state === "broken" ? 0.3 : 1,
         }}
       />
@@ -465,7 +475,7 @@ function PlanPanel({
           <button
             type="button"
             onClick={onReadAccount}
-            className="num w-full border border-line-strong px-2 py-1 text-[11px] uppercase tracking-wider text-text-faint transition-colors hover:border-accent hover:text-accent"
+            className="num w-full border border-line-strong px-2 py-1 text-[11px] uppercase tracking-wider text-text-faint transition-colors duration-[70ms] hover:border-accent hover:text-accent active:translate-y-px"
           >
             Read from terminal
           </button>
@@ -686,7 +696,7 @@ function AdvicePanel({ advice }: { advice: Advice | null }) {
           {note.learn ? (
             <Link
               href={`/docs#${note.learn}`}
-              className="mt-1 inline-block text-[11px] text-text-faint underline underline-offset-2 transition-colors hover:text-accent"
+              className="mt-1 inline-block text-[11px] text-text-faint underline underline-offset-2 transition-colors duration-[70ms] hover:text-accent active:opacity-70"
             >
               Pelajari: {DOC_TITLES[note.learn] ?? note.learn}
             </Link>

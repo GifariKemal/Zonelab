@@ -11,7 +11,7 @@ import type { CanvasRenderingTarget2D } from "fancy-canvas";
 
 import type { SSMTDivergence } from "@/lib/types";
 import { claimedLabels, labelFree } from "./structure-primitive";
-import { ink } from "./ink";
+import { ink, plateInk } from "./ink";
 
 /**
  * THE CROSS-INSTRUMENT DIVERGENCE, drawn where the method actually draws it.
@@ -130,7 +130,7 @@ class SSMTRenderer implements IPrimitivePaneRenderer {
         claimedLabels.push(box);
         // Plated, because these sit on top of candles and an unplated 9px
         // label over a wick is unreadable at any contrast.
-        ctx.fillStyle = "rgba(11, 13, 16, 0.78)";
+        ctx.fillStyle = plateInk(0.78);
         ctx.fillRect(lx, y2 - h / 2, w, h);
         ctx.fillStyle = INK;
         ctx.fillText(s.tag, lx + pad, y2);

@@ -98,10 +98,14 @@ export const PoskoPanel = memo(function PoskoPanel({
           <button
             key={t.key}
             onClick={() => pick(t.key)}
-            className={`flex-1 rounded px-1.5 py-1 text-[10px] font-medium transition-colors ${
+            // `text-white` adalah SATU SATUNYA kelas palet Tailwind tetap di
+            // seluruh `src/`, dan di theme terang ia mencetak putih di atas
+            // accent emas gelap: 2,1:1, di bawah floor mana pun. `--bg` selalu
+            // permukaan yang paling kontras dengan accent theme-nya sendiri.
+            className={`flex-1 rounded px-1.5 py-1 text-[10px] font-medium transition-colors duration-[70ms] active:translate-y-px ${
               triad === t.key
-                ? "bg-accent text-white"
-                : "bg-panel-2 text-text-dim hover:text-text"
+                ? "bg-accent text-bg hover:bg-accent/85"
+                : "bg-panel-2 text-text-dim hover:bg-line/60 hover:text-text"
             }`}
             title={t.desc}
           >

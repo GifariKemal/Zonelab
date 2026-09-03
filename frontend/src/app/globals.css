@@ -1,7 +1,34 @@
 @import "tailwindcss";
 
-/* Zonelab is an instrument, not a landing page. The whole surface is one dark
-   theme, locked - a chart that inverts mid-session ruins dark adaptation. */
+/* ZONELAB PUNYA DUA THEME, DAN DEFAULT-NYA TETAP GELAP.
+   Baris yang dulu ada di sini berbunyi "one dark theme, locked - a chart that
+   inverts mid-session ruins dark adaptation", dan alasannya masih benar. Yang
+   berubah bukan alasannya, melainkan siapa yang memegang saklarnya: theme
+   sekarang dipilih sekali dan disimpan, jadi tidak ada sesi yang membalik di
+   tengah jalan kecuali pembacanya sendiri yang membalik. Default tanpa pilihan
+   adalah gelap, bukan `prefers-color-scheme`, justru supaya sebuah OS yang
+   terang tidak membalik chart orang tanpa diminta.
+
+   ANGKANYA DITURUNKAN, BUKAN DIPILIH. Setiap floor yang dark theme penuhi
+   dipenuhi juga oleh light theme, dan itu bisa dibaca ulang:
+   `node e2e/theme.mjs` membacanya balik dari browser dan gagal kalau meleset.
+
+                          dark              light
+     text                 15,81:1           15,85:1
+     text-dim              7,87:1            7,83:1
+     text-faint            5,28:1            5,30:1
+     demand lawan bg       4,77:1            8,45:1
+     supply lawan bg       8,29:1            4,59:1
+     jarak L* pasangan    16,6              16,5
+     greyscale pasangan    1,74:1            1,84:1
+     supply lebih terang  ya                ya
+
+   Baris terakhir itu yang paling mudah hilang kalau palette light dipilih
+   dengan mata. Percobaan pertama saya mematok demand dan supply ke rasio
+   kontras yang SAMA, yang terdengar benar dan menghasilkan jarak L* 0,0: di
+   greyscale keduanya jadi satu warna, persis cacat yang catatan di bawah
+   bilang sudah diperbaiki untuk dark. Yang dijaga jarak L*-nya, bukan
+   kontrasnya. */
 
 :root {
   --bg: #0b0d10;
@@ -46,6 +73,42 @@
      like a control and put the brightest colour on screen next to the least
      actionable number. Values are --text; controls are --accent. */
   --accent: #d9a441;
+
+  /* SATU WARNA STATUS, DAN CUMA SATU. Dua banner di `page.tsx` dulu dicat
+     dengan `--accent`, yang langsung melanggar kalimat di atasnya: accent
+     berarti "setelan yang kamu pilih", dan sebuah peringatan bukan setelan.
+
+     Percobaan menambah `--warn` amber gagal diukur, bukan gagal selera: pada
+     kontras 5,0:1 hue amber yang terbaca sebagai peringatan jatuh di 27
+     derajat, yaitu 12 derajat dari accent emas dan 22 derajat dari supply
+     merah. Separuh hangat roda warna sudah habis dipegang dua makna, jadi
+     warna ketiga di sana hanya menambah tabrakan. Cyan 197 derajat adalah
+     titik terjauh dari demand yang masih terbaca sebagai status: tepat 43
+     derajat, pagar yang sama yang `ink.ts` pakai.
+
+     Bedanya info dan peringatan karena itu dibawa BOBOT, bukan hue - persis
+     cara detector dibedakan lewat pola dash dan bukan lewat warna.
+     Catatan jujur: ink family `levels` ada di hue 200,6 dan hanya 3,6 derajat
+     dari sini. Keduanya tidak pernah bersebelahan - `levels` digambar di
+     canvas, `--info` selalu di bar full-width di atas chart - tapi kalau suatu
+     saat ada yang menaruh badge info DI ATAS chart, itu tabrakan pertama yang
+     akan muncul. */
+  --info: #4f89a0;
+
+  /* TIGA PERMUKAAN CHART, dinamai supaya keduanya bisa berganti theme.
+     Ketiganya dulu heks literal di `chart.tsx` dan tidak cocok dengan token
+     mana pun, jadi memetakannya ke token terdekat akan mengubah tampilan dark
+     yang sudah diukur. Nilainya dipertahankan persis; padanan terangnya dicari
+     pada hue dan saturasi yang sama sampai rasio kontrasnya IDENTIK, jadi grid
+     chart sama samarnya di kedua theme.
+
+       token           dark      rasio    light     rasio
+       --chart-grid    #141920   1,10:1   #e4e8ee   1,10:1
+       --chart-cross   #3b4653   2,03:1   #a2aebd   2,03:1
+       --chart-axis    #8d99a8   6,72:1   #4b5663   6,72:1 */
+  --chart-grid: #141920;
+  --chart-cross: #3b4653;
+  --chart-axis: #8d99a8;
 
   /* INK BUDGET.
      Fill alpha is not a style choice here, it is a capacity limit. The zone
@@ -105,6 +168,69 @@
      drifting happened. The primitives own their ink and say so. */
 }
 
+
+/* ================================================================= LIGHT
+   Diturunkan `tools/palette` sekali, lalu dipatok di sini. Setiap angka di
+   tabel pada kepala file ini berasal dari blok ini, dan `e2e/theme.mjs`
+   membacanya balik dari browser supaya tabel itu tidak bisa jadi bohong diam
+   diam.
+
+   BACKGROUND-NYA BUKAN #ffffff, dengan alasan yang sama merah pekat di atas
+   hitam ditolak di theme gelap: kertas putih murni di bawah lampu ruangan
+   adalah kasus glare. #f1f3f5 menyisakan ruang supaya panel bisa LEBIH terang
+   dari page, jadi arah kedalamannya tetap sama seperti di gelap - permukaan
+   yang lebih dekat ke pembaca lebih terang, bukan lebih gelap. */
+:root[data-theme="light"] {
+  --bg: #f1f3f5;
+  --panel: #f8f9fa;
+  --panel-2: #fefeff;
+  --line: #dde2e8;
+  --line-strong: #bcc4cf;
+
+  /* 15,85 / 7,83 / 5,30 lawan #f1f3f5. Dark: 15,81 / 7,87 / 5,28. */
+  --text: #16191d;
+  --text-dim: #434c57;
+  --text-faint: #5d6571;
+
+  /* URUTANNYA DIPERTAHANKAN dan itu bukan detail kosmetik: supply tetap yang
+     lebih terang dari demand, sama seperti di gelap. Kalau dibalik, dua
+     screenshot chart yang sama dari dua theme akan terbaca berlawanan di
+     greyscale, dan greyscale itulah yang dibaca satu dari dua belas pria
+     dengan defisiensi merah-hijau. Jarak L* 16,5 lawan 16,6 di gelap;
+     kontras greyscale 1,84:1, sedikit lebih baik dari 1,74:1 di gelap. */
+  --demand: #155037;
+  --supply: #ba493e;
+
+  /* Emas di atas terang jadi lumpur kalau saturasinya dibiarkan. Hue-nya
+     dipertahankan di 38 supaya ia tetap emas yang sama, dan jaraknya ke supply
+     dibayar di lightness: 9,0 poin L*, lawan cuma 1,4 poin di theme gelap.
+     Ini satu satunya tempat light theme lebih baik dari dark, dan itu kebetulan
+     dari constraint-nya, bukan tujuan. */
+  --accent: #735218;
+  --info: #3f6e81;
+
+  --chart-grid: #e4e8ee;
+  --chart-cross: #a2aebd;
+  --chart-axis: #4b5663;
+}
+
+/* PILIHAN OS DIHORMATI, TAPI HANYA KALAU BELUM ADA PILIHAN SENDIRI.
+   `data-theme` dipasang skrip di `layout.tsx` sebelum paint pertama, jadi
+   selector di bawah hanya menang saat atributnya belum ada sama sekali -
+   yaitu ketika skrip itu diblokir. Ia jaring pengaman, bukan jalur utama. */
+@media (prefers-color-scheme: light) {
+  :root:not([data-theme]) {
+    color-scheme: light;
+  }
+}
+
+/* `color-scheme` DIDEKLARASIKAN, dan itu bukan basa basi. Enam `<select>` di
+   app ini adalah kontrol native: tanpa properti ini keduanya digambar UA
+   dengan panel gelap di theme terang, dan itu satu satunya elemen di layar
+   yang tidak ikut berganti. Scrollbar dan caret ikut properti yang sama. */
+:root { color-scheme: dark; }
+:root[data-theme="light"] { color-scheme: light; }
+
 @theme inline {
   --color-bg: var(--bg);
   --color-panel: var(--panel);
@@ -117,6 +243,7 @@
   --color-demand: var(--demand);
   --color-supply: var(--supply);
   --color-accent: var(--accent);
+  --color-info: var(--info);
 }
 
 html,
@@ -177,9 +304,69 @@ input[type="range"] {
   accent-color: var(--accent);
 }
 
+/* DUA PIKSEL, BUKAN SATU, dan angkanya punya sumber. WCAG 2.2 SC 2.4.13 Focus
+   Appearance menuntut indicator "at least as large as the area of a 2 CSS pixel
+   thick perimeter of the unfocused component". Aturan lama di sini 1px, jadi ia
+   setengah dari yang diminta - dan focus ring adalah satu satunya hal di layar
+   yang dibaca orang yang tidak memakai mouse.
+
+   `outline-offset` 2px supaya ring-nya tidak menempel di border kontrolnya
+   sendiri; SC yang sama menuntut kontras 3:1 antara state focused dan
+   unfocused, dan sebuah ring emas yang menyatu dengan border tidak
+   menghasilkan perubahan yang bisa diukur. */
 :focus-visible {
-  outline: 1px solid var(--accent);
-  outline-offset: 1px;
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+/* Marker `details` bawaan browser dimatikan, karena `Hint` menggambar
+   chevron-nya sendiri yang bisa berputar saat terbuka. Dua selector karena
+   WebKit masih butuh pseudo-element-nya disebut terpisah. */
+.marker-none {
+  list-style: none;
+}
+.marker-none::-webkit-details-marker {
+  display: none;
+}
+
+/* THUMB SLIDER DIGAMBAR SENDIRI, dan alasannya bisa dipegang: `accent-color`
+   saja memberi thumb bawaan UA yang ukurannya berbeda di tiap engine dan tidak
+   punya state hover atau active sama sekali. Ada 12 slider di panel ini, dan
+   sampai sekarang tak satu pun memberi tanda bahwa ia sedang diseret.
+
+   Dua blok terpisah dan tidak boleh digabung dengan koma: sebuah selector list
+   yang memuat pseudo-element vendor yang tidak dikenal membuat SELURUH rule
+   dibuang browser yang lain. */
+.range::-webkit-slider-thumb {
+  appearance: none;
+  width: 13px;
+  height: 13px;
+  border-radius: 999px;
+  background: var(--accent);
+  border: 2px solid var(--panel);
+  cursor: pointer;
+  transition: transform 70ms cubic-bezier(0.2, 0, 0.38, 0.9);
+}
+.range::-moz-range-thumb {
+  width: 13px;
+  height: 13px;
+  border-radius: 999px;
+  background: var(--accent);
+  border: 2px solid var(--panel);
+  cursor: pointer;
+  transition: transform 70ms cubic-bezier(0.2, 0, 0.38, 0.9);
+}
+.range:hover::-webkit-slider-thumb {
+  transform: scale(1.18);
+}
+.range:hover::-moz-range-thumb {
+  transform: scale(1.18);
+}
+.range:active::-webkit-slider-thumb {
+  transform: scale(0.92);
+}
+.range:active::-moz-range-thumb {
+  transform: scale(0.92);
 }
 
 @media (prefers-reduced-motion: reduce) {

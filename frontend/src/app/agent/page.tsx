@@ -247,7 +247,7 @@ export default function AgentPage() {
       <header className="flex items-center gap-4 border-b border-line px-5 py-3">
         <Link
           href="/"
-          className="text-xs uppercase tracking-wider text-text-faint hover:text-accent"
+          className="text-xs uppercase tracking-wider text-text-faint hover:text-accent transition-colors duration-[70ms] active:opacity-70"
         >
           &larr; Dashboard
         </Link>
@@ -270,7 +270,7 @@ export default function AgentPage() {
         )}
         <button
           onClick={() => setShowSettings((v) => !v)}
-          className="ml-auto rounded border border-line px-3 py-1 text-xs text-text-dim hover:border-accent hover:text-accent"
+          className="ml-auto rounded border border-line px-3 py-1 text-xs text-text-dim hover:border-accent hover:text-accent transition-colors duration-[70ms] active:translate-y-px"
         >
           Settings
         </button>
@@ -338,7 +338,7 @@ export default function AgentPage() {
               <button
                 onClick={saveSettings}
                 disabled={savingConfig}
-                className="rounded border border-accent bg-accent/10 px-4 py-1.5 text-xs text-accent hover:bg-accent/20 disabled:opacity-50"
+                className="rounded border border-accent bg-accent/10 px-4 py-1.5 text-xs text-accent hover:bg-accent/20 disabled:opacity-50 transition-colors duration-[70ms] active:translate-y-px"
               >
                 {savingConfig ? "Menyimpan..." : "Save & Probe"}
               </button>
@@ -421,7 +421,7 @@ export default function AgentPage() {
           <button
             onClick={scan}
             disabled={scanning}
-            className="rounded border border-accent bg-accent/10 px-4 py-2 text-xs font-semibold uppercase tracking-wider text-accent hover:bg-accent/20 disabled:opacity-50"
+            className="rounded border border-accent bg-accent/10 px-4 py-2 text-xs font-semibold uppercase tracking-wider text-accent hover:bg-accent/20 disabled:opacity-50 transition-colors duration-[70ms] active:translate-y-px"
           >
             {scanning ? "Scanning..." : "Scan"}
           </button>
@@ -522,7 +522,7 @@ export default function AgentPage() {
           <button
             onClick={() => void send()}
             disabled={thinking || !draft.trim()}
-            className="rounded border border-accent bg-accent/10 px-5 text-xs font-semibold uppercase tracking-wider text-accent hover:bg-accent/20 disabled:opacity-50"
+            className="rounded border border-accent bg-accent/10 px-5 text-xs font-semibold uppercase tracking-wider text-accent hover:bg-accent/20 disabled:opacity-50 transition-colors duration-[70ms] active:translate-y-px"
           >
             Kirim
           </button>

@@ -3,8 +3,9 @@
 import { useEffect, useMemo, useRef } from "react";
 import type { IChartApi, Time } from "lightweight-charts";
 
+import { subscribeTheme } from "@/lib/theme";
 import { DEGREES, type SessionQuarter } from "@/lib/types";
-import { ink } from "./ink";
+import { ink, monoStack, roleInk, tokenRgba } from "./ink";
 
 /**
  * The quarter ribbon, in its own strip beneath the chart.
@@ -57,11 +58,11 @@ import { ink } from "./ink";
 /** His four, in his words. Q4 carries TWO readings in his own notes and neither
  *  is marked as the primary, so both are kept and the tooltip says so rather
  *  than the label silently picking one. */
-const ROLE: Record<string, { short: string; full: string; ink: string }> = {
-  Q1: { short: "ACC", full: "accumulation", ink: "168, 162, 148" },
-  Q2: { short: "MAN", full: "manipulation", ink: "192, 138, 130" },
-  Q3: { short: "DIS", full: "distribution", ink: "156, 184, 156" },
-  Q4: { short: "CON", full: "continuation or reversal", ink: "134, 152, 176" },
+const ROLE: Record<string, { short: string; full: string }> = {
+  Q1: { short: "ACC", full: "accumulation" },
+  Q2: { short: "MAN", full: "manipulation" },
+  Q3: { short: "DIS", full: "distribution" },
+  Q4: { short: "CON", full: "continuation or reversal" },
 };
 
 /** Row labels. `session` is 90 minutes and he calls it 90M, so the ribbon uses
@@ -214,7 +215,12 @@ export function CycleRibbon({
       }
       ctx.setTransform(ratio, 0, 0, ratio, 0, 0);
       ctx.clearRect(0, 0, width, height);
-      ctx.font = "9px ui-monospace, monospace";
+      // PLEX MONO, sama seperti setiap angka lain di layar. Baris ini dulu
+      // `9px ui-monospace, monospace` dan tidak pernah sampai ke Plex, jadi
+      // ribbon adalah satu satunya teks di app yang digambar dengan font
+      // berbeda dari tetangganya. Variabelnya dibaca dari `<html>` karena
+      // `next/font` yang menamainya, dan namanya di-hash per build.
+      ctx.font = `9px ${monoStack()}`;
       ctx.textBaseline = "middle";
 
       const scale = chart.timeScale();
@@ -226,7 +232,7 @@ export function CycleRibbon({
       present.forEach((degree, row) => {
         const y = row * ROW_H;
 
-        ctx.fillStyle = "rgba(124, 134, 148, 0.75)";
+        ctx.fillStyle = tokenRgba("--text-faint", 0.75, "#7c8694");
         ctx.fillText(ROW[degree] ?? degree.toUpperCase(), 4, y + ROW_H / 2);
 
         // Resolve every segment BEFORE drawing any of it, because a row can fail
@@ -266,7 +272,7 @@ export function CycleRibbon({
 
         const lost = mine.length - boxes.length;
         if (!boxes.length) {
-          ctx.fillStyle = "rgba(124, 134, 148, 0.8)";
+          ctx.fillStyle = tokenRgba("--text-faint", 0.8, "#7c8694");
           ctx.fillText(
             `${mine.length} quarters, none of them land on a bar of this timeframe`,
             GUTTER + 5,
@@ -282,7 +288,7 @@ export function CycleRibbon({
         if (median < READABLE_PX) {
           ctx.fillStyle = ink("grid", 0.12);
           ctx.fillRect(GUTTER, y + 1, width - GUTTER, ROW_H - 3);
-          ctx.fillStyle = "rgba(124, 134, 148, 0.8)";
+          ctx.fillStyle = tokenRgba("--text-faint", 0.8, "#7c8694");
           ctx.fillText(
             `${boxes.length} quarters, too dense to read at this zoom`,
             GUTTER + 5,
@@ -303,9 +309,8 @@ export function CycleRibbon({
 
         for (const { q, left, right } of boxes) {
           if (right - left < 1) continue;
-          const role = ROLE[q.label];
           const live = at !== null && q.time_from <= at && at < q.time_to;
-          ctx.fillStyle = `rgba(${role.ink}, ${live ? 0.62 : 0.26})`;
+          ctx.fillStyle = `rgba(${roleInk(q.label)}, ${live ? 0.62 : 0.26})`;
           ctx.fillRect(left, y + 1, right - left - 1, ROW_H - 3);
 
           // The label is the only thing that types the segment. Colour cannot:
@@ -319,7 +324,7 @@ export function CycleRibbon({
           // colour only - which is exactly what his own diagram does with the
           // nested band above the main one.
           if (labelled) {
-            ctx.fillStyle = `rgba(228, 232, 237, ${live ? 0.95 : 0.6})`;
+            ctx.fillStyle = tokenRgba("--text", live ? 0.95 : 0.6, "#e4e8ed");
             ctx.fillText(tagOf(q), left + 4, y + ROW_H / 2);
           }
         }
@@ -329,7 +334,7 @@ export function CycleRibbon({
         // fraction of itself, and a reader counting segments would otherwise
         // count wrong.
         if (lost) {
-          ctx.fillStyle = "rgba(217, 164, 65, 0.85)";
+          ctx.fillStyle = tokenRgba("--accent", 0.85, "#d9a441");
           const note = `${lost} off-bar`;
           ctx.fillText(note, width - ctx.measureText(note).width - 4, y + ROW_H / 2);
         }
@@ -341,9 +346,15 @@ export function CycleRibbon({
     scale.subscribeVisibleLogicalRangeChange(paint);
     const observer = new ResizeObserver(paint);
     observer.observe(canvas);
+    // CANVAS SENDIRI, JADI LANGGANAN SENDIRI. Ia di luar sistem primitive, jadi
+    // `applyOptions` di `chart.tsx` tidak menyentuhnya - tanpa baris ini ribbon
+    // adalah satu satunya permukaan yang tertinggal di theme lama sampai ada
+    // yang menggeser sumbu waktu.
+    const stopTheme = subscribeTheme(paint);
     return () => {
       scale.unsubscribeVisibleLogicalRangeChange(paint);
       observer.disconnect();
+      stopTheme();
     };
   }, [chart, quarters, now]);
 
@@ -363,7 +374,7 @@ export function CycleRibbon({
             <span key={q} className="flex items-center gap-1 text-[10px] text-text-faint">
               <span
                 className="inline-block h-2 w-2"
-                style={{ background: `rgba(${ROLE[q].ink}, 0.62)` }}
+                style={{ background: `rgba(${roleInk(q)}, 0.62)` }}
                 aria-hidden
               />
               {ROLE[q].full}

@@ -10,7 +10,7 @@ import type {
 import type { CanvasRenderingTarget2D } from "fancy-canvas";
 
 import type { ChartGap } from "@/lib/types";
-import { ink } from "./ink";
+import { ink, plateInk } from "./ink";
 import { claimedLabels, labelFree, LABEL_GUTTER } from "./structure-primitive";
 
 /**
@@ -87,7 +87,7 @@ class ChartGapRenderer implements IPrimitivePaneRenderer {
         const box = { x: x / kx, y: (tagY * ky - h / 2) / ky, w: w / kx, h: h / ky };
         if (tagY * ky >= 0 && tagY * ky <= height && labelFree(box, claimedLabels)) {
           claimedLabels.push(box);
-          ctx.fillStyle = "rgba(11, 13, 16, 0.78)";
+          ctx.fillStyle = plateInk(0.78);
           ctx.fillRect(x, Math.round(tagY * ky) - h / 2, w, h);
           ctx.fillStyle = ink(INK, 0.9);
           ctx.fillText(row.tag, x + pad, Math.round(tagY * ky));

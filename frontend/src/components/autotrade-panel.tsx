@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState } from "react";
 
 import { fetchAutotrade, setAutotrade } from "@/lib/api";
 import type { AutotradeState } from "@/lib/types";
+import { Icon } from "./icons";
 
 /** How often the switch is re-read. Shorter than the daemon's 20-second cycle so
  *  a death is visible here within one cycle of it becoming true, and long enough
@@ -107,23 +108,36 @@ export function AutoTradePanel() {
           onClick={() => void flip()}
           disabled={busy || !state}
           aria-pressed={enabled}
-          className={`shrink-0 rounded-[2px] border px-2 py-1 text-[11px] ${
+          // Tombol yang MENGARMKAN uang sungguhan, dan sampai sekarang ia satu
+          // satunya kontrol besar di app tanpa hover sama sekali. Audit
+          // menghitungnya: tidak ada hover, tidak ada active, dan disabled-nya
+          // ditulis lewat ternary `opacity-40` dan bukan varian `disabled:`,
+          // jadi ia tidak ikut kalau `disabled` datang dari tempat lain.
+          className={`shrink-0 rounded-[2px] border px-2 py-1 text-[11px] transition-colors duration-[70ms] enabled:active:translate-y-px disabled:cursor-not-allowed disabled:opacity-40 ${
             enabled
-              ? "border-accent text-accent"
-              : "border-line-strong text-text-dim"
-          } ${busy || !state ? "opacity-40" : ""}`}
+              ? "border-accent text-accent enabled:hover:bg-accent/15"
+              : "border-line-strong text-text-dim enabled:hover:border-text-faint enabled:hover:text-text"
+          }`}
         >
           {enabled ? "Disarm" : "Arm"}
         </button>
       </div>
 
       {orphaned ? (
-        <p className="mt-3 border-l-2 border-accent bg-accent/10 pl-2 text-[11px] leading-relaxed text-accent">
+        // ALARM PALING KERAS DI APP INI, dan ia TIDAK dapat hue sendiri.
+        // Merah sudah berarti supply dan amber cuma berjarak 12 derajat dari
+        // accent emas, jadi warna ketiga di sini akan terbaca sebagai arah atau
+        // sebagai kontrol. Yang membawa urgensinya bentuk dan bobot: glyph
+        // segitiga, rule 2px, dan satu satunya teks bold di panel.
+        <p className="mt-3 flex items-start gap-2 border-l-2 border-info bg-info/10 py-1 pl-2 text-[11px] leading-relaxed text-info">
+          <Icon name="alert" className="mt-0.5 size-3.5 shrink-0" />
+          <span>
           Armed, and <strong>nothing is trading</strong>: no daemon has stamped a
           heartbeat in the last minute. The switch only writes a flag - the API
           cannot place orders. Start the daemon:
           <br />
           <code className="num">python -m tools.autotrade --send</code>
+          </span>
         </p>
       ) : null}
 

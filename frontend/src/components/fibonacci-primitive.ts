@@ -10,7 +10,7 @@ import type {
 import type { CanvasRenderingTarget2D } from "fancy-canvas";
 
 import { LABEL_GUTTER, claimedLabels, labelFree } from "./structure-primitive";
-import { ink } from "./ink";
+import { ink, plateInk } from "./ink";
 
 /**
  * Fibonacci / OTE grid over one structural swing.
@@ -104,7 +104,7 @@ class FibRenderer implements IPrimitivePaneRenderer {
         if (!labelFree(box, claimedLabels)) continue;
         claimedLabels.push(box);
         ctx.setLineDash([]);
-        ctx.fillStyle = "rgba(11, 13, 16, 0.78)";
+        ctx.fillStyle = plateInk(0.78);
         ctx.fillRect(lx, y - h / 2, w, h);
         ctx.fillStyle = style;
         ctx.fillText(line.label, lx + pad, y);

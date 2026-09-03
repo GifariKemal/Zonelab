@@ -11,7 +11,7 @@ import type { CanvasRenderingTarget2D } from "fancy-canvas";
 
 import type { DefiningRangeBand } from "@/lib/types";
 import { claimedLabels, labelFree, LABEL_GUTTER } from "./structure-primitive";
-import { INKS } from "./ink";
+import { INKS, plateInk } from "./ink";
 
 /**
  * THE DEFINING RANGE: the band, its 50% line, and its projections.
@@ -176,7 +176,7 @@ class DFRRenderer implements IPrimitivePaneRenderer {
           const box = { x: x / kx, y: (cy - h / 2) / ky, w: w / kx, h: h / ky };
           if (!labelFree(box, claimedLabels)) continue;
           claimedLabels.push(box);
-          ctx.fillStyle = "rgba(11, 13, 16, 0.78)";
+          ctx.fillStyle = plateInk(0.78);
           ctx.fillRect(x, Math.round(cy) - h / 2, w, h);
           ctx.fillStyle = `rgba(${INK}, 0.95)`;
           ctx.fillText(row.tag, x + pad, Math.round(cy));
