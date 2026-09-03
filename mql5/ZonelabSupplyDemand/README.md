@@ -214,9 +214,18 @@ Yang tersisa dan belum diisolasi, terukur sejauh ini:
   berikut): `ZonelabFVG_XAUUSD_M30` memasang 650 order, melewati 75 tanpa
   target, 1 karena harga sudah lewat, dan 8 gagal, sementara rig Python
   menyelesaikan 953 trade di jendela yang sama.
-- **`InpBars` = 3000.** EA memindai 3.000 bar terakhir tiap tick, sekitar 62
-  hari di M30, sementara Python memakai deret penuh. Zona yang lahir lebih dari
-  3.000 bar sebelum sentuhannya tidak ada di sisi MQL5.
+- **`InpBars` = 3000.** EA memindai 3.000 bar terakhir, sekitar 62 hari di M30,
+  sementara Python memakai deret penuh. Zona yang lahir lebih dari 3.000 bar
+  sebelum sentuhannya tidak ada di sisi MQL5.
+
+  Menaikkannya tidak semurah kelihatannya, dan angkanya diukur. `OnTick` punya
+  guard bar-baru (`ZonelabFVG.mq5:85-93`), jadi deteksinya jalan sekali per BAR
+  dan bukan per tick - tapi tiap kali ia memindai ULANG seluruh `InpBars`, jadi
+  biayanya `O(bar x InpBars)`, kuadratik terhadap panjang run. Sel M30 pada
+  3.000 bar selesai 49 detik; percobaan `InpBars=20000` di sel yang sama
+  DIHENTIKAN setelah 30 menit tanpa report. Jadi menyamakan populasi ke sisi
+  Python lewat input saja tidak layak, dan yang dibutuhkan deteksi inkremental
+  yang cuma memproses bar baru.
 - **ATR untuk stop berbeda di TIGA tempat.** EA memakai `atr[base_from-1]`, API
   Zonelab memakai `atr[-1]` untuk setiap zona (`app/main.py:991`), dan komentar
   di `ZonelabFVG.mq5:154-158` sudah mencatat itu sebagai pertanyaan terbuka.
