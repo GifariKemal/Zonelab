@@ -213,6 +213,27 @@ const OWNERS = [
   ["news", "Economic calendar", "Impact"],
 ];
 
+// DAN DAFTAR ITU HARUS MENUTUP REGISTRY, yang sampai 3 September 2026 tidak
+// pernah diperiksa. `OWNERS` di-loop atas DIRINYA SENDIRI, jadi sebuah params
+// block baru mendapat toggle tanpa kontrol dan harness ini tetap hijau -
+// bandingkan `DRAWS` di atas, yang di-loop atas `registry` sehingga layer baru
+// membuatnya merah, dan sensus slider di `sweep.mjs` yang memeriksa `missing`
+// DAN `extra`. `OWNERS` satu-satunya sensus di file ini yang gagal sunyi.
+//
+// `chart_gaps` dikecualikan dengan alasannya: `ChartGapParams` punya NOL field,
+// jadi `knobs()` memang tidak punya `case` untuknya dan tidak ada kontrol yang
+// bisa dicari. Pengecualian ini ditulis, bukan disimpulkan dari ketiadaan.
+const NO_CONTROLS = new Set(["chart_gaps"]);
+const blocks = [...new Set(registry.map((l) => l.params))];
+const owned = new Set(
+  OWNERS.map(([id]) => registry.find((l) => l.id === id)?.params).filter(Boolean),
+);
+const uncovered = blocks.filter((b) => !owned.has(b) && !NO_CONTROLS.has(b));
+const phantom = [...owned].filter((b) => !blocks.includes(b));
+check("every params block the registry advertises has an owner row here",
+      uncovered.length === 0 && phantom.length === 0,
+      `uncovered [${uncovered}] phantom [${phantom}]`);
+
 for (const [id, label, knob] of OWNERS) {
   const toggle = page.getByRole("switch", { name: label, exact: true });
   if ((await toggle.getAttribute("aria-checked")) === "false") {

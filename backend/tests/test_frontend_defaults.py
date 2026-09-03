@@ -146,12 +146,26 @@ def test_the_typescript_copy_matches_every_model_default():
         "a default moved on one side only, and the stale copy WINS because the "
         "frontend sends it on every request: " + "; ".join(sorted(wrong))
     )
-    # Not an assertion. An omitted key falls back to the model's own default,
-    # which is correct - but the list is worth printing, because a knob absent
-    # from the copy is usually a knob absent from the UI too.
-    if omitted:
-        print(f"\n{len(omitted)} model defaults the frontend does not send: "
-              + ", ".join(sorted(omitted)))
+    # SEBUAH ASSERT SEKARANG, DAN SEBELUMNYA CUMA PRINT. Komentar lama menyebut
+    # ketiadaan itu "benar" karena key yang hilang jatuh ke default model, lalu
+    # mengakui sendiri di kalimat berikutnya bahwa knob yang hilang dari salinan
+    # biasanya juga hilang dari UI - dan tetap tidak meng-assert-nya.
+    #
+    # Akibatnya bisa diperiksa: `supply_demand.curve_lookback` dan
+    # `supply_demand.arrival_bars` hilang dari `types.ts`, dicetak ke stdout
+    # pytest setiap run, dan suite tetap hijau. Itu persis kelas cacat yang
+    # CLAUDE.md peringatkan, di gerbang yang ditulis untuk mencegahnya.
+    #
+    # KENAPA INI BUKAN KOSMETIK. Key yang hilang memang jatuh ke default model
+    # HARI INI. Besok default itu bergeser dan tidak ada yang memberi tahu,
+    # karena kedua cek di atas hanya membandingkan key yang HADIR di kedua sisi.
+    # Salinan yang lengkap adalah yang membuat keduanya mengikat untuk seluruh
+    # model, bukan untuk sebagiannya.
+    assert not omitted, (
+        "the frontend copy is missing model defaults, so the two checks above "
+        "cannot bind for them and a default that moves later moves silently: "
+        + ", ".join(sorted(omitted))
+    )
 
 
 def test_every_degree_has_an_ink_weight_on_the_canvas():

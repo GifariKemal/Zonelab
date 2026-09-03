@@ -287,6 +287,21 @@ export interface SupplyDemandParams {
   show_mitigated: boolean;
   max_zones_per_side: number;
   merge_overlap_pct: number;
+  /** DIKIRIM TAPI TIDAK PUNYA SLIDER, dan itu disengaja untuk sekarang.
+   *
+   *  Keduanya hilang dari salinan ini sampai 3 September 2026, dan
+   *  `tests/test_frontend_defaults.py` MENCETAK ketiadaannya alih-alih
+   *  meng-assert-nya, jadi keduanya lewat tanpa ada yang tahu. Nilai backend
+   *  yang menang saat itu sama dengan yang di sini, jadi tidak ada perilaku
+   *  yang berubah - yang berubah, mereka sekarang terlihat, dan sebuah default
+   *  yang bergeser di satu sisi akan merahkan test itu seperti field lain.
+   *
+   *  Tidak punya kontrol di toolbox: `curve_lookback` 200 bar dan
+   *  `arrival_bars` 6 bar keduanya besaran pengukuran, bukan pilihan gambar,
+   *  dan menambahkan slider untuk sesuatu yang belum pernah disapu akan
+   *  menawarkan knob yang tidak ada angkanya. */
+  curve_lookback: number;
+  arrival_bars: number;
 }
 
 /** Shared by the fvg, order_block, ifvg and breaker detectors, which is why the
@@ -1637,6 +1652,8 @@ export const DEFAULT_LAYER_PARAMS: LayerParams = {
     show_mitigated: true,
     max_zones_per_side: 6,
     merge_overlap_pct: 0.6,
+    curve_lookback: 200,
+    arrival_bars: 6,
   },
   imbalance: {
     atr_period: 14,
