@@ -190,9 +190,25 @@ const at = { x: Math.round(box.x + box.width * 0.6), y: Math.round(box.y + box.h
 
 /** "16 Aug 19:00 NY" -> { minutes, tag }. Compared as minutes past midnight so a
  *  month boundary cannot break the arithmetic; every offset in play is well
- *  inside twelve hours, which is what makes that safe. */
+ *  inside twelve hours, which is what makes that safe.
+ *
+ *  `\w{3,4}`, DAN ANGKA ITU BUKAN KELONGGARAN. `clock.ts` memformat dengan
+ *  `en-GB` dan `month: "short"`, dan en-GB memberi tiga huruf untuk SEBELAS
+ *  bulan lalu EMPAT untuk September: `Sept`. Versi pertama pola ini `\w{3}`,
+ *  jadi ia cocok sebelas bulan dan gagal satu.
+ *
+ *  Akibatnya harness ini merah sepanjang September dan hijau sendiri pada 1
+ *  Oktober tanpa ada yang menyentuh satu baris. Itu bentuk kegagalan yang
+ *  paling buruk yang bisa dipunyai sebuah harness: warnanya ditentukan
+ *  kalender, jadi siapa pun yang melihatnya merah akan mencari cacat di app
+ *  yang tidak ada, dan siapa pun yang melihatnya hijau tidak tahu ia baru saja
+ *  berhenti memeriksa apa pun.
+ *
+ *  Diukur, bukan disimpulkan: app melukis `02 Sept 19:45 UTC`, dan
+ *  `Intl.DateTimeFormat("en-GB", { month: "short" })` atas dua belas bulan
+ *  mengembalikan panjang 3 dan 4. */
 const parseStamp = (text) => {
-  const m = /^\d{2} \w{3} (\d{2}):(\d{2}) (UTC|NY|WIB)$/.exec(text);
+  const m = /^\d{2} \w{3,4} (\d{2}):(\d{2}) (UTC|NY|WIB)$/.exec(text);
   return m ? { minutes: Number(m[1]) * 60 + Number(m[2]), tag: m[3], text } : null;
 };
 

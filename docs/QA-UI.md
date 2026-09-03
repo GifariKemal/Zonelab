@@ -410,6 +410,8 @@ cd frontend && node e2e/clickthrough.mjs .playwright-shots
 cd frontend && node e2e/theme.mjs .playwright-shots        # 54 check
 cd frontend && node e2e/retina.mjs .playwright-shots       # 10 check, 2 skala device
 cd frontend && npm run e2e:pixels                          # 7/7 geometri zona
+cd frontend && node e2e/click-everything.mjs .playwright-shots  # 223/223 setelah saklar rail dilewati
+cd frontend && node e2e/clock.mjs .playwright-shots        # 42/42 setelah pola bulan dilebarkan
 ```
 
 ## Suntikan yang membuktikan `theme.mjs` tidak hampa
@@ -535,6 +537,144 @@ dikejar `waitForTimeout` akan menangkap keadaan yang berbeda tiap run. Tidak
 ada jalur normal yang melewati kedua state itu, jadi sebuah cacat di sana bisa
 hidup berbulan bulan tanpa ada yang tahu.
 
+## Sensus harness, karena delapan dari dua puluh lima tidak cukup
+
+Pekerjaan di atas dijalankan atas delapan harness. Repo ini punya **25**.
+Menjalankan sisanya menemukan tiga hal, dan dua di antaranya cacat harness yang
+membuat pengukuran lain berhenti berarti.
+
+### `click-everything.mjs` menutup dua panel lalu mencari isinya
+
+Ia mengklik **setiap** tombol, termasuk dua saklar rail. Mengklik keduanya
+menyembunyikan panel kiri dan kanan, jadi sisa crawl mencari kontrol di panel
+yang baru saja ia tutup. Dua kegagalan yang berdiri di file itu melaporkan panel
+yang rusak:
+
+```
+FAIL  reset button is reachable :: no button matched /reset parameters/i
+FAIL  zone row opens the inspector :: panel says "(no header)"
+```
+
+Panelnya baik. Yang tidak baik jangkauannya:
+
+| | check dijalankan |
+|---|---|
+| sebelum | 65 dari 67 |
+| sesudah kedua saklar dilewati | **223 dari 223** |
+
+Jadi sebuah harness bernama "click everything" menjangkau **kurang dari
+sepertiga** kontrol app dan melaporkannya sebagai lengkap. Kedua saklar itu
+punya harness sendiri, `e2e/rails.mjs` 9/9, yang memang memeriksa panel hilang
+lalu kembali.
+
+Dibuktikan tidak hampa: `onChange` di saklar layer diganti no-op, dan harness
+itu jatuh ke 163/165 dengan tangkapan yang benar, `panel says "0 drawn"`.
+
+### `clock.mjs` merah satu bulan dalam setahun
+
+Tiga kegagalan berbunyi `no crosshair stamp was painted`. App-nya **melukis**
+stamp-nya; diukur dengan membungkus `fillText`, yang keluar `02 Sept 19:45 UTC`.
+
+Pola harness-nya `/^\d{2} \w{3} (\d{2}):(\d{2}) (UTC|NY|WIB)$/`. `clock.ts`
+memformat dengan `en-GB` dan `month: "short"`, dan en-GB memberi **tiga huruf
+untuk sebelas bulan lalu EMPAT untuk September**: `Sept`. Dijalankan atas dua
+belas bulan, panjangnya 3 dan 4.
+
+Jadi harness itu merah sepanjang September dan hijau sendiri pada 1 Oktober
+tanpa ada yang menyentuh satu baris. Itu bentuk kegagalan terburuk yang bisa
+dipunyai sebuah harness: warnanya ditentukan kalender, jadi yang melihatnya
+merah mencari cacat yang tidak ada, dan yang melihatnya hijau tidak tahu ia baru
+berhenti memeriksa apa pun.
+
+| | |
+|---|---|
+| sebelum | 36 dari 39 |
+| sesudah pola dilebarkan ke `\w{3,4}` | **42 dari 42** |
+
+Tiga check yang bergantung pada stamp itu selama ini tidak pernah dijalankan.
+Dibuktikan tidak hampa: tag zona dihapus dari `clockStamp`, dan harness itu
+jatuh ke 34/39 dengan lima kegagalan termasuk `got 15 Jan 07:30, want 15 Jan
+07:30 NY`.
+
+### `nonbox-truth.mjs` masih merah, dan saya tidak menyelesaikannya
+
+```
+FAIL  garis putus-putus benar-benar putus :: duty solid 1.000 (n=23) lawan
+      dashed 0.893 (n=4), selisih 0.107 butuh >= 0.15
+```
+
+Yang sudah dipastikan:
+
+- **Bukan dari sesi ini.** Identik byte per byte di commit pra-sesi `e6c0e73`.
+- **Bukan penjumlahan baris bersebelahan** di probe-nya. Komentar di sana
+  menjelaskan penjumlahan itu mengompensasi stroke yang terbelah setengah
+  pixel; dimatikan sebagai eksperimen, angkanya **tetap 0,893**.
+- Ray tier horizon memang digambar dash `[4, 3]`, jadi duty seharusnya
+  4/7 = **0,571**, bukan 0,893.
+
+Yang belum diuji: apakah dua ray dash dengan **fase berbeda** mendarat di harga
+berdekatan sehingga gabungannya terbaca hampir solid. Tiga tier dikali dua kind
+memberi sampai enam ray, dan probe-nya menyapu 6 baris ke atas dan bawah lalu
+mengambil yang terdekat. Kalau itu sebabnya, yang harus diperbaiki isolasi ray
+di probe-nya, bukan gambarnya.
+
+Diserahkan begitu, bukan ditebak. File itu sendiri membawa komentar tentang tiga
+cacat probe sebelumnya, jadi menulis ulang scan intinya tanpa mengukur sebabnya
+adalah cara cacat probe keempat masuk.
+
+### `labels.mjs` deterministik terhadap kode, bukan terhadap waktu
+
+Ia hijau 9/9 dua kali di sesi ini lalu merah 8/9 beberapa jam kemudian dengan
+straddle di edge **atas**, `y: -1.5`. Dijalankan di commit pra-sesi `e6c0e73`
+pada saat yang sama: **merah juga, di posisi identik**, hanya lebarnya beda
+(24,99 lawan 27, yang justru mengonfirmasi perubahan font di atas aktif).
+
+Jadi bukan dari sesi ini. Tapi catatan yang ada menyebut harness ini
+"deterministik sejak dipatok ke synthetic", dan itu lebih sempit dari yang
+tertulis: provider synthetic tetap maju dengan wall-clock, jadi caption yang
+muat pada pukul delapan bisa menggantung pada pukul dua belas. Ia deterministik
+untuk membandingkan dua tree **pada saat yang sama**, yang memang gunanya, tapi
+merah telanjang di sana bukan bukti cacat kode.
+
+### Keadaan seluruh 25 harness
+
+Hijau, 20: `wiring`, `labels` (lihat catatan waktu di atas), `sweep` 158/158,
+`expectation-path`, `clickthrough`, `theme` 54, `retina` 10, `pixel-truth` 7/7,
+`rails` 9/9, `ink-budget` 3/3, `ribbon` 8/8, `clock` 42/42, `zone-audit`,
+`chart-audit`, `viewports` 25/25, `visual-audit`, `posko-fibonacci` 30/30,
+`vortex` 21/21, `offscreen-zones` 3/3, `click-everything` 223/223, `agent` 7/7.
+
+Merah, 3, semuanya pra-sesi dan diverifikasi identik di `e6c0e73`:
+`nonbox-truth` 4/5, `pixels-ifvg` 6/7, `pixels-brk` 5/7.
+
+Tidak dijalankan, 2, dan keduanya disengaja: `autotrade.mjs` menyentuh saklar
+auto-trade yang sungguhan dan CLAUDE.md melarangnya saat ada daemon;
+`resilience.mjs` sengaja menjatuhkan backend.
+
+## Audit statis awal, mana yang masih berdiri
+
+| Klaim audit awal | Status sesudah diperiksa |
+|---|---|
+| `app/ssmt.py:485 intermarket` nol pemanggil | **Benar.** Nol di app, tools, tests, frontend, harness. 15 baris kode mati. Tidak dihapus: itu backend di luar lingkup UI yang diminta, dan fungsi yang menyandi aturan praktisi tidak dibuang tanpa ditanya |
+| `app/expectation.py:40 base_rate` diduplikat inline di `overlays.py:475` | **Benar,** dan kecil. Satu fungsi satu baris lawan satu `cell.get()` inline |
+| `judas.py` dan `m4.py` nol referensi test | **Salah.** `tools/conditioned.py` mengimpor `judas_classify`, dan `tools/quant.py` plus `tools/conditioned.py` mengimpor `in_judas_window` |
+| 10 field params tanpa kontrol UI | **Salah sekarang.** Diukur lawan registry hidup: nol field tanpa jejak di `toolbox.tsx`, nol di `types.ts` tanpa jejak |
+| `LAYER_SWATCH` bisa kehilangan layer baru tanpa suara | **Sudah dijaga.** `checklist` satu satunya tanpa swatch dan itu disengaja, dijaga `wiring.mjs` dengan check terpisah |
+| `toolbox.tsx default: return null` seam | **Berdiri, tapi tidak bocor.** Satu blok params tanpa `case`, `chart_gaps`, dan `ChartGapParams` punya nol field jadi memang tidak ada kontrol untuk dicari. `wiring.mjs` menulis pengecualiannya |
+| `test_overlay_api.py ASYNC_DISPATCHED` seam | **Berdiri.** Set literal empat id yang mengecualikan diri dari check "registered but never drawn". Butuh seseorang menambahinya untuk bocor |
+| `test_frontend_defaults.py OWNERS` tidak terikat registry | **Berdiri sebagian.** Ia diikat ke `types.ts`, dan `types.ts` diikat ke registry oleh test lain di file yang sama, jadi rantainya utuh lewat dua langkah. `wiring.mjs` sendiri menulis bahwa `OWNERS`-nya "gagal sunyi" |
+
+## Kode mati yang saya sendiri tinggalkan, dan dihapus
+
+- `sideRgb()` di `ink.ts`: nol pemanggil. Saya menambahkannya bersama
+  `sideRgba()` "untuk nanti".
+- `inkTheme()` di `ink.ts`: nol pemanggil, sama.
+- `const seen = {}` di `e2e/retina.mjs`: ditulis, tidak pernah dibaca.
+
+`positionsLine()` tetap meski tidak dipanggil langsung dari luar `pixel.ts`:
+`strokeLine()` dan `positionsBox()` keduanya diturunkan darinya, dan
+memindahkan aritmetikanya ke dalam pemanggil adalah cara dua salinan muncul.
+
 ## Yang belum dikerjakan, dinyatakan bukan disembunyikan
 
 - **Prose auto-trade masih terbuka.** `Off means no new orders. Pending orders
@@ -542,13 +682,16 @@ hidup berbulan bulan tanpa ada yang tahu.
   terlihat. Ia tidak dilipat dengan sengaja: itu pernyataan tentang uang yang
   sudah dipasang di broker, dan melipat informasi keselamatan di balik fold
   bukan perbaikan. Prose Presets yang dilipat, dan itu deskripsi fitur.
-- **Dua varian `pixel-truth.mjs` merah, dan sudah merah sebelum pekerjaan ini.**
-  `e2e:pixels-ifvg` 6/7 dan `e2e:pixels-brk` 5/7, dengan skor identik di HEAD
-  sebelum satu baris diubah. Keduanya gagal di `enough edges are legible to
-  measure anything at all`, yaitu 8 box breaker yang bertumpuk di harga
-  sehingga probe tidak bisa mengisolasi tepinya. Itu properti keluaran detector
-  di simbol dan timeframe itu, bukan cacat gambar, dan keduanya tidak ada di
-  daftar gate CLAUDE.md. Belum ditelusuri.
+- **Tiga harness merah, semuanya pra-sesi.** Rinciannya di bagian sensus
+  harness di atas: `nonbox-truth` 4/5 dengan dua hipotesis sudah digugurkan,
+  `pixels-ifvg` 6/7 dan `pixels-brk` 5/7 dari 8 box breaker yang bertumpuk di
+  harga sehingga probe tidak bisa mengisolasi tepinya.
+- **`app/ssmt.py:485 intermarket` kode mati,** nol pemanggil di seluruh repo.
+  Tidak dihapus karena itu backend di luar lingkup UI yang diminta, dan sebuah
+  fungsi yang menyandi aturan praktisi tidak dibuang tanpa ditanya.
+- **`ASYNC_DISPATCHED` di `test_overlay_api.py` masih escape hatch manual.**
+  Set literal empat id yang mengecualikan diri dari check
+  `registered but never drawn`. Bocor hanya kalau seseorang menambahinya.
 - **Jumlah check `sweep.mjs` tidak stabil terhadap suntingan saya sendiri.** Ia
   158 sebelum sesi ini, terbaca 159 sekali di tengah sesi, dan 158 lagi
   sekarang. Nama seluruh check identik antara HEAD dan tree kerja, jadi tidak

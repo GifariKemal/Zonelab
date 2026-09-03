@@ -138,6 +138,17 @@ for (let i = 0; i < (await buttons.count()); i++) {
   if (!label) continue;
   // Skip the zone rows: there are many, they are covered below by clicking one.
   if (/^(RBR|DBR|RBD|DBD|FVG|OB|IFVG|BRK)\b/.test(label)) continue;
+  // DAN LEWATI KEDUA SAKLAR RAIL, karena mengkliknya MENYEMBUNYIKAN panel yang
+  // sisa harness ini cari isinya. Itu penyebab dua kegagalan yang berdiri di
+  // file ini: "reset button is reachable :: no button matched
+  // /reset parameters/i" dan "zone row opens the inspector :: panel says
+  // (no header)". Keduanya melaporkan panel yang rusak; panelnya baik, crawler
+  // ini yang baru saja menutupnya.
+  //
+  // Bukan cacat app, dan bukan pula alasan untuk berhenti mengujinya: kedua
+  // saklar itu punya harness sendiri di `e2e/rails.mjs`, 9/9, yang memang
+  // memeriksa panel hilang lalu kembali.
+  if (/^Panel (kiri|kanan)$/.test(label)) continue;
   // A DISABLED BUTTON IS A LEGITIMATE STATE, not a broken one, and clicking it
   // times out after five seconds with a message about a locator - which reads as
   // a broken control. This app disables deliberately in two places and both are

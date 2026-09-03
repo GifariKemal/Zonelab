@@ -163,11 +163,9 @@ async function open(scale, { off = false } = {}) {
 }
 
 // ============================================================ skala 1 dan 2
-const seen = {};
 for (const scale of [1, 2]) {
   const { browser, page, errs } = await open(scale);
   const got = await page.evaluate(PROBE);
-  seen[scale] = got;
   check(`skala ${scale}: bitmap canvas benar benar ${scale}x`,
         got.ratio === scale, `ratio ${got.ratio}, ${got.bitmap}`);
   check(`skala ${scale}: nol garis mengangkangi batas device pixel`,

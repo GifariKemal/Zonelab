@@ -117,10 +117,6 @@ export function setInkTheme(next: "dark" | "light"): void {
   active = next;
 }
 
-export function inkTheme(): "dark" | "light" {
-  return active;
-}
-
 /** `rgba(...)` for a family at one alpha. A function rather than a table of
  *  pre-built strings, because the alphas are per-shape and there are dozens. */
 export function ink(name: InkName, alpha: number): string {
@@ -153,10 +149,6 @@ const SIDE = {
   dark: { demand: [31, 143, 95], supply: [239, 143, 134] },
   light: { demand: [21, 80, 55], supply: [186, 73, 62] },
 } as const;
-
-export function sideRgb(side: "demand" | "supply"): readonly [number, number, number] {
-  return SIDE[active][side] as readonly [number, number, number];
-}
 
 export function sideRgba(side: "demand" | "supply", alpha: number): string {
   const [r, g, b] = SIDE[active][side];
