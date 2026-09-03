@@ -17,7 +17,7 @@ from .cycle import (
 )
 from .expectation import ExpectationFan
 from .chart_gaps import ChartGapModel
-from .wyckoff import WyckoffPhaseModel
+from .wyckoff import WyckoffPhaseModel, WyckoffRangeModel
 from .psp import PSPModel
 
 
@@ -401,8 +401,23 @@ class Drawing(BaseModel):
         default_factory=list,
         description=(
             "Wyckoff phase readings over a rolling trading range: spring, "
-            "upthrust, sign of strength, sign of weakness. A reading, never a "
-            "bias. Empty unless requested. Unmeasured."
+            "upthrust, sign of strength, sign of weakness. This is also the "
+            "BREAKOUT reading: sos and sow are a range breakout confirmed by "
+            "close, spring and upthrust are a false breakout on either side. "
+            "A reading, never a bias. Empty unless requested. MEASURED NULL, "
+            "docs/wyckoff_outcomes.json."
+        ),
+    )
+    wyckoff_range: WyckoffRangeModel | None = Field(
+        default=None,
+        description=(
+            "The trading range price stands in RIGHT NOW, one box: the last "
+            "`lookback` bars. Not an event, so it is not in the list above - "
+            "`phases()` only emits bars that touch a range edge. One box "
+            "rather than one per phase is an ink-budget decision: at lookback "
+            "20 a 500-bar series produces hundreds of phases, and the note in "
+            "globals.css measured that past about a third of the chart boxes "
+            "stop annotating price and become its background."
         ),
     )
     psp: list[PSPModel] = Field(

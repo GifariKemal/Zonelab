@@ -134,10 +134,15 @@ UNPORTED: dict[str, str] = {
         "kelas yang tidak pernah menyala mereplikasi cabang mati"
     ),
     "wyckoff": (
-        "MEASURED NULL, docs/wyckoff_outcomes.json: empat fase lawan drift "
-        "instrumennya sendiri di sembilan instrumen, t antara -0,95 dan +0,27 "
-        "lawan bar Bonferroni 2,50, dan 13 sampai 20 dari 36 fold per-simbol "
-        "positif. Bukan family ICT"
+        "PUNYA EA STRATEGY TESTER, BELUM PUNYA DUMP PARITY, dan bedanya "
+        "penting. Sejak 3 September 2026 ada WyckoffDetector.mqh plus "
+        "ZonelabWYK.mq5, jadi pertanyaan OUTCOME lawan real tick bisa "
+        "dijalankan; yang belum ada perbandingan baris demi baris lawan "
+        "app/wyckoff.py, jadi presisi DETEKSI-nya masih belum diukur. Rig "
+        "Python-nya sendiri MEASURED NULL, docs/wyckoff_outcomes.json: empat "
+        "fase lawan drift instrumennya sendiri di sembilan instrumen, t antara "
+        "-0,95 dan +0,27 lawan bar Bonferroni 2,50, dan 13 sampai 20 dari 36 "
+        "fold per-simbol positif. Bukan family ICT"
     ),
     "expectation": (
         "TAMPILAN PENGUKURAN, bukan objek pasar, jadi tidak ada yang bisa "

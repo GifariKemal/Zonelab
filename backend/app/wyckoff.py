@@ -64,6 +64,25 @@ class WyckoffPhase:
     level: float       # the TR edge swept or broken
     tr_low: float
     tr_high: float
+    tr_from: int       # first bar of the range window this was read against
+
+    #: Bar pertama SESUDAH event yang memperdagangkan kembali `level`, atau
+    #: None selama belum ada.
+    #:
+    #: DIHITUNG DI SINI, BUKAN DI FRONTEND, dan itu bukan preferensi arsitektur.
+    #: Retest adalah pertanyaan tentang bar, dan frontend hanya punya harga plus
+    #: koordinat; menghitungnya di sana akan menaruh analisis kedua di tempat
+    #: yang tidak punya deretnya. Bentuknya menyalin `taken_at` di
+    #: `liquidity.py`, yang sudah menyelesaikan pertanyaan yang sama.
+    #:
+    #: DAN IA DIGAMBAR TERPISAH DARI BREAK-NYA, dengan alasan terukur. Bulkowski
+    #: mengukur 8.765 pattern breakout turun: pullback terjadi 58 persen dari
+    #: waktu dan hasilnya 53 lawan 47, dan 97 persen tipe pattern dengan
+    #: breakout naik perform LEBIH BAIK TANPA throwback. Konfirmasi independen:
+    #: ORB pullback entry di MNQ stop-out 80,7 persen, n=83. Jadi menggambar
+    #: retest sebagai BAGIAN dari breakout akan menyandikan asumsi yang datanya
+    #: tolak; ia objek sendiri yang kebetulan sering hadir.
+    retested_at: int | None
 
     @property
     def knowable_at(self) -> int:
@@ -74,6 +93,19 @@ def _range(candles: list[Candle], i: int, lookback: int) -> tuple[float, float]:
     """The trading range high/low of the `lookback` bars ending before bar `i`."""
     window = candles[i - lookback:i]
     return max(c.high for c in window), min(c.low for c in window)
+
+
+def _retest(candles: list[Candle], level: float, after: int) -> int | None:
+    """Bar pertama sesudah `after` yang memperdagangkan kembali `level`.
+
+    Menyentuh, bukan menembus: sebuah retest adalah harga yang kembali KE level
+    itu, dan syarat menembusnya akan membuang justru kasus yang paling sering
+    dibicarakan, yaitu level yang ditahan lalu dilanjutkan.
+    """
+    for j in range(after + 1, len(candles)):
+        if candles[j].low <= level <= candles[j].high:
+            return j
+    return None
 
 
 def phases(candles: list[Candle], lookback: int = 20) -> list[WyckoffPhase]:
@@ -93,14 +125,22 @@ def phases(candles: list[Candle], lookback: int = 20) -> list[WyckoffPhase]:
         # back inside. This is the same operationalisation of "purge" as
         # `app/psp.py`: the bar must have arrived from the near side.
         if cur.open >= tr_low and cur.low < tr_low and cur.close > tr_low:
-            out.append(WyckoffPhase("spring", i, tr_low, tr_low, tr_high))
+            out.append(WyckoffPhase("spring", i, tr_low, tr_low, tr_high,
+                                       i - lookback,
+                                       _retest(candles, tr_low, i)))
             continue
         if cur.open <= tr_high and cur.high > tr_high and cur.close < tr_high:
-            out.append(WyckoffPhase("upthrust", i, tr_high, tr_low, tr_high))
+            out.append(WyckoffPhase("upthrust", i, tr_high, tr_low, tr_high,
+                                       i - lookback,
+                                       _retest(candles, tr_high, i)))
             continue
         # A clean break of the edge.
         if cur.close > tr_high:
-            out.append(WyckoffPhase("sos", i, tr_high, tr_low, tr_high))
+            out.append(WyckoffPhase("sos", i, tr_high, tr_low, tr_high,
+                                       i - lookback,
+                                       _retest(candles, tr_high, i)))
         elif cur.close < tr_low:
-            out.append(WyckoffPhase("sow", i, tr_low, tr_low, tr_high))
+            out.append(WyckoffPhase("sow", i, tr_low, tr_low, tr_high,
+                                       i - lookback,
+                                       _retest(candles, tr_low, i)))
     return out

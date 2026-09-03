@@ -1206,6 +1206,23 @@ export interface WyckoffPhase {
   level: number;
   tr_low: number;
   tr_high: number;
+  /** Waktu bar pertama window range. Datang dari backend supaya `lookback`
+   *  tidak dipegang di dua tempat. */
+  tr_from: number;
+  /** Waktu bar pertama yang memperdagangkan kembali `level`, atau null.
+   *  Digambar sebagai objek sendiri: Bulkowski mengukur 8.765 pattern dan 97
+   *  persen tipe pattern dengan breakout naik perform LEBIH BAIK tanpa
+   *  throwback, jadi retest bukan bagian dari breakout-nya. */
+  retested_at: number | null;
+}
+
+/** Trading range yang sedang berjalan, satu per response. Bukan event: lihat
+ *  `app/models/wyckoff.py` untuk kenapa ia satu box dan bukan satu per fase. */
+export interface WyckoffRange {
+  time_from: number;
+  time_to: number;
+  low: number;
+  high: number;
 }
 
 export interface DrawResponse {
@@ -1258,6 +1275,7 @@ export interface DrawResponse {
     chart_gaps: ChartGap[];
     /** Wyckoff phase readings. Empty unless the wyckoff layer was requested. */
     wyckoff: WyckoffPhase[];
+    wyckoff_range: WyckoffRange | null;
     /** Precision swing points after an SSMT. Empty unless the psp layer was
      *  requested, and empty when the SSMT partners could not be loaded. */
     psp: PSPReading[];

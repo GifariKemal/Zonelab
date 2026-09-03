@@ -1,0 +1,10 @@
+InpLookback=20
+InpArm=2
+InpTickMult=1.5
+InpRetestBars=10
+InpAtrPeriod=14
+InpStopBufferAtr=0.25
+InpRewardR=2.0
+InpRiskPercent=1.0
+InpBars=3000
+InpMagic=20260903

@@ -1,0 +1,43 @@
+{
+  "model": "4",
+  "from": "2026.01.01",
+  "to": "2026.08.31",
+  "deposit": "10000",
+  "cells": [
+    {
+      "cell": "ZonelabWYK_BTCUSD_H4_arm0",
+      "status": "ok",
+      "seconds": 25.6,
+      "report": "mql5/ZonelabSupplyDemand/reports/ZonelabWYK_BTCUSD_H4_arm0.htm",
+      "Total Net Profit": "59.81",
+      "Profit Factor": "1.01",
+      "Total Trades": "130",
+      "Expected Payoff": "0.46",
+      "Balance Drawdown Maximal": "2 310.55 (20.07%)",
+      "Sharpe Ratio": "0.06",
+      "Recovery Factor": "0.02",
+      "History Quality": "100% real ticks",
+      "Bars": "1452",
+      "Ticks": "23390986",
+      "Initial Deposit": "10 000.00",
+      "Profit Trades (% of total)": "45 (34.62%)",
+      "Loss Trades (% of total)": "85 (65.38%)",
+      "inputs_in_report": "InpLookback=20|InpArm=0|InpTickMult=1.5|InpRetestBars=10|InpAtrPeriod=14|InpStopBufferAtr=0.25|InpRewardR=2.0|InpRiskPercent=1.0|InpBars=3000|InpMagic=20260903",
+      "symbol_in_report": "BTCUSD",
+      "ea_counters": {
+        "orders_placed": 130,
+        "orders_failed": 0,
+        "skipped_price": 0,
+        "detect_calls": 1452,
+        "phases_total": 789817,
+        "phases_armed": 130,
+        "phases_spring": 211324,
+        "phases_upthrust": 201905,
+        "phases_sos": 206372,
+        "phases_sow": 170216,
+        "skipped_tick": 0,
+        "skipped_risk": 0
+      }
+    }
+  ]
+}

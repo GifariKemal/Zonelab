@@ -1,0 +1,112 @@
+{
+  "model": "4",
+  "from": "2026.01.01",
+  "to": "2026.08.31",
+  "deposit": "10000",
+  "cells": [
+    {
+      "cell": "ZonelabWYK_XAUUSD_H1_arm0",
+      "status": "ok",
+      "seconds": 70.6,
+      "report": "mql5/ZonelabSupplyDemand/reports/ZonelabWYK_XAUUSD_H1_arm0.htm",
+      "Total Net Profit": "-555.89",
+      "Profit Factor": "0.98",
+      "Total Trades": "402",
+      "Expected Payoff": "-1.38",
+      "Balance Drawdown Maximal": "2 880.67 (25.26%)",
+      "Sharpe Ratio": "-0.35",
+      "Recovery Factor": "-0.18",
+      "History Quality": "100% real ticks",
+      "Bars": "3898",
+      "Ticks": "66441717",
+      "Initial Deposit": "10 000.00",
+      "Profit Trades (% of total)": "134 (33.33%)",
+      "Loss Trades (% of total)": "268 (66.67%)",
+      "inputs_in_report": "InpLookback=20|InpArm=0|InpTickMult=1.5|InpRetestBars=10|InpAtrPeriod=14|InpStopBufferAtr=0.25|InpRewardR=2.0|InpRiskPercent=1.0|InpBars=3000|InpMagic=20260903",
+      "symbol_in_report": "XAUUSD",
+      "ea_counters": {
+        "orders_placed": 402,
+        "orders_failed": 6,
+        "skipped_price": 0
+      }
+    },
+    {
+      "cell": "ZonelabWYK_BTCUSD_H1_arm0",
+      "status": "ok",
+      "seconds": 42.0,
+      "report": "mql5/ZonelabSupplyDemand/reports/ZonelabWYK_BTCUSD_H1_arm0.htm",
+      "Total Net Profit": "1 106.67",
+      "Profit Factor": "1.03",
+      "Total Trades": "503",
+      "Expected Payoff": "2.20",
+      "Balance Drawdown Maximal": "3 429.09 (27.16%)",
+      "Sharpe Ratio": "0.47",
+      "Recovery Factor": "0.32",
+      "History Quality": "100% real ticks",
+      "Bars": "5807",
+      "Ticks": "23390986",
+      "Initial Deposit": "10 000.00",
+      "Profit Trades (% of total)": "176 (34.99%)",
+      "Loss Trades (% of total)": "327 (65.01%)",
+      "inputs_in_report": "InpLookback=20|InpArm=0|InpTickMult=1.5|InpRetestBars=10|InpAtrPeriod=14|InpStopBufferAtr=0.25|InpRewardR=2.0|InpRiskPercent=1.0|InpBars=3000|InpMagic=20260903",
+      "symbol_in_report": "BTCUSD",
+      "ea_counters": {
+        "orders_placed": 503,
+        "orders_failed": 0,
+        "skipped_price": 0
+      }
+    },
+    {
+      "cell": "ZonelabWYK_XAUUSD_M15_arm0",
+      "status": "ok",
+      "seconds": 108.5,
+      "report": "mql5/ZonelabSupplyDemand/reports/ZonelabWYK_XAUUSD_M15_arm0.htm",
+      "Total Net Profit": "-1 061.05",
+      "Profit Factor": "0.99",
+      "Total Trades": "1630",
+      "Expected Payoff": "-0.65",
+      "Balance Drawdown Maximal": "7 210.51 (51.23%)",
+      "Sharpe Ratio": "-0.34",
+      "Recovery Factor": "-0.14",
+      "History Quality": "100% real ticks",
+      "Bars": "15585",
+      "Ticks": "66441717",
+      "Initial Deposit": "10 000.00",
+      "Profit Trades (% of total)": "548 (33.62%)",
+      "Loss Trades (% of total)": "1082 (66.38%)",
+      "inputs_in_report": "InpLookback=20|InpArm=0|InpTickMult=1.5|InpRetestBars=10|InpAtrPeriod=14|InpStopBufferAtr=0.25|InpRewardR=2.0|InpRiskPercent=1.0|InpBars=3000|InpMagic=20260903",
+      "symbol_in_report": "XAUUSD",
+      "ea_counters": {
+        "orders_placed": 1630,
+        "orders_failed": 18,
+        "skipped_price": 0
+      }
+    },
+    {
+      "cell": "ZonelabWYK_BTCUSD_M15_arm0",
+      "status": "ok",
+      "seconds": 81.2,
+      "report": "mql5/ZonelabSupplyDemand/reports/ZonelabWYK_BTCUSD_M15_arm0.htm",
+      "Total Net Profit": "-9 590.24",
+      "Profit Factor": "0.79",
+      "Total Trades": "2042",
+      "Expected Payoff": "-4.70",
+      "Balance Drawdown Maximal": "9 649.18 (96.49%)",
+      "Sharpe Ratio": "-5.00",
+      "Recovery Factor": "-0.99",
+      "History Quality": "100% real ticks",
+      "Bars": "23220",
+      "Ticks": "23390986",
+      "Initial Deposit": "10 000.00",
+      "Profit Trades (% of total)": "592 (28.99%)",
+      "Loss Trades (% of total)": "1450 (71.01%)",
+      "inputs_in_report": "InpLookback=20|InpArm=0|InpTickMult=1.5|InpRetestBars=10|InpAtrPeriod=14|InpStopBufferAtr=0.25|InpRewardR=2.0|InpRiskPercent=1.0|InpBars=3000|InpMagic=20260903",
+      "symbol_in_report": "BTCUSD",
+      "ea_counters": {
+        "orders_placed": 2042,
+        "orders_failed": 0,
+        "skipped_price": 0
+      }
+    }
+  ]
+}

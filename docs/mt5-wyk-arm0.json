@@ -1,0 +1,34 @@
+{
+  "model": "4",
+  "from": "2026.01.01",
+  "to": "2026.08.31",
+  "deposit": "10000",
+  "cells": [
+    {
+      "cell": "ZonelabWYK_XAUUSD_M30_arm0",
+      "status": "ok",
+      "seconds": 96.9,
+      "report": "mql5/ZonelabSupplyDemand/reports/ZonelabWYK_XAUUSD_M30_arm0.htm",
+      "Total Net Profit": "188.89",
+      "Profit Factor": "1.00",
+      "Total Trades": "764",
+      "Expected Payoff": "0.25",
+      "Balance Drawdown Maximal": "4 185.57 (30.55%)",
+      "Sharpe Ratio": "0.09",
+      "Recovery Factor": "0.04",
+      "History Quality": "100% real ticks",
+      "Bars": "7793",
+      "Ticks": "66441717",
+      "Initial Deposit": "10 000.00",
+      "Profit Trades (% of total)": "262 (34.29%)",
+      "Loss Trades (% of total)": "502 (65.71%)",
+      "inputs_in_report": "InpLookback=20|InpArm=0|InpTickMult=1.5|InpRetestBars=10|InpAtrPeriod=14|InpStopBufferAtr=0.25|InpRewardR=2.0|InpRiskPercent=1.0|InpBars=3000|InpMagic=20260903",
+      "symbol_in_report": "XAUUSD",
+      "ea_counters": {
+        "orders_placed": 764,
+        "orders_failed": 9,
+        "skipped_price": 0
+      }
+    }
+  ]
+}

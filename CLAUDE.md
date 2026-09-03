@@ -96,7 +96,7 @@ Tiga jebakan yang sudah memakan waktu nyata di sini:
 Gate yang harus hijau sebelum bilang selesai:
 
 ```bash
-cd backend  && .venv/Scripts/python.exe -m pytest        # 1104 passed
+cd backend  && .venv/Scripts/python.exe -m pytest        # 1231 passed
 cd backend  && .venv/Scripts/python.exe -m pyflakes app tools tests
 cd frontend && npm run check                            # exit 0
 cd frontend && npm run build                            # exit 0

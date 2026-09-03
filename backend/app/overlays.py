@@ -45,6 +45,7 @@ from .models import (
     DefiningRangeBand,
     TrueOpenLevel,
     WyckoffPhaseModel,
+    WyckoffRangeModel,
     ZoneSide,
 )
 from .providers import INTERVALS
@@ -393,9 +394,29 @@ def _wyckoff(
             level=p.level,
             tr_low=p.tr_low,
             tr_high=p.tr_high,
+            # Waktu, bukan indeks, sama seperti `at`. Frontend memetakan waktu
+            # ke koordinat lewat `timeToCoordinate` dan tidak punya indeks bar.
+            tr_from=times[max(0, p.tr_from)],
+            retested_at=(
+                times[p.retested_at] if p.retested_at is not None else None
+            ),
         )
         for p in found
     ]
+    # RANGE YANG SEDANG BERJALAN, satu box. Ia bukan event, jadi ia tidak ada
+    # di daftar fase: `phases()` hanya memancarkan bar yang MENYENTUH tepi
+    # range. Sebuah pembaca yang mau tahu "harga sekarang di dalam range apa"
+    # tidak punya jawabannya tanpa field ini.
+    lookback = request.wyckoff.lookback
+    if len(rows) > lookback:
+        window = rows[-lookback:]
+        drawing.wyckoff_range = WyckoffRangeModel(
+            time_from=window[0].time,
+            time_to=window[-1].time,
+            low=min(c.low for c in window),
+            high=max(c.high for c in window),
+        )
+
     by_kind: dict[str, int] = {}
     for p in found:
         by_kind[p.kind] = by_kind.get(p.kind, 0) + 1

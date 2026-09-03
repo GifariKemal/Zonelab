@@ -350,7 +350,16 @@ LAYERS: tuple[Layer, ...] = (
             "false breakout on either side."
         ),
         evidence=(
-            "MEASURED NULL. docs/wyckoff_outcomes.json: four phases against "
+            "MEASURED NULL TWICE, in two independent rigs. "
+            "docs/QA-BREAKOUT.md: MT5 Strategy Tester at 100% real ticks, "
+            "7 cells and 5.600 trades for the aggressive arm, median profit "
+            "factor 1,00 and the sign 3 up 3 down 1 flat. Five of seven cells "
+            "land at 33,33 to 34,99 percent win against a 2R breakeven of "
+            "33,33 percent - the system pays spread to stand still. And all "
+            "three variants the method prescribes make it WORSE: retest 0,96, "
+            "tick-count filter 0,99, fading the fakeout 0,89 with 64 percent "
+            "drawdown. "
+            "docs/wyckoff_outcomes.json: four phases against "
             "the instrument's own drift over nine instruments, clustered t "
             "between -0,95 and +0,27 against a Bonferroni bar of 2,50, and "
             "13 to 20 of 36 per-symbol folds positive. The determinable "

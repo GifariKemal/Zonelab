@@ -71,6 +71,17 @@ SHIPPED = {
         "InpStopAtrMode": 0,
         "InpRiskPercent": 1.0, "InpBars": 20000, "InpMagic": 20260831,
     },
+    #: BREAKOUT, lewat fase Wyckoff. TIDAK dimasukkan ke `EXPERTS` default,
+    #: dan itu keputusan bukan kelalaian: matriks default lima expert lawan dua
+    #: simbol lawan lima timeframe sudah 50 sel, dan menambahkannya di sana
+    #: akan membuat tiap run rutin membayar empat arm yang rig Python-nya sudah
+    #: ukur null. Dijalankan eksplisit dengan `--experts ZonelabWYK`.
+    "ZonelabWYK": {
+        "InpLookback": 20, "InpArm": 0, "InpTickMult": 1.5,
+        "InpRetestBars": 10, "InpAtrPeriod": 14, "InpStopBufferAtr": 0.25,
+        "InpRewardR": 2.0, "InpRiskPercent": 1.0, "InpBars": 3000,
+        "InpMagic": 20260903,
+    },
     "ZonelabOB": {
         "InpAtrPeriod": 14, "InpDisplacementAtr": 1.5,
         "InpDisplacementBars": 5, "InpMitigationPct": 0.5,
@@ -264,8 +275,20 @@ def parse_report(path: Path) -> dict:
 #: yang dilewati karena harga sudah lewat. Tanpa itu, selisih jumlah trade
 #: antara rig Python dan Strategy Tester - 953 lawan 622 untuk fvg XAUUSD M30 -
 #: cuma bisa ditebak.
+#: Nama counter yang dicari di log agent. DAFTAR GABUNGAN, bukan per EA:
+#: sebuah nama yang tidak dicetak run ini hanya tidak muncul di hasilnya, jadi
+#: menambahkan nama murah dan melupakannya mahal.
+#:
+#: Ditambah 3 September 2026 untuk `ZonelabWYK`. Sebelum itu enam counter EA
+#: itu tercetak ke log dan TIDAK ADA yang membacanya, jadi `ea_counters`
+#: kembali `{}` untuk keempat arm - dan sel yang detektornya mati akan
+#: terlihat sama dengan sel yang detektornya bekerja lalu tidak menemukan apa
+#: pun. Diperiksa langsung di log: "phases armed: 892", "orders placed: 883".
 COUNTERS = ("zones fresh", "orders placed", "orders failed",
-            "skipped price", "skipped no-target")
+            "skipped price", "skipped no-target",
+            "detect calls", "phases total", "phases armed",
+            "phases spring", "phases upthrust", "phases sos", "phases sow",
+            "skipped tick", "skipped risk")
 AGENT_LOGS = Path(os.environ.get("APPDATA", "")) / "MetaQuotes" / "Tester"
 
 
@@ -305,6 +328,15 @@ def read_counters(before: dict[Path, int]) -> dict:
             continue
         if not raw:
             continue
+        # OFFSET-NYA DIGENAPKAN, dan itu sebab kedua `ea_counters` bisa kosong.
+        # UTF-16LE dua byte per karakter, jadi sebuah delta yang mulai di
+        # offset GANJIL menggeser setiap karakter satu byte dan decode-nya
+        # mengembalikan sampah tanpa error - lalu fallback utf-8 juga tidak
+        # menemukan nama apa pun, dan hasilnya terbaca "EA tidak mencetak apa
+        # pun". Digenapkan ke bawah, bukan ke atas, supaya tidak ada baris yang
+        # terlewat.
+        if start % 2 == 1 and len(raw) > 0:
+            raw = raw[1:]
         text = raw.decode("utf-16-le", errors="ignore")
         if not any(name in text for name in COUNTERS):
             text = raw.decode("utf-8", errors="ignore")

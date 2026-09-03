@@ -15,28 +15,29 @@ import {
 } from "lightweight-charts";
 
 import type {
-  Candle,
-  DefiningRangeBand,
-  SSMTDivergence,
-  SMTDivergence,
   CISDEvent,
+  Candle,
   ChartGap,
+  DefiningRangeBand,
   EventHorizonLevel,
   ExpectationFan,
   GapStack,
   LiquidityPool,
   NamedLevel,
-  OpeningGap,
   NewsEvent,
+  OpeningGap,
+  PSPReading,
   RangeProjection,
-  TierHorizon,
+  SMTDivergence,
+  SSMTDivergence,
   SessionQuarter,
   StructureEvent,
   SwingPoint,
+  TierHorizon,
   TrueOpenLevel,
   VortexDial,
   WyckoffPhase,
-  PSPReading,
+  WyckoffRange,
   Zone,
 } from "@/lib/types";
 import { clockStamp, clockTick, ZONE_TAG, type ClockZone, type TickKind } from "@/lib/clock";
@@ -107,8 +108,14 @@ interface Props {
   gapStacks: GapStack[];
   /** Breakaway and measuring gaps, off the chart_gaps layer. Unmeasured. */
   chartGaps: ChartGap[];
-  /** Wyckoff phase readings, off the wyckoff layer. A reading, never a bias. */
+  /** Wyckoff phase readings, off the wyckoff layer. Ini juga layer BREAKOUT:
+   *  `sos`/`sow` range breakout dikonfirmasi close, `spring`/`upthrust` false
+   *  breakout. A reading, never a bias - `docs/wyckoff_outcomes.json`. */
   wyckoff: WyckoffPhase[];
+  /** Trading range yang sedang berjalan, satu box. Terpisah dari daftar fase
+   *  karena ia bukan event, dan satu box karena ratusan box adalah apa yang
+   *  catatan ink budget di `globals.css` ukur lalu tolak. */
+  wyckoffRange: WyckoffRange | null;
   /** Precision swing points, off the psp layer. Measured null, drawn anyway. */
   psp: PSPReading[];
   news: NewsEvent[];
@@ -272,6 +279,7 @@ export function Chart({
   gapStacks,
   chartGaps,
   wyckoff,
+  wyckoffRange,
   psp,
   news,
   interval,
@@ -858,8 +866,8 @@ export function Chart({
   }, [chartGaps]);
 
   useEffect(() => {
-    wyckoffPrimitive.current?.setPhases(wyckoff);
-  }, [wyckoff]);
+    wyckoffPrimitive.current?.setPhases(wyckoff, wyckoffRange);
+  }, [wyckoff, wyckoffRange]);
 
   useEffect(() => {
     pspPrimitive.current?.setEvents(psp);

@@ -323,6 +323,32 @@ persen. Breakout turun dengan volume LEBIH RENDAH justru outperform.
 Keduanya berarti: kalau retest atau volume tinggi digambar sebagai bagian dari
 objek breakout, gambarnya menyandikan asumsi yang datanya tolak.
 
+#### DIUKUR DI MT5 SEKARANG, 3 September 2026
+
+Rig kedua dijalankan sesudah bagian ini ditulis, dan hasilnya di
+`docs/QA-BREAKOUT.md`. Ringkasnya: `WyckoffDetector.mqh` plus `ZonelabWYK.mq5`,
+Strategy Tester 100 persen real tick, tujuh sel arm agresif dengan **5.600
+trade**, median PF **1,00** dan tandanya 3 naik 3 turun 1 rata. Lima dari tujuh
+sel mendarat di 33,33 sampai 34,99 persen win lawan breakeven 2R 33,33 persen,
+yaitu tepat di garis breakeven-nya sendiri.
+
+Dan ketiga varian yang metodenya resepkan MEMPERBURUK: retest 0,96, filter
+hitungan tick 0,99, fade the fakeout 0,89 dengan drawdown 64,3 persen. Yang
+terakhir itu arm yang framing ICT prediksi paling kuat.
+
+Satu sel keluar 1,34, XAUUSD H4 di 129 trade, dan ia **tidak bereplikasi**:
+BTCUSD di timeframe yang sama keluar 1,01. Dihitung, 41,86 persen win di n=129
+itu 2,06 standard error di atas breakeven, di bawah bar Bonferroni untuk tujuh
+sel.
+
+Port-nya terbukti setia dalam 0,34 persen: 895 event fade di Python lawan 892
+armed di MT5 atas 7.839 bar. Itu **kesepakatan lintas-rig pertama** di repo ini
+setelah `docs/mt5_python_parity.json` mencatat 6 dari 8 sel tidak sepakat.
+
+Volume yang kedua deskripsi metode tuntut TIDAK ADA di sumber ini: `real_volume`
+terukur nol di kedelapan instrumen yang broker ini layani, jadi yang tersisa
+hitungan tick dan arm filternya diberi nama hitungan tick.
+
 #### Yang genuinely BELUM ada, dan mana yang punya sisi bukti
 
 1. **Range dengan compression gate.** Rule channel-breakout STW menuntut

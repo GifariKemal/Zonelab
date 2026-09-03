@@ -69,7 +69,7 @@ from .expectation import (
     PathPoint,
 )
 from .chart_gaps import ChartGapModel
-from .wyckoff import WyckoffPhaseModel
+from .wyckoff import WyckoffPhaseModel, WyckoffRangeModel
 from .psp import PSPModel
 from .params import (
     DFRParams,
@@ -168,6 +168,7 @@ __all__ = [
     "PSPParams",
     "ExpectationParams",
     "WyckoffParams",
+    "WyckoffRangeModel",
     "ChecklistReport",
     "CostSpec",
     "LotSpec",
