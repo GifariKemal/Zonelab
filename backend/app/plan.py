@@ -70,7 +70,24 @@ from .models import CostSpec, LotSpec, TradePlan, Zone, ZoneSide
 DEPARTURE_GATE_ATR = 2.0
 HELD_CLEARED_GATE = 0.430
 HELD_BELOW_GATE = 0.402
-AGE_BANDS = ((10, 0.936), (59, 0.772))  # (upper bound in bars, held rate)
+#: Hold rate by AGE at touch 1, reward 2.0 ATR, from `docs/CALIBRATION.md`
+#: lines 858-861: 93,6% at 1-10 bars, 75,8% at 10-59, 77,2% at 59 and up.
+#:
+#: THE MIDDLE BAND HELD THE WRONG NUMBER UNTIL 3 SEPTEMBER 2026. The table was
+#: written as two entries with the loop falling through to the last one, so a
+#: zone aged 10 to 58 bars reported 0,772 - the rate measured for the band ABOVE
+#: it - instead of its own 0,758. The mistake is easy to make because the rates
+#: are NOT monotone: they fall 93,6 to 75,8 and then rise slightly to 77,2, so
+#: 0,772 reads like a floor and is not one. `tests/test_plan.py` asserted the
+#: wrong value with the comment `# the 10-59 band` next to it, so the fixture
+#: encoded the defect and the suite stayed green over it.
+AGE_BANDS = ((10, 0.936), (59, 0.758))  # (upper bound in bars, held rate)
+
+#: 59 bars and up. A SEPARATE CONSTANT, and that is a reversal of the note this
+#: line replaced, which said the fallback read `AGE_BANDS[-1][1]` so there would
+#: not be "a second constant holding the same 0.772". The two numbers are not the
+#: same and never were; reading one off the other is what hid the error.
+AGE_HELD_OLDEST = 0.772
 
 # No published source gives a stop buffer. Seiden and the ICT material both say
 # "beyond the distal" and stop there. This is stated, not swept: a swept buffer
@@ -90,11 +107,10 @@ def _age_held_rate(age_bars: int) -> float:
     for upper, rate in AGE_BANDS:
         if age_bars < upper:
             return rate
-    # The last band's rate, read from the table rather than restated. It used to
-    # be a second constant holding the same 0.772, in the one file whose comment
-    # above says the constants exist so a doc edit and a code edit cannot
-    # silently disagree.
-    return AGE_BANDS[-1][1]
+    # The open-ended band, named rather than borrowed from the last bounded one.
+    # `AGE_BANDS[-1][0]` is still the age at which that band starts, and the
+    # warning in `build` reads it from there.
+    return AGE_HELD_OLDEST
 
 
 def build(

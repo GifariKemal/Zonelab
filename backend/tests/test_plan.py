@@ -21,7 +21,7 @@ from app.models import (
     ZoneSide,
     ZoneState,
 )
-from app.plan import DEFAULT_STOP_BUFFER_ATR, build
+from app.plan import AGE_BANDS, AGE_HELD_OLDEST, DEFAULT_STOP_BUFFER_ATR, build
 
 T0 = 1699920000
 STEP = 900
@@ -120,7 +120,39 @@ def test_age_comes_from_the_interval_not_from_bar_count_guessing():
     plan = build(zone(), atr=1.0, now=T0 + 40 * STEP, interval_seconds=STEP)
     assert plan is not None
     assert plan.age_bars == 40
-    assert plan.age_held_rate == 0.772  # the 10-59 band
+    assert plan.age_held_rate == 0.758  # the 10-59 band
+
+
+def test_each_age_band_reports_its_own_measured_rate():
+    """docs/CALIBRATION.md lines 858-861, touch 1 at reward 2.0 ATR: 93,6% for
+    1-10 bars, 75,8% for 10-59, 77,2% for 59 and up.
+
+    The rates are NOT monotone - they fall then rise - so the middle band cannot
+    be inferred from either neighbour, and until 3 September 2026 it was: the
+    table had two entries and the loop fell through to the last one, so 10-59
+    reported the 59+ rate. The assertion in the test above carried the wrong
+    number with the comment `# the 10-59 band` beside it.
+    """
+    for age, expected in ((5, 0.936), (40, 0.758), (100, 0.772)):
+        plan = build(zone(), atr=1.0, now=T0 + age * STEP, interval_seconds=STEP)
+        assert plan is not None and plan.age_bars == age
+        assert plan.age_held_rate == expected, (age, plan.age_held_rate)
+
+    assert AGE_BANDS[-1][1] != AGE_HELD_OLDEST, (
+        "the 10-59 band and the 59+ band are different measurements; reading one "
+        "off the other is exactly what hid the error"
+    )
+
+
+def test_the_oldest_band_warning_still_fires_at_fifty_nine_bars():
+    """`build` reads the threshold from `AGE_BANDS[-1][0]`. Adding an
+    open-ended third entry to that tuple would have pushed the bound to
+    infinity and switched the warning off without failing anything."""
+    quiet = build(zone(), atr=1.0, now=T0 + 58 * STEP, interval_seconds=STEP)
+    loud = build(zone(), atr=1.0, now=T0 + 59 * STEP, interval_seconds=STEP)
+    assert quiet is not None and loud is not None
+    assert not any("sudah berumur" in w for w in quiet.warnings)
+    assert any("sudah berumur 59 bar" in w for w in loud.warnings)
 
 
 def test_a_missing_spread_is_reported_rather_than_treated_as_zero():
