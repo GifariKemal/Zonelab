@@ -229,13 +229,66 @@ def test_a_demo_account_is_accepted(monkeypatch):
 # ------------------------------------------------------------------- the grounds
 
 
+def _grounds_plan():
+    return types.SimpleNamespace(age_bars=23, age_held_rate=0.772, target=4489.5667,
+                                 reward_r=4.81)
+
+
+#: One row shaped like `app.probability.outcome_odds` returns, so the test does
+#: not depend on `docs/entry_probability.json` holding a particular cell.
+FVG_ODDS = {"population": "fvg XAUUSD 30m below_gate", "exp_r": 0.2208,
+            "p_target": 0.1444, "n": 1939}
+
+
 def test_every_ground_carries_a_number():
     """`why` is the record a review reads. A line with no figure in it is an
     opinion, and this file's whole claim is that the engine does not have those."""
-    plan = types.SimpleNamespace(age_bars=23, age_held_rate=0.772, target=4489.5667,
-                                 reward_r=4.81)
-    for line in execute.grounds(zone(), plan):
-        assert any(ch.isdigit() for ch in line), line
+    for layer, odds in (("supply_demand", None), ("fvg", FVG_ODDS)):
+        for line in execute.grounds(zone(), _grounds_plan(), layer, odds):
+            assert any(ch.isdigit() for ch in line), (layer, line)
+
+
+def test_a_ceiling_layer_is_not_described_as_clearing_the_gate():
+    """`fvg` qualifies BELOW the departure gate, so a journal line saying it
+    `clears` one records the qualifying condition as its own opposite.
+
+    Six live orders carried this on 3 September 2026. The gate direction must
+    come from `GATE_DIRECTION`, the same map that filtered the candidate.
+    """
+    assert execute.GATE_DIRECTION["fvg"] == "ceiling"
+    gate = execute.grounds(zone(), _grounds_plan(), "fvg", FVG_ODDS)[0]
+    assert "clears" not in gate, gate
+    assert "below" in gate and "ceiling" in gate, gate
+
+    floor_gate = execute.grounds(zone(), _grounds_plan(), "supply_demand")[0]
+    assert "clears" in floor_gate and "floor" in floor_gate, floor_gate
+
+
+def test_the_expectancy_ground_names_the_population_it_came_from():
+    """The retyped sentence it replaced was the `supply_demand` 1h/4h departure
+    study, and it was stamped on every layer at every timeframe. For `fvg` the
+    matching claim is measured FALSE (`docs/fvg_inverted.json`,
+    `h2_gate_stays_inverted: false`), so citing it there was not a rounding
+    error, it was the opposite of the finding."""
+    lines = execute.grounds(zone(), _grounds_plan(), "fvg", FVG_ODDS)
+    joined = " ".join(lines)
+    assert "4.82" not in joined, joined
+    assert "14,813" not in joined, joined
+    assert "fvg XAUUSD 30m below_gate" in joined, joined
+    assert "n=1939" in joined, joined
+
+    # An unmeasured population says so, with its own figure, rather than
+    # borrowing another layer's.
+    unmeasured = " ".join(execute.grounds(zone(), _grounds_plan(), "order_block"))
+    assert "NO measured population" in unmeasured, unmeasured
+    assert "n=0" in unmeasured, unmeasured
+
+
+def test_grounds_refuses_to_guess_the_layer():
+    """A default here is the shape of defect this repo keeps paying for: right
+    for one case, silently wrong for the rest."""
+    with pytest.raises(TypeError):
+        execute.grounds(zone(), _grounds_plan())
 
 
 def test_the_rule_names_the_gate_and_the_exit():

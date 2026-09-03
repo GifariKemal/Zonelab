@@ -139,17 +139,67 @@ def warn_required(rules) -> None:
               f"{_EVIDENCE.get(clause, 'docs/PRAREGISTRASI-YATIM.md')}.")
 
 
-def grounds(zone, plan) -> list[str]:
+def grounds(zone, plan, layer: str, odds: dict | None = None) -> list[str]:
     """The measured reasons this zone is being traded, each with its number.
 
-    Every figure here is read from code rather than retyped from a document:
-    the gate and the two cohort rates are the constants `app/plan.py` holds
-    precisely so a doc edit and a code edit cannot drift apart.
+    Every figure here is read from code or from the calibration table, never
+    retyped from a document: the gate is the constant `app/plan.py` holds, its
+    DIRECTION is the same `GATE_DIRECTION` that filtered the candidate, and the
+    expectancy comes from `docs/entry_probability.json` through
+    `app.probability.outcome_odds`. A doc edit and a code edit cannot drift.
+
+    `layer` IS REQUIRED AND HAS NO DEFAULT, and that is the point of this
+    signature. Until 3 September 2026 this function took only the zone and the
+    plan, and it wrote two sentences that were true for `supply_demand` and
+    false for every other layer:
+
+      1. "departure X ATR clears the 2.0 gate" was written for `fvg` too, whose
+         gate is `ceiling`. An fvg at 0.204 ATR is BELOW that gate, and below is
+         its QUALIFYING side, so the journal recorded the qualifying condition
+         as its own opposite.
+      2. "gate margin +0.124 R, Welch t=+4.82 on 14,813 trades across 18 cells"
+         is the `supply_demand` departure study at 1h and 4h. It was stamped on
+         every order of every layer at every timeframe. For `fvg` the matching
+         claim is measured FALSE: `docs/fvg_inverted.json` carries
+         `h2_gate_stays_inverted: false`, Welch t 1.004 against a critical
+         2.241, and `docs/fvg_resolution.json` carries
+         `separation_survives: false`.
+
+    Six live orders were journalled with both defects on 3 September 2026,
+    tickets 4653163409, 4653163437, 4653163454, 4653163456, 4653163472 and
+    4653163483. A default for `layer` would leave that reachable, so there is
+    none, and the two callers in `tools/stress_decision.py` name theirs.
+
+    THE RETYPED GATE-MARGIN SENTENCE IS GONE RATHER THAN MADE PER LAYER. There
+    is no machine-readable per-layer separation figure to read one from, and a
+    second hand-typed table is the same defect with more rows. What replaced it
+    is the population this order actually belongs to, named and counted, from
+    the file that already decides which side of the gate to report.
     """
+    # ARAHNYA DARI SUMBER YANG SAMA dengan yang menyaring kandidatnya di
+    # `candidates()`, jadi kalimat di journal tidak bisa melenceng dari gerbang
+    # yang benar-benar dipakai untuk meloloskannya.
+    if GATE_DIRECTION.get(layer, "floor") == "floor":
+        gate = (f"departure {zone.departure_atr} ATR clears the "
+                f"{DEPARTURE_GATE_ATR} ATR floor, the measured side for {layer}")
+    else:
+        gate = (f"departure {zone.departure_atr} ATR is below the "
+                f"{DEPARTURE_GATE_ATR} ATR ceiling, the measured side for {layer}")
+    # `odds is None` DIUCAPKAN, tidak dilewati. Sebuah order pada populasi yang
+    # belum diukur adalah fakta yang harus ada di journal-nya, dan n=0 adalah
+    # angkanya - baris tanpa angka adalah opini, yang file ini menolak punya.
+    if odds is None:
+        evidence = (f"NO measured population for {layer} on this symbol and "
+                    f"timeframe: n=0 in docs/entry_probability.json, so this "
+                    f"order carries no expectancy figure")
+    else:
+        evidence = (f"measured population {odds['population']}: "
+                    f"exp {odds['exp_r']:+.4f} R, P(target) "
+                    f"{100 * odds['p_target']:.1f}%, n={odds['n']}, read from "
+                    f"docs/entry_probability.json")
     return [
-        f"departure {zone.departure_atr} ATR clears the {DEPARTURE_GATE_ATR} gate",
-        "gate margin +0.124 R, Welch t=+4.82 on 14,813 trades across 18 cells, "
-        "positive in 17 of 18, walk-forward 8/8",
+        gate,
+        evidence,
         f"age {plan.age_bars} bars, cohort held {plan.age_held_rate:.1%}",
         f"target is the nearest live opposing zone at {plan.target}, "
         f"{plan.reward_r}R from the entry",
@@ -911,6 +961,11 @@ def cycle(
             cleared_gate=(GATE_DIRECTION.get(layer, "floor") == "floor"),
         )
         head += chr(10) + "      " + odds_line(odds)
+        # SATU KALI PER KANDIDAT, dipakai enam cabang di bawah. Enam pemanggilan
+        # identik adalah enam tempat argumennya bisa melenceng dari yang lain,
+        # dan `layer` yang salah di salah satunya menulis gerbang yang keliru ke
+        # journal tanpa satu pun cabang lain terlihat berubah.
+        why_lines = grounds(zone, plan, layer, odds) + checklist.why()
         if already:
             print(f"{head}\n      SUDAH pernah diorder, ticket {already[0]}")
             skipped += 1
@@ -922,7 +977,7 @@ def cycle(
         if missing:
             print(f"{head}\n      CHECKLIST menolak: {', '.join(missing)}")
             if send:
-                journal.record("refused", why=grounds(zone, plan) + checklist.why(),
+                journal.record("refused", why=why_lines,
                                rule=rule, zone_id=zone.id, symbol=symbol,
                                plan=plan.model_dump(mode="json"),
                                blockers=[f"required condition not met: {name}"
@@ -933,7 +988,7 @@ def cycle(
             print(f"{head}\n      TIDAK placeable: "
                   f"{plan.warnings[-1] if plan.warnings else 'no reason given'}")
             if send:
-                journal.record("refused", why=grounds(zone, plan) + checklist.why(),
+                journal.record("refused", why=why_lines,
                                rule=rule, zone_id=zone.id, symbol=symbol,
                                plan=plan.model_dump(mode="json"),
                                blockers=list(plan.warnings))
@@ -947,7 +1002,7 @@ def cycle(
                        "computed. Pass --risk-pct and let the terminal supply the "
                        "equity, or do not send")
             print(f"{head}\n      DITOLAK: {why_not}")
-            journal.record("refused", why=grounds(zone, plan) + checklist.why(),
+            journal.record("refused", why=why_lines,
                            rule=rule, zone_id=zone.id, symbol=symbol,
                            plan=plan.model_dump(mode="json"), blockers=[why_not])
             refused += 1
@@ -962,7 +1017,7 @@ def cycle(
                 print(f"{head}\n      PORTOFOLIO menolak: {why_not}")
                 if send:
                     journal.record("refused",
-                                   why=grounds(zone, plan) + checklist.why(),
+                                   why=why_lines,
                                    rule=rule, zone_id=zone.id, symbol=symbol,
                                    plan=plan.model_dump(mode="json"),
                                    blockers=[why_not])
@@ -982,12 +1037,12 @@ def cycle(
         ticket, why_not = place(mt5, zone, plan, symbol.split(":")[-1], plan.lots)
         if ticket is None:
             print(f"{head}\n      GAGAL: {why_not}")
-            journal.record("refused", why=grounds(zone, plan) + checklist.why(),
+            journal.record("refused", why=why_lines,
                            rule=rule, zone_id=zone.id, symbol=symbol,
                            plan=plan.model_dump(mode="json"), blockers=[why_not])
             refused += 1
             continue
-        journal.record("placed", why=grounds(zone, plan) + checklist.why(),
+        journal.record("placed", why=why_lines,
                        rule=rule, zone_id=zone.id, symbol=symbol,
                        ticket=ticket, plan=plan.model_dump(mode="json"),
                        extra={"volume": plan.lots, "symbol": symbol,

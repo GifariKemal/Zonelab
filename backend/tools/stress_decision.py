@@ -67,7 +67,8 @@ def battery(symbol: str, interval: str, bars: int) -> None:
     check("harga acuan sama", price == price_again, f"{price} lawan {price_again}")
     check("setiap kandidat punya alasan bernomor",
           all(any(ch.isdigit() for ch in line)
-              for zone, plan, _ in first for line in grounds(zone, plan)))
+              for zone, plan, _ in first
+              for line in grounds(zone, plan, "supply_demand")))
 
     print("\n== 2. independensi window")
     windows = {}
@@ -117,14 +118,15 @@ def battery(symbol: str, interval: str, bars: int) -> None:
         journal.DIRECTORY = Path(tmp) / ".journal"
         try:
             zone, plan = first[0][0], first[0][1]
+            why_lines = grounds(zone, plan, "supply_demand")
             check("zona belum diorder tidak punya baris placed",
                   journal.for_zone(zone.id) == [])
-            journal.record("placed", why=grounds(zone, plan), rule=RULE,
+            journal.record("placed", why=why_lines, rule=RULE,
                            zone_id=zone.id, ticket=1,
                            plan=plan.model_dump(mode="json"))
             placed = [e for e in journal.for_zone(zone.id) if e["event"] == "placed"]
             check("setelah dicatat, zona itu terlihat sudah diorder", len(placed) == 1)
-            journal.record("placed", why=grounds(zone, plan), rule=RULE,
+            journal.record("placed", why=why_lines, rule=RULE,
                            zone_id=zone.id, ticket=2,
                            plan=plan.model_dump(mode="json"))
             check("dua baris untuk satu zona tetap terbaca dua",
