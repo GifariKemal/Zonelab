@@ -81,7 +81,7 @@ context panel (picker + Scan + ringkasan drawing) dan chat (message list,
 badge grounding per jawaban, input). Settings panel untuk base_url, key,
 model. Tema dan token warna dari `globals.css` dipakai apa adanya.
 
-### Folder `AI Agent/`
+### Folder `ai-agent/`
 
 Dokumen definisi untuk manusia dan sesi Claude di folder itu: `SOUL.md`
 (persona dan batas), `README.md` (cara pakai), `CLAUDE.md` (instruksi sesi),
