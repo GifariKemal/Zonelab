@@ -222,116 +222,6 @@ export const Toolbox = memo(function Toolbox({
                 })
               }
             />
-            <Slider
-              label="Impulse size"
-              hint="A leg candle's range must exceed this many ATR. Lower finds more, weaker legs."
-              suffix="ATR"
-              min={0.3}
-              max={3}
-              step={0.1}
-              value={params.supply_demand.impulse_atr}
-              onChange={(v) => onParams("supply_demand", { impulse_atr: v })}
-            />
-            <Slider
-              label="Impulse body"
-              hint="Body as a share of the candle's own range. Separates decisive candles from dojis."
-              min={0.2}
-              max={0.9}
-              step={0.05}
-              value={params.supply_demand.impulse_body_ratio}
-              onChange={(v) => onParams("supply_demand", { impulse_body_ratio: v })}
-            />
-            {/* The one control on this panel that a reader must not have to click
-                to distrust the others, so its finding stays on screen while the
-                numbers behind it fold away. */}
-            <Slider
-              label="Departure gate"
-              hint="How far the leg-out must run from the zone."
-              flag="The one gate with evidence behind it, and the only one that survived walk-forward."
-              // THE FIGURES ARE NOT REPEATED HERE, deliberately. The layer's own
-              // evidence above carries the held rate, the sample and the
-              // walk-forward, and it comes from the engine's registry. This
-              // string used to carry the same numbers typed by hand, and a
-              // shipped claim that no longer matches the evidence is worse than
-              // no claim: an assertion in `e2e/sweep.mjs` held a stale 84.6% for
-              // two days after the calibration was recomputed. One source.
-              evidence="Read the layer's evidence above for the measured figures. What is specific to this knob: the effect is FLAT above 2 ATR, so raising it past the shipped value only removes zones without improving the cohort it selects."
-              suffix="ATR"
-              min={0}
-              max={6}
-              step={0.25}
-              value={params.supply_demand.departure_min_atr}
-              onChange={(v) => onParams("supply_demand", { departure_min_atr: v })}
-            />
-            <Slider
-              label="Profit margin"
-              hint="Leg-out travel as a multiple of the zone's own height. Off at 0."
-              note="The method asks for 3. Measured, the effect flattens near 2 and adds nothing over the ATR gate, so it ships off."
-              suffix="x zone"
-              min={0}
-              max={6}
-              step={0.5}
-              value={params.supply_demand.min_profit_margin}
-              onChange={(v) => onParams("supply_demand", { min_profit_margin: v })}
-            />
-            <Slider
-              label="Road ahead"
-              hint="Clear distance to the nearest live opposing zone, in units of this zone's own height. Off at 0."
-              note="The first factor here that ever ranked: zones with a longer road held more often, on both sides, at every geometry (AUC 0.56 to 0.57, CI clear of 0.5). It still ships off, because as a gate it held up in only 7 of 8 unseen time slices where the ATR gate held up in 8 of 8. Above 0 it also stamps zones a newly formed opposing zone has boxed in, which is the one check driven by other zones rather than by price."
-              suffix="x zone"
-              min={0}
-              max={4}
-              step={0.5}
-              value={params.supply_demand.min_profit_zone_rr}
-              onChange={(v) => onParams("supply_demand", { min_profit_zone_rr: v })}
-            />
-            <Slider
-              label="Max base bars"
-              hint="Longer consolidations are clipped to the bars the move actually left from."
-              min={1}
-              max={20}
-              step={1}
-              value={params.supply_demand.base_max_bars}
-              onChange={(v) => onParams("supply_demand", { base_max_bars: v })}
-            />
-            <Slider
-              label="Max base height"
-              hint="Measured against the volatility before the base, so a tall base cannot excuse itself."
-              suffix="ATR"
-              min={0.5}
-              max={6}
-              step={0.25}
-              value={params.supply_demand.base_max_atr}
-              onChange={(v) => onParams("supply_demand", { base_max_atr: v })}
-            />
-            <Slider
-              label="Max base drift"
-              hint="One-way travel across the base as a share of its own height. 1.0 disables the check."
-              note="A base is where price paused. Candles that are each small but walk steadily one way are a staircase, and four independent visual audits named that the most common drawing defect."
-              min={0.2}
-              max={1}
-              step={0.05}
-              value={params.supply_demand.max_base_drift}
-              onChange={(v) => onParams("supply_demand", { max_base_drift: v })}
-            />
-            <Slider
-              label="ATR period"
-              hint="Candles behind the ATR every threshold on this panel is measured in; 14 matches MetaTrader and TradingView."
-              min={5}
-              max={50}
-              step={1}
-              value={params.supply_demand.atr_period}
-              onChange={(v) => onParams("supply_demand", { atr_period: v })}
-            />
-            <Slider
-              label="Mitigation depth"
-              hint="Share of the zone price must eat before it counts as used up."
-              min={0.1}
-              max={1}
-              step={0.05}
-              value={params.supply_demand.mitigation_pct}
-              onChange={(v) => onParams("supply_demand", { mitigation_pct: v })}
-            />
             <Toggle
               label="Show mitigated"
               value={params.supply_demand.show_mitigated}
@@ -352,15 +242,6 @@ export const Toolbox = memo(function Toolbox({
               value={params.supply_demand.max_zones_per_side}
               onChange={(v) => onParams("supply_demand", { max_zones_per_side: v })}
             />
-            <Slider
-              label="Merge overlap"
-              hint="Two zones overlapping more than this collapse into the stronger one."
-              min={0.2}
-              max={1}
-              step={0.05}
-              value={params.supply_demand.merge_overlap_pct}
-              onChange={(v) => onParams("supply_demand", { merge_overlap_pct: v })}
-            />
           </>
         );
 
@@ -371,41 +252,6 @@ export const Toolbox = memo(function Toolbox({
       case "imbalance":
         return (
           <>
-            <Hint
-              k="imbalance"
-              note="Shared by the fair value gap, the order block and the two inverted kinds. An IFVG is an FVG plus one more event, so giving them separate gap thresholds would let the two populations drift apart."
-            />
-            <Slider
-              label="Min gap size"
-              hint="How wide the untraded band must be before it counts as a gap."
-              suffix="ATR"
-              min={0}
-              max={1}
-              step={0.05}
-              value={params.imbalance.min_gap_atr}
-              onChange={(v) => onParams("imbalance", { min_gap_atr: v })}
-            />
-            <Slider
-              label="Displacement size"
-              hint="How hard the leg that made the box had to run."
-              note="Reported as an object on every box rather than reduced to the threshold it passed, because ICT states displacement structurally and this engine has only ever tested it as a size."
-              suffix="ATR"
-              min={0}
-              max={5}
-              step={0.25}
-              value={params.imbalance.displacement_atr}
-              onChange={(v) => onParams("imbalance", { displacement_atr: v })}
-            />
-            <Slider
-              label="Displacement window"
-              hint="Bars the leg is measured over."
-              suffix="bars"
-              min={1}
-              max={20}
-              step={1}
-              value={params.imbalance.displacement_bars}
-              onChange={(v) => onParams("imbalance", { displacement_bars: v })}
-            />
             {/* THE ONLY CONTROL HERE THAT IS A DOCTRINE ARGUMENT rather than a
                 threshold, and until now the panel did not offer it at all while
                 the zone panel already told the reader in Indonesian that the
@@ -457,15 +303,6 @@ export const Toolbox = memo(function Toolbox({
                 />
               </>
             ) : null}
-            <Slider
-              label="Gap mitigation depth"
-              hint="Share of the band price must eat before it counts as used up. Separate from the supply and demand knob of the same name, because these are different populations."
-              min={0.1}
-              max={1}
-              step={0.05}
-              value={params.imbalance.mitigation_pct}
-              onChange={(v) => onParams("imbalance", { mitigation_pct: v })}
-            />
             <Toggle
               label="Show mitigated boxes"
               value={params.imbalance.show_mitigated}

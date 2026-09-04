@@ -272,17 +272,18 @@ check("only supply and demand ships on",
 // second census is what stops a parameter drifting unchecked behind a switch,
 // and it covers four blocks - imbalance, pools, liquidity and the checklist -
 // that no census reached at all while each overlay carried its own `enabled`.
+// Eleven sliders moved to engine internals (4 Sep 2026): impulse size/body,
+// departure gate, profit margin, road ahead, max base bars/height/drift,
+// ATR period, mitigation depth, merge overlap. The trader sees one slider
+// and the three toggles (proximal, show mitigated, show broken) that are
+// not range inputs and therefore not in this census.
 const SD_SLIDERS = [
-  "ATR period", "Impulse body", "Impulse size", "Max base bars",
-  "Max base height", "Max base drift", "Departure gate", "Profit margin",
-  "Road ahead", "Mitigation depth", "Zones per side", "Merge overlap",
+  "Zones per side",
 ];
 const REVEALED_SLIDERS = [
-  // The imbalance block, shared by the fair value gap, the order block and the
-  // two inverted kinds, and rendered ONCE under the first of them that is on.
-  // Four copies would read as four independent thresholds writing one value.
-  "Min gap size", "Displacement size", "Displacement window",
-  "Gap mitigation depth", "Boxes per side",
+  // The imbalance block: gap size, displacement size/window and mitigation depth
+  // moved to engine internals alongside the supply_demand sliders (4 Sep 2026).
+  "Boxes per side",
   // The structure overlay. It draws no boxes and cannot be capped per side.
   "Major fractal", "Minor fractal", "Sweep reversal", "MSS window", "Events kept",
   // The cycle grid's only slider. Its two degree pickers are chips rather than
@@ -577,7 +578,7 @@ const docsText = await page.locator("main").innerText();
 check("the handbook opens from the panel", page.url().endsWith("/docs"), page.url());
 check("it explains the three acts", docsText.includes("kaki masuk"));
 check("it names every slider the panel shows",
-      ["Departure gate", "Max base drift", "Road ahead", "Zones per side"]
+      ["Zones per side"]
         .every((s) => docsText.includes(s)),
       docsText.length + " chars");
 // The page is long, and the workstation used to lock `body { overflow: hidden }`

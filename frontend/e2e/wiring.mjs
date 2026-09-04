@@ -208,8 +208,8 @@ check("every registry row carries an evidence disclosure", bukti === registry.le
 
 // Turn on the owner of every params block and confirm a panel appears for it.
 const OWNERS = [
-  ["supply_demand", "Supply and demand", "Impulse size"],
-  ["fvg", "Fair value gap", "Min gap size"],
+  ["supply_demand", "Supply and demand", "Zones per side"],
+  ["fvg", "Fair value gap", "Boxes per side"],
   ["structure", "Market structure", "Major fractal"],
   ["session", "Cycle grid", "Quarters kept"],
   ["gaps", "Opening gaps", "Gaps kept"],
