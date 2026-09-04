@@ -89,6 +89,45 @@ class ChecklistReport(BaseModel):
             "passed through. Nobody has measured whether the label predicts movement."
         ),
     )
+    news_impact: int | None = Field(
+        default=None,
+        description=(
+            "0-3 composite from today's high-impact events. "
+            "0 = none, 1 = minor (PMI etc), 2 = major (CPI or NFP), "
+            "3 = multiple majors or FOMC combo. The feed's labels, not measured."
+        ),
+    )
+    regime: dict | None = Field(
+        default=None,
+        description=(
+            "ADX and BB Width regime at the last bar, on the chart's own timeframe. "
+            "adx_label: weak (<20) / trending (20-40) / strong (>40). "
+            "bb_label: squeeze / normal / expansion (percentile within 200 bars). "
+            "Pre-registered 4 Sep 2026, not yet measured against outcomes."
+        ),
+    )
+    atr_budget: dict | None = Field(
+        default=None,
+        description=(
+            "How much of the daily ATR has been consumed today. "
+            "pct_used > 0.8 means most of the daily move is done. "
+            "Computed from the chart bars, not from a daily candle."
+        ),
+    )
+    volatility_index: dict | None = Field(
+        default=None,
+        description=(
+            "VIX and/or GVZ last close from Yahoo. Fetched once per session, "
+            "cached. Not measured against outcomes."
+        ),
+    )
+    cot: dict | None = Field(
+        default=None,
+        description=(
+            "Weekly COT positioning from CFTC disaggregated report. "
+            "None when the symbol has no CFTC code or the fetch failed."
+        ),
+    )
     notes: list[str] = Field(
         default_factory=list,
         description="Why an item is absent, when it is absent for a reason",

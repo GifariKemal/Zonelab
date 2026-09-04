@@ -334,7 +334,8 @@ def test_the_checklist_still_refuses_to_report_an_overall_verdict():
     # until the panel had already rendered a green tick.
     assert set(report) == {
         "degree", "dfr", "profile", "manipulation", "discount", "chain", "stacked",
-        "bias", "ssmt", "judas", "news", "notes",
+        "bias", "ssmt", "judas", "news", "news_impact", "cot", "notes",
+        "regime", "atr_budget", "volatility_index",
     }
     # And the two newest are readings, not judgements: a chain is a clock fact
     # and a stack is a count of levels, so neither may carry a pass.

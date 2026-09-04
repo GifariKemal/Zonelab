@@ -19,7 +19,7 @@ it fetches, dispatches, and assembles the response.
 from __future__ import annotations
 
 import asyncio
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from zoneinfo import ZoneInfo
 
 import numpy as np
@@ -40,7 +40,7 @@ from .costs import BROKERS
 from .costs import spec as cost_spec
 from .drawing import build as build_drawing
 from .fetching import fetch
-from .indicators import wilder_atr
+from .indicators import vwap as compute_vwap, volume_profile as compute_vp, wilder_atr
 from .layers import LAYER_IDS, catalogue
 from .models import (
     Advice,
@@ -914,7 +914,7 @@ async def draw(request: DrawRequest, http: Request) -> DrawResponse:
     # a two-slot CPU gate open across a vendor round trip is precisely the
     # failure `_BUILDS` was added to stop.
     async with _BUILDS:
-        plans, advice, range_report, draw_on = await asyncio.to_thread(
+        plans, advice, range_report, draw_on, vwap_info, vp_info = await asyncio.to_thread(
             _finish, drawing, rows, request, wanted
         )
 
@@ -929,8 +929,80 @@ async def draw(request: DrawRequest, http: Request) -> DrawResponse:
         range_liquidity=range_report,
         draw_on_liquidity=draw_on,
         checklist=checklist,
+        vwap=vwap_info,
+        volume_profile=vp_info,
         meta=meta,
     )
+
+
+def _vwap_and_profile(rows: list[Candle]) -> tuple[dict, dict]:
+    """VWAP (daily + weekly) and volume profile from the bar window.
+
+    Pure arithmetic on already-fetched bars, no provider call.
+    """
+    high = np.array([c.high for c in rows], dtype=np.float64)
+    low = np.array([c.low for c in rows], dtype=np.float64)
+    close = np.array([c.close for c in rows], dtype=np.float64)
+    volume = np.array([c.volume for c in rows], dtype=np.float64)
+    times = [c.time for c in rows]
+
+    last_price = close[-1]
+    last_dt = datetime.fromtimestamp(times[-1], tz=timezone.utc)
+
+    # Find anchors: first bar of today and this week (Monday)
+    today_midnight = last_dt.replace(hour=0, minute=0, second=0, microsecond=0)
+    today_ts = int(today_midnight.timestamp())
+    # Monday of this week
+    week_start = today_midnight - timedelta(days=today_midnight.weekday())
+    week_ts = int(week_start.timestamp())
+
+    daily_anchor = 0
+    weekly_anchor = 0
+    for i, t in enumerate(times):
+        if t >= today_ts:
+            daily_anchor = i
+            break
+    for i, t in enumerate(times):
+        if t >= week_ts:
+            weekly_anchor = i
+            break
+
+    daily_vwap_arr = compute_vwap(high, low, close, volume, daily_anchor)
+    weekly_vwap_arr = compute_vwap(high, low, close, volume, weekly_anchor)
+
+    daily_val = float(daily_vwap_arr[-1])
+    weekly_val = float(weekly_vwap_arr[-1])
+
+    atr = wilder_atr(high, low, close, 14)
+    atr_now = float(atr[-1])
+    distance = abs(last_price - daily_val) / atr_now if atr_now > 0 else 0.0
+
+    vwap_info = {
+        "daily": round(daily_val, 5),
+        "weekly": round(weekly_val, 5),
+        "position": "above" if last_price > daily_val else "below",
+        "distance_atr": round(distance, 3),
+    }
+
+    vp = compute_vp(high, low, close, volume)
+    if vp["vah"] > 0 and vp["val"] > 0:
+        if last_price > vp["vah"]:
+            vp_position = "above_va"
+        elif last_price < vp["val"]:
+            vp_position = "below_va"
+        else:
+            vp_position = "in_va"
+    else:
+        vp_position = "in_va"
+
+    vp_info = {
+        "poc": round(vp["poc"], 5),
+        "vah": round(vp["vah"], 5),
+        "val": round(vp["val"], 5),
+        "position": vp_position,
+    }
+
+    return vwap_info, vp_info
 
 
 def _finish(
@@ -938,7 +1010,11 @@ def _finish(
     rows: list[Candle],
     request: DrawRequest,
     wanted: set[str],
-) -> tuple[list[TradePlan], list[Advice], RangeLiquidityReport | None, DrawOnLiquidity | None]:
+) -> tuple[
+    list[TradePlan], list[Advice],
+    RangeLiquidityReport | None, DrawOnLiquidity | None,
+    dict | None, dict | None,
+]:
     """Everything after the drawing that is still CPU-bound, in one thread hop.
 
     Two calls rather than one, bundled here purely so the handler pays a single
@@ -953,7 +1029,8 @@ def _finish(
         if "liquidity" in wanted and rows
         else (None, None)
     )
-    return plans, advice, range_report, draw_on
+    vwap_info, vp_info = _vwap_and_profile(rows) if rows else (None, None)
+    return plans, advice, range_report, draw_on, vwap_info, vp_info
 
 
 def _annotate(

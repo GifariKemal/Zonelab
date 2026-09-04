@@ -309,4 +309,18 @@ class DrawResponse(BaseModel):
         default=None,
         description="Present only when the checklist was requested and enabled",
     )
+    vwap: dict[str, Any] | None = Field(
+        default=None,
+        description=(
+            "VWAP anchored to today and this week, plus price position. "
+            "Computed from MT5 tick volume (approximate, not real exchange volume)."
+        ),
+    )
+    volume_profile: dict[str, Any] | None = Field(
+        default=None,
+        description=(
+            "Fixed-range volume profile: POC, VAH, VAL and position. "
+            "Computed from MT5 tick volume (approximate)."
+        ),
+    )
     meta: dict[str, Any] = Field(default_factory=dict)

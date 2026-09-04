@@ -50,7 +50,7 @@ from app.ict import (
     Rules,
     setup as ict_setup,
 )
-from app.indicators import wilder_atr
+from app.indicators import bb_width, vwap as compute_vwap, volume_profile as compute_vp, wilder_adx, wilder_atr
 from app.layers import LAYERS
 from app.models import ImbalanceParams, LotSpec, SupplyDemandParams, ZoneSide
 from app.plan import DEPARTURE_GATE_ATR, build
@@ -701,6 +701,116 @@ def true_open_levels(symbol: str, interval: str, candles) -> list[float]:
         levels += [lv.price for lv in true_opens(fine, ("session",))
                    if lv.time <= cutoff]
     return levels
+
+
+def _market_context(candles: list, _symbol: str) -> dict:
+    """Enhancement context from bars already in memory. One call per symbol."""
+    from datetime import timezone
+    high = np.array([c.high for c in candles], dtype=np.float64)
+    low = np.array([c.low for c in candles], dtype=np.float64)
+    close = np.array([c.close for c in candles], dtype=np.float64)
+    volume = np.array([c.volume for c in candles], dtype=np.float64)
+
+    # ADX
+    adx_arr = wilder_adx(high, low, close, 14)
+    adx = float(adx_arr[-1])
+    adx_label = "weak" if adx < 20 else ("strong" if adx > 40 else "trending")
+
+    # Bollinger Band Width percentile
+    bbw = bb_width(close, 20, 2.0)
+    bbw_last = float(bbw[-1])
+    window = bbw[-200:] if len(bbw) >= 200 else bbw
+    pct = float(np.sum(window < bbw_last) / len(window) * 100) if len(window) else 50
+    bb_label = "squeeze" if pct < 20 else ("expansion" if pct > 80 else "normal")
+
+    # ATR budget: today's range / ATR(14)
+    atr_arr = wilder_atr(high, low, close, 14)
+    atr_val = float(atr_arr[-1]) if atr_arr[-1] > 0 else 1.0
+    last_dt = datetime.fromtimestamp(candles[-1].time, tz=timezone.utc)
+    midnight = last_dt.replace(hour=0, minute=0, second=0, microsecond=0)
+    midnight_ts = int(midnight.timestamp())
+    today_bars = [c for c in candles if c.time >= midnight_ts]
+    if today_bars:
+        day_hi = max(c.high for c in today_bars)
+        day_lo = min(c.low for c in today_bars)
+        atr_pct_used = (day_hi - day_lo) / atr_val
+    else:
+        atr_pct_used = 0.0
+
+    # VWAP daily
+    anchor_idx = 0
+    for i, c in enumerate(candles):
+        if c.time >= midnight_ts:
+            anchor_idx = i
+            break
+    vwap_arr = compute_vwap(high, low, close, volume, anchor_idx)
+    vwap_val = float(vwap_arr[-1]) if not np.isnan(vwap_arr[-1]) else float(close[-1])
+    vwap_position = "above" if close[-1] > vwap_val else "below"
+
+    # Volume profile
+    vp = compute_vp(high, low, close, volume)
+    vp_poc = vp.get("poc", 0.0)
+    vah = vp.get("vah", vp_poc)
+    val_ = vp.get("val", vp_poc)
+    last_close = float(close[-1])
+    if last_close > vah:
+        vp_position = "above_va"
+    elif last_close < val_:
+        vp_position = "below_va"
+    else:
+        vp_position = "in_va"
+
+    return {
+        "adx": adx, "adx_label": adx_label,
+        "bb_width": bbw_last, "bb_label": bb_label,
+        "atr_pct_used": atr_pct_used,
+        "vwap_daily": vwap_val, "vwap_position": vwap_position,
+        "vp_position": vp_position, "vp_poc": vp_poc,
+    }
+
+
+def _news_impact_score() -> int:
+    """Sync news score 0-3. Same keywords as checklist._enrich_news_impact."""
+    # ponytail: sync fetch, no async; try/except because feed may be down
+    try:
+        import json
+        from urllib.request import urlopen, Request
+        from app.news import FEED_URL, parse, select
+        from app.clock import to_ny
+        req = Request(FEED_URL, headers={"User-Agent": "Zonelab/0.1"})
+        with urlopen(req, timeout=5) as resp:
+            week = parse(json.loads(resp.read()))
+        if week.error:
+            return 0
+        import time as _time
+        now_ny = to_ny(int(_time.time())).date()
+        from app.clock import to_ny as _to_ny
+        high = select(week.events, impact="High")
+        today_events = [e for e in high if _to_ny(e.time).date() == now_ny]
+        if not today_events:
+            return 0
+        major = {"non-farm", "nonfarm", "cpi ", "fomc", "federal funds",
+                 "interest rate decision", "monetary policy"}
+        titles = [e.title.lower() for e in today_events]
+        major_count = sum(1 for t in titles if any(kw in t for kw in major))
+        if major_count >= 2:
+            return 3
+        if major_count == 1:
+            return 2
+        return 1
+    except Exception:
+        return 0
+
+
+def _cot_signal(symbol: str) -> dict | None:
+    """COT summary, lazy-imported because module may not exist in tests."""
+    try:
+        from app.cot import cot_summary
+        return cot_summary(symbol.split(":")[-1])
+    except Exception:
+        return None
+
+
 def gather(
     symbols: list[str],
     intervals: list[str],
@@ -791,6 +901,9 @@ def cycle(
     layer: str = "supply_demand",
     no_cisd_in_band: bool = False,
     streak_halve: int = 0,
+    adx_min: float = 0.0,
+    atr_budget_max: float = 0.0,
+    news_max: int = 99,
 ) -> dict:
     """ONE decision pass over every pair and timeframe. Returns a summary.
 
@@ -842,7 +955,9 @@ def cycle(
             "daily_loss_pct": daily_loss_pct,
             "weekly_loss_pct": weekly_loss_pct,
             "symbols": symbols, "intervals": intervals,
-            "partners": list(partners or [])}
+            "partners": list(partners or []),
+            "adx_min": adx_min, "atr_budget_max": atr_budget_max,
+            "news_max": news_max}
 
     ranked, blocked, series = gather(
         symbols, intervals, bars, equity, risk_pct, lots, rules, partners,
@@ -858,6 +973,27 @@ def cycle(
     if not ranked:
         print("  tidak ada kandidat")
         return {"candidates": 0, "sent": 0, "blocked": len(blocked)}
+
+    # Enhancement gates: market context per symbol, computed once
+    _contexts: dict[str, dict] = {}
+    for _bare, _candles in series.items():
+        if _candles:
+            _contexts[_bare] = _market_context(_candles, _bare)
+
+    # Global: news impact (one value for all symbols)
+    _news_score = _news_impact_score()
+    if _news_score > 0:
+        print(f"  news impact: {_news_score}/3")
+
+    # COT per symbol (cached per ISO week, at most one fetch)
+    _cot: dict[str, dict | None] = {}
+    for _sym in symbols:
+        _bare_s = _sym.split(":")[-1]
+        _cot_entry = _cot_signal(_sym)
+        _cot[_bare_s] = _cot_entry
+        if _cot_entry:
+            print(f"  COT {_bare_s}: {_cot_entry.get('signal', '?')} "
+                  f"(commercial {_cot_entry.get('commercial_net', '?')})")
 
     # OPEN POSITIONS COUNT TOWARDS THE CAP, and when they cannot be read the book
     # says so. A cap computed on half the book is a cap that does not bind, and
@@ -994,6 +1130,56 @@ def cycle(
             print(f"{head}\n      SUDAH pernah diorder, ticket {already[0]}")
             skipped += 1
             continue
+
+        # Enhancement gates: computed per-symbol context
+        bare_sym = symbol.split(":")[-1]
+        ctx = _contexts.get(bare_sym, {})
+
+        # Enhancement gate: ADX minimum trend strength
+        if adx_min > 0 and ctx.get("adx", 100) < adx_min:
+            label = ctx.get("adx_label", "?")
+            print(f"{head}\n      REGIME menolak: ADX {ctx['adx']:.1f} ({label}) < {adx_min}")
+            if send:
+                journal.record("refused", why=why_lines, rule=rule,
+                               zone_id=zone.id, symbol=symbol,
+                               plan=plan.model_dump(mode="json"),
+                               blockers=[f"ADX {ctx['adx']:.1f} < {adx_min} (regime too weak)"])
+            refused += 1
+            continue
+
+        # Enhancement gate: ATR budget exhaustion
+        if atr_budget_max > 0 and ctx.get("atr_pct_used", 0) > atr_budget_max:
+            print(f"{head}\n      ATR BUDGET menolak: {ctx['atr_pct_used']:.0%} used > {atr_budget_max:.0%}")
+            if send:
+                journal.record("refused", why=why_lines, rule=rule,
+                               zone_id=zone.id, symbol=symbol,
+                               plan=plan.model_dump(mode="json"),
+                               blockers=[f"ATR budget {ctx['atr_pct_used']:.0%} > {atr_budget_max:.0%}"])
+            refused += 1
+            continue
+
+        # Enhancement gate: high-impact news
+        if _news_score >= news_max:
+            print(f"{head}\n      NEWS menolak: impact {_news_score}/3 >= {news_max}")
+            if send:
+                journal.record("refused", why=why_lines, rule=rule,
+                               zone_id=zone.id, symbol=symbol,
+                               plan=plan.model_dump(mode="json"),
+                               blockers=[f"news impact {_news_score} >= {news_max}"])
+            refused += 1
+            continue
+
+        # Enhancement context (logged, not gating)
+        if ctx:
+            why_lines.append(f"regime: ADX {ctx.get('adx', 0):.1f} ({ctx.get('adx_label', '?')}), "
+                             f"BB {ctx.get('bb_label', '?')}")
+            why_lines.append(f"atr_budget: {ctx.get('atr_pct_used', 0):.0%} of daily ATR used")
+            why_lines.append(f"vwap: {ctx.get('vwap_position', '?')}, vp: {ctx.get('vp_position', '?')}")
+        cot_info = _cot.get(bare_sym)
+        if cot_info:
+            why_lines.append(f"cot: {cot_info.get('signal', '?')} "
+                             f"(commercial {cot_info.get('commercial_net', 0):+d})")
+
         # THE ICT GATE, and it sits before the risk checks on purpose: a setup the
         # method rejects should not consume a slot, and its refusal should name
         # the clause rather than the account.
@@ -1179,6 +1365,12 @@ def main() -> None:
                         help="belah dua risk_pct setiap N kekalahan berturut. "
                              "Misal 3: 3 kalah -> 50%%, 6 kalah -> 25%%. "
                              "Nol mematikan")
+    parser.add_argument("--adx-min", type=float, default=0.0,
+                        help="Minimum ADX to allow orders (0=disabled)")
+    parser.add_argument("--atr-budget-max", type=float, default=0.0,
+                        help="Max ATR budget pct_used (0=disabled, 1.5=150%%)")
+    parser.add_argument("--news-max", type=int, default=99,
+                        help="Max news impact score (0-3, 99=disabled)")
     args = parser.parse_args()
     rules = Rules(
         required=tuple(x.strip() for x in args.require.split(",") if x.strip()),
@@ -1229,7 +1421,8 @@ def main() -> None:
           lot, rules, args.max_total_risk_pct, args.max_correlation,
           [s.strip() for s in args.partners.split(",") if s.strip()],
           args.daily_loss_pct, args.weekly_loss_pct,
-          args.layer, args.no_cisd_in_band, args.streak_halve)
+          args.layer, args.no_cisd_in_band, args.streak_halve,
+          args.adx_min, args.atr_budget_max, args.news_max)
 
 
 if __name__ == "__main__":

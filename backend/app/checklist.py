@@ -9,9 +9,12 @@ from __future__ import annotations
 
 import asyncio
 
+import numpy as np
+
 from . import bias, clock, news, pools as pools_read, quarterly, sequence as seq
 from .aligned import load_aligned
 from .fetching import fetch
+from .indicators import wilder_adx, bb_width, wilder_atr
 from .judas import classify as judas_classify
 from .models import (
     BiasAlignment,
@@ -314,6 +317,24 @@ async def build(
     except Exception as exc:
         notes.append(f"news calendar unavailable: {exc}")
 
+    # --- items 2-5: regime, ATR budget, news impact, VIX -----------------
+    # All from bars already in memory, no provider calls except VIX.
+    _enrich_regime(report, rows, notes)
+    _enrich_atr_budget(report, rows, notes)
+    _enrich_news_impact(report)
+    # VIX/GVZ is supplementary and not counted in extra_fetches: it is cached
+    # after the first call and skipped entirely on synthetic (test) provider.
+    if used != "synthetic":
+        await _enrich_volatility_index(report, used, notes)
+
+    # COT weekly positioning. Cached for the whole ISO week, so this adds at
+    # most one HTTP call per Friday, not per draw.
+    try:
+        from . import cot
+        report.cot = await asyncio.to_thread(cot.cot_summary, request.symbol)
+    except Exception as exc:
+        notes.append(f"COT data unavailable: {exc}")
+
     report.notes = notes
     # Counted and reported, because an expensive option that hides its cost is
     # how a UI ends up hammering a rate-limited feed. A fully specified request
@@ -399,3 +420,139 @@ def _judas(rows: list[Candle]) -> JudasReading | None:
         expansion_direction=js.expansion_direction,
         description=js.description,
     )
+
+
+# --- enrichment helpers (items 2-5) --------------------------------------
+
+_CORR_BARS = 200  # same convention as conditioned.py
+
+
+def _enrich_regime(
+    report: ChecklistReport, rows: list[Candle], notes: list[str]
+) -> None:
+    """ADX and BB Width at the last bar, same cuts as conditioned.py."""
+    if len(rows) < 30:
+        notes.append("regime: fewer than 30 bars, cannot compute")
+        return
+    high = np.array([r.high for r in rows], dtype=np.float64)
+    low = np.array([r.low for r in rows], dtype=np.float64)
+    close = np.array([r.close for r in rows], dtype=np.float64)
+
+    adx_val = float(wilder_adx(high, low, close, 14)[-1])
+    bb_arr = bb_width(close, 20, 2.0)
+    bb_val = float(bb_arr[-1])
+
+    # ADX label: Wilder's own thresholds
+    if adx_val < 20:
+        adx_label = "weak"
+    elif adx_val <= 40:
+        adx_label = "trending"
+    else:
+        adx_label = "strong"
+
+    # BB Width: percentile within trailing window, same as _bb_regime
+    start = max(0, len(bb_arr) - _CORR_BARS)
+    window = bb_arr[start:]
+    if len(window) >= 30:
+        lo_pct = float(np.percentile(window, 20))
+        hi_pct = float(np.percentile(window, 80))
+        if bb_val < lo_pct:
+            bb_label = "squeeze"
+        elif bb_val > hi_pct:
+            bb_label = "expansion"
+        else:
+            bb_label = "normal"
+    else:
+        bb_label = "unknown"
+
+    report.regime = {
+        "adx": round(adx_val, 2),
+        "adx_label": adx_label,
+        "bb_width": round(bb_val, 6),
+        "bb_label": bb_label,
+    }
+
+
+def _enrich_atr_budget(
+    report: ChecklistReport, rows: list[Candle], notes: list[str]
+) -> None:
+    """How much of the daily ATR has been consumed so far today."""
+    if len(rows) < 15:
+        return
+    high = np.array([r.high for r in rows], dtype=np.float64)
+    low = np.array([r.low for r in rows], dtype=np.float64)
+    close = np.array([r.close for r in rows], dtype=np.float64)
+    atr_arr = wilder_atr(high, low, close, 14)
+    atr_val = float(atr_arr[-1])
+    if atr_val <= 0:
+        return
+
+    # Today's range: high/low since midnight NY
+    last_ny = clock.to_ny(rows[-1].time)
+    midnight = clock.ny_wall(last_ny.year, last_ny.month, last_ny.day, 0)
+    today_bars = [r for r in rows if r.time >= midnight]
+    if not today_bars:
+        return
+    today_high = max(r.high for r in today_bars)
+    today_low = min(r.low for r in today_bars)
+    today_range = today_high - today_low
+    pct = today_range / atr_val
+
+    report.atr_budget = {
+        "atr_14": round(atr_val, 4),
+        "range_today": round(today_range, 4),
+        "pct_used": round(pct, 3),
+    }
+
+
+# Titles that push the score to 2 or 3
+_MAJOR_TITLES = {
+    "non-farm", "nonfarm", "cpi ", "fomc", "federal funds",
+    "interest rate decision", "monetary policy",
+}
+
+
+def _enrich_news_impact(report: ChecklistReport) -> None:
+    """Score 0-3 from today's high-impact events. The feed's labels, not measured."""
+    if not report.news:
+        report.news_impact = 0
+        return
+    titles_lower = [n.title.lower() for n in report.news]
+    major_count = sum(
+        1 for t in titles_lower
+        if any(kw in t for kw in _MAJOR_TITLES)
+    )
+    if major_count >= 2:
+        report.news_impact = 3
+    elif major_count == 1:
+        report.news_impact = 2
+    elif report.news:
+        report.news_impact = 1
+    else:
+        report.news_impact = 0
+
+
+# VIX/GVZ cache: one fetch per session, not per draw
+_vol_cache: dict[str, float | None] = {}
+
+
+async def _enrich_volatility_index(
+    report: ChecklistReport, _provider: str, notes: list[str]
+) -> bool:
+    """VIX (and GVZ if available) last close from Yahoo. Returns True if fetched."""
+    if _vol_cache:
+        report.volatility_index = dict(_vol_cache)
+        return False
+    fetched = False
+    for sym, key in [("^VIX", "vix"), ("^GVZ", "gvz")]:
+        try:
+            bars, _ = await fetch(sym, "1d", 2, "yahoo")
+            fetched = True
+            if bars:
+                _vol_cache[key] = round(bars[-1].close, 2)
+        except Exception:
+            _vol_cache[key] = None
+            notes.append(f"volatility index {sym} unavailable from yahoo")
+    if _vol_cache:
+        report.volatility_index = dict(_vol_cache)
+    return fetched

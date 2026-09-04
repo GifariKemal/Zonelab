@@ -307,6 +307,12 @@ def main() -> int:
     parser.add_argument("--streak-halve", type=int, default=0,
                         help="belah dua risk_pct setiap N kekalahan berturut. "
                              "Nol mematikan")
+    parser.add_argument("--adx-min", type=float, default=0.0,
+                        help="Minimum ADX to allow orders (0=disabled)")
+    parser.add_argument("--atr-budget-max", type=float, default=0.0,
+                        help="Max ATR budget pct_used (0=disabled, 1.5=150%%)")
+    parser.add_argument("--news-max", type=int, default=99,
+                        help="Max news impact score (0-3, 99=disabled)")
     args = parser.parse_args()
     # LINE BUFFERED, or this daemon's log does not exist until it dies. Python
     # block-buffers stdout whenever it is not a terminal, so redirected to a file -
@@ -423,7 +429,10 @@ def main() -> int:
                               equity, lot, rules, args.max_total_risk_pct,
                               args.max_correlation, partners, args.daily_loss_pct,
                               args.weekly_loss_pct,
-                              streak_halve=args.streak_halve)
+                              streak_halve=args.streak_halve,
+                              adx_min=args.adx_min,
+                              atr_budget_max=args.atr_budget_max,
+                              news_max=args.news_max)
                         for name in bare:
                             exits(mt5, name, args.send, rule)
                         sweep(mt5, args.send, rule)

@@ -200,6 +200,114 @@ def classify_candles(
     return np.where(exciting, np.sign(body), 0).astype(np.int8)
 
 
+def vwap(
+    high: np.ndarray,
+    low: np.ndarray,
+    close: np.ndarray,
+    volume: np.ndarray,
+    anchor_idx: int = 0,
+) -> np.ndarray:
+    """Volume-Weighted Average Price from anchor_idx forward.
+
+    Typical price = (H+L+C)/3, weighted by tick volume.
+    Returns array same length as input, NaN before anchor.
+
+    WARNING: MT5 tick volume is the number of ticks per bar, not real exchange
+    volume. The VWAP computed from it is an approximation whose accuracy
+    depends on the instrument and session.
+    """
+    n = len(close)
+    out = np.full(n, np.nan, dtype=np.float64)
+    if n == 0 or anchor_idx >= n:
+        return out
+    anchor_idx = max(anchor_idx, 0)
+    tp = (high[anchor_idx:] + low[anchor_idx:] + close[anchor_idx:]) / 3.0
+    vol = volume[anchor_idx:]
+    cum_vol = np.cumsum(vol)
+    cum_tpv = np.cumsum(tp * vol)
+    # ponytail: EPS guards zero-volume stretches without masking
+    out[anchor_idx:] = cum_tpv / np.maximum(cum_vol, EPS)
+    return out
+
+
+def volume_profile(
+    high: np.ndarray,
+    low: np.ndarray,
+    close: np.ndarray,
+    volume: np.ndarray,
+    bins: int = 24,
+) -> dict:
+    """Fixed-range volume profile over the given bars.
+
+    Distributes each bar's tick volume across the price bins its range covers.
+    Returns dict with poc, vah, val and the bin histogram.
+
+    Same tick-volume caveat as `vwap` above.
+    """
+    n = len(close)
+    if n == 0 or bins < 1:
+        return {"poc": 0.0, "vah": 0.0, "val": 0.0, "bins": []}
+
+    lo = float(low.min())
+    hi = float(high.max())
+    if hi - lo < EPS:
+        tp = float((high[0] + low[0] + close[0]) / 3.0)
+        total_vol = float(volume.sum())
+        return {
+            "poc": tp, "vah": tp, "val": tp,
+            "bins": [{"price": tp, "volume": total_vol}],
+        }
+
+    edges = np.linspace(lo, hi, bins + 1)
+    centres = (edges[:-1] + edges[1:]) / 2.0
+    accum = np.zeros(bins, dtype=np.float64)
+
+    # ponytail: O(n*bins) via searchsorted, n<=50k and bins<=100
+    for i in range(n):
+        bar_lo, bar_hi, bar_vol = low[i], high[i], volume[i]
+        if bar_vol <= 0:
+            continue
+        first = int(np.searchsorted(edges[1:], bar_lo, side="left"))
+        last = int(np.searchsorted(edges[:-1], bar_hi, side="right")) - 1
+        first = max(first, 0)
+        last = min(last, bins - 1)
+        if first > last:
+            first = last
+        span = last - first + 1
+        accum[first : last + 1] += bar_vol / span
+
+    poc_idx = int(accum.argmax())
+    poc = float(centres[poc_idx])
+
+    total = accum.sum()
+    if total < EPS:
+        return {
+            "poc": poc, "vah": poc, "val": poc,
+            "bins": [{"price": float(c), "volume": float(v)} for c, v in zip(centres, accum)],
+        }
+
+    # Value area: expand outward from POC until 70% of volume covered
+    target = total * 0.70
+    area_vol = accum[poc_idx]
+    lo_idx, hi_idx = poc_idx, poc_idx
+    while area_vol < target and (lo_idx > 0 or hi_idx < bins - 1):
+        add_lo = accum[lo_idx - 1] if lo_idx > 0 else -1.0
+        add_hi = accum[hi_idx + 1] if hi_idx < bins - 1 else -1.0
+        if add_lo >= add_hi:
+            lo_idx -= 1
+            area_vol += accum[lo_idx]
+        else:
+            hi_idx += 1
+            area_vol += accum[hi_idx]
+
+    return {
+        "poc": poc,
+        "vah": float(centres[hi_idx]),
+        "val": float(centres[lo_idx]),
+        "bins": [{"price": float(c), "volume": float(v)} for c, v in zip(centres, accum)],
+    }
+
+
 def runs(labels: np.ndarray) -> list[tuple[int, int, int]]:
     """Compress a label array into consecutive runs of (label, start, end).
 

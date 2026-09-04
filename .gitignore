@@ -54,6 +54,9 @@ backend/.journal/
 # auto-trade di mesin siapa pun yang melakukan clone.
 backend/.autotrade.json
 
+# COT cache: fetched weekly from CFTC, rebuilt on every ISO week boundary.
+backend/.cot_cache.json
+
 # Endpoint AI Agent (base_url, api_key, model). Kredensial, dan aturan
 # kredensial di grup ini mutlak sejak insiden 2026-05-28: tidak pernah
 # ter-track, tidak pernah di-hardcode.
