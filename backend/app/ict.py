@@ -84,6 +84,17 @@ class Rules:
     min_families: int = 2
     #: Opposite-side boxes tolerated in the same band before `poi_clean` fails.
     max_conflicts: int = 0
+    #: Excursion MELAWAN tesis, dalam ATR, yang masih diterima klausa
+    #: `adverse_excursion`. Nol mematikan pass/fail-nya dan klausa itu tetap
+    #: MELAPORKAN angkanya, yang memang satu satunya hal yang terbukti berguna.
+    #:
+    #: NOL BUKAN KARENA BELUM DIUKUR. Ia SUDAH diukur, 4 September 2026, dan
+    #: gagal di ketiga sel dengan tanda terbalik dari praregistrasinya. Angka
+    #: lengkapnya di `MEASURED_AGAINST["adverse_excursion"]`. Menyalakannya
+    #: berarti menyalakan gerbang yang walk-forward-nya 1 dari 8 di sel dengan
+    #: |t| terbesar, dan ke arah yang berlawanan dengan intuisi yang
+    #: melahirkannya.
+    max_adverse_atr: float = 0.0
     #: Whether the higher-timeframe bias must agree with the zone's side.
     #: Derajat bias yang dibaca klausa `bias_agrees`.
     #:
@@ -135,6 +146,24 @@ DOCTRINE_CLAUSES: frozenset[str] = frozenset([
 #: KONSTAN di 1855 trade, jadi keduanya tidak bisa jadi kriteria apa pun: kolom
 #: yang tidak pernah berubah tidak membawa satu bit informasi.
 MEASURED_AGAINST: dict[str, str] = {
+    "adverse_excursion": (
+        "TIDAK MEMISAHKAN, dan tandanya TERBALIK dari yang dipraregistrasi. "
+        "Diukur 4 September 2026 di tiga sel, ambang 1,0x ATR dipatok di muka, "
+        "dijangkar di `anatomy.leg_out_to` yaitu bar pertama sebuah limit bisa "
+        "dipasang: supply_demand XAUUSD 30m kecil -0,0425 (n=1437) lawan besar "
+        "+0,0314 (n=359), delta -0,0739 t=-1,19 wf 5/8; supply_demand XAUUSD "
+        "15m kecil -0,0321 (n=621) lawan besar -0,0312 (n=141), delta -0,0009 "
+        "t=-0,01 wf 3/8; fvg XAUUSD 30m kecil +0,1846 (n=1663) lawan besar "
+        "+0,4000 (n=338), delta -0,2154 t=-2,41 wf 1/8. Praregistrasinya "
+        "berbunyi ADVERSE KECIL LEBIH BAIK dan ketiga sel memberi kebalikannya, "
+        "yang masuk akal ekonomis karena limit yang lebih jauh mengisi di harga "
+        "yang lebih bagus. Arah balik itu TETAP tidak lolos: walk-forward 5/8, "
+        "3/8, dan 1/8, dan yang |t| nya melewati ambang justru yang wf 1/8. "
+        "Kontrol tanda-dibalik degenerate di ketiga sel (bucket 22, 4, dan nol "
+        "baris), jadi split ambang ini menangkap geometri zona bukan arah. "
+        "KARENA ITU `Rules.max_adverse_atr` default nol: klausa ini MELAPORKAN "
+        "dan tidak menggerbang. Yang berguna angkanya, bukan gerbangnya"
+    ),
     "ote": ("direplikasi di 12 instrumen 1h: NOL sel lolos, |t| tertinggi 2,04 "
             "lawan kritis 3,20. Negatif di 10 dari 12 sel tapi tidak signifikan "
             "di satu pun, jadi ia tidak punya edge DAN tidak terbukti merugikan"),
@@ -342,6 +371,19 @@ CLAUSE_OBJECT: dict[str, tuple[str | None, str]] = {
         "bukan bentuk. EA MQL5 punya perhitungan RR-nya sendiri, dan itu "
         "divergensi yang `docs/QA-DETEKTOR.md` bagian 4 catat",
     ),
+    "adverse_excursion": (
+        None,
+        "Membaca `plan.entry` lawan close bar keputusan, diskalakan ATR. TIDAK "
+        "punya bentuk di harga karena ia JARAK antara dua hal yang sudah "
+        "digambar: garis plan dan harga sekarang. Klausa ini lahir 4 September "
+        "2026 dari satu order yang arahnya benar dan strukturnya salah: COT, "
+        "SSMT dan premium ketiganya bilang jual, gold memang turun 86,98 dolar, "
+        "tapi order yang dipasang sell limit 31,75 di ATAS pasar (2,10x ATR H1) "
+        "jadi ia menunggu harga naik dulu dan tidak pernah terisi. Market sell "
+        "di harga saat itu +7,83 R. Tidak satu pun dari tujuh belas klausa "
+        "sebelumnya menanyakan jarak itu, dan `ote` justru memperlakukan "
+        "retracement sebagai syarat bukan sebagai risiko",
+    ),
     "draw_agrees": (
         "liquidity",
         "Membaca `liquidity.dol_candidates`. Layer `liquidity` menggambar "
@@ -358,6 +400,27 @@ CLAUSE_OBJECT: dict[str, tuple[str | None, str]] = {
 BIAS_DEGREES: tuple[str, ...] = tuple(f"bias_{d}" for d in _BIAS_DEGREES)
 
 
+def adverse_excursion_atr(
+    entry: float, close: float, atr: float, long_side: bool
+) -> float | None:
+    """Jarak MELAWAN tesis dari `close` ke `entry`, dalam ATR. None kalau tak terskala.
+
+    TANDANYA DIHITUNG PER SISI, DAN ITU SELURUH ISI FUNGSI INI. Sebuah limit
+    hanya terisi kalau harga datang ke sana. Untuk zona demand yang berada di
+    BAWAH harga, "datang ke sana" berarti TURUN, sementara tesisnya beli, jadi
+    jaraknya melawan. Untuk supply di ATAS harga, ia harus NAIK sementara
+    tesisnya jual. Karena itu satu rumus per sisi, bukan `abs`: `abs` membaca
+    limit yang sudah dilewati harga sebagai excursion melawan sebesar yang sama,
+    padahal yang itu akan terisi seketika, yaitu kebalikannya.
+
+    Positif berarti harga harus bergerak melawan dulu. Nol berarti entry ada di
+    harga. Negatif berarti ia sudah dilewati.
+    """
+    if atr <= 0:
+        return None
+    return (close - entry) / atr if long_side else (entry - close) / atr
+
+
 def evaluate(
     zone: Zone,
     state: dict[str, Any],
@@ -368,6 +431,7 @@ def evaluate(
     draw: Literal["higher", "lower", "unnominated"] = "unnominated",
     two_stage_confirmed: bool = False,
     reward_r: float | None = None,
+    adverse_atr: float | None = None,
     always_open: bool = False,
 ) -> list[Condition]:
     """The checklist for one candidate, in a fixed order.
@@ -623,6 +687,31 @@ def evaluate(
         out.append(Condition(
             "min_rr", None, "doctrine",
             "no target zone, reward cannot be computed",
+        ))
+
+    # --------------------------------------------- adverse excursion
+    # POSITIF BERARTI HARGA HARUS BERGERAK MELAWAN TESIS DULU. Sebuah limit di
+    # zona hanya terisi kalau harga datang ke sana, dan untuk zona demand di
+    # BAWAH harga itu berarti turun sementara tesisnya beli. Tandanya karena
+    # itu dihitung per sisi, bukan `abs`: nol berarti limit di harga, negatif
+    # berarti ia sudah dilewati dan akan terisi seketika.
+    if adverse_atr is None:
+        out.append(Condition(
+            "adverse_excursion", None, "measured",
+            "caller tidak menghitungnya; entry, close, dan ATR ada di jalur "
+            "order tapi tidak di sini",
+        ))
+    elif rules.max_adverse_atr <= 0:
+        out.append(Condition(
+            "adverse_excursion", None, "measured",
+            f"{adverse_atr:+.2f}x ATR melawan tesis sebelum terisi; ambangnya "
+            f"diukur TIDAK memisahkan jadi ini bacaan, bukan gerbang",
+        ))
+    else:
+        out.append(Condition(
+            "adverse_excursion", adverse_atr <= rules.max_adverse_atr, "measured",
+            f"{adverse_atr:+.2f}x ATR melawan tesis sebelum terisi, ambang "
+            f"{rules.max_adverse_atr:+.2f}x",
         ))
 
     # ------------------------------------------------- draw on liquidity

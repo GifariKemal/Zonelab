@@ -44,6 +44,7 @@ from app.costs import COST_TO_RISK_MAX, cost_to_risk, schedule, spec
 from app.dealing_range import mark_dealing_range_now
 from app.detect import DETECTORS
 from app.ict import (
+    adverse_excursion_atr,
     BIAS_DEGREES,
     DOCTRINE_CLAUSES,
     MEASURED_AGAINST,
@@ -205,6 +206,29 @@ def grounds(zone, plan, layer: str, odds: dict | None = None) -> list[str]:
         f"{plan.reward_r}R from the entry",
     ]
 
+
+
+def _adverse_line(checklist) -> str:
+    """Jarak melawan tesis, dari klausanya sendiri, atau string kosong.
+
+    DIBACA DARI KLAUSA, BUKAN DIHITUNG ULANG. Dua definisi yang bisa melenceng
+    adalah kelas cacat yang repo ini paling sering ketemu, dan di sini ia akan
+    melenceng ke arah yang paling buruk: baris yang dicetak operator akan
+    berbeda dari baris yang masuk journal.
+    """
+    # getattr, BUKAN akses langsung. Lima test di tests/test_enhancement_gates.py
+    # memanggil jalur ini dengan checklist palsu yang conditions-nya daftar
+    # integer, dan versi pertama fungsi ini meledak AttributeError di sana.
+    # Menuntut fixture berubah supaya kode produksi jalan adalah arah
+    # ketergantungan yang salah: baris cetak kosong sudah benar untuk checklist
+    # yang tidak membawa klausanya.
+    for c in getattr(checklist, "conditions", None) or ():
+        if getattr(c, "name", None) != "adverse_excursion":
+            continue
+        detail = getattr(c, "detail", "") or ""
+        if "x ATR" in detail:
+            return f"  adverse {detail.split('x ATR')[0]}x ATR"
+    return ""
 
 
 def by_method(candidate: tuple) -> tuple:
@@ -605,10 +629,17 @@ def candidates(
         stack = confluence(zone, others, last.time, born_from, born_to,
                            cisd_levels=cisd_levels,
                            true_open_prices=open_levels)
+        # JARAK MELAWAN TESIS, dihitung di sini karena di sinilah ketiga
+        # angkanya ada sekaligus: entry dari plan, harga dari bar keputusan, dan
+        # ATR yang sama yang men-scale stop-nya. `app/ict.py` tidak punya dua
+        # dari tiga.
+        adverse_atr = adverse_excursion_atr(
+            plan.entry, float(last.close), atr, long_side)
         out.append((zone, plan, ict_setup(zone, state, stack, rules,
                                           ssmt_side=ssmt_side,
                                           two_stage_confirmed=two_stage_confirmed,
                                           reward_r=plan.reward_r,
+                                          adverse_atr=adverse_atr,
                                           always_open=always_open)))
 
     # CHECKLIST FIRST, lalu zone id. Kalimat di sini dulu berbunyi "distance
@@ -1109,7 +1140,13 @@ def cycle(
                 # identik. Ia tetap dicetak karena operator ingin tahu klausa mana
                 # yang terpenuhi; yang berubah kalimatnya berhenti mengklaim mutu.
                 f"  klausa terpenuhi {checklist.met}/{len(checklist.conditions)}"
-                f" (bacaan, bukan peringkat)")
+                f" (bacaan, bukan peringkat)"
+                # DICETAK TERPISAH, TIDAK DILIPAT KE DALAM SKOR. Angka ini yang
+                # hilang pada 4 September 2026 ketika sebuah sell limit dipasang
+                # 2,10x ATR di ATAS pasar dengan tesis turun. Ia ada di detail
+                # klausa sejak hari itu, dan detail klausa tidak dicetak di
+                # sebelah order, jadi ia harus punya barisnya sendiri.
+                + _adverse_line(checklist))
         # PELUANG DILEKATKAN DI TIAP KANDIDAT, dan sisinya dipilih dari sisi
         # gerbang layer ini bukan dari `zone.departure_atr` mentah. Untuk `fvg`
         # gerbangnya TERBALIK, jadi populasi yang benar-benar diorder adalah

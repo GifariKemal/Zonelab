@@ -234,7 +234,7 @@ CLAUSES = (
     "manipulation_quarter", "manipulation_seen",
     "manipulation_after_accumulation", "poi_families", "poi_clean",
     "cisd_in_band", "dfr_side", "htf_nested", "bias_agrees", "ssmt",
-    "two_stage_confirmed", "min_rr", "draw_agrees",
+    "two_stage_confirmed", "min_rr", "draw_agrees", "adverse_excursion",
 )
 
 #: Sudah diukur sebelum studi ini, jadi verdict-nya mengutip dan bukan mengklaim.
