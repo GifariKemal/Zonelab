@@ -121,8 +121,8 @@ def test_the_orphan_columns_are_pre_registered_and_separate_from_the_others():
     pertanyaan mana yang diajukan sebelum jawabannya ada, yang adalah
     satu-satunya hal yang membuat ketiganya layak dipercaya.
 
-    `ladder` sengaja TIDAK di sana: ia tabel lookup tanpa input pasar, dan itu
-    dinyatakan di `docs/PRAREGISTRASI-YATIM.md` Bagian 2 sebelum angka apa pun.
+    `ladder` sengaja tidak pernah di sana (tabel lookup tanpa input pasar) dan
+    file-nya (`app/ladder.py`) dihapus 4 September 2026.
     """
     from tools.conditioned import COLUMNS, ICT_COLUMNS, ORPHAN_COLUMNS
 

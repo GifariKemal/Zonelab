@@ -1,6 +1,6 @@
 # Peta direktori docs
 
-Direktori ini berisi 15 dokumen prosa dan 42 file bukti mentah. Tanpa peta,
+Direktori ini berisi 17 dokumen prosa dan 66 file bukti mentah. Tanpa peta,
 pembaca yang membukanya melihat 30 file dan tidak bisa tahu prosa mana membaca
 data mana. Itu satu-satunya alasan file ini ada.
 
@@ -16,6 +16,7 @@ data mana. Itu satu-satunya alasan file ini ada.
 | [FIDELITY.md](FIDELITY.md) | Di mana mesin ini menyimpang dari metodenya, dan apakah penyimpangannya disengaja |
 | [ADOPSI.md](ADOPSI.md) | Apa yang diadopsi dari sumber luar, apa yang ditolak, dan pengukuran di belakang tiap keputusan |
 | [BACKLOG.md](BACKLOG.md) | Apa yang belum dikerjakan, dan apa yang sudah ditolak supaya tidak diusulkan lagi |
+| [TRIAGE-94.md](TRIAGE-94.md) | Putusan 94 item failed/null/rejected/blocked, dengan referensi akademis per kategori |
 | [WALKFORWARD-MT5.md](WALKFORWARD-MT5.md) | Apakah gate-nya bertahan di luar sampel, per fold, termasuk fold yang gagal |
 | [AUDIT-MENYELURUH.md](AUDIT-MENYELURUH.md) | Apa Zonelab sebenarnya, apa yang terwire, apa yang terukur, dan jarak antara sistem yang diceritakan dengan sistem yang dibangun. **Mulai dari sini kalau baru membaca repo ini** |
 | [QA-PRODUKSI.md](QA-PRODUKSI.md) | Catatan QA/QC menuju produksi, 16 bagian, setiap angka dari perintah yang dijalankan |
@@ -35,9 +36,10 @@ data mana. Itu satu-satunya alasan file ini ada.
 Konvensinya nama, bukan mekanisme: setiap tool mencetak ke stdout dan hasilnya
 dialihkan ke `docs/<nama>.json`. Jadi `docs/mss.json` datang dari
 `python -m tools.mss`, dan **tidak ada apa pun yang menegakkan itu** selain
-konvensi ini. Diperiksa 21 Agustus 2026 pada 21 file, dan diperiksa ulang
-29 Agustus 2026 setelah `baseline.json` masuk: ke-31 file punya tool
-yang cocok, tidak ada yang orphan.
+konvensi ini. Diperiksa 21 Agustus 2026 pada 21 file, diperiksa ulang
+29 Agustus 2026 setelah `baseline.json` masuk, dan diperbarui 4 September
+2026: ke-66 file punya tool yang cocok atau dihasilkan dari skrip manual
+(Wyckoff MT5 backtest), tidak ada yang orphan.
 
 Tanda hubung lawan garis bawah adalah artefak sejarah dan bukan makna:
 `smt-volatility.json` datang dari `tools/smt_volatility.py`.
@@ -85,6 +87,31 @@ Tanda hubung lawan garis bawah adalah artefak sejarah dan bukan makna:
 | `mt5-backtest.json` | `tools.mt5_backtest` | QA-DETEKTOR.md | matriks Strategy Tester, empat detektor lawan dua instrumen lawan lima timeframe. Tiap sel menulis `.set`-nya sendiri dan menyalin `.htm`-nya ke `mql5/ZonelabSupplyDemand/reports/`, karena sampai 1 September 2026 repo ini punya NOL artifact backtest dan `ReplaceReport=1` membuat tiap run menghapus run sebelumnya |
 | `mt5-walkforward.json` | `tools.mt5_backtest`, empat kali dengan rentang tanggal berbeda | QA-DETEKTOR.md | stabilitas antar-periode 64 sel di 2023, 2024, 2025 dan Jan-Agu 2026. NOL dari 16 sel menang di keempat periode |
 | `csid_ob_intrabar.json` | `tools.csid_ob_intrabar` | - | CISD fresh (recency 50 bar) di dalam order block lawan resolved R (intrabar 5m, biaya), 8174 trade, delta -0,136 R t=-7,04, walk-forward 8/8 negatif, MEMISAHKAN tanda terbalik |
+| `expectation.json` | `tools.expectation` | - | expected path evaluation |
+| `event_backtest.json` | `tools.event_backtest` | - | event-driven backtest harness |
+| `order_key.json` | `tools.order_key` | - | tie-breaker order key evaluation, `near_close` t=-4,64 wf 0/8 |
+| `phase_targets.json` | `tools.phase_targets` | - | quarterly phase target evaluation |
+| `lowtf_costed.json` | `tools.lowtf_costed` | - | 30m edge setelah biaya |
+| `lowtf_resolution.json` | `tools.lowtf_resolution` | - | kontrol resolusi 1m untuk edge 30m |
+| `continuation_backtest.json` | `tools.continuation_backtest` | - | continuation entry backtest |
+| `continuation_exits.json` | `tools.continuation_exits` | - | continuation exit variants |
+| `continuation_backtest_30m.json` | `tools.continuation_backtest` | - | continuation di 30m |
+| `fvg_inverted.json` | `tools.fvg_inverted` | - | FVG inverted gate, +0,2188 R 8/8 fold |
+| `fvg_resolution.json` | `tools.lowtf_resolution` | - | FVG resolusi kontrol |
+| `volume_imbalance.json` | `tools.volume_imbalance` | BACKLOG.md 3b | DITOLAK: median 0,0058 ATR, n akhir 18, t=+0,32 |
+| `shelf_conditioned.json` | `tools.shelf_conditioned` | BACKLOG.md 3c | S&R sebagai kondisi zona, tak terukur karena n=1 |
+| `shelf_proximity.json` | `tools.shelf_proximity` | - | kedekatan shelf ke zona |
+| `mt5_python_parity.json` | `tools.mt5_python_parity` | QA-DETEKTOR.md | parity check Python lawan MQL5, 6 dari 8 sel tidak sepakat |
+| `entry_probability.json` | `tools.entry_probability` | - | probabilitas entry per kondisi |
+| `stop-scale-sensitivity.txt` | manual | - | sensitivitas parameter skala stop |
+| `mt5-backtest-atrlast-m30.json` | `tools.mt5_backtest` | - | MT5 backtest dengan ATR last di M30 |
+| `mt5-wyk-arm0.json` | `tools.mt5_backtest` | QA-BREAKOUT.md | Wyckoff arm 0 (vanilla breakout) |
+| `mt5-wyk-arm1.json` | `tools.mt5_backtest` | QA-BREAKOUT.md | Wyckoff arm 1 (retest) |
+| `mt5-wyk-arm2.json` | `tools.mt5_backtest` | QA-BREAKOUT.md | Wyckoff arm 2 (tick count filter) |
+| `mt5-wyk-arm3.json` | `tools.mt5_backtest` | QA-BREAKOUT.md | Wyckoff arm 3 (fade the fakeout) |
+| `mt5-wyk-arm0-matrix.json` | `tools.mt5_backtest` | QA-BREAKOUT.md | Wyckoff arm 0 sensitivity matrix |
+| `mt5-wyk-h4.json` | `tools.mt5_backtest` | QA-BREAKOUT.md | Wyckoff XAUUSD H4, 129 trade, PF 1,34 tidak bereplikasi |
+| `mt5-wyk-h4-btc.json` | `tools.mt5_backtest` | QA-BREAKOUT.md | Wyckoff BTCUSD H4 replikasi, PF 1,01 |
 
 > [!IMPORTANT]
 > Kolom "dibaca prosa" kosong **bukan** berarti file-nya mati. Ia output mentah

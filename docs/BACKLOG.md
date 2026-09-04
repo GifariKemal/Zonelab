@@ -74,10 +74,10 @@ atas primitif yang sudah ada.
 | 2 | Optimal Trade Entry | Retracement 0.5, 0.62, 0.705, 0.79, invalidasi di 1.0 | Tidak satu pun angka itu ada. `dealing_range.py` sudah membangun input yang persis dibutuhkan |
 | 3 | Balanced Price Range | FVG bullish dan bearish tumpang tindih di harga yang sama. Tingkat S di hierarki modern | Tidak ada. `detect_fvg` sudah mengeluarkan kedua polaritas |
 | 4 | Mitigation block | Pembeda dari breaker adalah **tidak ada** sweep sebelumnya | Tidak ada. `walk_breaks` sudah membedakan SWEEP dari BOS |
-| 5 | Killzone yang hilang | Sumber memberi empat: Asia 19-22, London 02-05, New York 07-09, London Close 10-12 | `pools.SESSIONS` hanya punya dua, dan jendela Asia pun berbeda dari sumber |
-| 6 | Silver Bullet | 03-04, 10-11, 14-15 New York | Nol kemunculan di seluruh repo |
+| 5 | Killzone yang hilang | Sumber memberi empat: Asia 19-22, London 02-05, New York 07-09, London Close 10-12 | **Diperbaiki 3 September 2026.** `pools.SESSIONS` sekarang punya `ny_pm` (13:30-16:00) selain `asia`, `london`, `ny_am`, `london_close`. Format tuple diperlebar ke 5-tuple `(open_h, open_m, close_h, close_m, day_offset)` supaya pool bisa mulai di jam setengah. Waktu Asia, London, NY AM berbeda 30 menit dari satu sumber (Bang Nas) dan cocok dengan dua sumber lain, terdokumentasi di `pools.py:168-175` |
+| 6 | Silver Bullet | 03-04, 10-11, 14-15 New York | **Diperbaiki 3 September 2026.** `KILLZONES` sekarang punya tiga jendela: `ny_am_sb` (10:00-11:00), `london_sb` (03:00-04:00), `ny_pm_sb` (14:00-15:00). Dua yang pertama sudah ada, yang ketiga ditambahkan sesi ini |
 | 7 | Consequent encroachment pada FVG dan OB | 50% dari array, digambar sebagai harga | `imbalance.py` mengklaim `penetration_pct` setara. Bukan setara: satu harga, satu peristiwa |
-| 8 | Unicorn model | FVG duduk persis di dalam breaker block | Kedua induknya sudah ada |
+| 8 | Unicorn model | FVG duduk persis di dalam breaker block | Kedua induknya sudah ada. `poi.confluence` menghitung overlap lintas keluarga |
 | 9 | Opening Range Gap | Antara harga pertama sesi 09:30 dan penutupan hari sebelumnya | `gaps.py` hanya menangani batas 17:00/18:00 |
 | 10 | IPDA data range | Tertinggi dan terendah bergulir 20, 40, 60 hari perdagangan | Tidak ada |
 | 11 | Rejection block | Zona **sumbu** panjang lilin yang menyapu likuiditas lalu ditolak | Tidak ada. OB didefinisikan pada badan, ini pada sumbu |
@@ -404,7 +404,7 @@ frekuensi di tabel bawah BELUM dihitung ulang atas populasi yang lebih besar.
 | 5 | Ray gap bernama timeframe (`H4 Gap`, `Gap/D`) | ~9 | Tidak ada label timeframe pada gap |
 | 6 | Tabel header `EV / Top / Bot / Dist` | 7 | Aritmetikanya sudah dipecahkan, tabelnya belum dibuat |
 | 7 | Derajat `quarter` tiga bulan, penghasil `TQO` | 6 | **Butir ini salah, dikoreksi 21 Agustus 2026.** Derajat `year` ADALAH kuartal tiga bulan: `quarters("year")` memotong di 1 Jan, 1 Apr, 1 Jul, 1 Okt, dan true open tiap kuartal itu sudah tergambar. Yang berbeda cuma namanya, `TYO` lawan `TQO` di gambar, dan `TQO` sudah dipakai derajat quadrennial (`session-primitive.ts:121`). Jadi ini keputusan label, bukan derajat yang hilang |
-| 8 | Template NY Judas Swing | 1 gambar, tapi spesifikasi 2x2 lengkap | Ditolak sebagai diskresioner. Gambarnya justru deterministik dan semua primitifnya sudah ada |
+| 8 | Template NY Judas Swing | 1 gambar, tapi spesifikasi 2x2 lengkap | **Terwire 3 September 2026.** `app/checklist.py` memanggil `judas.classify()` dan menulis `JudasReading` ke `ChecklistReport.judas`. Panel menampilkan template (A-D), bias London, dan arah Judas. Belum diukur terhadap outcome |
 
 > [!NOTE]
 > **Koreksi atribusi.** Ke-51 gambar yang disisir waktu itu berwatermark
@@ -713,6 +713,128 @@ ada.
 - Gambar jalur forecast. Mesin ini tidak meramal, dan itu keputusan.
 - Varian NWOG yang mengukur ke Senin 09:30. Jalan yang tidak diambil, dan kalau
   suatu saat diinginkan ia `kind` kedua, bukan suntingan pada yang sekarang.
+
+## Bagian 8: audit lawan data referensi Bang Nas, 4 September 2026
+
+Audit menyeluruh Zonelab lawan data referensi POSKO 618 lengkap (Quarterly
+Theory, True Opens, Kill Zones, SSMT, PDA, CISD, PSP, Truth Asset, Intermarket
+Triads, Judas Swing, Weekly Pre-Planning, Risk Management, XAMD/AAMD, DFR
+Targeting, Event Horizon, News Calendar, Three Drives, HTF/MTF/LTF,
+Crypto, Index Futures).
+
+### Yang sudah cocok
+
+| Konsep | Status |
+|---|---|
+| Quarterly Theory (pembagian ke 4 di semua skala) | `quarters.py`, delapan nesting degree |
+| True Opens (Q2 boundary tiap cycle degree) | TDO, TWO, TMO, T4hO, TSessionO, T90mO, TNanoO, diturunkan dari quartering |
+| AMDX/XAMD cycle profile | `sequence.py`, panel checklist |
+| Quarter chain X-Y-Z | `sequence.chain`, 10 listed chains, base rate 15,6% |
+| SSMT / Sequential SMT | `ssmt.py`, 48 sel diukur null |
+| PDA: Supply/Demand | +0,124 R, t=+4,82, gate `floor` |
+| PDA: FVG | inverted gate +0,2188 R, 8/8 fold |
+| PDA: Order Block | gate `floor` |
+| PDA: IFVG, Breaker | diukur NEGATIF tapi tetap digambar |
+| CISD | `cisd.py`, tanda terbalik dari hipotesis, walk-forward 8/8 |
+| PSP | `psp.py`, 48 sel nol |
+| Truth Asset | `triad.py`, consolidation score |
+| OTE | `ict.py:446-474`, gate doctrine, diukur nol sel lolos di 12 instrumen |
+| Standard deviation projections | `projections.py`, kelipatan range sesi |
+| DFR (Defining Range) | `dealing_range.py`, panel checklist |
+| DFR targeting logic (akumulasi DFR -> manipulasi target) | `tools/phase_targets.py`, dua arm AMDX/XAMD diuji berdampingan |
+| Liquidity (EQH/EQL, PDH/PDL, PWH/PWL) | `liquidity.py` |
+| NDOG/NWOG (Event Horizon opening gaps) | `gaps.py`, gap geometry + CE level, NDOG Mon-Thu, NWOG weekend |
+| NFP/FOMC/CPI calendar | `news.py`, feed ForexFactory CDN, hanya jadwal minggu ini |
+| Three Drives / Three Pushes | `tools/three_pushes.py`, diukur sebagai reversal claim tanpa rasio Fibonacci |
+| HTF/MTF/LTF multi-timeframe | overlay/resample system, HTF sets context via `resample.py` |
+| Crypto BTC | BTCUSD di sources.py dengan 5 provider (MT5, Binance, Yahoo, TwelveData, Polygon) |
+
+### Yang ditambahkan sesi ini
+
+| Perubahan | Detail |
+|---|---|
+| NY PM session pool | `pools.SESSIONS["ny_pm"]` = 13:30-16:00, tuple diperlebar ke 5-tuple |
+| NY PM Silver Bullet | `pools.KILLZONES["ny_pm_sb"]` = 14:00-15:00 |
+| SSMT null label di UI | checklist panel sekarang menampilkan "measured null across 48 cells" |
+| Judas template di checklist | `JudasReading` model, `checklist.py` memanggil `judas.classify()`, panel menampilkan template A-D |
+| Triad bonds | `TRIAD_FAMILIES["bonds"]` = (XAUUSD, US10Y, US30Y), Yahoo-only karena broker tidak punya bond contract |
+| Triad energy | `TRIAD_FAMILIES["energy"]` = (XAUUSD, WTI, BRENT) |
+| Dead code m4.py | `current()`, `M4State`, `M4Status`, `bias_from_opens` dihapus, nol caller |
+| News di checklist | `checklist.py` memanggil `news.read()`, filter High-impact events pada tanggal NY yang sama. `NewsItem` model di `models/plan.py`. Panel menampilkan judul, currency, dan jam NY |
+
+### Konsep referensi yang TIDAK perlu dibangun
+
+Diperiksa 4 September 2026 lawan data referensi Bang Nas. Sembilan item ditolak.
+
+| Konsep | Putusan |
+|---|---|
+| BPR (Balanced Price Range) | **Sudah tercakup.** `poi.confluence()` menghitung overlap lintas keluarga (FVG, OB, IFVG, breaker, S&D). BACKLOG bagian 3b sudah menyatakan BPR = overlap ini. Bukan objek baru |
+| Weekly Pre-Planning system | **Bukan fitur engine.** Workflow perencanaan mingguan, bukan objek harga atau kondisi yang bisa diukur terhadap outcome |
+| "1 Set-Up For Life" / "Consolidate Snap" | **Sudah tercakup.** Template komposit dari killzone + block + sweep. Ketiga komponen ada; menggabungkan jadi satu tombol menambah abstraksi di atas primitif yang sudah bisa dikombinasikan |
+| IDX triad | **Ditolak.** Symbol IHSG (`^JKSE`) ada di provider table tapi timezone WIB hampir tidak overlap sesi NY. Killzone dan session reading engine salah untuk instrumen itu |
+| Kill zone visual di chart | **Redundan.** `ict.py:243` sendiri mendokumentasikan ini bukan bentuk di harga, melainkan bacaan jam. Layer `session` menggambar grid kuarter, layer `pools` menggambar extremes sesi. Kill zone band menggambar informasi yang sama untuk ketiga kalinya |
+| Indices triad/quad (ES/NQ/YM/RTY) | **Tidak cocok framework.** Triad framework adalah gold-centric, XAUUSD selalu base. All-indices quad (4 instrumen) tidak punya base gold. "Risk" triad (XAUUSD, NAS100, US30) sudah menangkap hubungan gold-vs-indices. Symbol-nya tersedia di sources.py (SPX500, NAS100, US30, RUS2000) |
+| Crypto triad (BTC/ETH/XRP) | **Ditolak.** XRP tidak ada di sources.py. BTCUSD dan ETHUSD tersedia, tapi tanpa anggota ketiga yang sudah di-provision. Gold-centric base tidak relevan untuk crypto-only grouping |
+| News execution rules (waktu tunggu NFP/FOMC/CPI) | **Bukan fitur engine.** "Tunggu 30 menit setelah rilis", "trade 3-4 PM setelah FOMC" adalah disiplin eksekusi trader, bukan kondisi harga. Engine menggambar kalender (`news.py`), trader memutuskan kapan masuk |
+| DFR targeting (akumulasi DFR -> manipulasi target) | **Diukur dan GAGAL.** `tools/phase_targets.py` menguji klaim ini di 22550 level, 1284 siklus, 4 instrumen. Semua 6 sel `passes: false`. `accum_to_manip` day: wf 2/8, `manip_to_distrib` day: wf 0/8 (t=-4,35, arah terbalik). Klaim ini tidak bertahan di data |
+
+### Dokumentasi yang diperbarui sesi ini
+
+| Dokumen | Perubahan |
+|---|---|
+| `docs/ADOPSI.md` line 55 | Killzone status dari "Sebagian" ke "Ada", Silver Bullet tiga window sudah terpasang |
+| `docs/ADOPSI.md` line 162 | Silver Bullet window dari "Belum" ke "Ada" |
+
+### Dead code yang ditemukan
+
+| File | Status |
+|---|---|
+| `app/ladder.py` | **Dihapus 4 September 2026.** Nol caller di luar test-nya sendiri. Tabel lookup tanpa input pasar, intentionally excluded dari semua measurement path |
+| `app/m4.py` dead functions | `current()`, `M4State`, `M4Status`, `bias_from_opens` dihapus. `in_judas_window` tetap hidup (dipakai `tools/conditioned.py`, `tools/quant.py`) |
+| `app/zscore.py` | Hanya `tools/quant.py` yang import. Dead terhadap jalur keputusan, tapi hidup untuk pengukuran offline |
+| `ssmt.GAP_TO_SSMT` | Sudah jadi catatan komentar sejak 29 Agustus, bukan dict hidup |
+
+### Docs README evidence table
+
+22 evidence file di disk tidak terdaftar di `docs/README.md` (66 file total, tabel terakhir dihitung di 31). Prose doc references valid semua. Tabel perlu diperbarui.
+
+## Bagian 9: triage 94 item, 4 September 2026
+
+Inventaris lengkap di `docs/TRIAGE-94.md`. Empat riset paralel dijalankan
+(FVG/imbalance, conditioning/filtering, session/time patterns, departure/touch
+optimization) terhadap jurnal akademis dan GitHub. Ringkasan putusan:
+
+| Putusan | Jumlah |
+|---|---|
+| Accept null (literatur setuju) | 74 |
+| Accept rejection | 11 |
+| Accept block | 3 |
+| Delete (ladder.py) | 1 |
+| Sudah diperbaiki sebelum sesi | 1 |
+| Sudah terimplementasi (touch expiry) | 1 |
+| Open, low priority | 2 |
+| Not applicable (butuh tick data) | 1 |
+
+Referensi kunci:
+
+- Harvey, Liu & Zhu (2016): mayoritas factor false discovery, t-stat harus 3,0+
+- McLean & Pontiff (2016): 26% OOS decay, 58% post-publication decay
+- Mesfin (2026, arXiv 2605.04004): 14 signal families termasuk OB, FVG,
+  structure break, nol lolos walk-forward setelah biaya pada MNQ
+- Osler (2003, Journal of Finance): order clustering di S/R level, first touch
+  depletes resting liquidity
+- Kondapally (2026, SSRN 6032676): FVG degree metric memerlukan tick data,
+  tidak applicable pada OHLCV
+
+Yang actionable dari riset dan statusnya:
+
+1. **FVG degree metric**: tidak diimplementasi (Kondapally memerlukan tick
+   data, pada OHLCV degenerasi ke gap size yang sudah ada)
+2. **Touch-count expiry**: sudah terimplementasi di `tools/execute.py:504`,
+   `first_test_time is not None` memfilter zona yang sudah pernah disentuh
+3. **Meta-labeling (Lopez de Prado)**: tidak diimplementasi (conditioning
+   variables sudah 0/52 setelah koreksi, framework ML tanpa feature yang
+   lolos praregistrasi adalah engineering tanpa hipotesis)
 
 ---
 

@@ -6,10 +6,9 @@ WHY THIS ONE AND NOT THE OTHER FIVE. `docs/PRAREGISTRASI-YATIM.md` measured the
 orphan modules on 28 August 2026 and every one of them has a number already:
 `in_judas_window` t=0,27, `judas_template` |t| at most 0,23, `psp_before_touch`
 t=0,09, and tCISD, z-score and regime were answered before that document and
-excluded from its list for exactly that reason. `app/ladder.py` was declared not
-testable as a signal, and reading `for_cycle` confirms it: it takes a cycle name
-and a boolean and returns a route label, with no market input anywhere in it, so
-measuring it would measure its inputs.
+excluded from its list for exactly that reason. `app/ladder.py` was declared not testable as a signal (lookup table, no market
+input) and was removed on 4 September 2026 after confirming zero callers outside
+its own test file.
 
 `app/olhc.py` is the one that was never on that list. It has no column in
 `tools/conditioned.py`'s closed list, no evidence file, and one unit test.

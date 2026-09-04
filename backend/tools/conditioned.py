@@ -72,9 +72,8 @@ COLUMNS = (
 #: Terpisah dari dua daftar lain untuk alasan yang sama: menggabungkannya akan
 #: menyembunyikan pertanyaan mana yang diajukan sebelum jawabannya ada.
 #:
-#: `app/ladder.py` SENGAJA TIDAK DI SINI. `for_cycle` adalah tabel lookup tanpa
-#: satu pun input pasar, jadi ia tidak punya apa pun untuk dikorelasikan dengan
-#: hasil. Itu dinyatakan di praregistrasi, bukan disimpulkan dari nol efek.
+#: `app/ladder.py` dihapus 4 September 2026. Ia tabel lookup tanpa input pasar
+#: (dinyatakan di praregistrasi), dan nol caller di luar test-nya sendiri.
 ORPHAN_COLUMNS = (
     "in_judas_window",
     "judas_template",
