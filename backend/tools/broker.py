@@ -27,7 +27,7 @@ mengurutkan kandidat. Itu keputusan, dan keputusan tetap di `execute.py`.
 
 from __future__ import annotations
 
-from datetime import datetime
+from datetime import datetime, timedelta
 
 from app.clock import NY
 from app.models import LotSpec, ZoneSide
@@ -92,6 +92,53 @@ def realised_today(mt5) -> float | None:
     # keduanya dijumlahkan terpisah karena deal pembuka membawa commission-nya
     # sendiri dengan profit nol.
     return float(sum(d.profit + d.commission + d.swap for d in deals))
+
+
+def realised_this_week(mt5) -> float | None:
+    """Hasil terealisasi sejak Senin 00:00 NY, atau None kalau tak terbaca.
+
+    Pola sama dengan `realised_today` tapi jendela satu minggu trading.
+    """
+    if mt5 is None:
+        return None
+    now = datetime.now(NY)
+    monday = now.replace(hour=0, minute=0, second=0, microsecond=0)
+    monday -= timedelta(days=now.weekday())
+    try:
+        deals = mt5.history_deals_get(monday, now)
+    except Exception:  # noqa: BLE001
+        return None
+    if deals is None:
+        return None
+    return float(sum(d.profit + d.commission + d.swap for d in deals))
+
+
+def loss_streak(mt5) -> int | None:
+    """Berapa trade terakhir yang berturut-turut rugi, atau None kalau tak terbaca.
+
+    Dihitung dari deal penutup (entry 1 atau 3) dalam 90 hari terakhir, mundur
+    dari yang paling baru. Nol berarti trade terakhir untung atau belum ada trade.
+    """
+    if mt5 is None:
+        return None
+    now = datetime.now(NY)
+    start = now - timedelta(days=90)
+    try:
+        deals = mt5.history_deals_get(start, now)
+    except Exception:  # noqa: BLE001
+        return None
+    if deals is None:
+        return None
+    exits = [d for d in deals if d.entry in (1, 3)]
+    if not exits:
+        return 0
+    streak = 0
+    for d in reversed(exits):
+        if d.profit + d.commission + d.swap < 0:
+            streak += 1
+        else:
+            break
+    return streak
 
 
 def _terminal():

@@ -50,6 +50,10 @@ class Book:
     #: Berapa persen equity boleh hilang dalam satu hari sebelum tidak ada
     #: order baru. Nol mematikan pengaman ini.
     daily_loss_pct: float = 0.0
+    #: Kerugian terealisasi minggu ini (sejak Senin 00:00 NY), negatif.
+    realised_this_week: float | None = 0.0
+    #: Berapa persen equity boleh hilang dalam satu minggu.
+    weekly_loss_pct: float = 0.0
     held: list[Held] = field(default_factory=list)
     #: True when open broker positions could not be read, so `committed` is only
     #: what this run placed. Reported rather than hidden: a cap computed on half
@@ -165,6 +169,20 @@ def admits(
                 f"daily loss guard: {lost:,.2f} already lost today is "
                 f"{lost / book.equity:.2%} of {book.equity:,.2f}, at or over "
                 f"the {book.daily_loss_pct:.2%} limit. No new orders today"
+            )
+
+    if book.weekly_loss_pct > 0:
+        if book.realised_this_week is None:
+            return False, (
+                "weekly loss guard is armed but this week's realised result "
+                "could not be read, and an unreadable guard must refuse"
+            )
+        lost_w = -min(0.0, book.realised_this_week)
+        if lost_w / book.equity >= book.weekly_loss_pct:
+            return False, (
+                f"weekly loss guard: {lost_w:,.2f} lost this week is "
+                f"{lost_w / book.equity:.2%} of {book.equity:,.2f}, at or over "
+                f"the {book.weekly_loss_pct:.2%} limit. No new orders this week"
             )
 
     # RISIKO YANG TIDAK TERHITUNG MEMBATALKAN CAP-NYA, bukan sekadar

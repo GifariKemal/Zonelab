@@ -30,6 +30,7 @@ from math import erfc, sqrt
 import numpy as np
 
 from app.aligned import load_aligned
+from app.indicators import wilder_adx, bb_width
 from app.cisd import cisds
 from app.clock import NY
 from app.conditions import at_bar
@@ -116,6 +117,10 @@ ICT_COLUMNS = (
 #: pertanyaan mana yang diajukan sebelum jawabannya ada.
 CORRELATION_COLUMNS = ("partner_corr_band",)
 
+#: Kolom regime filter, praregistrasi KELIMA pada 4 September 2026. Daftarnya ada
+#: di `docs/PRAREGISTRASI-REGIME.md` dan ditulis sebelum satu angka pun dihitung.
+REGIME_COLUMNS = ("adx_band", "bb_width_regime")
+
 #: Bar yang masuk jendela korelasi, berakhir di bar keputusan.
 #:
 #: 200 karena itu `_VOLUME_BASELINE_BARS` di `app/detect/supply_demand.py`, jadi
@@ -160,6 +165,31 @@ def _dfr_band(value: float | None) -> str | None:
     if value < 0.0:
         return "below_range"
     return "inside_range"
+
+
+def _adx_band(value: float) -> str:
+    """Wilder's own ADX interpretation: <20 weak, 20-40 trending, >40 strong."""
+    if value < 20:
+        return "weak"
+    if value <= 40:
+        return "trending"
+    return "strong"
+
+
+def _bb_regime(bb_arr: np.ndarray, index: int) -> str:
+    """BB Width percentile within trailing 200 bars, cut at 20/80 like regime.py."""
+    start = max(0, index - CORR_BARS + 1)
+    window = bb_arr[start:index + 1]
+    if len(window) < 30:
+        return "unknown"
+    current = bb_arr[index]
+    lo = float(np.percentile(window, 20))
+    hi = float(np.percentile(window, 80))
+    if current < lo:
+        return "squeeze"
+    if current > hi:
+        return "expansion"
+    return "normal"
 
 
 def _partner(symbol: str) -> str:
@@ -283,6 +313,13 @@ def rows_with_state(symbol: str, interval: str, bars: int, flat: bool) -> list[d
     psp_levels = [(s.confirmed_at, float(s.price))
                   for s in swings(high_arr, low_arr, 50, 50)]
 
+    # REGIME COLUMNS, praregistrasi 4 September 2026. Dihitung sekali untuk
+    # seluruh deret, dibaca per bar di loop. Anti-lookahead inheren: ADX dan
+    # BB Width di bar i hanya memakai bar 0..i.
+    close_arr = np.array([c.close for c in candles], dtype=np.float64)
+    adx_arr = wilder_adx(high_arr, low_arr, close_arr, 14)
+    bb_arr = bb_width(close_arr, 20, 2.0)
+
     out = []
     for row in base:
         touch = int(row["at"])
@@ -293,6 +330,8 @@ def rows_with_state(symbol: str, interval: str, bars: int, flat: bool) -> list[d
         state["partner_corr_band"] = _corr_band(
             aligned, symbol, corr_times, times[touch]
         )
+        state["adx_band"] = _adx_band(float(adx_arr[touch]))
+        state["bb_width_regime"] = _bb_regime(bb_arr, touch)
         zone = by_id.get(row["zone_id"])
         if zone is not None:
             anatomy = zone.anatomy
@@ -401,7 +440,7 @@ def main() -> None:
     # groups are judged, so the count has to happen in a first pass or the
     # threshold becomes a function of what the reader has already seen.
     judged = 0
-    for column in COLUMNS + ICT_COLUMNS + ORPHAN_COLUMNS + CORRELATION_COLUMNS:
+    for column in COLUMNS + ICT_COLUMNS + ORPHAN_COLUMNS + CORRELATION_COLUMNS + REGIME_COLUMNS:
         seen: dict[object, int] = {}
         for row in rows:
             key = row["state"].get(column)
@@ -411,7 +450,7 @@ def main() -> None:
     print(f"{judged} grup layak dinilai, alpha {ALPHA}/{judged} = "
           f"{ALPHA / judged:.5f}, |t| kritis {critical:.2f}\n")
 
-    for column in COLUMNS + ICT_COLUMNS + ORPHAN_COLUMNS + CORRELATION_COLUMNS:
+    for column in COLUMNS + ICT_COLUMNS + ORPHAN_COLUMNS + CORRELATION_COLUMNS + REGIME_COLUMNS:
         buckets: dict[object, list[dict]] = {}
         for row in rows:
             buckets.setdefault(row["state"].get(column), []).append(row)

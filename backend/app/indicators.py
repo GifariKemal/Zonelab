@@ -90,6 +90,81 @@ def flat_atr(
     return float(tr[1:].mean())
 
 
+def wilder_adx(
+    high: np.ndarray, low: np.ndarray, close: np.ndarray, period: int
+) -> np.ndarray:
+    """Wilder's ADX, same definition MetaTrader uses.
+
+    Returns values 0-100. Warmup bars backfilled like `wilder_atr`.
+    """
+    n = len(close)
+    adx = np.zeros(n, dtype=np.float64)
+    if n < period + 1:
+        return adx
+
+    prev_high = np.concatenate(([high[0]], high[:-1]))
+    prev_low = np.concatenate(([low[0]], low[:-1]))
+    up = high - prev_high
+    down = prev_low - low
+    plus_dm = np.where((up > down) & (up > 0), up, 0.0)
+    minus_dm = np.where((down > up) & (down > 0), down, 0.0)
+
+    tr = true_range(high, low, close)
+
+    def _smooth(arr: np.ndarray) -> np.ndarray:
+        out = np.empty(n, dtype=np.float64)
+        seed = arr[:period].sum()
+        out[:period] = seed
+        prev = seed
+        for i in range(period, n):
+            prev = prev - prev / period + arr[i]
+            out[i] = prev
+        return out
+
+    s_tr = _smooth(tr)
+    s_plus = _smooth(plus_dm)
+    s_minus = _smooth(minus_dm)
+
+    plus_di = np.where(s_tr > 0, s_plus / s_tr * 100, 0.0)
+    minus_di = np.where(s_tr > 0, s_minus / s_tr * 100, 0.0)
+    di_sum = plus_di + minus_di
+    dx = np.where(di_sum > 0, np.abs(plus_di - minus_di) / di_sum * 100, 0.0)
+
+    # ADX = Wilder smooth of DX, starting after first `period` DX values
+    start = 2 * period - 1
+    if start >= n:
+        return adx
+    seed = dx[period:start + 1].mean()
+    adx[:start + 1] = seed
+    prev_adx = seed
+    for i in range(start + 1, n):
+        prev_adx = (prev_adx * (period - 1) + dx[i]) / period
+        adx[i] = prev_adx
+    return adx
+
+
+def bb_width(
+    close: np.ndarray, period: int = 20, mult: float = 2.0
+) -> np.ndarray:
+    """Bollinger Band Width: (upper - lower) / middle.
+
+    Warmup bars backfilled with the first full value.
+    """
+    n = len(close)
+    width = np.zeros(n, dtype=np.float64)
+    if n < period:
+        return width
+    for i in range(period - 1, n):
+        window = close[i - period + 1 : i + 1]
+        mid = window.mean()
+        if mid <= 0:
+            continue
+        std = window.std(ddof=0)
+        width[i] = (2 * mult * std) / mid
+    width[:period - 1] = width[period - 1]
+    return width
+
+
 def classify_candles(
     open_: np.ndarray,
     high: np.ndarray,

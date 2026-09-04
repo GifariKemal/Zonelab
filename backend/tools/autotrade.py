@@ -300,6 +300,13 @@ def main() -> int:
                         help="berhenti mengirim order kalau kerugian terealisasi "
                              "hari ini sudah mencapai persen equity ini, misal "
                              "0.02. Nol mematikan pengaman")
+    parser.add_argument("--weekly-loss-pct", type=float, default=0.0,
+                        help="berhenti mengirim order kalau kerugian terealisasi "
+                             "minggu ini (sejak Senin) sudah mencapai persen "
+                             "equity ini. Nol mematikan pengaman")
+    parser.add_argument("--streak-halve", type=int, default=0,
+                        help="belah dua risk_pct setiap N kekalahan berturut. "
+                             "Nol mematikan")
     args = parser.parse_args()
     # LINE BUFFERED, or this daemon's log does not exist until it dies. Python
     # block-buffers stdout whenever it is not a terminal, so redirected to a file -
@@ -414,7 +421,9 @@ def main() -> int:
                         cycle(mt5, symbols, intervals,
                               args.bars, args.risk_pct, args.max_orders, args.send,
                               equity, lot, rules, args.max_total_risk_pct,
-                              args.max_correlation, partners, args.daily_loss_pct)
+                              args.max_correlation, partners, args.daily_loss_pct,
+                              args.weekly_loss_pct,
+                              streak_halve=args.streak_halve)
                         for name in bare:
                             exits(mt5, name, args.send, rule)
                         sweep(mt5, args.send, rule)

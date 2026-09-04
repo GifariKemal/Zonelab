@@ -61,7 +61,7 @@ from app.providers.base import INTERVALS
 from app.quarters import ALL_DEGREES, true_opens
 from app.resample import STEP_UP, resample
 from app.ssmt import divergences_for as ssmt_divergences_for
-from tools.broker import RULE, _terminal, lot_specs, place, realised_today, sizing
+from tools.broker import RULE, _terminal, loss_streak, lot_specs, place, realised_today, realised_this_week, sizing
 from app.ssmt import ssmt as ssmt_read
 from app.ssmt import two_stage
 from tools import history
@@ -787,8 +787,10 @@ def cycle(
     corr_max: float = 0.70,
     partners: list[str] | None = None,
     daily_loss_pct: float = 0.0,
+    weekly_loss_pct: float = 0.0,
     layer: str = "supply_demand",
     no_cisd_in_band: bool = False,
+    streak_halve: int = 0,
 ) -> dict:
     """ONE decision pass over every pair and timeframe. Returns a summary.
 
@@ -804,6 +806,22 @@ def cycle(
     """
     rules = rules or Rules()
     warn_required(rules)
+
+    # EQUITY CURVE MANAGEMENT: setelah N kekalahan berturut, risk_pct dibelah
+    # dua untuk setiap kelipatan N berikutnya. Berbeda dari daily/weekly cap
+    # yang MENGHENTIKAN trading: ini MEMPERKECIL ukuran posisi secara bertahap.
+    if streak_halve > 0 and mt5 is not None:
+        streak = loss_streak(mt5)
+        if streak is not None and streak >= streak_halve:
+            scale = 0.5 ** (streak // streak_halve)
+            print(f"  equity curve: {streak} kekalahan berturut, risk diturunkan "
+                  f"{risk_pct:.4f} -> {risk_pct * scale:.4f} (x{scale})")
+            risk_pct = risk_pct * scale
+        elif streak is not None:
+            print(f"  equity curve: {streak} kekalahan berturut, di bawah "
+                  f"ambang {streak_halve}")
+        else:
+            print("  equity curve: streak TIDAK TERBACA, risk_pct tidak disentuh")
     if isinstance(symbols, str):
         symbols = [symbols]
     if isinstance(intervals, str):
@@ -822,6 +840,7 @@ def cycle(
             "ict_max_conflicts": rules.max_conflicts,
             "portfolio_cap_pct": cap_pct, "corr_max": corr_max,
             "daily_loss_pct": daily_loss_pct,
+            "weekly_loss_pct": weekly_loss_pct,
             "symbols": symbols, "intervals": intervals,
             "partners": list(partners or [])}
 
@@ -845,10 +864,15 @@ def cycle(
     # `Book.partial` is what makes that visible in the refusal text.
     book = Book(equity=equity or 0.0, cap_pct=cap_pct, corr_max=corr_max,
                 daily_loss_pct=daily_loss_pct,
-                realised_today=realised_today(mt5) if daily_loss_pct > 0 else 0.0)
+                realised_today=realised_today(mt5) if daily_loss_pct > 0 else 0.0,
+                weekly_loss_pct=weekly_loss_pct,
+                realised_this_week=realised_this_week(mt5) if weekly_loss_pct > 0 else 0.0)
     if daily_loss_pct > 0:
         print(f"  pengaman kerugian harian {daily_loss_pct:.2%}, terealisasi "
               f"hari ini {book.realised_today if book.realised_today is not None else 'TIDAK TERBACA'}")
+    if weekly_loss_pct > 0:
+        print(f"  pengaman kerugian mingguan {weekly_loss_pct:.2%}, terealisasi "
+              f"minggu ini {book.realised_this_week if book.realised_this_week is not None else 'TIDAK TERBACA'}")
     # NONE BERARTI TIDAK TERBACA, BUKAN KOSONG. Set kosong akan menyatakan
     # "tidak ada ticket hidup", yang membuka setiap zona yang pernah diorder.
     live_tickets: set[int] | None = None
@@ -1148,6 +1172,13 @@ def main() -> None:
                         help="berhenti mengirim order kalau kerugian terealisasi "
                              "hari ini sudah mencapai persen equity ini, misal "
                              "0.02. Nol mematikan pengaman")
+    parser.add_argument("--weekly-loss-pct", type=float, default=0.0,
+                        help="berhenti mengirim order kalau kerugian minggu ini "
+                             "sudah mencapai persen equity. Nol mematikan pengaman")
+    parser.add_argument("--streak-halve", type=int, default=0,
+                        help="belah dua risk_pct setiap N kekalahan berturut. "
+                             "Misal 3: 3 kalah -> 50%%, 6 kalah -> 25%%. "
+                             "Nol mematikan")
     args = parser.parse_args()
     rules = Rules(
         required=tuple(x.strip() for x in args.require.split(",") if x.strip()),
@@ -1197,7 +1228,8 @@ def main() -> None:
           args.bars, args.risk_pct, args.max_orders, args.send, equity,
           lot, rules, args.max_total_risk_pct, args.max_correlation,
           [s.strip() for s in args.partners.split(",") if s.strip()],
-          args.daily_loss_pct, args.layer, args.no_cisd_in_band)
+          args.daily_loss_pct, args.weekly_loss_pct,
+          args.layer, args.no_cisd_in_band, args.streak_halve)
 
 
 if __name__ == "__main__":
