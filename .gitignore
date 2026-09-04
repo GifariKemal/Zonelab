@@ -61,8 +61,10 @@ backend/.agent.json
 
 # Referensi luar yang diunduh untuk analisis. Bukan sumber, dan bukan milik
 # proyek ini - dua di antaranya PDF paper berhak cipta.
+# Referensi luar yang diunduh untuk analisis. Bukan sumber, dan bukan milik
+# proyek ini - dua di antaranya PDF paper berhak cipta. Subdir analisis-lama/
+# berisi versi awal yang lebih kecil (digabung 4 September 2026).
 external_refs/
-external_refs_analisis_lama/
 
 # Stderr daemon auto-trade. `*.log` di atas sudah menutup stdout-nya; ini
 # pasangannya, dan ia sama-sama keadaan runtime satu mesin.
@@ -80,16 +82,11 @@ frontend/test-results/
 # Keluaran `python -m tools.brief`. Snapshot hidup, bukan bukti pengukuran:
 # ia berubah tiap run dan 3 MB per run akan mengotori diff. Berbeda dengan
 # `docs/*.json`, yang memang di-commit karena satu satunya salinan angka yang
-# sebuah dokumen mengutipnya. Di-anchor ke root: tanpa slash awal ia juga
-# match ke backend/tools/brief, yaitu paket yang MENGHASILKANNYA.
+# sebuah dokumen mengutipnya.
 #
-# DAN SETIAP `--out` LAIN, karena aturan satu direktori tidak menutup apa pun.
-# `brief-btc/` dan `brief-xau/` dibuat lewat `--out` dengan nama berbeda,
-# lolos dari `/brief/`, dan ter-track. Sekali di-regenerate keduanya
-# menghasilkan diff 1.141.704 baris, yaitu persis pengotoran yang aturan di
-# atas ada untuk mencegahnya.
-/brief/
-/brief-*/
+# Dikonsolidasi 4 September 2026: brief/, brief-btc/, brief-xau/ digabung
+# ke briefs/{default,btc,xau}. Default tool sekarang --out ../briefs/default.
+/briefs/
 
 # Error logs, the .err sibling of *.log
 *.err

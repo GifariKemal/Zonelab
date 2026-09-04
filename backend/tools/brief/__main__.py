@@ -1,7 +1,7 @@
 """Tulis satu brief lengkap yang bisa dibaca AI agent mana pun.
 
     python -m tools.brief
-    python -m tools.brief --symbol mt5:XAUUSD --intervals 4h,1h,15m --out ../brief
+    python -m tools.brief --symbol mt5:XAUUSD --intervals 4h,1h,15m --out ../briefs/default
 
 Menghasilkan dua file di folder keluaran:
 
@@ -36,7 +36,7 @@ def main() -> int:
     parser.add_argument("--bars", type=int, default=2000)
     parser.add_argument("--partners", default="mt5:XAGUSD,mt5:XPTUSD",
                         help="pasangan SSMT dan triad")
-    parser.add_argument("--out", default="../brief",
+    parser.add_argument("--out", default="../briefs/default",
                         help="folder keluaran, relatif ke backend/")
     args = parser.parse_args()
 

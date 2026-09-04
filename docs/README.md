@@ -1,8 +1,8 @@
 # Peta direktori docs
 
-Direktori ini berisi 18 dokumen prosa dan 66 file bukti mentah. Tanpa peta,
-pembaca yang membukanya melihat 30 file dan tidak bisa tahu prosa mana membaca
-data mana. Itu satu-satunya alasan file ini ada.
+Direktori ini berisi 18 dokumen prosa, 66 file bukti mentah, dan 4 spec desain.
+Tanpa peta, pembaca yang membukanya melihat 86 file dan tidak bisa tahu prosa
+mana membaca data mana. Itu satu-satunya alasan file ini ada.
 
 > [!NOTE]
 > Semua di sini adalah catatan pengukuran, bukan dokumentasi produk. Untuk cara
@@ -126,6 +126,18 @@ Tanda hubung lawan garis bawah adalah artefak sejarah dan bukan makna:
 > menghasilkan tabel di atas, sementara `tools/base_quality.py` adalah asal-usul
 > `base_drift` dan `base_overlap` yang dikirim di **setiap** zona. Grep itu tes
 > yang salah.
+
+## Spec desain
+
+Empat dokumen di `docs/specs/`, ditulis sebelum kode-nya, dan direferensikan
+oleh kode yang mengimplementasikan kontraknya.
+
+| Spec | Status | Direferensikan oleh |
+|---|---|---|
+| [ai-agent-design](specs/2026-08-21-ai-agent-design.md) | terbangun | `test_agent.py` |
+| [wyckoff-design](specs/2026-08-31-wyckoff-design.md) | terbangun | `wyckoff.py`, `layers.py` |
+| [zonelab-ea-mql5-design](specs/2026-08-31-zonelab-ea-mql5-design.md) | terbangun | `mql5/ZonelabSupplyDemand/` |
+| [expectation-overlay-design](specs/2026-08-31-expectation-overlay-design.md) | menunggu review | - |
 
 ## Cara mereproduksi sebuah angka
 

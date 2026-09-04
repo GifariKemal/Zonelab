@@ -8,7 +8,7 @@ cd backend
 PYTHONPATH=. .venv/Scripts/python.exe -m tools.brief
 ```
 
-Keluaran default ke `../brief/`:
+Keluaran default ke `../briefs/default/`:
 
 | File | Untuk siapa | Isi |
 |---|---|---|
@@ -81,7 +81,7 @@ Aturan kutip:
 | `--intervals` | `4h,1h,15m` | kasar ke halus; yang pertama dipakai untuk siklus dan bias |
 | `--bars` | `2000` | per timeframe |
 | `--partners` | `mt5:XAGUSD,mt5:XPTUSD` | pasangan SSMT dan triad |
-| `--out` | `../brief` | folder keluaran, relatif ke `backend/` |
+| `--out` | `../briefs/default` | folder keluaran, relatif ke `backend/` |
 
 Exit code `1` kalau ada bagian yang gagal ditarik, dan yang gagal disebut di
 `failures` serta di `BRIEF.md`. Brief yang kehilangan satu timeframe tanpa
