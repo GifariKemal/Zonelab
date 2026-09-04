@@ -546,13 +546,33 @@ export default function Page() {
     [],
   );
 
-  const allIntervals = config?.intervals ?? [];
+  const allIntervals = useMemo(() => config?.intervals ?? [], [config?.intervals]);
   const candles = data?.candles ?? [];
   // The SAME count the price axis uses, from the same function. The readout and
   // the axis describe one candle, and the header saying 4489.62 beside an axis
   // saying 4489.621 is the app quoting two prices for it.
   const decimals = priceDecimals(candles);
   const zones = data?.drawing.zones ?? [];
+  const hasDetectors = layers.some((l) =>
+    ["supply_demand", "fvg", "order_block", "ifvg", "breaker"].includes(l),
+  );
+
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      const tag = (e.target as HTMLElement).tagName;
+      if (tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT") return;
+      const r = railsSnapshot();
+      if (e.key === "[") { setRails({ ...r, left: !r.left }); return; }
+      if (e.key === "]") { setRails({ ...r, right: !r.right }); return; }
+      const digit = parseInt(e.key, 10);
+      if (digit >= 1 && digit <= allIntervals.length) {
+        setInterval(allIntervals[digit - 1]);
+      }
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [allIntervals]);
+
   const swings = data?.drawing.swings ?? [];
   const events = data?.drawing.structure ?? [];
   const last = candles.at(-1) ?? null;
@@ -1123,6 +1143,7 @@ export default function Page() {
             // must be offered when the terminal is what will actually answer,
             // not when it is merely what was picked.
             canReadAccount={usable === "mt5"}
+            hasDetectors={hasDetectors}
             clipped={clipped}
             decimals={decimals}
           />
@@ -1157,7 +1178,7 @@ function Picker({
         // instrument reads it - the toggles carry it for the same reason.
         aria-label={label}
         onChange={(e) => onChange(e.target.value)}
-        className="num border border-line-strong bg-panel px-1.5 py-1 text-[11px] text-text"
+        className="num min-w-[60px] border border-line-strong bg-panel px-1.5 py-1 text-[11px] text-text"
       >
         {options.map((id) => (
           <option key={id} value={id}>

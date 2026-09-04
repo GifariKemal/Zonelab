@@ -126,7 +126,7 @@ export const PoskoPanel = memo(function PoskoPanel({
               {data.truth_asset.symbol}
             </span>
             <span className="num text-[11px] text-text-faint">
-              {data.time.session ?? "no session"}
+              {data.time.session ?? "between sessions"}
             </span>
           </div>
           {/* Consolidation scores — lower is more consolidated */}

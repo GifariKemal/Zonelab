@@ -81,6 +81,10 @@ interface Props {
    *  and "can currently be seen" are two different numbers, and this panel used
    *  to print only the first - which is what let six zones read as one. */
   clipped: { above: number; below: number };
+  /** True when at least one detector layer is active. Used to tell the reader
+   *  WHY the list is empty: no detectors on is a different situation from all
+   *  zones filtered away. */
+  hasDetectors: boolean;
   /** How many decimals this instrument quotes, from the ONE `priceDecimals` call
    *  in `app/page.tsx` that also sets the price axis and the header readout.
    *
@@ -130,26 +134,22 @@ export const ZonePanel = memo(function ZonePanel({
   equityFrom,
   onReadAccount,
   canReadAccount,
+  hasDetectors,
   clipped,
   decimals,
 }: Props) {
   const [tab, setTab] = useState<Tab>("zone");
+  const [kindFilter, setKindFilter] = useState<Zone["kind"] | null>(null);
   const hidden = clipped.above + clipped.below;
   const selected = zones.find((z) => z.id === selectedId) ?? null;
 
-  // Grouped by side, nearest-first inside each group, supply above demand so the
-  // list reads down the price axis the way the chart does.
-  //
-  // The question a trader brings to this panel is "what is nearest to price,
-  // above and below" - not "what exists". One flat list of 35 rows answers the
-  // second question only: it takes a scan of every row to find out whether the
-  // nearest supply is 0,1% away or 4%. Nearest-first was already the order; the
-  // grouping and the printed distance are what make it legible.
+  const kindsPresent = Array.from(new Set(zones.map((z) => z.kind)));
+  const filtered = kindFilter ? zones.filter((z) => z.kind === kindFilter) : zones;
+
   const groups = (["supply", "demand"] as const).map((side) => ({
     side,
-    rows: zones
+    rows: filtered
       .filter((z) => z.side === side)
-      // Falls back to newest-first before any price is known.
       .sort((a, b) =>
         lastPrice === null
           ? b.time_from - a.time_from
@@ -178,8 +178,25 @@ export const ZonePanel = memo(function ZonePanel({
         </span>
       </header>
 
-      {/* `--info`, bukan `--accent`. Accent berarti "setelan yang kamu pilih";
-          kotak ini melaporkan keadaan chart dan bukan sebuah setelan. */}
+      {kindsPresent.length > 1 ? (
+        <div className="flex flex-wrap gap-1 border-b border-line px-3 py-1.5">
+          {kindsPresent.map((k) => (
+            <button
+              key={k}
+              type="button"
+              onClick={() => setKindFilter(kindFilter === k ? null : k)}
+              className={`rounded px-1.5 py-0.5 text-[10px] transition-colors ${
+                kindFilter === null || kindFilter === k
+                  ? "bg-accent/20 text-accent"
+                  : "bg-line/30 text-text-faint"
+              }`}
+            >
+              {k}
+            </button>
+          ))}
+        </div>
+      ) : null}
+
       {hidden > 0 ? (
         <p className="flex items-start gap-2 border-b border-info/40 bg-info/10 px-3 py-1.5 text-[11px] leading-relaxed text-info">
           <Icon name="info" className="mt-0.5 size-3.5 shrink-0" />
@@ -199,10 +216,9 @@ export const ZonePanel = memo(function ZonePanel({
       <div className="scroll-thin min-h-0 flex-1 overflow-y-auto">
         {zones.length === 0 ? (
           <p className="px-3 py-6 text-[12px] leading-relaxed text-text-faint">
-            {/* Hedged, because the trace is only drawn while supply and demand
-                is running, and this line used to point at an empty space. */}
-            No zones survived the current filters. With supply and demand on,
-            the filter trace in the left panel shows which gate removed them.
+            {hasDetectors
+              ? "No zones survived the current filters. With supply and demand on, the filter trace in the left panel shows which gate removed them."
+              : "No zone layers are active. Switch on a detector in the left panel to see zones here."}
           </p>
         ) : (
           groups

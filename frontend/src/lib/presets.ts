@@ -21,9 +21,9 @@ import { DEFAULT_LAYER_PARAMS, type LayerParams } from "./types";
  * EVERY PRESET CARRIES THE PARAMS ITS LAYERS NEED TO DRAW, and that is not
  * convenience - it is the difference between a preset and a trap.
  *
- * THREE layers of the seventeen draw NOTHING when switched on with default params,
+ * THREE layers of the twenty-one draw NOTHING when switched on with default params,
  * and the number is measured rather than assumed: drawing each layer alone with
- * pure defaults, `session`, `dfr` and `ssmt` come back empty and the other twelve
+ * pure defaults, `session`, `dfr` and `ssmt` come back empty and the other eighteen
  * do not. An earlier version of this comment said six and named `pools` and
  * `projections` among them, which was wrong - both ship with sessions and draw
  * immediately.

@@ -48,9 +48,9 @@ interface Props {
   onReset: () => void;
   /** Applies a whole layer set in one step. Separate from `onLayers` because a
    *  preset also carries the params its layers need in order to draw anything -
-   *  THREE of the seventeen draw nothing with their default params, on purpose, and
+   *  THREE of the twenty-one draw nothing with their default params, on purpose, and
    *  the number is measured: drawing each layer alone with pure defaults leaves
-   *  `session`, `dfr` and `ssmt` empty and the other twelve drawing. This comment
+   *  `session`, `dfr` and `ssmt` empty and the other eighteen drawing. This comment
    *  said six for a while, which was my own count rather than a measurement. */
   onPreset: (layers: string[], params: LayerParams) => void;
   /** The whole `meta` block, not six sliced props. Each layer's knobs pick the
@@ -640,7 +640,7 @@ export const Toolbox = memo(function Toolbox({
                 switched itself on would spend an ink budget somebody else had
                 accounted for - so switching this layer on and picking no degree
                 produces a completely blank result. Measured: `session`, `dfr` and
-                `ssmt` are the only three layers of seventeen that do this, and the
+                `ssmt` are the only three layers of twenty-one that do this, and the
                 other two already said so. This one did not, and the reader's
                 report was exactly the predictable one: "the quarters do not
                 appear". An empty chart and a broken engine must never look alike.
@@ -1720,8 +1720,8 @@ export const Toolbox = memo(function Toolbox({
         </p>
       ) : null}
 
-      {/* PRESETS FIRST, above the seventeen toggles they exist to replace.
-          Sixteen layers is a data advantage and a focus problem at the same
+      {/* PRESETS FIRST, above the twenty-one toggles they exist to replace.
+          Twenty-one layers is a data advantage and a focus problem at the same
           time, and this is the honest way to solve the second: the reader picks
           a named set, the engine infers nothing. An automatic switch driven by
           the detected market phase would hide layers by inference, and a layer
@@ -1977,7 +1977,7 @@ function Presets({
       <Hint
         k="presets.apa"
         summary="Apa itu preset"
-        hint="A preset sets which layers are on and the minimum each needs to draw anything - three of the seventeen are deliberately empty by default and would otherwise switch on and show nothing. It never touches a threshold you have tuned, and it never decides anything from the market."
+        hint="A preset sets which layers are on and the minimum each needs to draw anything - three of the twenty-one are deliberately empty by default and would otherwise switch on and show nothing. It never touches a threshold you have tuned, and it never decides anything from the market."
       />
     </Group>
   );
