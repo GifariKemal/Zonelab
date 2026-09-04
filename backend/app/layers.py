@@ -365,7 +365,7 @@ LAYERS: tuple[Layer, ...] = (
             "13 to 20 of 36 per-symbol folds positive. The determinable "
             "subset of the Wyckoff schematic - the "
             "full schematic needs volume and discretion, see "
-            "docs/superpowers/specs/2026-08-31-wyckoff-design.md. These four "
+            "docs/specs/2026-08-31-wyckoff-design.md. These four "
             "readings map onto the structure primitives (sweep, break) that H6 "
             "and H9 already measured null, so this is a reading, never a bias."
         ),

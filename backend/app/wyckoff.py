@@ -1,7 +1,7 @@
 """Wyckoff phase readings over a rolling trading range.
 
 This is the DETERMINABLE subset of the Wyckoff schematic, stated in the spec at
-`docs/superpowers/specs/2026-08-31-wyckoff-design.md`. The full schematic has
+`docs/specs/2026-08-31-wyckoff-design.md`. The full schematic has
 phases that need volume or discretion (Selling Climax, Secondary Test, Last
 Point of Support); those are left out rather than guessed, because this project
 refuses to invent a rule a source never published. What survives is what OHLC

@@ -1,6 +1,6 @@
 """The AI Agent advisor: config, digest, chat, and the leash.
 
-What is tested here is the contract in docs/superpowers/specs/2026-08-21-ai-agent-design.md:
+What is tested here is the contract in docs/specs/2026-08-21-ai-agent-design.md:
 a missing config means the feature refuses and says so, a saved key never
 leaves the file unmasked, the digest carries every number the model may quote
 and no candles beyond the last, and a reply with an invented number is marked
