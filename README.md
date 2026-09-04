@@ -3,7 +3,7 @@
 
 <p align="center">
   <img alt="status" src="https://img.shields.io/badge/status-tahap%20awal-orange">
-  <img alt="tests" src="https://img.shields.io/badge/tests-993%20unit%20%2B%20124%20kontrak-brightgreen">
+  <img alt="tests" src="https://img.shields.io/badge/tests-1224%20unit%20%2B%2025%20e2e-brightgreen">
   <img alt="gate" src="https://img.shields.io/badge/gerbang%20departure-memisahkan%20t%3D%2B7.19-brightgreen">
   <img alt="expectancy" src="https://img.shields.io/badge/ekspektansi-belum%20terbukti-orange">
   <img alt="license" src="https://img.shields.io/badge/license-proprietary-lightgrey">
@@ -521,7 +521,7 @@ Metode lengkap dan seluruh angkanya ada di [`docs/CALIBRATION.md`](docs/CALIBRAT
 jalankan ulang dengan `python -m tools.calibrate`.
 
 > [!TIP]
-> Direktori `docs/` berisi 6 dokumen prosa dan 21 file bukti mentah.
+> Direktori `docs/` berisi 18 dokumen prosa dan 66 file bukti mentah.
 > [`docs/README.md`](docs/README.md) memetakan mana membaca mana, dan tool mana
 > yang menghasilkan tiap file bukti - termasuk cara mereproduksi satu angka.
 
@@ -801,7 +801,7 @@ Zonelab/
 |   |       +-- sources.py      Binance, Yahoo, Twelve Data, Polygon
 |   |       +-- dukascopy.py    Tick bid dan ask, satu-satunya spread terukur
 |   |       +-- synthetic.py    Data deterministik luring
-|   +-- tests/                  834 pengujian, seri harga dibangun dengan tangan
+|   +-- tests/                  1224 pengujian, seri harga dibangun dengan tangan
 |
 +-- frontend/                   Next.js 16, React 19, Tailwind v4
     +-- src/
@@ -934,7 +934,7 @@ npm run e2e:pixels 15m     # baca ulang kanvas: edge tercat lawan catatan zona
 > menguji pemulihan, jadi harness apa pun yang berjalan bersamaan akan gagal
 > dengan alasan yang tidak ada hubungannya dengan dirinya.
 
-834 pengujian unit, semuanya lulus, diukur 26 Agustus 2026.
+1224 pengujian unit, semuanya lulus, diukur 4 September 2026.
 
 > [!IMPORTANT]
 > **Tidak ada yang boleh repaint**, dan itu ditegakkan oleh

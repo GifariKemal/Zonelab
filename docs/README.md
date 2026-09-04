@@ -1,6 +1,6 @@
 # Peta direktori docs
 
-Direktori ini berisi 17 dokumen prosa dan 66 file bukti mentah. Tanpa peta,
+Direktori ini berisi 18 dokumen prosa dan 66 file bukti mentah. Tanpa peta,
 pembaca yang membukanya melihat 30 file dan tidak bisa tahu prosa mana membaca
 data mana. Itu satu-satunya alasan file ini ada.
 
