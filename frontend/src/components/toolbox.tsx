@@ -1193,7 +1193,7 @@ export const Toolbox = memo(function Toolbox({
                 the partner list, so the triad works with any instrument. */}
             <Chips
               label="Triad"
-              options={["monetary", "commodity", "risk", "fx"]}
+              options={["monetary", "commodity", "risk", "fx", "bonds", "energy"]}
               selected={[]}
               onChange={(v) => {
                 const partners: Record<string, string[]> = {
@@ -1201,6 +1201,8 @@ export const Toolbox = memo(function Toolbox({
                   commodity: ["WTI", "XAGUSD"],
                   risk: ["NAS100", "US30"],
                   fx: ["USDJPY", "XPTUSD"],
+                  bonds: ["US10Y", "US30Y"],
+                  energy: ["WTI", "BRENT"],
                 };
                 const picked = v[v.length - 1];
                 if (!picked || !partners[picked]) return;

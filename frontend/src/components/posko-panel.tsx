@@ -13,6 +13,8 @@ const TRIADS = [
   { key: "commodity", label: "Commodity", desc: "XAU · WTI · XAG" },
   { key: "risk", label: "Risk", desc: "XAU · NAS · US30" },
   { key: "fx", label: "FX", desc: "XAU · JPY · XPT" },
+  { key: "bonds", label: "Bonds", desc: "XAU · 10Y · 30Y" },
+  { key: "energy", label: "Energy", desc: "XAU · WTI · Brent" },
 ];
 
 /**

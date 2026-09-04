@@ -9,9 +9,10 @@ from __future__ import annotations
 
 import asyncio
 
-from . import bias, pools as pools_read, quarterly, sequence as seq
+from . import bias, clock, news, pools as pools_read, quarterly, sequence as seq
 from .aligned import load_aligned
 from .fetching import fetch
+from .judas import classify as judas_classify
 from .models import (
     BiasAlignment,
     Candle,
@@ -21,7 +22,9 @@ from .models import (
     DefiningRange,
     DegreeBias,
     DrawRequest,
+    JudasReading,
     ManipulationEvent,
+    NewsItem,
     OpenStack,
     PremiumDiscount,
     QuarterChain,
@@ -198,6 +201,11 @@ async def build(
                 ],
             )
 
+    # Judas Swing template from London session bias. Costs no provider call:
+    # it reads the London window from bars already in memory. Only meaningful
+    # when the last bar is inside or past the NY AM kill zone.
+    report.judas = _judas(rows)
+
     # --- the two blocks that cost provider calls ---------------------------
     # Gathered rather than awaited in turn: they are independent I/O, and eight
     # serial fetches on a live request is a latency bug waiting to happen. Each
@@ -288,6 +296,24 @@ async def build(
         except (ProviderError, ValueError) as exc:
             notes.append(f"SSMT unavailable: {exc}")
 
+    # High-impact events on today's NY date. The calendar is cached (15 min TTL)
+    # so this adds at most one HTTP call per quarter hour, not one per redraw.
+    try:
+        week = await news.read()
+        if not week.error:
+            today = clock.to_ny(rows[-1].time).date()
+            high = news.select(week.events, impact="High")
+            report.news = [
+                NewsItem(
+                    time=e.time, title=e.title,
+                    currency=e.currency, impact=e.impact,
+                )
+                for e in high
+                if clock.to_ny(e.time).date() == today
+            ]
+    except Exception as exc:
+        notes.append(f"news calendar unavailable: {exc}")
+
     report.notes = notes
     # Counted and reported, because an expensive option that hides its cost is
     # how a UI ends up hammering a rate-limited feed. A fully specified request
@@ -336,4 +362,40 @@ def _discount(rows: list[Candle], params: ChecklistParams) -> PremiumDiscount | 
         readings=[_reading(r) for r in read.readings],
         absent=list(read.absent),
         disagree=read.disagree,
+    )
+
+
+def _judas(rows: list[Candle]) -> JudasReading | None:
+    """Classify the Judas Swing template from the London session on the day
+    of the last bar. Returns None when no London bars exist in the window."""
+    last_ny = clock.to_ny(rows[-1].time)
+    london_open = clock.ny_wall(
+        last_ny.year, last_ny.month, last_ny.day, 3,
+    )
+    london_close = clock.ny_wall(
+        last_ny.year, last_ny.month, last_ny.day, 12,
+    )
+    london_bars = [r for r in rows if london_open <= r.time < london_close]
+    if not london_bars:
+        return None
+
+    move = london_bars[-1].close - london_bars[0].open
+    rng = max(r.high for r in london_bars) - min(r.low for r in london_bars)
+    avg_bar = sum(r.high - r.low for r in rows[-14:]) / min(14, len(rows))
+    range_pct = rng / avg_bar if avg_bar > 0 else 0.0
+
+    if move > 0:
+        london_bias = "bullish"
+    elif move < 0:
+        london_bias = "bearish"
+    else:
+        london_bias = "neutral"
+
+    js = judas_classify(london_bias, range_pct)
+    return JudasReading(
+        template=js.template,
+        london_bias=js.london_bias,
+        judas_direction=js.judas_direction,
+        expansion_direction=js.expansion_direction,
+        description=js.description,
     )

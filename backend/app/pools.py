@@ -146,15 +146,18 @@ ANCHORS = ("parent_cycle", "parent_previous", "previous_quarter")
 # here because a pool is a session extreme and these two are sessions - the
 # missing NY AM high is a target the previous list simply could not name.
 #
-# `ny_pm` IS DELIBERATELY ABSENT FROM THIS DICT and that is a schema limit rather
-# than a judgement: the source puts it at 13:30, and this tuple holds whole
-# hours. Rounding it to 13:00 would move a window by thirty minutes and say
-# nothing about it, so it lives in `KILLZONES` below, which counts minutes.
-SESSIONS: dict[str, tuple[int, int, int]] = {
-    "asia": (19, 0, 1),
-    "london": (2, 5, 0),
-    "ny_am": (7, 10, 0),
-    "london_close": (10, 12, 0),
+# (open_hour, open_minute, close_hour, close_minute, day_offset).
+#
+# Was a 3-tuple of whole hours until `ny_pm` needed 13:30. Rounding it to
+# 13:00 would move the window by thirty minutes and say nothing about it,
+# and `clock.ny_wall` already accepts a minute parameter, so the schema
+# carries minutes rather than discarding them.
+SESSIONS: dict[str, tuple[int, int, int, int, int]] = {
+    "asia": (19, 0, 0, 0, 1),
+    "london": (2, 0, 5, 0, 0),
+    "ny_am": (7, 0, 10, 0, 0),
+    "london_close": (10, 0, 12, 0, 0),
+    "ny_pm": (13, 30, 16, 0, 0),
 }
 
 #: Kill zone windows in NEW YORK MINUTES from midnight, as (open, close). A
@@ -192,6 +195,7 @@ KILLZONES: dict[str, tuple[int, int]] = {
     "london_close": (10 * 60, 12 * 60),
     "silver_bullet": (10 * 60, 11 * 60),
     "ny_pm": (13 * 60 + 30, 16 * 60),
+    "ny_pm_sb": (14 * 60, 15 * 60),
 }
 
 
@@ -536,12 +540,12 @@ def liquidity_pools(
     out: list[Pool] = []
 
     for name in sessions:
-        open_hour, close_hour, close_days = SESSIONS[name]
+        open_h, open_m, close_h, close_m, close_days = SESSIONS[name]
         day = clock.to_ny(candles[0].time).date()
         while day <= last_day:
             shuts = day + timedelta(days=close_days)
-            start = clock.ny_wall(day.year, day.month, day.day, open_hour)
-            close = clock.ny_wall(shuts.year, shuts.month, shuts.day, close_hour)
+            start = clock.ny_wall(day.year, day.month, day.day, open_h, open_m)
+            close = clock.ny_wall(shuts.year, shuts.month, shuts.day, close_h, close_m)
             day += timedelta(days=1)
 
             inside = _bars(candles, start, close)

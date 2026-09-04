@@ -58,7 +58,7 @@ const SCAN_LAYERS = ["supply_demand", "structure", "liquidity", "checklist"];
 /** The four POSKO triads, fetched alongside the draw so the agent can answer
  *  "korelasi emas" and "mana truth asset". A triad that fails to load is
  *  dropped, not fatal: the draw alone still makes a grounded conversation. */
-const TRIAD_KEYS = ["monetary", "commodity", "risk", "fx"] as const;
+const TRIAD_KEYS = ["monetary", "commodity", "risk", "fx", "bonds", "energy"] as const;
 
 export default function AgentPage() {
   const [config, setConfig] = useState<ServerConfig | null>(null);

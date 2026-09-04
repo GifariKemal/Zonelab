@@ -75,7 +75,7 @@ export const ChecklistPanel = memo(function ChecklistPanel({
   report: ChecklistReport;
   stats?: DrawResponse["meta"]["checklist"];
 }) {
-  const { dfr, profile, manipulation, discount, chain, stacked, bias, ssmt } = report;
+  const { dfr, profile, manipulation, discount, chain, stacked, bias, ssmt, judas, news } = report;
 
   return (
     <section className="border-b border-line-strong">
@@ -174,8 +174,46 @@ export const ChecklistPanel = memo(function ChecklistPanel({
           />
         ))
       ) : (
-        <Row label="SSMT" state="unmet" />
+        <Row label="SSMT" state="unmet" detail="measured null across 48 cells" />
       )}
+
+      {/* Judas Swing template from London session bias. A composite template
+          (killzone + block + sweep), not a new price condition, and not measured
+          against outcomes. Null when no London bars exist in the window. */}
+      <Row
+        label="Judas template"
+        state={judas ? "met" : "unknowable"}
+        detail={
+          judas
+            ? `${judas.template}, London ${judas.london_bias}${judas.judas_direction !== "none" ? `, Judas ${judas.judas_direction}` : ""}`
+            : undefined
+        }
+      />
+
+      {/* High-impact economic events on today's NY date. The feed's own
+          attention label, passed through verbatim. A warning, not a signal:
+          nobody has measured whether the label predicts movement, and nothing
+          here can stop a trade. */}
+      {news?.length ? (
+        <div className="border-t border-line px-3 py-2">
+          <div className="mb-1 text-[11px] text-text-dim">
+            High-impact news today
+          </div>
+          {news.map((item) => (
+            <div
+              key={`${item.time}-${item.title}`}
+              className="flex items-baseline justify-between gap-2"
+            >
+              <span className="text-[11px] text-text">
+                {item.title}
+              </span>
+              <span className="num text-[11px] text-text-faint">
+                {item.currency} {clockStamp(item.time, "New York")}
+              </span>
+            </div>
+          ))}
+        </div>
+      ) : null}
 
       {/* His precondition, counted rather than judged: at least two true opens
           must point the same way. The row shows the larger side, because that is

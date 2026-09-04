@@ -17,6 +17,33 @@ from .cycle import (
 )
 
 
+class NewsItem(BaseModel):
+    """One high-impact event from the economic calendar, on today's NY date.
+
+    The impact label is the FEED'S OWN ranking, passed through verbatim.
+    Nobody has measured whether it predicts anything.
+    """
+
+    time: int
+    title: str
+    currency: str
+    impact: str
+
+
+class JudasReading(BaseModel):
+    """The Judas Swing template classification for the current session.
+
+    Not a signal: this is a composite template (killzone + block + sweep) that
+    has not been measured against outcomes. Template A-D from the London bias.
+    """
+
+    template: str
+    london_bias: str
+    judas_direction: str
+    expansion_direction: str
+    description: str
+
+
 class ChecklistReport(BaseModel):
     """Every item answered, with the evidence, and nothing collapsed to a verdict.
 
@@ -48,6 +75,20 @@ class ChecklistReport(BaseModel):
     )
     bias: BiasAlignment | None = None
     ssmt: list[SSMTHit] = Field(default_factory=list)
+    judas: JudasReading | None = Field(
+        default=None,
+        description=(
+            "Judas Swing template from London session bias. A composite template, "
+            "not a new price condition, and not measured against outcomes."
+        ),
+    )
+    news: list[NewsItem] = Field(
+        default_factory=list,
+        description=(
+            "High-impact economic events on today's NY date. The feed's own label, "
+            "passed through. Nobody has measured whether the label predicts movement."
+        ),
+    )
     notes: list[str] = Field(
         default_factory=list,
         description="Why an item is absent, when it is absent for a reason",

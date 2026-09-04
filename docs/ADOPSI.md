@@ -52,7 +52,7 @@ butir yang dibiarkan tanpa status.
 | Daftar high probability sepuluh rantai | **Ada, sebagai daftar Anda** | Ditandai `in_his_list`, **tidak pernah** `high_probability`. Sepuluh dari 64 rantai adalah 15,6%, dan angka dasar itu ikut dilaporkan setiap kali flag-nya dikutip |
 | Aturan gap lawan siklus (Daily Gap = Monthly SSMT, H4 = Weekly, H1 = Daily, m15 = 90m, m5 = micro) | **Belum** | Ini aturan pemetaan, bukan konstruk; murah dibangun begitu ada yang memakainya |
 | Aturan ekspansi (PDA Monthly menggerakkan Weekly, dan seterusnya) | **Belum** | Ia klaim kausal antar derajat, jadi ia hipotesis terukur, bukan objek gambar |
-| Killzone dan jam spesifik | **Sebagian** | Asia 19:00-00:00 dan London 02:00-05:00 New York **ada**. Jam 00:00 ada sebagai true day open, 06:00 ada sebagai Q3. Silver Bullet, 04:00, 09:30 dan 10:30 **belum** |
+| Killzone dan jam spesifik | **Ada** | Asia 19:00-00:00, London 02:00-05:00, NY AM 07:00-10:00, London close 10:00-12:00, NY PM 13:30-16:00 New York. Silver Bullet tiga window: `london_sb` 03-04, `silver_bullet` 10-11, `ny_pm_sb` 14-15. Diperbaiki 3 September 2026 |
 | Power of 3 dikaitkan ke NFP, CPI, FOMC | **Sebagian** | Rilisnya sekarang digambar lewat layer `news`, jadi Anda bisa melihat NFP, CPI dan FOMC berdiri di fase mana. Tetapi **klaimnya tetap tidak bisa diukur**: sumbernya hanya menerbitkan minggu berjalan, jadi tidak ada riwayat untuk mengujinya |
 
 > [!WARNING]
@@ -159,7 +159,7 @@ melainkan yang terhitung paling sering muncul di 51 chart beranotasi Anda.
 | Label SSMT otomatis per siklus | **Sebagian** | |
 | Tabel range EV/Top/Bot/Dist per timeframe | **Belum** | |
 | Level proyeksi deviasi | **Ada** | |
-| Silver Bullet window | **Belum** | |
+| Silver Bullet window | **Ada** | Tiga killzone: `london_sb` 03:00-04:00, `silver_bullet` 10:00-11:00, `ny_pm_sb` 14:00-15:00. Diperbaiki 3 September 2026 |
 | Level fraksi 0,25 / 0,5 / 0,75 | **Sebagian** | 0,5 ada di mana-mana sebagai CE dan equilibrium; 0,25 dan 0,75 belum |
 | Segitiga 3-6-9 berbasis digital root | **Ditolak sebagai sinyal, ada sebagai dial** | Sebagai sinyal tetap ditolak, bersama 369 dan 168. Sejak 29 Agustus 2026 objek yang sama ada sebagai layer `vortex`, yaitu dial navigasi yang membaca kalender dan bukan harga, dan sebuah test melarangnya menyentuh jalur order. Lihat `docs/BACKLOG.md` Bagian 7 |
 

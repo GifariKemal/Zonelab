@@ -1109,6 +1109,23 @@ interface SSMTHit {
  *  paired. One boolean would hide which item is carrying the weight, and would
  *  present a checklist its owner ticks by hand as something the engine had
  *  validated. Nothing here has been measured against outcomes. */
+/** Judas Swing template from London session bias. A composite template, not a
+ *  new price condition. Not measured against outcomes. */
+export interface JudasReading {
+  template: string;
+  london_bias: string;
+  judas_direction: string;
+  expansion_direction: string;
+  description: string;
+}
+
+interface NewsItem {
+  time: number;
+  title: string;
+  currency: string;
+  impact: string;
+}
+
 export interface ChecklistReport {
   degree: string;
   dfr: DefiningRange | null;
@@ -1122,6 +1139,11 @@ export interface ChecklistReport {
   stacked: OpenStack | null;
   bias: BiasAlignment | null;
   ssmt: SSMTHit[];
+  /** Judas Swing template from London session bias. Null when no London bars
+   *  exist in the window. */
+  judas: JudasReading | null;
+  /** High-impact events on today's NY date. The feed's own label. */
+  news: NewsItem[];
   /** Why an item is absent, when it is absent for a reason. */
   notes: string[];
 }

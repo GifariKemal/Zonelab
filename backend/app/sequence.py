@@ -332,12 +332,12 @@ def intraday_session(at: int) -> IntradaySession | None:
     spec = KILLZONES.get(name)
     killzone = None
     if spec is not None:
-        open_hour, close_hour, close_days = spec
+        open_h, open_m, close_h, close_m, close_days = spec
         opens = clock.to_ny(quarter.start).date()
         shuts = opens + timedelta(days=close_days)
         killzone = (
-            clock.ny_wall(opens.year, opens.month, opens.day, open_hour),
-            clock.ny_wall(shuts.year, shuts.month, shuts.day, close_hour),
+            clock.ny_wall(opens.year, opens.month, opens.day, open_h, open_m),
+            clock.ny_wall(shuts.year, shuts.month, shuts.day, close_h, close_m),
         )
 
     return IntradaySession(

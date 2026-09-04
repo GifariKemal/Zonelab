@@ -47,6 +47,8 @@ TRIAD_FAMILIES: dict[str, tuple[str, str, str]] = {
     "commodity": ("XAUUSD", "WTI", "XAGUSD"),
     "risk": ("XAUUSD", "NAS100", "US30"),
     "fx": ("XAUUSD", "USDJPY", "XPTUSD"),
+    "bonds": ("XAUUSD", "US10Y", "US30Y"),
+    "energy": ("XAUUSD", "WTI", "BRENT"),
 }
 
 

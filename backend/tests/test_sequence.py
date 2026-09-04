@@ -229,7 +229,7 @@ def test_the_quarter_called_london_is_not_this_repos_london_killzone():
 
     # `pools.SESSIONS["london"]` is 02:00-05:00 New York: three hours strictly
     # inside a six-hour box, sharing NEITHER edge with it.
-    assert KILLZONES["london"] == (2, 5, 0)
+    assert KILLZONES["london"] == (2, 0, 5, 0, 0)
     assert q2.killzone == (ny(2025, 6, 11, 2), ny(2025, 6, 11, 5))
     assert q2.same_window is False
     assert q2.start < q2.killzone[0] and q2.killzone[1] < q2.end
