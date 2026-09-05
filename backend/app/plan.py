@@ -39,7 +39,16 @@ from __future__ import annotations
 
 import math
 
-from .models import CostSpec, LotSpec, TradePlan, Zone, ZoneKind, ZoneSide
+from .models import (
+    CEILING_KINDS,
+    DEPARTURE_GATE_ATR,
+    DEPARTURE_GATE_ATR_CEILING,
+    CostSpec,
+    LotSpec,
+    TradePlan,
+    Zone,
+    ZoneSide,
+)
 
 # Measured cohort survival at reward 2.0 ATR. Held as named constants so a doc
 # edit and a code edit cannot silently disagree.
@@ -67,8 +76,12 @@ from .models import CostSpec, LotSpec, TradePlan, Zone, ZoneKind, ZoneSide
 # masih signifikan adalah selisih EKSPEKTASI-nya, +0,124 R dengan Welch t =
 # +4,82 di `docs/QA-QUANT.md` bagian 6, dan itulah angka yang layak dikutip
 # sebagai alasan sebuah order.
-DEPARTURE_GATE_ATR = 2.0
-DEPARTURE_GATE_ATR_CEILING = 0.25
+#: Kedua ambang di atas SEKARANG DITURUNKAN dari `Zone.gate_atr`, dan
+#: konstantanya hidup di `app/models/zone.py` bersama `CEILING_KINDS`. Modul ini
+#: memegang keduanya sampai 5 September 2026 sementara `advisor.py` menuliskan
+#: angka yang sama sebagai literal, jadi ada dua sumber untuk satu ambang
+#: terukur. Narasi pengukuran di atas tetap di sini karena ia soal konvensi
+#: intrabar, bukan soal angka gerbangnya.
 HELD_CLEARED_GATE = 0.430
 HELD_BELOW_GATE = 0.402
 # FVG cohort expected R, from recalibration sweep (docs/QA-FVG-RECALIBRATION.md).
@@ -209,11 +222,8 @@ def build(
             cost_share = cost_charged / reward
 
     age_bars = max(0, (now - zone.time_from) // max(interval_seconds, 1))
-    ceiling = zone.kind in (ZoneKind.FVG, ZoneKind.IFVG)
-    if ceiling:
-        cleared = zone.departure_atr < DEPARTURE_GATE_ATR_CEILING
-    else:
-        cleared = zone.departure_atr >= DEPARTURE_GATE_ATR
+    ceiling = zone.kind in CEILING_KINDS
+    cleared = zone.gate_cleared
 
     # Indonesian, because these are surfaced by the advisor and the advisor is
     # the teaching surface. Mixing languages inside one panel is a defect the

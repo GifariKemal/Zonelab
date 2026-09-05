@@ -414,11 +414,40 @@ function ZoneRow({
             {away(zone, lastPrice)}
           </span>
         )}
+        {/* ANGKANYA PUNYA VERDICT SEKARANG. Baris ini memajang departure sejak
+            awal, dan itu memang benar - yang hilang adalah arah gerbang yang
+            berlaku untuknya. FVG lolos dengan berada di BAWAH 0,25 ATR,
+            supply/demand lolos dengan berada di ATAS 2,0 ATR, jadi "1,5 ATR"
+            adalah kohort lemah pada yang pertama dan kohort kuat pada yang
+            kedua. Pembaca tidak bisa menyimpulkan mana yang berlaku dari
+            angkanya sendiri. Kedua field diturunkan di server supaya ambangnya
+            tidak jadi salinan kedua di sini. */}
         <span
-          className="num block text-[10px] text-text-faint"
-          title="How far the leg-out ran from this zone, in ATR. The one filter with evidence behind it."
+          className={`num block text-[10px] ${
+            zone.gate_cleared ? "text-text" : "text-text-faint"
+          }`}
+          title={
+            `Leg-out ${zone.departure_atr.toFixed(2)} ATR, ` +
+            (zone.gate_cleared
+              ? `lolos gerbang ${zone.gate_atr} ATR untuk ${zone.kind}.`
+              : `di luar gerbang ${zone.gate_atr} ATR untuk ${zone.kind}, ` +
+                "jadi kohortnya yang lebih lemah.") +
+            (zone.settled
+              ? ""
+              : " Window departure belum selesai tercetak, jadi verdict ini masih bisa bergerak.")
+          }
         >
           {zone.departure_atr.toFixed(1)} ATR
+          {/* BOBOT DAN BENTUK, BUKAN HUE. `globals.css` mencatat bahwa warna
+              status di project ini cuma satu dan bahwa percobaan menambah
+              `--warn` amber gagal diukur: pada kontras 5,0:1 ia jatuh 12
+              derajat dari accent dan 22 derajat dari supply. Verdict ini
+              karena itu dibawa glyph isi lawan kosong plus tier teks, cara
+              yang sama yang dipakai untuk membedakan info dari peringatan. */}
+          <span aria-hidden>{zone.gate_cleared ? " ●" : " ○"}</span>
+          <span className="sr-only">
+            {zone.gate_cleared ? ", lolos gerbang" : ", di luar gerbang"}
+          </span>
         </span>
       </span>
     </button>
@@ -764,7 +793,20 @@ function Inspector({
         {zone.settled ? null : (
           <Row label="Settled" value="no, departure still printing" />
         )}
-        <Row label="Profit margin" value={`${zone.profit_margin.toFixed(1)}x zone`} />
+        {/* EMPAT BARIS DI BAWAH INI DIHILANGKAN, BUKAN DIISI NOL, saat
+            detectornya tidak menghitungnya. Kelima field yang mereka baca
+            hanya diisi `detect/supply_demand.py`; `detect/imbalance.py` tidak
+            pernah mengirimkannya, jadi sampai 5 September 2026 setiap FVG, OB,
+            IFVG dan BRK merender default modelnya sebagai hasil pengukuran -
+            "0.0x zone", "50%" dan "0.00" - dan tidak ada satu pun test yang
+            gagal. Baris yang hilang mengatakan "tidak dihitung" lebih jujur
+            daripada angka yang mengatakan "nol". */}
+        {zone.profit_margin === null ? null : (
+          <Row
+            label="Profit margin"
+            value={`${zone.profit_margin.toFixed(1)}x zone`}
+          />
+        )}
         <Row
           label="Profit zone"
           value={
@@ -784,10 +826,12 @@ function Inspector({
             which moment they belong to, because a reader who sees two
             percentages next to each other will otherwise take one for a stale
             copy of the other. */}
-        <Row
-          label="Curve, at birth, 200 bars"
-          value={`${(zone.curve * 100).toFixed(0)}%${zone.curve_favourable ? ", favourable" : ""}`}
-        />
+        {zone.curve === null ? null : (
+          <Row
+            label="Curve, at birth, 200 bars"
+            value={`${(zone.curve * 100).toFixed(0)}%${zone.curve_favourable ? ", favourable" : ""}`}
+          />
+        )}
         <Row
           label="Dealing range, at first touch"
           value={
@@ -813,14 +857,16 @@ function Inspector({
         {zone.nested_in.length ? (
           <Row label="Nested in" value={zone.nested_in.join(", ")} />
         ) : null}
-        <Row
-          label="Base drift"
-          value={
-            zone.base_drift > 0.7
-              ? `${zone.base_drift.toFixed(2)}, drifted`
-              : zone.base_drift.toFixed(2)
-          }
-        />
+        {zone.base_drift === null ? null : (
+          <Row
+            label="Base drift"
+            value={
+              zone.base_drift > 0.7
+                ? `${zone.base_drift.toFixed(2)}, drifted`
+                : zone.base_drift.toFixed(2)
+            }
+          />
+        )}
         <Row label="Tests" value={String(zone.touches)} />
         <Row
           label="Eaten"
@@ -833,11 +879,16 @@ function Inspector({
           0,603 and supply 0,560 - which is the same drift pattern that exposed
           `curve` itself as an artefact. Until that is resolved a premium/discount
           reading is a description of where price was, not a mark out of ten. */}
-      <p className="border-b border-line px-3 pb-2 text-[11px] leading-relaxed text-text-faint">
-        Dua bacaan rentang, bukan satu angka yang diulang. Curve dibekukan saat
-        zona lahir; dealing range dibaca saat harga benar-benar datang. Keduanya
-        deskripsi, bukan nilai - jangan dibaca sebagai bagus atau buruk.
-      </p>
+      {/* Ikut hilang bersama baris curve-nya. Paragraf ini membandingkan DUA
+          bacaan rentang, jadi pada zona imbalance yang cuma punya satu ia
+          menjelaskan baris yang tidak ada di layar. */}
+      {zone.curve === null ? null : (
+        <p className="border-b border-line px-3 pb-2 text-[11px] leading-relaxed text-text-faint">
+          Dua bacaan rentang, bukan satu angka yang diulang. Curve dibekukan saat
+          zona lahir; dealing range dibaca saat harga benar-benar datang. Keduanya
+          deskripsi, bukan nilai - jangan dibaca sebagai bagus atau buruk.
+        </p>
+      )}
 
       {zone.inverted_at !== null ? (
         <div className="border-t border-line px-3 py-2">
@@ -928,6 +979,15 @@ function Inspector({
         </div>
       ) : null}
 
+      {/* SELURUH SEKSI INI HILANG SAAT DETECTORNYA TIDAK MENYEKORNYA, dan
+          `factors` yang kosong adalah caranya diketahui. `detect/imbalance.py`
+          mengirim `formation_score=0.0` dengan komentar "deliberately
+          unscored" dan `factors` kosong, jadi pada setiap FVG, OB, IFVG dan
+          BRK seksi ini dulu mencetak judul, satu paragraf tentang AUC 0,464,
+          lalu angka "0.000" tanpa satu pun faktor di atasnya. Nol yang berarti
+          "tidak diskor" tidak bisa dibedakan dari nol yang berarti "diskor dan
+          hasilnya nol" oleh siapa pun yang membacanya. */}
+      {Object.keys(zone.factors).length === 0 ? null : (
       <div className="border-t border-line px-3 py-2">
         <h4 className="mb-1 text-[10px] font-semibold uppercase tracking-[0.16em] text-text-faint">
           Formation
@@ -971,6 +1031,7 @@ function Inspector({
           </span>
         </div>
       </div>
+      )}
 
       <div className="border-t border-line px-3 py-2">
         <h4 className="mb-1.5 text-[10px] font-semibold uppercase tracking-[0.16em] text-text-faint">

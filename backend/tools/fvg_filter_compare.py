@@ -12,12 +12,10 @@ import contextlib
 import json
 import sys
 
-import numpy as np
-
 from app.detect import DETECTORS
 from app.detect.imbalance import detect_fvg
 from app.models.params import ImbalanceParams
-from tools.detectors_costed import FOLDS, cell_rows, one_sample_t, welch
+from tools.detectors_costed import cell_rows, one_sample_t, welch
 from tools.fvg_sweep import split, walk_forward
 
 CELLS = [("XAUUSD", "30m"), ("BTCUSD", "30m")]

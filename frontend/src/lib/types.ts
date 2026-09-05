@@ -198,9 +198,18 @@ export interface Zone {
    *  every school of the method asserts. */
   nested_in: string[];
   /** One-way travel across the base as a fraction of its height. Near 1 means
-   *  the base was a staircase rather than a pause. Reported, not filtered. */
-  base_drift: number;
-  base_overlap: number;
+   *  the base was a staircase rather than a pause. Reported, not filtered.
+   *
+   *  NULL MEANS THE DETECTOR NEVER COMPUTED IT, and that is the point of the
+   *  type. These two, plus `curve`, `curve_favourable` and `profit_margin`,
+   *  are filled only by the supply/demand detector. The imbalance detectors
+   *  send none of them, so until 5 September 2026 every FVG, OB, IFVG and BRK
+   *  carried the model defaults and this panel rendered them as measurements -
+   *  `base_overlap` defaulting to 1.0 was enough to make the server's
+   *  `consolidation_quality` answer "original", its best verdict, for boxes
+   *  with no base at all. */
+  base_drift: number | null;
+  base_overlap: number | null;
   top: number;
   bottom: number;
   proximal: number;
@@ -211,13 +220,26 @@ export interface Zone {
    *  price does on the return, so it orders the display and nothing else. */
   formation_score: number;
   departure_atr: number;
+  /** The departure threshold that applies to THIS kind, in ATR, and the verdict
+   *  against it. Both derived on the server from `kind`, because the direction
+   *  is not the same for every kind: FVG and IFVG clear by being BELOW 0.25,
+   *  everything else by being at or above 2.0. A reader holding only
+   *  `departure_atr` cannot tell which rule is in force, which is why the zone
+   *  card printed the figure for months without a verdict beside it. */
+  gate_atr: number;
+  gate_cleared: boolean;
   /** Leg-out travel as a multiple of the zone's own height. The doctrine's own
-   *  test, which asks for 3; calibration puts the knee nearer 2. */
-  profit_margin: number;
+   *  test, which asks for 3; calibration puts the knee nearer 2. Null on the
+   *  imbalance detectors: a gap has no base whose height it could be a
+   *  multiple of. */
+  profit_margin: number | null;
   /** Position in the prevailing range, 0 at the low and 1 at the high. The
-   *  doctrine's "curve". Measured: its side-adjusted form does not predict. */
-  curve: number;
-  curve_favourable: boolean;
+   *  doctrine's "curve". Measured: its side-adjusted form does not predict.
+   *  Null on the imbalance detectors. It defaulted to 0.5, which is exactly
+   *  the equilibrium the doctrine calls a weak formation, so every gap in the
+   *  engine reported the one reading nobody had measured for it. */
+  curve: number | null;
+  curve_favourable: boolean | null;
   /** Distance to the nearest live opposing zone, in units of this zone's own
    *  height. Null when nothing stands in the way. */
   profit_zone_rr: number | null;

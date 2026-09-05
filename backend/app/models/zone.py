@@ -20,6 +20,25 @@ from .chart_gaps import ChartGapModel
 from .wyckoff import WyckoffPhaseModel, WyckoffRangeModel
 from .psp import PSPModel
 
+#: Ambang gerbang departure dalam ATR, dan ARAHNYA berbeda per kind.
+#:
+#: SATU SUMBER, karena sebelumnya ada tiga. `plan.py` memegang kedua konstanta
+#: ini, `advisor.py` menuliskan angka yang sama sebagai literal `0.25` dan
+#: `2.0` di enam tempat, dan keduanya mengulang `kind in (FVG, IFVG)`
+#: sendiri-sendiri. Zone card di frontend akan jadi sumber keempat kalau
+#: menghitungnya sendiri. `layers.py:100-106` sudah mencatat bahaya yang persis
+#: sama untuk id layer: sebuah daftar kedua melenceng dari yang pertama tanpa
+#: suara.
+#:
+#: 2,0 ATR adalah LANTAI untuk formasi supply/demand, dan alasannya ada di
+#: deskripsi `departure_atr` di bawah. 0,25 ATR adalah PLAFON untuk FVG dan
+#: IFVG, karena di sana gerbangnya terukur TERBALIK: exp_r +0,426 R di bawah
+#: plafon lawan +0,190 R di atasnya, welch t=4,58, walk-forward 8 dari 8.
+DEPARTURE_GATE_ATR = 2.0
+DEPARTURE_GATE_ATR_CEILING = 0.25
+#: Kind yang gerbangnya plafon, bukan lantai.
+CEILING_KINDS = (ZoneKind.FVG, ZoneKind.IFVG)
+
 
 class Zone(BaseModel):
     id: str
@@ -80,17 +99,75 @@ class Zone(BaseModel):
             "`displacement` is left None there for the same reason."
         )
     )
-    profit_margin: float = Field(
-        default=0.0,
+
+    @computed_field  # type: ignore[prop-decorator]
+    @property
+    def gate_atr(self) -> float:
+        """Ambang gerbang departure yang berlaku untuk kind ini, dalam ATR.
+
+        Diturunkan, bukan dikirim, supaya pembaca mana pun - panel, advisor,
+        executor, zone card - membandingkan `departure_atr` dengan angka yang
+        sama.
+        """
+        return (
+            DEPARTURE_GATE_ATR_CEILING
+            if self.kind in CEILING_KINDS
+            else DEPARTURE_GATE_ATR
+        )
+
+    @computed_field  # type: ignore[prop-decorator]
+    @property
+    def gate_cleared(self) -> bool:
+        """Apakah zona ini lolos gerbang departure-nya sendiri.
+
+        ARAHNYA yang penting, dan itu yang membuat field ini ada. Untuk FVG dan
+        IFVG lolos berarti departure di BAWAH plafon; untuk sisanya lolos
+        berarti di ATAS lantai. Sebuah pembaca yang cuma melihat
+        `departure_atr` tidak bisa tahu mana yang berlaku tanpa menghafal
+        arahnya per kind, dan itu tepatnya kenapa zone card dulu memajang
+        angkanya tanpa verdict.
+
+        BACA BERSAMA `settled`. Selama `settled` masih False, window departure
+        belum selesai tercetak, jadi verdict di sini masih bisa bergerak.
+        """
+        if self.kind in CEILING_KINDS:
+            return self.departure_atr < DEPARTURE_GATE_ATR_CEILING
+        return self.departure_atr >= DEPARTURE_GATE_ATR
+
+    # NONE BERARTI TIDAK DIHITUNG, DAN ITU SEBABNYA KELIMA FIELD DI BAWAH
+    # OPTIONAL. Semuanya hanya diisi oleh `detect/supply_demand.py`.
+    # `detect/imbalance.py` tidak pernah mengirimkannya, jadi setiap FVG, OB,
+    # IFVG dan BRK dulu memakai default model - dan default itu dirender panel
+    # sebagai hasil pengukuran.
+    #
+    # Yang terjadi di layar sebelum 5 September 2026, pada zona FVG mana pun:
+    #
+    #     curve            0.5   ->  "50%", yaitu ekuilibrium, dan doktrinnya
+    #                                menyebut ekuilibrium formasi LEMAH. Sebuah
+    #                                pembacaan yang bermakna, tidak pernah diukur
+    #     base_overlap     1.0   ->  `consolidation_quality` menjawab "original",
+    #                                verdict BAIK, untuk kotak yang tidak punya
+    #                                base sama sekali
+    #     base_drift       0.0   ->  "0.00", terbaca base sempurna tanpa drift
+    #     profit_margin    0.0   ->  "0.0x zone", terbaca terukur nol
+    #     curve_favourable False ->  verdict negatif yang tidak pernah dinilai
+    #
+    # Membuatnya `None` tidak menyentuh satu baris pun di kedua detector:
+    # `supply_demand` tetap mengirim angkanya, `imbalance` tetap tidak
+    # mengirim apa pun. Yang berubah adalah apa yang bisa dibaca pembacanya.
+    profit_margin: float | None = Field(
+        default=None,
         description=(
             "Leg-out travel as a multiple of the zone's own height. This is the "
             "doctrine's own test, and the only hard number in it: a base is not "
             "a level unless the initial move away is at least 3x the level. "
-            "Reported for every zone; gated only if `min_profit_margin` is set."
+            "Gated only if `min_profit_margin` is set. None on the imbalance "
+            "detectors, which never compute it - a gap has no base whose height "
+            "the leg-out could be a multiple of."
         ),
     )
-    curve: float = Field(
-        default=0.5,
+    curve: float | None = Field(
+        default=None,
         ge=0.0,
         le=1.0,
         description=(
@@ -98,14 +175,18 @@ class Zone(BaseModel):
             "the high, measured only on bars that preceded it. The doctrine's "
             "'curve': demand is wholesale near 0, supply is retail near 1, and a "
             "textbook formation sitting at equilibrium is held to be a weak one "
-            "because that is where imbalance is smallest."
+            "because that is where imbalance is smallest. None on the imbalance "
+            "detectors. It defaulted to 0.5 until 5 September 2026, which is "
+            "exactly the equilibrium the doctrine calls weak, so every FVG "
+            "reported the one reading nobody measured for it."
         ),
     )
-    curve_favourable: bool = Field(
-        default=False,
+    curve_favourable: bool | None = Field(
+        default=None,
         description=(
             "True when the zone is on the useful side of the curve for its own "
-            "side: demand in the lower third, supply in the upper third."
+            "side: demand in the lower third, supply in the upper third. None "
+            "where `curve` is None, because the verdict has no input."
         ),
     )
     profit_zone_rr: float | None = Field(
@@ -150,25 +231,29 @@ class Zone(BaseModel):
     )
     # Two descriptions of whether the base actually paused. Reported, not yet
     # filtered on: see docs/CALIBRATION.md before turning either into a gate.
-    base_drift: float = Field(
-        default=0.0,
+    base_drift: float | None = Field(
+        default=None,
         description=(
             "One-way travel across the base as a fraction of the base's own "
             "height. Near 0 means price came back to where it started; near 1 "
-            "means the 'base' was a staircase that never paused."
+            "means the 'base' was a staircase that never paused. None on the "
+            "imbalance detectors, which draw a gap rather than a base."
         ),
     )
-    base_overlap: float = Field(
-        default=1.0,
+    base_overlap: float | None = Field(
+        default=None,
         description=(
             "Mean shared range between consecutive base bars. A real "
-            "consolidation revisits the same prices; a slow trend does not."
+            "consolidation revisits the same prices; a slow trend does not. "
+            "None on the imbalance detectors. It defaulted to 1.0, the perfect "
+            "score, which pushed `consolidation_quality` to answer `original` "
+            "for every gap in the engine."
         ),
     )
 
     @computed_field  # type: ignore[prop-decorator]
     @property
-    def consolidation_quality(self) -> str:
+    def consolidation_quality(self) -> str | None:
         """`original` / `staircase` / `borderline`, read from the two base fields.
 
         A staircase (`base_drift` near 1) is a fake consolidation that never
@@ -176,7 +261,14 @@ class Zone(BaseModel):
         prices. The thresholds are the same 0.6 the `max_base_drift` gate uses,
         and 0.5 overlap, both stated rather than measured. Surfaces the verdict
         the two raw fields imply, so a reader does not have to derive it.
+
+        None where there is no base to judge. Sebelum kedua field di atas jadi
+        optional, verdict ini menjawab `original` - nilai TERBAIKNYA - untuk
+        setiap FVG, OB, IFVG dan BRK, karena `base_overlap` default 1.0
+        melewati ambang 0,5 tanpa ada satu bar base pun yang diperiksa.
         """
+        if self.base_drift is None or self.base_overlap is None:
+            return None
         if self.base_drift >= 0.6:
             return "staircase"
         if self.base_overlap >= 0.5:

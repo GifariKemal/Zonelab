@@ -1890,8 +1890,16 @@ function OrderableRow({ layer, odds }: { layer: LayerInfo; odds?: OutcomeOdds })
           </p>
         </>
       ) : (
+        /* MENUNJUK KE MANA IA DIUKUR, bukan berhenti di "belum". Baris ini
+           dulu buntu: ia benar untuk tiap timeframe kecuali yang terukur, dan
+           pembaca tidak punya cara tahu bahwa angkanya ADA satu tab di
+           sebelah. `measured_intervals` sudah dipegang komponen ini untuk
+           baris kepala di atas, jadi ini nol field baru. */
         <p className="mt-1 text-[11px] leading-relaxed text-text-dim">
           Peluang belum diukur untuk simbol dan timeframe ini.
+          {layer.measured_intervals?.length
+            ? ` Yang terukur: ${layer.measured_intervals.join(", ")}.`
+            : null}
         </p>
       )}
     </div>

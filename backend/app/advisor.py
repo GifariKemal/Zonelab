@@ -21,7 +21,7 @@ decides what is true.
 
 from __future__ import annotations
 
-from .models import Advice, Note, TradePlan, Zone, ZoneKind, ZoneSide
+from .models import CEILING_KINDS, Advice, Note, TradePlan, Zone, ZoneKind, ZoneSide
 from .plan import pct
 
 # Each formation, and what the leg names actually mean. The reversal ones are
@@ -84,10 +84,16 @@ def explain(zone: Zone, plan: TradePlan | None, interval: str) -> Advice:
 
     # The departure gate is the one thing here that passed walk-forward in all
     # three bracket geometries, so it is stated as a cohort rate with its own n.
-    ceiling = zone.kind in (ZoneKind.FVG, ZoneKind.IFVG)
+    # Arah dan ambangnya DITURUNKAN dari zonanya. Modul ini menuliskan `0.25`
+    # dan `2.0` sebagai literal sampai 5 September 2026, jadi mengubah ambang
+    # terukur di `plan.py` tidak mengubah kalimat yang dibaca pengguna di sini.
+    ceiling = zone.kind in CEILING_KINDS
+    cleared = zone.gate_cleared
+    # `str` dari float, bukan `:.2f`: yang pertama memberi "2.0" dan "0.25",
+    # yang kedua memberi "2.00" dan memaksa strip yang memakan nol terakhir
+    # sampai jadi "2". Koma karena kalimat ini Bahasa Indonesia.
+    gate_text = f"{zone.gate_atr}".replace(".", ",")
     if ceiling:
-        cleared = zone.departure_atr < 0.25
-        gate_text = "0,25"
         cleared_text = (
             f"Itu di bawah gerbang {gate_text} ATR. Kohort ini exp_r +0,426 R "
             f"lawan +0,190 R yang di atasnya (welch t=4,58, walk-forward 8/8)."
@@ -97,8 +103,6 @@ def explain(zone: Zone, plan: TradePlan | None, interval: str) -> Advice:
             f"lawan +0,426 R yang di bawahnya (welch t=4,58, walk-forward 8/8)."
         )
     else:
-        cleared = zone.departure_atr >= 2.0
-        gate_text = "2,0"
         cleared_text = (
             f"Itu di ATAS gerbang {gate_text} ATR. Kohort ini bertahan lebih "
             f"tinggi di walk-forward."

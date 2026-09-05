@@ -349,13 +349,29 @@ def main() -> int:
     # The four remaining odds enhancers. All reported, none scored.
     rich = draw(bars=1000, supply_demand={"show_broken": True, "max_zones_per_side": 50}).json()
     rz = rich["drawing"]["zones"]
-    check("curve is a fraction of the range", all(0 <= z["curve"] <= 1 for z in rz))
+    # `is None` DIIZINKAN DAN DIPERIKSA TERPISAH. `curve` hanya dihitung oleh
+    # detektor supply/demand; sampai 5 September 2026 ia default 0.5 untuk
+    # semua zona imbalance, jadi setiap FVG melaporkan ekuilibrium - pembacaan
+    # yang doktrinnya sebut formasi lemah - tanpa pernah diukur. Panggilan di
+    # atas cuma menyalakan supply_demand, jadi kedua check ini akan hijau
+    # walaupun sisi imbalance-nya rusak; yang mengikat pasangan kind ke
+    # None-nya adalah `tests/test_uncomputed_fields.py`.
+    check(
+        "curve is a fraction of the range where it was computed",
+        all(z["curve"] is None or 0 <= z["curve"] <= 1 for z in rz),
+    )
     check(
         "curve_favourable matches the side it is computed for",
         all(
-            z["curve_favourable"] == (z["curve"] <= 1 / 3 + 1e-9)
-            if z["side"] == "demand"
-            else z["curve_favourable"] == (z["curve"] >= 2 / 3 - 1e-9)
+            (z["curve_favourable"] is None) == (z["curve"] is None)
+            and (
+                z["curve"] is None
+                or (
+                    z["curve_favourable"] == (z["curve"] <= 1 / 3 + 1e-9)
+                    if z["side"] == "demand"
+                    else z["curve_favourable"] == (z["curve"] >= 2 / 3 - 1e-9)
+                )
+            )
             for z in rz
         ),
     )
