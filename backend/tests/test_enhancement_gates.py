@@ -285,7 +285,11 @@ def _minimal_candidate(symbol="mt5:XAUUSD", interval="1h"):
         model_dump=lambda mode="json": {},
     )
     checklist = types.SimpleNamespace(
-        met=5, conditions=list(range(17)),
+        met=5,
+        conditions=[
+            types.SimpleNamespace(name=f"cond_{i}", met=True, detail="stub")
+            for i in range(17)
+        ],
         why=lambda: ["checklist stub"],
         failed_required=lambda rules: [],
     )

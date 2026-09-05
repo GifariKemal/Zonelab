@@ -795,6 +795,14 @@ class ChecklistParams(ParamBlock):
             "is the exact failure aligned.py refuses to paper over."
         ),
     )
+    htf_confluence: bool = Field(
+        default=False,
+        description=(
+            "Fetch daily bars and H1 bars to enrich the checklist with HTF "
+            "PD Array bias, H1 CISD, and PDH/PDL sweep signal. Two extra "
+            "provider calls. Off by default: the bare checklist costs nothing."
+        ),
+    )
 
 
 class ChartGapParams(ParamBlock):

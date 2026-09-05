@@ -842,6 +842,74 @@ def _cot_signal(symbol: str) -> dict | None:
         return None
 
 
+def _htf_confluence(symbol: str, chart_candles: list) -> dict:
+    """HTF PD Array (daily FVG), H1 CISD, PDH/PDL sweep. One call per symbol."""
+    result: dict = {}
+    price = chart_candles[-1].close if chart_candles else 0.0
+
+    # 1. Daily FVG: is price inside one?
+    try:
+        daily = history.load(symbol, "1d", 200)
+        if len(daily) >= 3:
+            for i in range(len(daily) - 2, 0, -1):
+                c0, c2 = daily[i - 1], daily[i + 1]
+                if c2.low > c0.high:
+                    top, bottom, side = c2.low, c0.high, "demand"
+                elif c0.low > c2.high:
+                    top, bottom, side = c0.low, c2.high, "supply"
+                else:
+                    continue
+                filled = any(
+                    (daily[j].close > top if side == "supply" else daily[j].close < bottom)
+                    for j in range(i + 2, len(daily))
+                )
+                if filled:
+                    continue
+                if bottom <= price <= top:
+                    result["htf_bias"] = "bearish" if side == "supply" else "bullish"
+                    result["htf_fvg_side"] = side
+                    result["htf_fvg_top"] = top
+                    result["htf_fvg_bottom"] = bottom
+                    break
+    except Exception:
+        pass
+
+    # 2. CISD H1: most recent direction
+    try:
+        h1 = history.load(symbol, "1h", 200)
+        if len(h1) >= 10:
+            events, _ = cisds(h1)
+            if events:
+                last = events[-1]
+                result["cisd_h1"] = last.direction
+                result["cisd_h1_label"] = "bullish" if last.direction > 0 else "bearish"
+                result["cisd_h1_level"] = last.level
+    except Exception:
+        pass
+
+    # 3. PDH/PDL sweep from chart bars
+    if len(chart_candles) >= 50:
+        from app.clock import to_ny, ny_wall
+        last_ny = to_ny(chart_candles[-1].time)
+        midnight = ny_wall(last_ny.year, last_ny.month, last_ny.day, 0)
+        prev_midnight = midnight - 86400
+        prev_bars = [c for c in chart_candles if prev_midnight <= c.time < midnight]
+        today_bars = [c for c in chart_candles if c.time >= midnight]
+        if prev_bars and today_bars:
+            pdh = max(c.high for c in prev_bars)
+            pdl = min(c.low for c in prev_bars)
+            today_high = max(c.high for c in today_bars)
+            today_low = min(c.low for c in today_bars)
+            result["bsl_swept"] = today_high > pdh
+            result["ssl_swept"] = today_low < pdl
+            if result["bsl_swept"] and not result["ssl_swept"]:
+                result["sweep_bias"] = "bearish"
+            elif result["ssl_swept"] and not result["bsl_swept"]:
+                result["sweep_bias"] = "bullish"
+
+    return result
+
+
 def gather(
     symbols: list[str],
     intervals: list[str],
@@ -935,6 +1003,7 @@ def cycle(
     adx_min: float = 0.0,
     atr_budget_max: float = 0.0,
     news_max: int = 99,
+    htf_gate: bool = False,
 ) -> dict:
     """ONE decision pass over every pair and timeframe. Returns a summary.
 
@@ -988,7 +1057,7 @@ def cycle(
             "symbols": symbols, "intervals": intervals,
             "partners": list(partners or []),
             "adx_min": adx_min, "atr_budget_max": atr_budget_max,
-            "news_max": news_max}
+            "news_max": news_max, "htf_gate": htf_gate}
 
     ranked, blocked, series = gather(
         symbols, intervals, bars, equity, risk_pct, lots, rules, partners,
@@ -1025,6 +1094,29 @@ def cycle(
         if _cot_entry:
             print(f"  COT {_bare_s}: {_cot_entry.get('signal', '?')} "
                   f"(commercial {_cot_entry.get('commercial_net', '?')})")
+
+    # HTF confluence per symbol: daily FVG, H1 CISD, PDH sweep
+    _htf: dict[str, dict] = {}
+    if htf_gate:
+        for _sym in symbols:
+            _bare_s = _sym.split(":")[-1]
+            _candles = series.get(_bare_s, [])
+            if _candles:
+                _htf[_bare_s] = _htf_confluence(_sym, _candles)
+                htf_info = _htf[_bare_s]
+                parts = []
+                if htf_info.get("htf_bias"):
+                    parts.append(f"daily FVG {htf_info['htf_bias']}")
+                if htf_info.get("cisd_h1_label"):
+                    parts.append(f"CISD H1 {htf_info['cisd_h1_label']}")
+                if htf_info.get("sweep_bias"):
+                    parts.append(f"sweep {htf_info['sweep_bias']}")
+                elif htf_info.get("bsl_swept"):
+                    parts.append("BSL swept")
+                elif htf_info.get("ssl_swept"):
+                    parts.append("SSL swept")
+                if parts:
+                    print(f"  HTF {_bare_s}: {', '.join(parts)}")
 
     # OPEN POSITIONS COUNT TOWARDS THE CAP, and when they cannot be read the book
     # says so. A cap computed on half the book is a cap that does not bind, and
@@ -1206,12 +1298,41 @@ def cycle(
             refused += 1
             continue
 
+        # Enhancement gate: HTF PD Array direction
+        htf_info = _htf.get(bare_sym, {})
+        htf_bias = htf_info.get("htf_bias")
+        if htf_bias:
+            zone_dir = "sell" if zone.side == ZoneSide.SUPPLY else "buy"
+            htf_dir = "sell" if htf_bias == "bearish" else "buy"
+            if zone_dir != htf_dir:
+                print(f"{head}\n      HTF menolak: daily FVG {htf_bias}, "
+                      f"zone {zone.side.value} berlawanan arah")
+                if send:
+                    journal.record("refused", why=why_lines, rule=rule,
+                                   zone_id=zone.id, symbol=symbol,
+                                   plan=plan.model_dump(mode="json"),
+                                   blockers=[f"HTF daily FVG {htf_bias} vs zone {zone.side.value}"])
+                refused += 1
+                continue
+
         # Enhancement context (logged, not gating)
         if ctx:
             why_lines.append(f"regime: ADX {ctx.get('adx', 0):.1f} ({ctx.get('adx_label', '?')}), "
                              f"BB {ctx.get('bb_label', '?')}")
             why_lines.append(f"atr_budget: {ctx.get('atr_pct_used', 0):.0%} of daily ATR used")
             why_lines.append(f"vwap: {ctx.get('vwap_position', '?')}, vp: {ctx.get('vp_position', '?')}")
+        if htf_info:
+            parts = []
+            if htf_bias:
+                parts.append(f"daily FVG {htf_bias}")
+            cisd_lbl = htf_info.get("cisd_h1_label")
+            if cisd_lbl:
+                parts.append(f"CISD H1 {cisd_lbl}")
+            sweep_b = htf_info.get("sweep_bias")
+            if sweep_b:
+                parts.append(f"sweep {sweep_b}")
+            if parts:
+                why_lines.append(f"htf: {', '.join(parts)}")
         cot_info = _cot.get(bare_sym)
         if cot_info:
             why_lines.append(f"cot: {cot_info.get('signal', '?')} "
@@ -1408,6 +1529,8 @@ def main() -> None:
                         help="Max ATR budget pct_used (0=disabled, 1.5=150%%)")
     parser.add_argument("--news-max", type=int, default=99,
                         help="Max news impact score (0-3, 99=disabled)")
+    parser.add_argument("--htf-gate", action="store_true", default=False,
+                        help="Enable HTF direction gate (daily FVG bias)")
     args = parser.parse_args()
     rules = Rules(
         required=tuple(x.strip() for x in args.require.split(",") if x.strip()),
@@ -1459,7 +1582,8 @@ def main() -> None:
           [s.strip() for s in args.partners.split(",") if s.strip()],
           args.daily_loss_pct, args.weekly_loss_pct,
           args.layer, args.no_cisd_in_band, args.streak_halve,
-          args.adx_min, args.atr_budget_max, args.news_max)
+          args.adx_min, args.atr_budget_max, args.news_max,
+          args.htf_gate)
 
 
 if __name__ == "__main__":

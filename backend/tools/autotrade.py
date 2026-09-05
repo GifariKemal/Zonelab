@@ -313,6 +313,8 @@ def main() -> int:
                         help="Max ATR budget pct_used (0=disabled, 1.5=150%%)")
     parser.add_argument("--news-max", type=int, default=99,
                         help="Max news impact score (0-3, 99=disabled)")
+    parser.add_argument("--htf-gate", action="store_true", default=False,
+                        help="Enable HTF direction gate (daily FVG bias)")
     args = parser.parse_args()
     # LINE BUFFERED, or this daemon's log does not exist until it dies. Python
     # block-buffers stdout whenever it is not a terminal, so redirected to a file -
@@ -432,7 +434,8 @@ def main() -> int:
                               streak_halve=args.streak_halve,
                               adx_min=args.adx_min,
                               atr_budget_max=args.atr_budget_max,
-                              news_max=args.news_max)
+                              news_max=args.news_max,
+                              htf_gate=args.htf_gate)
                         for name in bare:
                             exits(mt5, name, args.send, rule)
                         sweep(mt5, args.send, rule)

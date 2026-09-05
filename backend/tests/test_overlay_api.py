@@ -336,6 +336,7 @@ def test_the_checklist_still_refuses_to_report_an_overall_verdict():
         "degree", "dfr", "profile", "manipulation", "discount", "chain", "stacked",
         "bias", "ssmt", "judas", "news", "news_impact", "cot", "notes",
         "regime", "atr_budget", "volatility_index",
+        "htf_pd_array", "cisd_htf", "sweep_signal",
     }
     # And the two newest are readings, not judgements: a chain is a clock fact
     # and a stack is a count of levels, so neither may carry a pass.

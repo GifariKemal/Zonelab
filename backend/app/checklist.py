@@ -335,6 +335,23 @@ async def build(
     except Exception as exc:
         notes.append(f"COT data unavailable: {exc}")
 
+    # --- HTF confluence: daily FVG, H1 CISD, PDH sweep -------------------
+    if params.htf_confluence:
+        htf_tfs = ["1d", "1h"]
+        htf_got = await asyncio.gather(
+            *(fetch(request.symbol, tf, 200, used) for tf in htf_tfs),
+            return_exceptions=True,
+        )
+        for tf, got in zip(htf_tfs, htf_got):
+            fetches += 1
+            if isinstance(got, BaseException):
+                notes.append(f"HTF {tf} unavailable: {got}")
+            elif tf == "1d":
+                _enrich_htf_pd_array(report, got[0], rows[-1].close, notes)
+            elif tf == "1h":
+                _enrich_cisd_htf(report, got[0], notes)
+        _enrich_sweep_signal(report, rows, notes)
+
     report.notes = notes
     # Counted and reported, because an expensive option that hides its cost is
     # how a UI ends up hammering a rate-limited feed. A fully specified request
@@ -556,3 +573,108 @@ async def _enrich_volatility_index(
     if _vol_cache:
         report.volatility_index = dict(_vol_cache)
     return fetched
+
+
+# --- HTF confluence helpers -----------------------------------------------
+
+def _enrich_htf_pd_array(
+    report: ChecklistReport, daily: list[Candle], price: float,
+    notes: list[str],
+) -> None:
+    """Check if price sits inside a daily FVG (PD Array).
+
+    Walks daily bars newest-first, finds three-bar gaps, returns the most
+    recent one that contains the current price. An FVG that a later daily
+    close traded through is skipped (filled).
+    """
+    if len(daily) < 3:
+        notes.append("htf_pd_array: fewer than 3 daily bars")
+        return
+    for i in range(len(daily) - 2, 0, -1):
+        c0, c2 = daily[i - 1], daily[i + 1]
+        if c2.low > c0.high:
+            top, bottom, side = c2.low, c0.high, "demand"
+        elif c0.low > c2.high:
+            top, bottom, side = c0.low, c2.high, "supply"
+        else:
+            continue
+        filled = any(
+            (daily[j].close > top if side == "supply" else daily[j].close < bottom)
+            for j in range(i + 2, len(daily))
+        )
+        if filled:
+            continue
+        if bottom <= price <= top:
+            report.htf_pd_array = {
+                "timeframe": "1d",
+                "side": side,
+                "bias": "bearish" if side == "supply" else "bullish",
+                "fvg_top": round(top, 4),
+                "fvg_bottom": round(bottom, 4),
+                "ce": round((top + bottom) / 2, 4),
+                "formed_at": daily[i].time,
+            }
+            return
+    report.htf_pd_array = {"timeframe": "1d", "side": "none", "bias": "neutral"}
+
+
+def _enrich_cisd_htf(
+    report: ChecklistReport, h1_bars: list[Candle], notes: list[str],
+) -> None:
+    """Most recent CISD on H1 bars: direction and level."""
+    from .cisd import cisds as cisd_scan
+
+    if len(h1_bars) < 10:
+        notes.append("cisd_htf: fewer than 10 H1 bars")
+        return
+    events, _ = cisd_scan(h1_bars)
+    if not events:
+        report.cisd_htf = {"timeframe": "1h", "direction": 0}
+        return
+    last = events[-1]
+    report.cisd_htf = {
+        "timeframe": "1h",
+        "direction": last.direction,
+        "label": "bullish" if last.direction > 0 else "bearish",
+        "level": round(last.level, 4),
+        "time": last.time,
+    }
+
+
+def _enrich_sweep_signal(
+    report: ChecklistReport, rows: list[Candle], notes: list[str],
+) -> None:
+    """Whether today swept PDH or PDL (buy-side or sell-side liquidity)."""
+    if len(rows) < 50:
+        return
+    last_ny = clock.to_ny(rows[-1].time)
+    midnight = clock.ny_wall(last_ny.year, last_ny.month, last_ny.day, 0)
+    prev_midnight = midnight - 86400
+    prev_bars = [r for r in rows if prev_midnight <= r.time < midnight]
+    today_bars = [r for r in rows if r.time >= midnight]
+    if not prev_bars or not today_bars:
+        return
+    pdh = max(r.high for r in prev_bars)
+    pdl = min(r.low for r in prev_bars)
+    today_high = max(r.high for r in today_bars)
+    today_low = min(r.low for r in today_bars)
+    bsl_swept = today_high > pdh
+    ssl_swept = today_low < pdl
+    if bsl_swept and ssl_swept:
+        side = "both"
+        bias = "neutral"
+    elif bsl_swept:
+        side = "bsl"
+        bias = "bearish"
+    elif ssl_swept:
+        side = "ssl"
+        bias = "bullish"
+    else:
+        side = "none"
+        bias = "neutral"
+    report.sweep_signal = {
+        "side": side, "bias": bias,
+        "pdh": round(pdh, 4), "pdl": round(pdl, 4),
+        "today_high": round(today_high, 4), "today_low": round(today_low, 4),
+        "bsl_swept": bsl_swept, "ssl_swept": ssl_swept,
+    }

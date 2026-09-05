@@ -573,6 +573,7 @@ export interface ChecklistParams {
    *  0 draws them all, and a measurement must pass 0. */
   ssmt_max: number;
   ssmt_provider: string | null;
+  htf_confluence: boolean;
 }
 
 interface DegreeBias {
@@ -1761,6 +1762,7 @@ export const DEFAULT_LAYER_PARAMS: LayerParams = {
     // machine where that source is unavailable.
     ssmt_max: 40,
     ssmt_provider: null,
+    htf_confluence: false,
   },
   expectation: {
     show_path: false,

@@ -128,6 +128,28 @@ class ChecklistReport(BaseModel):
             "None when the symbol has no CFTC code or the fetch failed."
         ),
     )
+    htf_pd_array: dict | None = Field(
+        default=None,
+        description=(
+            "Whether current price sits inside a daily FVG (PD Array). "
+            "side: supply (bearish) or demand (bullish). "
+            "bias: bearish/bullish/neutral. Fetched from 1d bars."
+        ),
+    )
+    cisd_htf: dict | None = Field(
+        default=None,
+        description=(
+            "Most recent CISD on H1 bars. direction: +1 bullish, -1 bearish. "
+            "Confirms or contradicts the HTF PD Array bias."
+        ),
+    )
+    sweep_signal: dict | None = Field(
+        default=None,
+        description=(
+            "Whether today's price swept PDH (buy-side liquidity, bearish) "
+            "or PDL (sell-side liquidity, bullish). Computed from chart bars."
+        ),
+    )
     notes: list[str] = Field(
         default_factory=list,
         description="Why an item is absent, when it is absent for a reason",
