@@ -308,6 +308,60 @@ sebarannya jadi 1/2/3/4 keluarga di 22 zona. Itu juga klaim doktrinnya yang
 sebenarnya: satu displacement meninggalkan satu gap, satu block, dan satu level
 retracement di harga yang sama.
 
+## 3b. Gerbang kedua belas, `--htf-gate`, dan kenapa ia dicabut
+
+Ditambahkan 5 September 2026 di commit `068d657` dan DIARMED di `AT_FLAGS`
+pada hari yang sama, sebelum ada satu angka pun. Dicabut hari itu juga, setelah
+diukur.
+
+Apa yang ia lakukan: `tools/execute.py:daily_fvg_bias` mencari FVG harian
+terbaru yang belum terisi dan yang memuat harga saat ini. Zona yang sisinya
+berlawanan dengan bias FVG itu ditolak, dicatat di journal, dan tidak pernah
+diorder. Kalau harga tidak berada di dalam FVG harian mana pun, gerbangnya
+diam dan trade lewat.
+
+Diukur di `tools/htf_gate_outcomes.py`, praregistrasi ditulis sebelum satu
+angka dihitung, populasi diimpor dari `tools/checklist_outcomes.py:rows_for`
+tanpa diubah. Delapan instrumen, 1 jam, resolusi intrabar 5 menit, biaya
+`exness_raw`, n=1828. Ambang Bonferroni `critical_t` 2,638.
+
+| Kohort | Nasib di gerbang | n | exp R |
+|---|---|---|---|
+| di dalam FVG yang setuju | diambil | 425 | - |
+| **di dalam FVG yang tidak setuju** | **DIBLOKIR** | **176** | **+0,1265** |
+| tidak di dalam FVG apa pun | diambil | 1227 | - |
+| gabungan yang diambil | - | 1652 | +0,0129 |
+
+**Kohort yang gerbang ini buang punya ekspektansi LEBIH TINGGI daripada yang
+ia simpan.** Selisihnya +0,1137 R dengan tanda TERBALIK dari klaimnya, t=+1,54
+mentah dan +1,77 di-demean per instrumen, keduanya di bawah 2,638, dan tandanya
+berbalik antar paruh (+0,282 lalu -0,020). Jadi ia tidak memisahkan; yang bisa
+dikatakan adalah tidak ada satu angka pun yang mendukungnya dan titik
+estimasinya menunjuk ke arah yang berlawanan.
+
+Efek di akun kalau ia dibiarkan menyala: ekspektansi turun dari +0,0238 ke
++0,0129, yaitu -0,0109 R per trade, sambil membuang 176 dari 1828 trade.
+
+Kontrol arah ikut dijalankan dan ikut null: sekadar BERADA di dalam FVG harian,
+terlepas dari arahnya, memberi -0,0000 lawan +0,0355 di luar, t=-0,74. Jadi
+efeknya juga bukan efek keberadaan di dalam gap.
+
+> [!NOTE]
+> Pada dua instrumen yang daemon-nya benar-benar jalankan, XAUUSD dan BTCUSD
+> sendirian, gerbang ini cuma menyala 21 kali dari 442 trade, yaitu 4,8 persen,
+> DI BAWAH `MIN_GROUP` 30. Di sana ia tidak bisa dinilai sama sekali. Angka di
+> atas datang dari delapan instrumen justru supaya ada n yang cukup untuk
+> menguji ATURANNYA. Untuk mendapat 30 kohort terblokir di XAU dan BTC saja
+> butuh sekitar 631 trade, dan untuk 100 butuh 2104.
+
+Dua batas metode, dinyatakan: rig menilai gerbang ini di bar SENTUHAN sementara
+produksi menilainya di bar keputusan, dan bar sentuhan adalah bacaan yang lebih
+MENGUNTUNGKAN gerbang karena di sana harga ada di zona. Dan bar harian yang
+sedang berjalan dibuang, karena di riwayat ia lengkap sementara live ia separuh
+jadi.
+
+Artifact: `docs/htf_gate_outcomes.json`.
+
 ## 4. Satu siklus daemon
 
 ```mermaid

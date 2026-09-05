@@ -233,6 +233,37 @@ def exits(mt5, symbol: str, send: bool, rule: dict) -> int:
     return closed
 
 
+#: Angka yang menolak `--htf-gate`, dicetak setiap kali flag itu dinyalakan.
+#:
+#: Pola ini disalin dari `tools/execute.py:warn_required`, yang ada karena
+#: operator yang membaca "belum diukur" akan menyalakan sebuah gerbang sebagai
+#: taruhan, sementara yang membaca ANGKANYA tidak. Gerbang ini pernah diarmed
+#: di `start.bat` sebelum punya satu angka pun; sekarang angkanya ada dan ia
+#: menunjuk ke arah yang berlawanan, jadi menyalakannya lagi harus berisik.
+HTF_GATE_MEASURED = (
+    "TIDAK MEMISAHKAN, dan titik estimasinya TERBALIK. Diukur 5 September 2026, "
+    "delapan instrumen, 1 jam, resolusi intrabar 5 menit, biaya exness_raw, "
+    "n=1828. Kohort yang gerbang ini BUANG memberi +0,1265 R sementara yang ia "
+    "SIMPAN memberi +0,0129 R, jadi selisihnya +0,1137 dengan tanda berlawanan "
+    "dari klaimnya; t=+1,54 mentah dan +1,77 di-demean, keduanya di bawah "
+    "kritis 2,638, dan tandanya berbalik antar paruh. Menyalakannya menurunkan "
+    "ekspektansi dari +0,0238 ke +0,0129, yaitu -0,0109 R per trade, sambil "
+    "membuang 176 dari 1828 trade. Kontrol arah ikut null, t=-0,74. "
+    "docs/ALUR-ORDER.md bagian 3b, docs/htf_gate_outcomes.json."
+)
+
+
+def warn_htf_gate(enabled: bool) -> None:
+    """Cetak angka yang menolak gerbang ini kalau ia dinyalakan.
+
+    Bukan menolak jalan: operator boleh menjalankan apa pun di akunnya sendiri.
+    Yang tidak boleh adalah menyalakannya sambil mengira ia belum diukur.
+    """
+    if enabled:
+        print(f"PERINGATAN: --htf-gate menyala, dan gerbang ini SUDAH diukur "
+              f"dengan hasil yang berlawanan: {HTF_GATE_MEASURED}", flush=True)
+
+
 def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--symbol", default="mt5:XAUUSD")
@@ -314,8 +345,10 @@ def main() -> int:
     parser.add_argument("--news-max", type=int, default=99,
                         help="Max news impact score (0-3, 99=disabled)")
     parser.add_argument("--htf-gate", action="store_true", default=False,
-                        help="Enable HTF direction gate (daily FVG bias)")
+                        help="HTF direction gate (daily FVG bias). SUDAH DIUKUR "
+                             "DAN HASILNYA BERLAWANAN, lihat HTF_GATE_MEASURED")
     args = parser.parse_args()
+    warn_htf_gate(args.htf_gate)
     # LINE BUFFERED, or this daemon's log does not exist until it dies. Python
     # block-buffers stdout whenever it is not a terminal, so redirected to a file -
     # which is how a daemon is always run - the log stayed at 0 bytes while the

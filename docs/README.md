@@ -1,7 +1,7 @@
 # Peta direktori docs
 
-Direktori ini berisi 20 dokumen prosa, 76 file bukti mentah, dan 4 spec desain.
-Tanpa peta, pembaca yang membukanya melihat 100 file dan tidak bisa tahu prosa
+Direktori ini berisi 20 dokumen prosa, 77 file bukti mentah, dan 4 spec desain.
+Tanpa peta, pembaca yang membukanya melihat 101 file dan tidak bisa tahu prosa
 mana membaca data mana. Itu satu-satunya alasan file ini ada.
 
 > [!NOTE]
@@ -114,6 +114,7 @@ Tanda hubung lawan garis bawah adalah artefak sejarah dan bukan makna:
 | `mt5-wyk-arm0-matrix.json` | `tools.mt5_backtest` | QA-BREAKOUT.md | Wyckoff arm 0 sensitivity matrix |
 | `mt5-wyk-h4.json` | `tools.mt5_backtest` | QA-BREAKOUT.md | Wyckoff XAUUSD H4, 129 trade, PF 1,34 tidak bereplikasi |
 | `qt_outcomes.json` | `tools.qt_outcomes` | QT-CHECKLIST.md | skor checklist Quarterly Theory lawan outcome: monotonisitas, tren, split median, kontras gate, aturan ukuran posisi, plus sebelas kolom builder satu per satu. Populasinya DIIMPOR dari `tools/checklist_outcomes.py:rows_for` tanpa satu baris diubah, supaya hasilnya sebanding dengan studi kelima |
+| `htf_gate_outcomes.json` | `tools.htf_gate_outcomes` | ALUR-ORDER.md bagian 3b | apakah `--htf-gate` layak memblokir order. n=1828, delapan instrumen. Kohort yang ia buang punya ekspektansi LEBIH TINGGI daripada yang ia simpan, jadi flag-nya dicabut dari `start.bat` |
 | `qt_clock_parity.json` | `tools.qt_clock_parity` | QT-CHECKLIST.md | jam Quarterly Theory di MQL5 lawan Python pada 17.520 titik waktu sepanjang 2026, termasuk kedua transisi DST New York. Nol ketidaksepakatan |
 | `mt5-qt-a0control.json` sampai `mt5-qt-a5_333.json` | `tools.mt5_backtest` dengan `--experts ZonelabQT` | QT-CHECKLIST.md | enam lengan gerbang waktu QT, M15 real tick, XAUUSD dan BTCUSD. a0control adalah lengan tanpa filter dan harus sama dengan ZonelabSD |
 | `mt5-qt-clockdump.json` | `tools.mt5_backtest` dengan `--experts ZonelabQTDump` | - | run yang menulis `zonelab_qt_clock.csv` ke folder Common, satu-satunya masukan `qt_clock_parity` |

@@ -1,0 +1,134 @@
+{
+  "preregistered": "docstring tools/htf_gate_outcomes.py, 2026-09-05",
+  "population_from": "tools/checklist_outcomes.py:rows_for, tidak diubah",
+  "gate": "tools/execute.py:daily_fvg_bias, fungsi yang sama dipanggil produksi",
+  "population": {
+    "n": 1828,
+    "exp_r": 0.02380062926837258,
+    "per_symbol": {
+      "XAUUSD": {
+        "n": 222,
+        "exp_r": 0.17094615261818272
+      },
+      "BTCUSD": {
+        "n": 220,
+        "exp_r": 0.00011463627566998207
+      },
+      "XAGUSD": {
+        "n": 223,
+        "exp_r": 0.07750938641560792
+      },
+      "EURUSD": {
+        "n": 232,
+        "exp_r": -0.10262658085564877
+      },
+      "GBPUSD": {
+        "n": 255,
+        "exp_r": 0.140869057492369
+      },
+      "USDJPY": {
+        "n": 223,
+        "exp_r": -0.009131380787296969
+      },
+      "AUDUSD": {
+        "n": 254,
+        "exp_r": -0.04580693446908253
+      },
+      "US30": {
+        "n": 199,
+        "exp_r": -0.05122257467994392
+      }
+    },
+    "cohorts": {
+      "None": 1227,
+      "True": 425,
+      "False": 176
+    }
+  },
+  "threshold": {
+    "alpha": 0.05,
+    "groups_judged": 6,
+    "alpha_corrected": 0.008333333333333333,
+    "critical_t": 2.63825727347675,
+    "min_group": 30
+  },
+  "H1_blocked_cohort_is_worse": {
+    "raw": {
+      "n_inside": 176,
+      "n_rest": 1652,
+      "judged": true,
+      "exp_r_inside": 0.1265087309297754,
+      "exp_r_rest": 0.012858361779022155,
+      "delta": 0.11365036915075326,
+      "t": 1.541155405796133,
+      "halves_delta": [
+        0.2817707214287205,
+        -0.019808942591470743
+      ],
+      "halves_same_sign": false,
+      "symbols_same_sign": "6/8",
+      "separates": false
+    },
+    "instrument_demeaned": {
+      "n_inside": 176,
+      "n_rest": 1652,
+      "judged": true,
+      "exp_r_inside": 0.11731027418614079,
+      "exp_r_rest": -0.012497946886659065,
+      "delta": 0.12980822107279985,
+      "t": 1.7658717558385961,
+      "halves_delta": [
+        0.3103310578146876,
+        -0.013776781794372236
+      ],
+      "halves_same_sign": false,
+      "symbols_same_sign": "6/8",
+      "separates": false
+    },
+    "verdict": false
+  },
+  "H2_account_effect": {
+    "n_full": 1828,
+    "n_kept": 1652,
+    "n_removed": 176,
+    "exp_r_full": 0.02380062926837258,
+    "exp_r_kept": 0.012858361779022155,
+    "lift": -0.010942267489350427,
+    "verdict": false
+  },
+  "H3_direction_control": {
+    "raw": {
+      "n_inside": 601,
+      "n_rest": 1227,
+      "judged": true,
+      "exp_r_inside": -1.7224382294336883e-05,
+      "exp_r_rest": 0.035466912922855726,
+      "delta": -0.035484137305150064,
+      "t": -0.737162979354895,
+      "halves_delta": [
+        0.016692393293017943,
+        -0.0859259025492965
+      ],
+      "halves_same_sign": false,
+      "symbols_same_sign": "4/8",
+      "separates": false
+    },
+    "instrument_demeaned": {
+      "n_inside": 601,
+      "n_rest": 1227,
+      "judged": true,
+      "exp_r_inside": -0.014089308794162161,
+      "exp_r_rest": 0.00690112028141113,
+      "delta": -0.020990429075573292,
+      "t": -0.4384133821777701,
+      "halves_delta": [
+        0.039767206864295204,
+        -0.07970365359537565
+      ],
+      "halves_same_sign": false,
+      "symbols_same_sign": "4/8",
+      "separates": false
+    },
+    "note": "kontras ini menanyakan apakah BERADA DI DALAM gap harian sudah memisahkan, terlepas dari arahnya. Kalau ia memisahkan dan H-1 juga, yang terukur bukan arahnya."
+  }
+}

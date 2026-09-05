@@ -48,7 +48,14 @@ REM  it does not even open MT5. Arming it here is what makes the switch mean
 REM  what it says: turn it on on the page and orders go out. Delete `--send`
 REM  from this line to run the daemon in dry run, where it prints what it would
 REM  have sent and sends nothing.
-set "AT_FLAGS=--symbol mt5:XAUUSD,mt5:BTCUSD --interval 15m,30m --risk-pct 0.03 --max-total-risk-pct 0.08 --daily-loss-pct 0.05 --weekly-loss-pct 0.10 --streak-halve 3 --adx-min 10 --atr-budget-max 0 --news-max 3 --htf-gate --send"
+REM  `--htf-gate` DICABUT 5 September 2026 setelah diukur. Kohort yang ia
+REM  blokir punya ekspektansi LEBIH TINGGI daripada yang ia simpan,
+REM  +0,1265 R lawan +0,0129 R pada n=1828, dan menyalakannya menurunkan
+REM  ekspektansi 0,0109 R per trade sambil membuang 176 dari 1828 trade.
+REM  Angkanya di docs/ALUR-ORDER.md bagian 3b dan docs/htf_gate_outcomes.json.
+REM  Flag-nya masih diterima tools/autotrade.py; yang dicabut cuma arm-nya,
+REM  dan menyalakannya lagi akan mencetak angka penolaknya.
+set "AT_FLAGS=--symbol mt5:XAUUSD,mt5:BTCUSD --interval 15m,30m --risk-pct 0.03 --max-total-risk-pct 0.08 --daily-loss-pct 0.05 --weekly-loss-pct 0.10 --streak-halve 3 --adx-min 10 --atr-budget-max 0 --news-max 3 --send"
 
 REM Absolute path to curl rather than the bare name. `where curl` on this
 REM machine finds Git's copy in mingw64 first, which is only on PATH inside a

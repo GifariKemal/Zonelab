@@ -842,6 +842,50 @@ def _cot_signal(symbol: str) -> dict | None:
         return None
 
 
+def daily_fvg_bias(daily: list, price: float) -> dict:
+    """The newest unfilled daily FVG that CONTAINS `price`, or an empty dict.
+
+    THE ONLY DEFINITION OF THIS GATE, and it is a function so a measurement can
+    call it with a truncated series. `_htf_confluence` loads the LAST 200 daily
+    bars, which is correct live and pure lookahead at a past bar; a rig that
+    reimplemented the scan instead would be testing its own copy. `--htf-gate`
+    blocks real orders on this answer, so the copy that gets measured has to be
+    the copy that runs.
+
+    Scanned newest first and stops at the first FVG that both survives and
+    contains the price, so an older gap never overrides a newer one.
+
+    "Filled" here means price CLOSED THROUGH THE FAR SIDE - a demand gap dies
+    when a close lands below its bottom, a supply gap when a close lands above
+    its top. That is full invalidation and not mitigation, and it is the rule
+    the shipped gate already used; it is written down here rather than changed.
+    """
+    result: dict = {}
+    if len(daily) < 3:
+        return result
+    for i in range(len(daily) - 2, 0, -1):
+        c0, c2 = daily[i - 1], daily[i + 1]
+        if c2.low > c0.high:
+            top, bottom, side = c2.low, c0.high, "demand"
+        elif c0.low > c2.high:
+            top, bottom, side = c0.low, c2.high, "supply"
+        else:
+            continue
+        filled = any(
+            (daily[j].close > top if side == "supply" else daily[j].close < bottom)
+            for j in range(i + 2, len(daily))
+        )
+        if filled:
+            continue
+        if bottom <= price <= top:
+            result["htf_bias"] = "bearish" if side == "supply" else "bullish"
+            result["htf_fvg_side"] = side
+            result["htf_fvg_top"] = top
+            result["htf_fvg_bottom"] = bottom
+            break
+    return result
+
+
 def _htf_confluence(symbol: str, chart_candles: list) -> dict:
     """HTF PD Array (daily FVG), H1 CISD, PDH/PDL sweep. One call per symbol."""
     result: dict = {}
@@ -849,28 +893,7 @@ def _htf_confluence(symbol: str, chart_candles: list) -> dict:
 
     # 1. Daily FVG: is price inside one?
     try:
-        daily = history.load(symbol, "1d", 200)
-        if len(daily) >= 3:
-            for i in range(len(daily) - 2, 0, -1):
-                c0, c2 = daily[i - 1], daily[i + 1]
-                if c2.low > c0.high:
-                    top, bottom, side = c2.low, c0.high, "demand"
-                elif c0.low > c2.high:
-                    top, bottom, side = c0.low, c2.high, "supply"
-                else:
-                    continue
-                filled = any(
-                    (daily[j].close > top if side == "supply" else daily[j].close < bottom)
-                    for j in range(i + 2, len(daily))
-                )
-                if filled:
-                    continue
-                if bottom <= price <= top:
-                    result["htf_bias"] = "bearish" if side == "supply" else "bullish"
-                    result["htf_fvg_side"] = side
-                    result["htf_fvg_top"] = top
-                    result["htf_fvg_bottom"] = bottom
-                    break
+        result.update(daily_fvg_bias(history.load(symbol, "1d", 200), price))
     except Exception:
         pass
 

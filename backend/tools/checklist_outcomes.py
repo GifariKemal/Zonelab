@@ -214,7 +214,7 @@ from app.ssmt import ssmt as ssmt_read
 from app.ssmt import two_stage
 from tools.calibrate import POPULATION
 from tools.conditioned import ALPHA, MIN_GROUP, _critical_t
-from tools.execute import POI_SLACK_BARS, STAGE_PAIRS
+from tools.execute import POI_SLACK_BARS, STAGE_PAIRS, daily_fvg_bias
 from tools import history
 from tools.intrabar import FINER, resolved
 
@@ -264,6 +264,13 @@ QT_COLUMNS = (
     "qt_vwap_side",         # B8 sepupu berarah, yang sumbernya keluarkan
     "qt_value_area",        # B8 klausa profil
 )
+
+#: Kolom gerbang `--htf-gate`, DI LUAR `QT_COLUMNS` dan itu disengaja. Ia bukan
+#: builder Quarterly Theory, dan praregistrasi `tools/qt_outcomes.py` menyebut
+#: daftar kolomnya sebagai daftar TERTUTUP. Menumpangkannya di sana akan
+#: mengubah K, mengubah ambangnya, dan membuat studi QT menguji sesuatu yang
+#: praregistrasinya tidak pernah sebut. Ia diuji di `tools/htf_gate_outcomes.py`.
+HTF_COLUMNS = ("htf_agrees",)
 
 #: Sudah diukur sebelum studi ini, jadi verdict-nya mengutip dan bukan mengklaim.
 ALREADY = tuple(MEASURED_AGAINST)
@@ -422,6 +429,23 @@ def rows_for(symbol: str, interval: str, fine: str) -> list[dict]:
     # per simbol, dan USOIL berhenti menyelesaikan lintasannya dalam sepuluh
     # menit karenanya. Semantiknya tidak berubah sedikit pun.
     grid_times = {s: [c.time for c in rows] for s, rows in grid.items()}
+
+    # BAR HARIAN UNTUK GERBANG --htf-gate, dimuat sekali lalu dipotong per
+    # sentuhan. `tools/execute.py:_htf_confluence` memuat 200 bar harian
+    # TERAKHIR, yang benar saat live dan lookahead murni di bar masa lalu.
+    #
+    # BAR HARIAN YANG MEMUAT `now` DIBUANG, dan itu bukan kehati-hatian
+    # berlebih. Live, bar harian berjalan itu terbaca SEPARUH JADI; di riwayat
+    # ia sudah lengkap, jadi memakainya berarti membaca high, low dan close
+    # dari sisa hari yang belum terjadi. Yang dipakai hanya bar yang sudah
+    # TUTUP sebelum `now`. Akibatnya FVG terbaru yang bisa terlihat di sini
+    # satu bar lebih tua daripada yang produksi lihat, dan itu selisih yang
+    # konservatif, bukan yang menyanjung.
+    try:
+        daily_bars = history.load(f"mt5:{symbol}", "1d", 3000)
+    except Exception:
+        daily_bars = []
+    daily_close = [c.time + 86_400 for c in daily_bars]
     shipped = STAGE_PAIRS[interval]
     hi_deg, lo_deg = (STAGE_FALLBACK.get(d, d) for d in shipped)
     stage_pair_valid = shipped == (hi_deg, lo_deg)
@@ -534,6 +558,22 @@ def rows_for(symbol: str, interval: str, fine: str) -> list[dict]:
         found = truth_asset(pair, symbol, "pair") if len(pair) > 1 else None
 
         source_side = qt_read.judas_source_side(candles, touch)
+
+        # GERBANG --htf-gate, dibaca lewat fungsi yang produksi pakai.
+        #
+        # Harganya `close[touch]` dan bukan `plan.entry`, karena yang gerbang
+        # itu baca adalah `chart_candles[-1].close`. Bar keputusannya BERBEDA:
+        # produksi menilai gerbang ini saat zona masih segar dan order limit
+        # dipasang, sedangkan di sini ia dinilai di bar sentuhan. Jadi yang
+        # diukur adalah ATURANNYA, bukan detik persisnya menyala, dan bar
+        # sentuhan adalah bacaan yang LEBIH MENGUNTUNGKAN gerbang itu: di sana
+        # harga ada di zona, jadi uji "di dalam FVG harian" paling mungkin
+        # terpenuhi.
+        cut = bisect.bisect_right(daily_close, now)
+        htf = daily_fvg_bias(daily_bars[:cut][-200:], float(close[touch]))
+        htf_bias = htf.get("htf_bias")
+        htf_agrees = (
+            None if htf_bias is None else (htf_bias == "bullish") == demand)
         qt_columns = {
             "qt_sequence": qt_read.sequence_listed(now),
             "qt_sequence_src": qt_read.sequence_listed_source(now),
@@ -548,6 +588,7 @@ def rows_for(symbol: str, interval: str, fine: str) -> list[dict]:
             "qt_vwap_at_open": qt_read.vwap_at_true_open(line, visible, scale),
             "qt_vwap_side": qt_read.vwap_side(price, line, demand),
             "qt_value_area": qt_read.value_area_edge(price, profile, scale),
+            "htf_agrees": htf_agrees,
         }
         # KUNCI URUT KANDIDAT, semuanya terbaca di bar keputusan.
         #
