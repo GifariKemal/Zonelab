@@ -198,9 +198,14 @@ from app.dealing_range import mark_dealing_range
 from app.detect import DETECTORS
 from app.ict import MEASURED_AGAINST, Rules, evaluate
 from app.indicators import wilder_atr
-from app.models import SupplyDemandParams
+from app.models import SupplyDemandParams, ZoneSide
 from app.plan import build
 from app.poi import confluence, other_boxes
+from app import clock as ny_clock
+from app import qt as qt_read
+from app.checklist import _judas
+from app.quarters import true_opens
+from app.triad import truth_asset
 from app.profit_zone import profit_zone_at
 from app.providers.base import INTERVALS
 from app.resample import STEP_UP, resample
@@ -237,6 +242,29 @@ CLAUSES = (
     "two_stage_confirmed", "min_rr", "draw_agrees", "adverse_excursion",
 )
 
+#: Enam builder Quarterly Theory yang TIDAK punya klausa di `app/ict.py`, plus
+#: varian yang lahir dari divergensi sumber. Prefix `qt_` supaya tidak pernah
+#: bentrok dengan nama klausa checklist, aturan yang sama dengan prefix `k_`.
+#:
+#: B9 `news_clear` TIDAK ADA di daftar ini dan itu bukan kelalaian. Lihat
+#: `app/qt.py:NEWS_CLEAR_BLOCKED`: feed kalendernya cuma punya minggu ini dan
+#: paket MetaTrader5 di mesin ini tidak punya fungsi kalender, jadi tidak ada
+#: riwayat untuk menilai bar masa lalu. Kolom yang diisi kalender hari ini akan
+#: mengukur minggu ini lawan bar tahun lalu.
+QT_COLUMNS = (
+    "qt_sequence",          # B2, grid repo ini (18:00 NY)
+    "qt_sequence_src",      # B2, grid sumbernya (19:30 NY), 90 menit berbeda
+    "qt_true_opens",        # B3
+    "qt_judas_repo",        # B6, bacaan app/judas.py
+    "qt_judas_source",      # B6, bacaan tabel sumbernya, yang berlawanan
+    "qt_truth_pair",        # B7, skor konsolidasi app/triad.py
+    "qt_truth_volatility",  # B7, argmin stdev return, bacaan referensi
+    "qt_vwap_near",         # B8 klausa 1
+    "qt_vwap_at_open",      # B8 klausa 2
+    "qt_vwap_side",         # B8 sepupu berarah, yang sumbernya keluarkan
+    "qt_value_area",        # B8 klausa profil
+)
+
 #: Sudah diukur sebelum studi ini, jadi verdict-nya mengutip dan bukan mengklaim.
 ALREADY = tuple(MEASURED_AGAINST)
 
@@ -249,7 +277,22 @@ LIVE_BARS = 3000
 #: bagian 6 docstring: tanpa ini `two_stage_confirmed` konstan False.
 STAGE_FALLBACK = {"90m": "session"}
 
+#: Bar yang dipakai skor konsolidasi dan volatilitas triad. 200, konvensi yang
+#: sama dengan `app/checklist.py:_CORR_BARS` dan `tools/conditioned.py`.
+_CORR_WINDOW = 200
+
 FOLDS = 8
+
+
+def clock_ny_wall_midnight(epoch: int) -> int:
+    """Tengah malam New York pada hari kalender yang memuat `epoch`.
+
+    True Day Open, dan juga awal jendela yang `_judas` butuh untuk melihat
+    sesi London hari itu. Dipisah jadi fungsi supaya konversi zona waktunya
+    ada di satu tempat dan bukan diulang di dalam loop.
+    """
+    day = ny_clock.to_ny(epoch)
+    return ny_clock.ny_wall(day.year, day.month, day.day, 0)
 
 
 #: SATU EVENT LOOP UNTUK SELURUH RUN. `asyncio.run` membuat loop baru tiap
@@ -347,6 +390,13 @@ def rows_for(symbol: str, interval: str, fine: str) -> list[dict]:
 
     others = other_boxes(candles)
     times = [c.time for c in candles]
+
+    # TRUE OPENS SEKALI, DISARING PER SENTUHAN. Menghitung ulang per bar akan
+    # memindai seluruh deret 1855 kali; menghitung sekali lalu menyaring pada
+    # `lv.bar <= now` memberi jawaban yang persis sama dan tetap anti-lookahead,
+    # karena `TrueOpen.bar` adalah waktu buka bar tempat harganya dibaca.
+    open_levels = true_opens(candles, degrees=qt_read.OPEN_DEGREES)
+
     high = np.array([c.high for c in candles])
     low = np.array([c.low for c in candles])
     close = np.array([c.close for c in candles])
@@ -366,6 +416,12 @@ def rows_for(symbol: str, interval: str, fine: str) -> list[dict]:
     partner = TCISD_PARTNER[symbol]
     grid, _ = _aligned([f"mt5:{symbol}", f"mt5:{partner}"], interval, 99_999)
     grid = {s.split(":")[-1]: rows for s, rows in grid.items() if rows}
+    # WAKTU PARTNER DIBANGUN SEKALI. Versi pertama membangun ulang
+    # `[c.time for c in rows]` DI DALAM loop sentuhan, sekali per anggota grid
+    # per trade: pada deret 99.999 bar dan 234 sentuhan itu 47 juta operasi
+    # per simbol, dan USOIL berhenti menyelesaikan lintasannya dalam sepuluh
+    # menit karenanya. Semantiknya tidak berubah sedikit pun.
+    grid_times = {s: [c.time for c in rows] for s, rows in grid.items()}
     shipped = STAGE_PAIRS[interval]
     hi_deg, lo_deg = (STAGE_FALLBACK.get(d, d) for d in shipped)
     stage_pair_valid = shipped == (hi_deg, lo_deg)
@@ -439,6 +495,60 @@ def rows_for(symbol: str, interval: str, fine: str) -> list[dict]:
         checklist = evaluate(zone, state, stack, rules, at=now,
                              ssmt_side=ssmt_side, two_stage_confirmed=confirmed,
                              reward_r=plan.reward_r, always_open=always_open)
+
+        # ------------------------------------------------------ builder QT
+        # Sebelas kolom yang `app/ict.py` tidak punya, dievaluasi di BAR
+        # SENTUHAN yang sama dengan klausa di atas. Tidak satu pun menyentuh
+        # bar setelah `touch`, dan tiap potongan di bawah dibatasi kanan di
+        # `touch` justru supaya itu terlihat di kode, bukan dijanjikan.
+        demand = zone.side is ZoneSide.DEMAND
+        # HARGA ENTRY, BUKAN CLOSE BAR. Sumbernya menyebut "entry price
+        # within 1 ATR of anchored VWAP", dan entry di sini adalah proximal
+        # zona, yang sudah terbaca di bar keputusan. Di first touch keduanya
+        # berdekatan tapi tidak sama: close bisa sudah masuk ke dalam zona.
+        price = float(plan.entry)
+        # SATU LEVEL PER DERAJAT, YANG TERBARU. Menyaring hanya pada
+        # `lv.bar <= now` menyisakan sekitar 2.400 level di riwayat 50k bar,
+        # dan "minimal dua sepakat" jadi terpenuhi oleh riwayat alih-alih
+        # oleh harga: terukur 209 True lawan 13 False di XAUUSD.
+        visible = qt_read.current_opens(open_levels, now)
+
+        # `_judas` membaca `rows[-1]` sebagai sekarang dan `rows[-14:]` sebagai
+        # ATR kasarnya, jadi potongannya HARUS berakhir di sentuhan. Diberi
+        # seluruh deret ia akan mengambil 14 bar TERBARU, yang adalah lookahead
+        # sepanjang riwayat.
+        day_open = clock_ny_wall_midnight(now)
+        lo = bisect.bisect_left(times, day_open - 86_400)
+        judas = _judas(candles[lo:touch + 1]) if lo <= touch else None
+
+        line, profile = qt_read.day_anchored(
+            candles, touch, state.get("cycle_start"))
+
+        # PASANGAN, BUKAN TRIAD, dan itu batas metode yang dinyatakan. Rig ini
+        # memuat simbol plus SATU partner `TCISD_PARTNER`, karena partner itu
+        # yang sudah dipakai kolom SSMT di atas. Menambah anggota ketiga akan
+        # memuat deret ketiga per simbol dan mengubah populasinya.
+        pair = {s: rows[:bisect.bisect_right(grid_times[s], now)][-_CORR_WINDOW:]
+                for s, rows in grid.items()}
+        pair = {s: rows for s, rows in pair.items() if rows}
+        found = truth_asset(pair, symbol, "pair") if len(pair) > 1 else None
+
+        source_side = qt_read.judas_source_side(candles, touch)
+        qt_columns = {
+            "qt_sequence": qt_read.sequence_listed(now),
+            "qt_sequence_src": qt_read.sequence_listed_source(now),
+            "qt_true_opens": qt_read.true_opens_agree(price, visible, demand),
+            "qt_judas_repo": qt_read.judas_agrees(judas, demand),
+            "qt_judas_source": (
+                None if source_side is None
+                else source_side == ("buy" if demand else "sell")),
+            "qt_truth_pair": qt_read.truth_asset_agrees(found, symbol),
+            "qt_truth_volatility": qt_read.truth_asset_by_volatility(pair, symbol),
+            "qt_vwap_near": qt_read.vwap_near(price, line, scale),
+            "qt_vwap_at_open": qt_read.vwap_at_true_open(line, visible, scale),
+            "qt_vwap_side": qt_read.vwap_side(price, line, demand),
+            "qt_value_area": qt_read.value_area_edge(price, profile, scale),
+        }
         # KUNCI URUT KANDIDAT, semuanya terbaca di bar keputusan.
         #
         # Ditulis di sini dan bukan di harness kedua karena definisi populasi
@@ -467,6 +577,7 @@ def rows_for(symbol: str, interval: str, fine: str) -> list[dict]:
         }
         for c in checklist:
             record[c.name] = c.met
+        record.update(qt_columns)
         out.append(record)
     return out
 

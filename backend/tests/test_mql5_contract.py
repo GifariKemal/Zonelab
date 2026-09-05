@@ -28,7 +28,8 @@ MQL5 = Path(__file__).resolve().parents[2] / "mql5" / "ZonelabSupplyDemand"
 TOOLS = Path(__file__).resolve().parents[1] / "tools"
 
 #: Gate yang mencetak vonis dan karena itu harus menutupnya dengan exit code.
-GATES = ("ea_parity.py", "ea_parity_ob.py", "ea_parity_fvg.py", "mqh_parity.py")
+GATES = ("ea_parity.py", "ea_parity_ob.py", "ea_parity_fvg.py", "mqh_parity.py",
+         "qt_clock_parity.py")
 
 
 def _inputs(expert: str) -> set[str]:
@@ -171,3 +172,152 @@ def test_every_registered_detector_is_ported_or_written_down_as_not():
         n for n, why in mqh_parity.UNPORTED.items() if len(why.strip()) < 40
     )
     assert not thin, f"terdaftar tidak diport tanpa alasan yang bisa dibaca: {thin}"
+
+
+# --------------------------------------------------------------------------
+# QTClock.mqh menyalin empat batas sesi dan sepuluh rantai dari sisi Python.
+#
+# KENAPA INI PERLU DIIKAT. `mql5/ZonelabSupplyDemand/QTClock.mqh` dan
+# `app/qt.py` mengimplementasikan aritmetika yang SAMA di dua bahasa, dan
+# keduanya dipakai untuk mengukur klaim yang sama di dua venue. Kalau salah
+# satunya bergeser, kedua venue berhenti mengukur objek yang sama dan tidak
+# ada yang gagal: angkanya tetap keluar, cuma tidak lagi sebanding. Itu persis
+# bentuk kegagalan `docs/mt5_python_parity.json` yang menemukan 6 dari 8 sel
+# tidak sepakat.
+QT_CLOCK = MQL5 / "QTClock.mqh"
+
+
+def _define(name: str) -> int:
+    match = re.search(rf"^#define\s+{name}\s+(\d+)", QT_CLOCK.read_text(
+        encoding="utf-8"), re.M)
+    assert match, f"{name} tidak ada di QTClock.mqh"
+    return int(match.group(1))
+
+
+def test_session_boundaries_match_the_python_side():
+    """Empat batas sesi, dua salinan, satu angka masing-masing."""
+    from app import qt
+
+    assert _define("QT_ASIA_START") == qt.SOURCE_ASIA_START
+    assert _define("QT_LONDON_START") == qt.SOURCE_LONDON_START
+    assert _define("QT_NYAM_START") == qt.SOURCE_NYAM_START
+    assert _define("QT_NYPM_START") == qt.SOURCE_NYPM_START
+
+
+def test_high_prob_chains_match_the_python_side():
+    """Sepuluh rantai, dan mereka harus sepuluh yang sama di tiga tempat.
+
+    `sequence.HIS_LIST` adalah otoritasnya; `app/qt.py:SOURCE_HIGH_PROB` dan
+    daftar hardcoded di `QTClock.mqh` adalah salinannya.
+    """
+    from app import qt
+    from app.sequence import HIS_LIST
+
+    source = QT_CLOCK.read_text(encoding="utf-8")
+    block = source[source.index("bool QTHighProbChain"):]
+    in_mql5 = set(re.findall(r"code==(\d{3})", block))
+
+    assert in_mql5 == set(HIS_LIST), sorted(in_mql5 ^ set(HIS_LIST))
+    assert qt.SOURCE_HIGH_PROB == HIS_LIST
+
+
+def test_the_two_grids_are_still_ninety_minutes_apart():
+    """Grid repo (18:00) dan grid sumber (19:30) TIDAK boleh menyatu.
+
+    Kalau suatu hari keduanya sepakat, salah satu sudah diubah, dan setiap
+    angka yang membandingkan `qt_sequence` dengan `qt_sequence_src` berhenti
+    punya arti tanpa satu test pun merah.
+    """
+    from app import clock, qt
+    from app.quarters import quarters
+
+    when = clock.ny_wall(2026, 9, 2, 6, 30)
+    repo = [q.label for q in quarters("day", when, when)]
+    assert repo == ["Q3"]
+    assert qt.source_chain(when)[1] == 2
+
+
+def _between(source: str, start: str, end: str) -> str:
+    """Potongan source antara dua penanda, komentar dan baris kosong dibuang."""
+    # `index` melempar ValueError yang tidak menyebut apa yang hilang, dan gate
+    # ini dibaca orang yang sedang mencari kenapa lengan kontrolnya berubah.
+    assert start in source, f"penanda awal hilang dari source: {start!r}"
+    head = source.index(start)
+    assert end in source[head:], f"penanda akhir hilang setelah {start!r}: {end!r}"
+    body = source[head:source.index(end, head)]
+    return "\n".join(
+        line.strip() for line in body.splitlines()
+        if line.strip() and not line.strip().startswith("//")
+    )
+
+
+def test_zonelabqt_trade_path_is_still_a_copy_of_zonelabsd():
+    """Lengan kontrol ZonelabQT harus benar benar ZonelabSD.
+
+    ZonelabQT ada untuk mengukur SATU hal: gerbang waktu Quarterly Theory di
+    depan entry yang sudah ada. Dengan keempat filter di nol ia wajib memberi
+    angka yang sama dengan ZonelabSD, dan lengan itulah kontrolnya.
+
+    Kalau seseorang menyunting geometri entry, stop, target atau ukuran lot di
+    salah satu file saja, kontrolnya berhenti jadi kontrol dan SETIAP
+    perbandingan lengan berubah arti - tanpa satu pun angka terlihat aneh,
+    karena kedua sisi tetap menghasilkan report yang wajar. Bentuk kegagalan
+    yang sama dengan `docs/mt5_python_parity.json`: baru ketahuan setelah ada
+    yang membandingkan.
+
+    Yang diikat adalah JALUR UANGNYA: ukuran lot, dan blok yang memasang order.
+    """
+    sd = (MQL5 / "ZonelabSD.mq5").read_text(encoding="utf-8")
+    qt = (MQL5 / "ZonelabQT.mq5").read_text(encoding="utf-8")
+
+    assert _between(sd, "double RiskLots(", "//+---") ==            _between(qt, "double RiskLots(", "//+---"),            "RiskLots berbeda: lot kedua EA tidak lagi sebanding"
+
+    assert _between(sd, "double lots = RiskLots(risk);", "MarkOrdered(id);") ==            _between(qt, "double lots = RiskLots(risk);", "MarkOrdered(id);"),            "blok pemasangan order berbeda: lengan kontrol bukan kontrol lagi"
+
+    # Dan gerbangnya harus benar benar ada, kalau tidak test di atas lolos
+    # secara hampa pada dua file yang identik.
+    assert "QTGateOpen(time_[n-1])" in qt
+    assert "QTGateOpen" not in sd
+
+
+def test_trade_parser_reproduces_the_report_net():
+    """P/L per trade yang dijumlahkan HARUS sama dengan net di report yang sama.
+
+    Ini gate yang menangkap cacat pemasangan deal, dan ia sudah menangkap satu:
+    versi pertama `tools/mt5_trades.py` memasangkan lewat `Comment`, dapat
+    jumlah trade yang BENAR, lalu kehilangan seluruh komisi masuk karena deal
+    `out` membawa alasan tutup (`sl 4342.452`) dan bukan id zona. Jumlah trade
+    yang cocok adalah persis jenis bukti yang membuat cacat itu lolos.
+
+    Diperiksa pada SETIAP report yang ada di repo, bukan pada satu yang dipilih.
+    """
+    import re as _re
+
+    from tools.mt5_backtest import parse_report
+    from tools.mt5_trades import read
+
+    # REPORT `.htm` TIDAK IKUT GIT, dan itu keadaan repo ini apa adanya:
+    # `.gitignore` baris 112 mengecualikan `reports/*.htm` sementara docstring
+    # `tools/mt5_backtest.py` menulis bahwa report disalin ke sana "supaya ikut
+    # masuk git". Keduanya tidak bisa benar bersamaan; yang berlaku adalah
+    # `.gitignore`. Jadi di clone bersih tidak ada apa pun untuk diperiksa, dan
+    # gate ini SKIP dengan alasannya alih-alih lolos diam-diam. Skip terbaca
+    # berbeda dari pass di ringkasan pytest, dan itu bedanya dengan gate hampa.
+    reports = sorted((MQL5 / "reports").glob("*.htm"))
+    if not reports:
+        pytest.skip("tidak ada reports/*.htm di pohon ini; jalankan "
+                    "tools.mt5_backtest dulu, atau baca .gitignore baris 112")
+
+    checked = 0
+    for path in reports:
+        summary = parse_report(path)
+        net = summary.get("Total Net Profit")
+        count = summary.get("Total Trades")
+        if not net or not count:
+            continue
+        net = float(_re.sub(r"[^\d.\-]", "", net.replace(" ", "")))
+        values = read(path.stem)
+        assert len(values) == int(count), (path.stem, len(values), count)
+        assert abs(sum(values) - net) < 0.01, (path.stem, sum(values), net)
+        checked += 1
+    assert checked >= 1, "tidak ada report yang bisa diperiksa"

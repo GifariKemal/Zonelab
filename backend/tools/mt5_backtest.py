@@ -82,6 +82,31 @@ SHIPPED = {
         "InpRewardR": 2.0, "InpRiskPercent": 1.0, "InpBars": 3000,
         "InpMagic": 20260903,
     },
+    #: ZonelabSD ditambah gerbang waktu Quarterly Theory. Jalur trade-nya
+    #: SALINAN PERSIS ZonelabSD, jadi default-nya harus sama persis juga:
+    #: dengan keempat filter QT di nol, sel ini WAJIB memberi angka yang sama
+    #: dengan ZonelabSD, dan lengan itulah kontrolnya. Magic berbeda supaya
+    #: order kedua EA tidak saling mengaku milik di terminal yang sama.
+    "ZonelabQT": {
+        "InpAtrPeriod": 14, "InpImpulseBodyRatio": 0.5, "InpImpulseAtr": 1.0,
+        "InpBaseMaxBars": 6, "InpBaseMaxAtr": 2.5, "InpDepartureMinAtr": 2.0,
+        "InpDepartureLook": 20, "InpProximalBasis": 0,
+        "InpMinProfitMargin": 0.0, "InpZoneMinAtr": 0.05,
+        "InpMaxBaseDrift": 0.6, "InpMitigationPct": 0.5,
+        "InpMergeOverlapPct": 0.6, "InpStopBufferAtr": 0.25,
+        "InpStopAtrMode": 0,
+        "InpRiskPercent": 1.0, "InpBars": 20000, "InpMagic": 20260905,
+        "InpWeeklyQuarters": 0, "InpDailyQuarters": 0, "InpQ90Quarters": 0,
+        "InpRequireHighProb": 0,
+    },
+    #: Bukan strategi. Ia membuang rantai kuarter QT ke CSV lalu menghentikan
+    #: pass-nya di OnInit, supaya `tools/qt_clock_parity.py` punya sesuatu
+    #: untuk dibandingkan. Tidak masuk `EXPERTS` default: ia tidak menghasilkan
+    #: satu trade pun dan menjalankannya di matriks rutin cuma membakar waktu.
+    "ZonelabQTDump": {
+        "InpFrom": "2026.01.01", "InpDays": 365, "InpStepMinutes": 30,
+        "InpOut": "zonelab_qt_clock.csv",
+    },
     "ZonelabOB": {
         "InpAtrPeriod": 14, "InpDisplacementAtr": 1.5,
         "InpDisplacementBars": 5, "InpMitigationPct": 0.5,
@@ -288,7 +313,12 @@ COUNTERS = ("zones fresh", "orders placed", "orders failed",
             "skipped price", "skipped no-target",
             "detect calls", "phases total", "phases armed",
             "phases spring", "phases upthrust", "phases sos", "phases sow",
-            "skipped tick", "skipped risk")
+            "skipped tick", "skipped risk",
+            # ZonelabQT. Tanpa baris ini, lengan filter jalan dan tidak ada
+            # yang bisa memastikan gerbangnya benar benar MENGIKAT: sebuah
+            # filter yang salah ketik dan tidak memblokir apa pun terbaca
+            # persis seperti filter yang tidak menemukan apa apa.
+            "zones blocked by QT gate")
 AGENT_LOGS = Path(os.environ.get("APPDATA", "")) / "MetaQuotes" / "Tester"
 
 

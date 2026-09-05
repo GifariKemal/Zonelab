@@ -1,7 +1,7 @@
 # Peta direktori docs
 
-Direktori ini berisi 18 dokumen prosa, 66 file bukti mentah, dan 4 spec desain.
-Tanpa peta, pembaca yang membukanya melihat 86 file dan tidak bisa tahu prosa
+Direktori ini berisi 20 dokumen prosa, 76 file bukti mentah, dan 4 spec desain.
+Tanpa peta, pembaca yang membukanya melihat 100 file dan tidak bisa tahu prosa
 mana membaca data mana. Itu satu-satunya alasan file ini ada.
 
 > [!NOTE]
@@ -29,6 +29,8 @@ mana membaca data mana. Itu satu-satunya alasan file ini ada.
 | [PROMPT-SESI-TRADING.md](PROMPT-SESI-TRADING.md) | Template prompt untuk sesi analisis pasar plus pending order, dan empat pemeriksaan pra-kirim yang masing-masing sudah pernah salah |
 | [PRAREGISTRASI-KORELASI.md](PRAREGISTRASI-KORELASI.md) | Apakah korelasi partner mengkondisikan hasil SSMT, ditulis sebelum satu angka pun ada. Bagian 7 terisi 29 Agustus 2026: null, `t` terbesar 0,19 lawan kritis 3,48 |
 | [PRAREGISTRASI-YATIM.md](PRAREGISTRASI-YATIM.md) | Apakah enam modul yang tidak tersambung ke jalur keputusan memisahkan hasil, ditulis sebelum angkanya ada, plus hasilnya |
+| [PRAREGISTRASI-REGIME.md](PRAREGISTRASI-REGIME.md) | Apakah ADX dan BB Width mengkondisikan hasil, ditulis sebelum gerbangnya diwire ke jalur daemon |
+| [QT-CHECKLIST.md](QT-CHECKLIST.md) | Apakah QT Entry Checklist v2 bisa dipakai memutuskan entry: skor, tier, aturan ukuran posisi, sebelas kolom builder, lima divergensi antara sumbernya dan repo ini, plus dua item yang terhalang secara struktural |
 | [PRAREGISTRASI-EKSEKUSI.md](PRAREGISTRASI-EKSEKUSI.md) | Dua aturan eksekusi yang diuji setelah sinyalnya habis, keduanya ditolak, dan satu ambang praregistrasi yang salah dirancang |
 
 ## File bukti, dan tool yang menghasilkannya
@@ -111,6 +113,11 @@ Tanda hubung lawan garis bawah adalah artefak sejarah dan bukan makna:
 | `mt5-wyk-arm3.json` | `tools.mt5_backtest` | QA-BREAKOUT.md | Wyckoff arm 3 (fade the fakeout) |
 | `mt5-wyk-arm0-matrix.json` | `tools.mt5_backtest` | QA-BREAKOUT.md | Wyckoff arm 0 sensitivity matrix |
 | `mt5-wyk-h4.json` | `tools.mt5_backtest` | QA-BREAKOUT.md | Wyckoff XAUUSD H4, 129 trade, PF 1,34 tidak bereplikasi |
+| `qt_outcomes.json` | `tools.qt_outcomes` | QT-CHECKLIST.md | skor checklist Quarterly Theory lawan outcome: monotonisitas, tren, split median, kontras gate, aturan ukuran posisi, plus sebelas kolom builder satu per satu. Populasinya DIIMPOR dari `tools/checklist_outcomes.py:rows_for` tanpa satu baris diubah, supaya hasilnya sebanding dengan studi kelima |
+| `qt_clock_parity.json` | `tools.qt_clock_parity` | QT-CHECKLIST.md | jam Quarterly Theory di MQL5 lawan Python pada 17.520 titik waktu sepanjang 2026, termasuk kedua transisi DST New York. Nol ketidaksepakatan |
+| `mt5-qt-a0control.json` sampai `mt5-qt-a5_333.json` | `tools.mt5_backtest` dengan `--experts ZonelabQT` | QT-CHECKLIST.md | enam lengan gerbang waktu QT, M15 real tick, XAUUSD dan BTCUSD. a0control adalah lengan tanpa filter dan harus sama dengan ZonelabSD |
+| `mt5-qt-clockdump.json` | `tools.mt5_backtest` dengan `--experts ZonelabQTDump` | - | run yang menulis `zonelab_qt_clock.csv` ke folder Common, satu-satunya masukan `qt_clock_parity` |
+| `qt_outcomes_seven.json` | `tools.qt_outcomes` | QT-CHECKLIST.md | bacaan konteks studi QT pada tujuh instrumen praregistrasi, n=1608. USOIL tidak ikut karena lingkupnya dipersempit ke XAU dan BTC, dan arah biasnya dinyatakan di prosanya |
 | `mt5-wyk-h4-btc.json` | `tools.mt5_backtest` | QA-BREAKOUT.md | Wyckoff BTCUSD H4 replikasi, PF 1,01 |
 
 > [!IMPORTANT]

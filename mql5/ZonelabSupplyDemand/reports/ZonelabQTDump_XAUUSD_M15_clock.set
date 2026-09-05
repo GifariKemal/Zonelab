@@ -1,0 +1,4 @@
+InpFrom=2026.01.01
+InpDays=365
+InpStepMinutes=30
+InpOut=zonelab_qt_clock.csv

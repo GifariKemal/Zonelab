@@ -1,0 +1,64 @@
+{
+  "model": "4",
+  "from": "2026.01.01",
+  "to": "2026.08.31",
+  "deposit": "10000",
+  "cells": [
+    {
+      "cell": "ZonelabQT_BTCUSD_M15_a0control",
+      "status": "ok",
+      "seconds": 341.9,
+      "report": "mql5/ZonelabSupplyDemand/reports/ZonelabQT_BTCUSD_M15_a0control.htm",
+      "Total Net Profit": "-1 827.65",
+      "Profit Factor": "0.95",
+      "Total Trades": "656",
+      "Expected Payoff": "-2.79",
+      "Balance Drawdown Maximal": "3 836.27 (33.07%)",
+      "Sharpe Ratio": "-0.62",
+      "Recovery Factor": "-0.44",
+      "History Quality": "100% real ticks",
+      "Bars": "23220",
+      "Ticks": "23390986",
+      "Initial Deposit": "10 000.00",
+      "Profit Trades (% of total)": "208 (31.71%)",
+      "Loss Trades (% of total)": "448 (68.29%)",
+      "inputs_in_report": "InpAtrPeriod=14|InpImpulseBodyRatio=0.5|InpImpulseAtr=1.0|InpBaseMaxBars=6|InpBaseMaxAtr=2.5|InpDepartureMinAtr=2.0|InpDepartureLook=20|InpProximalBasis=0|InpMinProfitMargin=0.0|InpZoneMinAtr=0.05|InpMaxBaseDrift=0.6|InpMitigationPct=0.5|InpMergeOverlapPct=0.6|InpStopBufferAtr=0.25|InpStopAtrMode=0|InpRiskPercent=1.0|InpBars=20000|InpMagic=20260905|InpWeeklyQuarters=0|InpDailyQuarters=0|InpQ90Quarters=0|InpRequireHighProb=0",
+      "symbol_in_report": "BTCUSD",
+      "ea_counters": {
+        "zones_fresh": 518725,
+        "orders_placed": 706,
+        "orders_failed": 0,
+        "detect_calls": 23220,
+        "zones_blocked_by_QT_gate": 0
+      }
+    },
+    {
+      "cell": "ZonelabQT_XAUUSD_M15_a0control",
+      "status": "ok",
+      "seconds": 358.5,
+      "report": "mql5/ZonelabSupplyDemand/reports/ZonelabQT_XAUUSD_M15_a0control.htm",
+      "Total Net Profit": "-100.56",
+      "Profit Factor": "1.00",
+      "Total Trades": "450",
+      "Expected Payoff": "-0.22",
+      "Balance Drawdown Maximal": "6 015.67 (39.29%)",
+      "Sharpe Ratio": "-0.05",
+      "Recovery Factor": "-0.02",
+      "History Quality": "100% real ticks",
+      "Bars": "15585",
+      "Ticks": "66441717",
+      "Initial Deposit": "10 000.00",
+      "Profit Trades (% of total)": "144 (32.00%)",
+      "Loss Trades (% of total)": "306 (68.00%)",
+      "inputs_in_report": "InpAtrPeriod=14|InpImpulseBodyRatio=0.5|InpImpulseAtr=1.0|InpBaseMaxBars=6|InpBaseMaxAtr=2.5|InpDepartureMinAtr=2.0|InpDepartureLook=20|InpProximalBasis=0|InpMinProfitMargin=0.0|InpZoneMinAtr=0.05|InpMaxBaseDrift=0.6|InpMitigationPct=0.5|InpMergeOverlapPct=0.6|InpStopBufferAtr=0.25|InpStopAtrMode=0|InpRiskPercent=1.0|InpBars=20000|InpMagic=20260905|InpWeeklyQuarters=0|InpDailyQuarters=0|InpQ90Quarters=0|InpRequireHighProb=0",
+      "symbol_in_report": "XAUUSD",
+      "ea_counters": {
+        "zones_fresh": 697152,
+        "orders_placed": 530,
+        "orders_failed": 4,
+        "detect_calls": 15585,
+        "zones_blocked_by_QT_gate": 0
+      }
+    }
+  ]
+}
