@@ -1,0 +1,60 @@
+//@version=6
+indicator("Zonelab FVG", overlay=true, max_boxes_count=500)
+
+atr_period  = input.int(14, "ATR Period", minval=1)
+min_gap_atr = input.float(0.1, "Min Gap (ATR)", minval=0.0, step=0.05)
+max_boxes   = input.int(200, "Max Boxes", minval=10, maxval=500)
+show_labels = input.bool(true, "Show Labels")
+
+atr_val = ta.atr(atr_period)
+
+bull_fvg = high[2] < low[0]
+bear_fvg = low[2] > high[0]
+
+bull_gap = bull_fvg ? low[0] - high[2] : 0.0
+bear_gap = bear_fvg ? low[2] - high[0] : 0.0
+
+bull_pass = bull_fvg and not na(atr_val) and atr_val > 0 and bull_gap >= min_gap_atr * atr_val
+bear_pass = bear_fvg and not na(atr_val) and atr_val > 0 and bear_gap >= min_gap_atr * atr_val
+
+var int box_count = 0
+
+if bull_pass
+    if box_count >= max_boxes
+        box.delete(box.all.first())
+    else
+        box_count += 1
+    top_price = low[0]
+    bot_price = high[2]
+    box.new(bar_index[2], top_price, bar_index, bot_price,
+         bgcolor=color.new(color.blue, 85),
+         border_color=color.new(color.blue, 60),
+         extend=extend.right)
+    if show_labels
+        label.new(bar_index[1], (top_price + bot_price) / 2,
+             str.tostring(bull_gap / atr_val, "#.##") + " ATR",
+             style=label.style_label_center, size=size.tiny,
+             color=color.new(color.blue, 90), textcolor=color.blue)
+    log.info("FVG," + str.tostring(time[2]) + ",demand," +
+         str.tostring(top_price) + "," + str.tostring(bot_price) + "," +
+         str.tostring(bull_gap / atr_val))
+
+if bear_pass
+    if box_count >= max_boxes
+        box.delete(box.all.first())
+    else
+        box_count += 1
+    top_price = low[2]
+    bot_price = high[0]
+    box.new(bar_index[2], top_price, bar_index, bot_price,
+         bgcolor=color.new(color.red, 85),
+         border_color=color.new(color.red, 60),
+         extend=extend.right)
+    if show_labels
+        label.new(bar_index[1], (top_price + bot_price) / 2,
+             str.tostring(bear_gap / atr_val, "#.##") + " ATR",
+             style=label.style_label_center, size=size.tiny,
+             color=color.new(color.red, 90), textcolor=color.red)
+    log.info("FVG," + str.tostring(time[2]) + ",supply," +
+         str.tostring(top_price) + "," + str.tostring(bot_price) + "," +
+         str.tostring(bear_gap / atr_val))
