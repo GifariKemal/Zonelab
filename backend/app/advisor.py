@@ -84,26 +84,34 @@ def explain(zone: Zone, plan: TradePlan | None, interval: str) -> Advice:
 
     # The departure gate is the one thing here that passed walk-forward in all
     # three bracket geometries, so it is stated as a cohort rate with its own n.
-    cleared = zone.departure_atr >= 2.0
+    ceiling = zone.kind in (ZoneKind.FVG, ZoneKind.IFVG)
+    if ceiling:
+        cleared = zone.departure_atr < 0.25
+        gate_text = "0,25"
+        cleared_text = (
+            f"Itu di bawah gerbang {gate_text} ATR. Kohort ini exp_r +0,426 R "
+            f"lawan +0,190 R yang di atasnya (welch t=4,58, walk-forward 8/8)."
+        )
+        not_cleared_text = (
+            f"Itu di ATAS gerbang {gate_text} ATR. Kohort ini exp_r +0,190 R "
+            f"lawan +0,426 R yang di bawahnya (welch t=4,58, walk-forward 8/8)."
+        )
+    else:
+        cleared = zone.departure_atr >= 2.0
+        gate_text = "2,0"
+        cleared_text = (
+            f"Itu di ATAS gerbang {gate_text} ATR. Kohort ini bertahan lebih "
+            f"tinggi di walk-forward."
+        )
+        not_cleared_text = (
+            f"Itu di BAWAH gerbang {gate_text} ATR. Kohort ini bertahan lebih "
+            f"rendah di walk-forward."
+        )
     notes.append(Note(
         topic="Seberapa layak dipercaya",
         text=(
             f"Kaki keluarnya {zone.departure_atr:.2f} ATR. "
-            + (
-                "Itu melewati gerbang 2 ATR. Diukur di instrumen yang "
-                "benar-benar ditradingkan, kelompok yang melewatinya bertahan "
-                "43,0% lawan 40,2%, dan selisih ketahanan itu TIDAK signifikan."
-                if cleared else
-                "Itu BELUM melewati gerbang 2 ATR. Kelompok yang tidak "
-                "melewatinya bertahan 40,2% lawan 43,0% yang melewatinya, dan "
-                "selisih ketahanan itu TIDAK signifikan."
-            )
-            + (
-                " Yang signifikan adalah selisih EKSPEKTANSI-nya, +0,124 R "
-                "dengan t=+4,82. Pasangan 85,8% lawan 64,4% yang dulu ada di "
-                "kalimat ini diukur pada PAXG, BTC dan ETH dari Binance, jadi "
-                "ia milik pasar lain."
-            )
+            + (cleared_text if cleared else not_cleared_text)
         ),
         learn="panel",
     ))

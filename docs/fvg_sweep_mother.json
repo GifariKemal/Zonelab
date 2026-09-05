@@ -1,0 +1,3617 @@
+{
+ "grid": {
+  "min_gap_atr": [
+   0.0,
+   0.05,
+   0.1,
+   0.15,
+   0.2,
+   0.3,
+   0.5
+  ],
+  "gate_atr": [
+   0.0,
+   0.25,
+   0.5,
+   1.0,
+   1.5,
+   2.0
+  ]
+ },
+ "cells": [
+  "XAUUSD 30m",
+  "BTCUSD 30m"
+ ],
+ "t_threshold_bonferroni": 3.241152165517355,
+ "folds": 8,
+ "results": [
+  {
+   "min_gap_atr": 0.0,
+   "gate_atr": 0.25,
+   "n_below": 1999,
+   "n_above": 2779,
+   "exp_r_below": 0.4188180565786578,
+   "exp_r_above": 0.18749066198905157,
+   "t_below_vs_zero": 9.144026333939177,
+   "welch_t": 4.489405364611203,
+   "walk_forward": {
+    "folds": [
+     {
+      "fold": 1,
+      "n_below": 251,
+      "purged": 2,
+      "exp_r": 0.4071288263167844,
+      "readable": true
+     },
+     {
+      "fold": 2,
+      "n_below": 275,
+      "purged": 0,
+      "exp_r": 0.4694939745484106,
+      "readable": true
+     },
+     {
+      "fold": 3,
+      "n_below": 227,
+      "purged": 1,
+      "exp_r": 0.1581615481113603,
+      "readable": true
+     },
+     {
+      "fold": 4,
+      "n_below": 252,
+      "purged": 1,
+      "exp_r": 0.569999844805311,
+      "readable": true
+     },
+     {
+      "fold": 5,
+      "n_below": 239,
+      "purged": 0,
+      "exp_r": 0.4218085031258,
+      "readable": true
+     },
+     {
+      "fold": 6,
+      "n_below": 253,
+      "purged": 0,
+      "exp_r": 0.6437806435588045,
+      "readable": true
+     },
+     {
+      "fold": 7,
+      "n_below": 247,
+      "purged": 2,
+      "exp_r": 0.3476648249878599,
+      "readable": true
+     },
+     {
+      "fold": 8,
+      "n_below": 253,
+      "purged": 1,
+      "exp_r": 0.27861769236627953,
+      "readable": true
+     }
+    ],
+    "graded": 8,
+    "positive": 8
+   },
+   "cells": {
+    "XAUUSD 30m": {
+     "n_below": 989,
+     "n_above": 1441,
+     "exp_r_below": 0.5320723257314937,
+     "exp_r_above": 0.15132891202307905
+    },
+    "BTCUSD 30m": {
+     "n_below": 1010,
+     "n_above": 1338,
+     "exp_r_below": 0.30791857916068294,
+     "exp_r_above": 0.22643616400771105
+    }
+   }
+  },
+  {
+   "min_gap_atr": 0.05,
+   "gate_atr": 0.25,
+   "n_below": 1573,
+   "n_above": 2776,
+   "exp_r_below": 0.38502264339262127,
+   "exp_r_above": 0.17923284178476706,
+   "t_below_vs_zero": 7.349465730194566,
+   "welch_t": 3.5598471881940585,
+   "walk_forward": {
+    "folds": [
+     {
+      "fold": 1,
+      "n_below": 194,
+      "purged": 2,
+      "exp_r": 0.2973647382942054,
+      "readable": true
+     },
+     {
+      "fold": 2,
+      "n_below": 220,
+      "purged": 0,
+      "exp_r": 0.4952522875241547,
+      "readable": true
+     },
+     {
+      "fold": 3,
+      "n_below": 180,
+      "purged": 1,
+      "exp_r": 0.14885238584255858,
+      "readable": true
+     },
+     {
+      "fold": 4,
+      "n_below": 207,
+      "purged": 1,
+      "exp_r": 0.4480121536858198,
+      "readable": true
+     },
+     {
+      "fold": 5,
+      "n_below": 181,
+      "purged": 0,
+      "exp_r": 0.35788722257059924,
+      "readable": true
+     },
+     {
+      "fold": 6,
+      "n_below": 197,
+      "purged": 0,
+      "exp_r": 0.6424293186888427,
+      "readable": true
+     },
+     {
+      "fold": 7,
+      "n_below": 198,
+      "purged": 2,
+      "exp_r": 0.37886581459356533,
+      "readable": true
+     },
+     {
+      "fold": 8,
+      "n_below": 194,
+      "purged": 1,
+      "exp_r": 0.241188425654595,
+      "readable": true
+     }
+    ],
+    "graded": 8,
+    "positive": 8
+   },
+   "cells": {
+    "XAUUSD 30m": {
+     "n_below": 774,
+     "n_above": 1438,
+     "exp_r_below": 0.4873747069254247,
+     "exp_r_above": 0.13738487833739493
+    },
+    "BTCUSD 30m": {
+     "n_below": 799,
+     "n_above": 1338,
+     "exp_r_below": 0.28587308497661384,
+     "exp_r_above": 0.22420845571400555
+    }
+   }
+  },
+  {
+   "min_gap_atr": 0.1,
+   "gate_atr": 0.25,
+   "n_below": 1133,
+   "n_above": 2771,
+   "exp_r_below": 0.34579709014864346,
+   "exp_r_above": 0.17003321410981712,
+   "t_below_vs_zero": 5.7483114037766025,
+   "welch_t": 2.694976269999297,
+   "walk_forward": {
+    "folds": [
+     {
+      "fold": 1,
+      "n_below": 144,
+      "purged": 2,
+      "exp_r": 0.3248102669883328,
+      "readable": true
+     },
+     {
+      "fold": 2,
+      "n_below": 165,
+      "purged": 0,
+      "exp_r": 0.45877459644125657,
+      "readable": true
+     },
+     {
+      "fold": 3,
+      "n_below": 125,
+      "purged": 1,
+      "exp_r": 0.11467947281332505,
+      "readable": true
+     },
+     {
+      "fold": 4,
+      "n_below": 144,
+      "purged": 1,
+      "exp_r": 0.3378895136056004,
+      "readable": true
+     },
+     {
+      "fold": 5,
+      "n_below": 133,
+      "purged": 0,
+      "exp_r": 0.2165040433259069,
+      "readable": true
+     },
+     {
+      "fold": 6,
+      "n_below": 136,
+      "purged": 0,
+      "exp_r": 0.6369748526061187,
+      "readable": true
+     },
+     {
+      "fold": 7,
+      "n_below": 146,
+      "purged": 1,
+      "exp_r": 0.4293530225162698,
+      "readable": true
+     },
+     {
+      "fold": 8,
+      "n_below": 139,
+      "purged": 1,
+      "exp_r": 0.19143003849065626,
+      "readable": true
+     }
+    ],
+    "graded": 8,
+    "positive": 8
+   },
+   "cells": {
+    "XAUUSD 30m": {
+     "n_below": 549,
+     "n_above": 1436,
+     "exp_r_below": 0.43755017596118145,
+     "exp_r_above": 0.1325648227421021
+    },
+    "BTCUSD 30m": {
+     "n_below": 584,
+     "n_above": 1335,
+     "exp_r_below": 0.2595429050269254,
+     "exp_r_above": 0.21033629276452778
+    }
+   }
+  },
+  {
+   "min_gap_atr": 0.0,
+   "gate_atr": 0.5,
+   "n_below": 3235,
+   "n_above": 1543,
+   "exp_r_below": 0.3455907157224471,
+   "exp_r_above": 0.1557147630629909,
+   "t_below_vs_zero": 10.58817710419518,
+   "welch_t": 4.577165617100303,
+   "walk_forward": {
+    "folds": [
+     {
+      "fold": 1,
+      "n_below": 381,
+      "purged": 2,
+      "exp_r": 0.34892034372542896,
+      "readable": true
+     },
+     {
+      "fold": 2,
+      "n_below": 437,
+      "purged": 0,
+      "exp_r": 0.35011796941139944,
+      "readable": true
+     },
+     {
+      "fold": 3,
+      "n_below": 348,
+      "purged": 1,
+      "exp_r": 0.18310582723144728,
+      "readable": true
+     },
+     {
+      "fold": 4,
+      "n_below": 407,
+      "purged": 1,
+      "exp_r": 0.4875174075033598,
+      "readable": true
+     },
+     {
+      "fold": 5,
+      "n_below": 391,
+      "purged": 0,
+      "exp_r": 0.45114151996760016,
+      "readable": true
+     },
+     {
+      "fold": 6,
+      "n_below": 421,
+      "purged": 0,
+      "exp_r": 0.4563045533880595,
+      "readable": true
+     },
+     {
+      "fold": 7,
+      "n_below": 422,
+      "purged": 2,
+      "exp_r": 0.23298294571682057,
+      "readable": true
+     },
+     {
+      "fold": 8,
+      "n_below": 424,
+      "purged": 1,
+      "exp_r": 0.23293333322936813,
+      "readable": true
+     }
+    ],
+    "graded": 8,
+    "positive": 8
+   },
+   "cells": {
+    "XAUUSD 30m": {
+     "n_below": 1632,
+     "n_above": 798,
+     "exp_r_below": 0.39173901512426534,
+     "exp_r_above": 0.13153686678058027
+    },
+    "BTCUSD 30m": {
+     "n_below": 1603,
+     "n_above": 745,
+     "exp_r_below": 0.2986075437799846,
+     "exp_r_above": 0.18161269760441864
+    }
+   }
+  },
+  {
+   "min_gap_atr": 0.05,
+   "gate_atr": 0.5,
+   "n_below": 2808,
+   "n_above": 1541,
+   "exp_r_below": 0.3120098162473038,
+   "exp_r_above": 0.14735069618992697,
+   "t_below_vs_zero": 8.885376296435691,
+   "welch_t": 3.7356020888128962,
+   "walk_forward": {
+    "folds": [
+     {
+      "fold": 1,
+      "n_below": 324,
+      "purged": 2,
+      "exp_r": 0.2674971598700365,
+      "readable": true
+     },
+     {
+      "fold": 2,
+      "n_below": 382,
+      "purged": 0,
+      "exp_r": 0.35247184980049967,
+      "readable": true
+     },
+     {
+      "fold": 3,
+      "n_below": 301,
+      "purged": 1,
+      "exp_r": 0.17623079183633486,
+      "readable": true
+     },
+     {
+      "fold": 4,
+      "n_below": 362,
+      "purged": 1,
+      "exp_r": 0.40617116541010495,
+      "readable": true
+     },
+     {
+      "fold": 5,
+      "n_below": 332,
+      "purged": 0,
+      "exp_r": 0.4296958586060552,
+      "readable": true
+     },
+     {
+      "fold": 6,
+      "n_below": 365,
+      "purged": 0,
+      "exp_r": 0.4110840071137693,
+      "readable": true
+     },
+     {
+      "fold": 7,
+      "n_below": 373,
+      "purged": 2,
+      "exp_r": 0.2137588216180414,
+      "readable": true
+     },
+     {
+      "fold": 8,
+      "n_below": 365,
+      "purged": 1,
+      "exp_r": 0.2136214188717968,
+      "readable": true
+     }
+    ],
+    "graded": 8,
+    "positive": 8
+   },
+   "cells": {
+    "XAUUSD 30m": {
+     "n_below": 1416,
+     "n_above": 796,
+     "exp_r_below": 0.34007328675958753,
+     "exp_r_above": 0.11714033185662899
+    },
+    "BTCUSD 30m": {
+     "n_below": 1392,
+     "n_above": 745,
+     "exp_r_below": 0.2834624927951532,
+     "exp_r_above": 0.1796291525782561
+    }
+   }
+  },
+  {
+   "min_gap_atr": 0.0,
+   "gate_atr": 1.0,
+   "n_below": 4214,
+   "n_above": 564,
+   "exp_r_below": 0.30548884830753703,
+   "exp_r_above": 0.12575148581622358,
+   "t_below_vs_zero": 11.56849287629427,
+   "welch_t": 4.249364523892292,
+   "walk_forward": {
+    "folds": [
+     {
+      "fold": 1,
+      "n_below": 520,
+      "purged": 2,
+      "exp_r": 0.32340969523053154,
+      "readable": true
+     },
+     {
+      "fold": 2,
+      "n_below": 560,
+      "purged": 0,
+      "exp_r": 0.3137759211443679,
+      "readable": true
+     },
+     {
+      "fold": 3,
+      "n_below": 441,
+      "purged": 1,
+      "exp_r": 0.16902561900179663,
+      "readable": true
+     },
+     {
+      "fold": 4,
+      "n_below": 531,
+      "purged": 1,
+      "exp_r": 0.3978509660252037,
+      "readable": true
+     },
+     {
+      "fold": 5,
+      "n_below": 505,
+      "purged": 0,
+      "exp_r": 0.3910494927518784,
+      "readable": true
+     },
+     {
+      "fold": 6,
+      "n_below": 536,
+      "purged": 0,
+      "exp_r": 0.38537099568749933,
+      "readable": true
+     },
+     {
+      "fold": 7,
+      "n_below": 551,
+      "purged": 2,
+      "exp_r": 0.19446669138148565,
+      "readable": true
+     },
+     {
+      "fold": 8,
+      "n_below": 565,
+      "purged": 1,
+      "exp_r": 0.25141905506936524,
+      "readable": true
+     }
+    ],
+    "graded": 8,
+    "positive": 8
+   },
+   "cells": {
+    "XAUUSD 30m": {
+     "n_below": 2151,
+     "n_above": 279,
+     "exp_r_below": 0.3336372510218008,
+     "exp_r_above": 0.09545077213552154
+    },
+    "BTCUSD 30m": {
+     "n_below": 2063,
+     "n_above": 285,
+     "exp_r_below": 0.2761397381580551,
+     "exp_r_above": 0.15541428973522664
+    }
+   }
+  },
+  {
+   "min_gap_atr": 0.0,
+   "gate_atr": 1.5,
+   "n_below": 4525,
+   "n_above": 253,
+   "exp_r_below": 0.29458019883395525,
+   "exp_r_above": 0.09991480254807825,
+   "t_below_vs_zero": 11.86024770513158,
+   "welch_t": 4.091872752351319,
+   "walk_forward": {
+    "folds": [
+     {
+      "fold": 1,
+      "n_below": 560,
+      "purged": 2,
+      "exp_r": 0.3123643501224393,
+      "readable": true
+     },
+     {
+      "fold": 2,
+      "n_below": 606,
+      "purged": 0,
+      "exp_r": 0.3067711926832998,
+      "readable": true
+     },
+     {
+      "fold": 3,
+      "n_below": 475,
+      "purged": 1,
+      "exp_r": 0.14824837720428585,
+      "readable": true
+     },
+     {
+      "fold": 4,
+      "n_below": 572,
+      "purged": 1,
+      "exp_r": 0.37832396704025134,
+      "readable": true
+     },
+     {
+      "fold": 5,
+      "n_below": 532,
+      "purged": 0,
+      "exp_r": 0.37682468992168844,
+      "readable": true
+     },
+     {
+      "fold": 6,
+      "n_below": 573,
+      "purged": 0,
+      "exp_r": 0.38541199332774184,
+      "readable": true
+     },
+     {
+      "fold": 7,
+      "n_below": 598,
+      "purged": 2,
+      "exp_r": 0.19892598990544275,
+      "readable": true
+     },
+     {
+      "fold": 8,
+      "n_below": 602,
+      "purged": 1,
+      "exp_r": 0.23257508362126178,
+      "readable": true
+     }
+    ],
+    "graded": 8,
+    "positive": 8
+   },
+   "cells": {
+    "XAUUSD 30m": {
+     "n_below": 2306,
+     "n_above": 124,
+     "exp_r_below": 0.316018051767859,
+     "exp_r_above": 0.1253779435243657
+    },
+    "BTCUSD 30m": {
+     "n_below": 2219,
+     "n_above": 129,
+     "exp_r_below": 0.27230183521719903,
+     "exp_r_above": 0.07543860502048412
+    }
+   }
+  },
+  {
+   "min_gap_atr": 0.0,
+   "gate_atr": 2.0,
+   "n_below": 4652,
+   "n_above": 126,
+   "exp_r_below": 0.2884233206448096,
+   "exp_r_above": 0.13102029467188195,
+   "t_below_vs_zero": 11.90625507446855,
+   "welch_t": 2.7355371629433765,
+   "walk_forward": {
+    "folds": [
+     {
+      "fold": 1,
+      "n_below": 583,
+      "purged": 2,
+      "exp_r": 0.31051680814328586,
+      "readable": true
+     },
+     {
+      "fold": 2,
+      "n_below": 626,
+      "purged": 0,
+      "exp_r": 0.2929456035432845,
+      "readable": true
+     },
+     {
+      "fold": 3,
+      "n_below": 483,
+      "purged": 1,
+      "exp_r": 0.1429881624238795,
+      "readable": true
+     },
+     {
+      "fold": 4,
+      "n_below": 588,
+      "purged": 1,
+      "exp_r": 0.361182439108669,
+      "readable": true
+     },
+     {
+      "fold": 5,
+      "n_below": 548,
+      "purged": 0,
+      "exp_r": 0.38222464318328186,
+      "readable": true
+     },
+     {
+      "fold": 6,
+      "n_below": 593,
+      "purged": 0,
+      "exp_r": 0.3660214371924821,
+      "readable": true
+     },
+     {
+      "fold": 7,
+      "n_below": 611,
+      "purged": 2,
+      "exp_r": 0.19995833941067886,
+      "readable": true
+     },
+     {
+      "fold": 8,
+      "n_below": 613,
+      "purged": 1,
+      "exp_r": 0.2319056099127775,
+      "readable": true
+     }
+    ],
+    "graded": 8,
+    "positive": 8
+   },
+   "cells": {
+    "XAUUSD 30m": {
+     "n_below": 2368,
+     "n_above": 62,
+     "exp_r_below": 0.31096116375512695,
+     "exp_r_above": 0.12787833228328233
+    },
+    "BTCUSD 30m": {
+     "n_below": 2284,
+     "n_above": 64,
+     "exp_r_below": 0.2650565901346381,
+     "exp_r_above": 0.13406407073583781
+    }
+   }
+  },
+  {
+   "min_gap_atr": 0.0,
+   "gate_atr": 0.0,
+   "n_below": 4778,
+   "n_above": 0,
+   "exp_r_below": 0.28427246646469473,
+   "exp_r_above": null,
+   "t_below_vs_zero": 12.031034166070105,
+   "welch_t": null,
+   "walk_forward": {
+    "folds": [
+     {
+      "fold": 1,
+      "n_below": 603,
+      "purged": 2,
+      "exp_r": 0.31453369199114645,
+      "readable": true
+     },
+     {
+      "fold": 2,
+      "n_below": 638,
+      "purged": 0,
+      "exp_r": 0.285775094457504,
+      "readable": true
+     },
+     {
+      "fold": 3,
+      "n_below": 499,
+      "purged": 1,
+      "exp_r": 0.136639575872171,
+      "readable": true
+     },
+     {
+      "fold": 4,
+      "n_below": 600,
+      "purged": 1,
+      "exp_r": 0.3557009455032622,
+      "readable": true
+     },
+     {
+      "fold": 5,
+      "n_below": 563,
+      "purged": 0,
+      "exp_r": 0.3786191475512576,
+      "readable": true
+     },
+     {
+      "fold": 6,
+      "n_below": 611,
+      "purged": 0,
+      "exp_r": 0.3487538014467399,
+      "readable": true
+     },
+     {
+      "fold": 7,
+      "n_below": 625,
+      "purged": 2,
+      "exp_r": 0.20410567205442712,
+      "readable": true
+     },
+     {
+      "fold": 8,
+      "n_below": 631,
+      "purged": 1,
+      "exp_r": 0.23263965409018256,
+      "readable": true
+     }
+    ],
+    "graded": 8,
+    "positive": 8
+   },
+   "cells": {
+    "XAUUSD 30m": {
+     "n_below": 2430,
+     "n_above": 0,
+     "exp_r_below": 0.3062899145570799,
+     "exp_r_above": null
+    },
+    "BTCUSD 30m": {
+     "n_below": 2348,
+     "n_above": 0,
+     "exp_r_below": 0.26148609556840163,
+     "exp_r_above": null
+    }
+   }
+  },
+  {
+   "min_gap_atr": 0.1,
+   "gate_atr": 0.5,
+   "n_below": 2365,
+   "n_above": 1539,
+   "exp_r_below": 0.27518518166207856,
+   "exp_r_above": 0.13784092579980545,
+   "t_below_vs_zero": 7.367326502576083,
+   "welch_t": 2.9815074924140483,
+   "walk_forward": {
+    "folds": [
+     {
+      "fold": 1,
+      "n_below": 272,
+      "purged": 2,
+      "exp_r": 0.2933465968149149,
+      "readable": true
+     },
+     {
+      "fold": 2,
+      "n_below": 327,
+      "purged": 0,
+      "exp_r": 0.30061050281552804,
+      "readable": true
+     },
+     {
+      "fold": 3,
+      "n_below": 245,
+      "purged": 1,
+      "exp_r": 0.18696966381817312,
+      "readable": true
+     },
+     {
+      "fold": 4,
+      "n_below": 299,
+      "purged": 1,
+      "exp_r": 0.3135826163206046,
+      "readable": true
+     },
+     {
+      "fold": 5,
+      "n_below": 284,
+      "purged": 0,
+      "exp_r": 0.38123439080578686,
+      "readable": true
+     },
+     {
+      "fold": 6,
+      "n_below": 304,
+      "purged": 0,
+      "exp_r": 0.35417898622968447,
+      "readable": true
+     },
+     {
+      "fold": 7,
+      "n_below": 321,
+      "purged": 1,
+      "exp_r": 0.18989213910544003,
+      "readable": true
+     },
+     {
+      "fold": 8,
+      "n_below": 310,
+      "purged": 1,
+      "exp_r": 0.18273955690837046,
+      "readable": true
+     }
+    ],
+    "graded": 8,
+    "positive": 8
+   },
+   "cells": {
+    "XAUUSD 30m": {
+     "n_below": 1190,
+     "n_above": 795,
+     "exp_r_below": 0.28854833433633165,
+     "exp_r_above": 0.109692596478129
+    },
+    "BTCUSD 30m": {
+     "n_below": 1175,
+     "n_above": 744,
+     "exp_r_below": 0.2616514355494306,
+     "exp_r_above": 0.1679187776959517
+    }
+   }
+  },
+  {
+   "min_gap_atr": 0.05,
+   "gate_atr": 1.0,
+   "n_below": 3785,
+   "n_above": 564,
+   "exp_r_below": 0.27012364866826605,
+   "exp_r_above": 0.14321449759170138,
+   "t_below_vs_zero": 9.740924325406285,
+   "welch_t": 2.798660255971398,
+   "walk_forward": {
+    "folds": [
+     {
+      "fold": 1,
+      "n_below": 463,
+      "purged": 2,
+      "exp_r": 0.25402400324782576,
+      "readable": true
+     },
+     {
+      "fold": 2,
+      "n_below": 505,
+      "purged": 0,
+      "exp_r": 0.3106373850960131,
+      "readable": true
+     },
+     {
+      "fold": 3,
+      "n_below": 394,
+      "purged": 1,
+      "exp_r": 0.15336093602706388,
+      "readable": true
+     },
+     {
+      "fold": 4,
+      "n_below": 485,
+      "purged": 1,
+      "exp_r": 0.32519672313801956,
+      "readable": true
+     },
+     {
+      "fold": 5,
+      "n_below": 445,
+      "purged": 0,
+      "exp_r": 0.36130030441664157,
+      "readable": true
+     },
+     {
+      "fold": 6,
+      "n_below": 480,
+      "purged": 0,
+      "exp_r": 0.3376963849679941,
+      "readable": true
+     },
+     {
+      "fold": 7,
+      "n_below": 502,
+      "purged": 2,
+      "exp_r": 0.16307588079437307,
+      "readable": true
+     },
+     {
+      "fold": 8,
+      "n_below": 506,
+      "purged": 1,
+      "exp_r": 0.23843849294913325,
+      "readable": true
+     }
+    ],
+    "graded": 8,
+    "positive": 8
+   },
+   "cells": {
+    "XAUUSD 30m": {
+     "n_below": 1933,
+     "n_above": 279,
+     "exp_r_below": 0.2811058369202499,
+     "exp_r_above": 0.112580270403619
+    },
+    "BTCUSD 30m": {
+     "n_below": 1852,
+     "n_above": 285,
+     "exp_r_below": 0.25866113792793954,
+     "exp_r_above": 0.1732037936810873
+    }
+   }
+  },
+  {
+   "min_gap_atr": 0.05,
+   "gate_atr": 1.5,
+   "n_below": 4096,
+   "n_above": 253,
+   "exp_r_below": 0.26350122068532367,
+   "exp_r_above": 0.09442682578664388,
+   "t_below_vs_zero": 10.144914419842667,
+   "welch_t": 3.4734726341407267,
+   "walk_forward": {
+    "folds": [
+     {
+      "fold": 1,
+      "n_below": 503,
+      "purged": 2,
+      "exp_r": 0.24724474761915102,
+      "readable": true
+     },
+     {
+      "fold": 2,
+      "n_below": 551,
+      "purged": 0,
+      "exp_r": 0.30656708194096605,
+      "readable": true
+     },
+     {
+      "fold": 3,
+      "n_below": 428,
+      "purged": 1,
+      "exp_r": 0.13410264346085746,
+      "readable": true
+     },
+     {
+      "fold": 4,
+      "n_below": 526,
+      "purged": 1,
+      "exp_r": 0.30951634782514736,
+      "readable": true
+     },
+     {
+      "fold": 5,
+      "n_below": 472,
+      "purged": 0,
+      "exp_r": 0.35037341468121724,
+      "readable": true
+     },
+     {
+      "fold": 6,
+      "n_below": 517,
+      "purged": 0,
+      "exp_r": 0.34642767926129703,
+      "readable": true
+     },
+     {
+      "fold": 7,
+      "n_below": 549,
+      "purged": 2,
+      "exp_r": 0.1703620534623724,
+      "readable": true
+     },
+     {
+      "fold": 8,
+      "n_below": 543,
+      "purged": 1,
+      "exp_r": 0.2260769559080751,
+      "readable": true
+     }
+    ],
+    "graded": 8,
+    "positive": 8
+   },
+   "cells": {
+    "XAUUSD 30m": {
+     "n_below": 2088,
+     "n_above": 124,
+     "exp_r_below": 0.2685626958431335,
+     "exp_r_above": 0.11313362329830517
+    },
+    "BTCUSD 30m": {
+     "n_below": 2008,
+     "n_above": 129,
+     "exp_r_below": 0.2582380931307883,
+     "exp_r_above": 0.0764450979459772
+    }
+   }
+  },
+  {
+   "min_gap_atr": 0.05,
+   "gate_atr": 2.0,
+   "n_below": 4223,
+   "n_above": 126,
+   "exp_r_below": 0.25729400713593675,
+   "exp_r_above": 0.13205075171464867,
+   "t_below_vs_zero": 10.181739560311367,
+   "welch_t": 2.1558859927430047,
+   "walk_forward": {
+    "folds": [
+     {
+      "fold": 1,
+      "n_below": 526,
+      "purged": 2,
+      "exp_r": 0.24804443180875024,
+      "readable": true
+     },
+     {
+      "fold": 2,
+      "n_below": 571,
+      "purged": 0,
+      "exp_r": 0.2914169303003305,
+      "readable": true
+     },
+     {
+      "fold": 3,
+      "n_below": 436,
+      "purged": 1,
+      "exp_r": 0.12585310542150632,
+      "readable": true
+     },
+     {
+      "fold": 4,
+      "n_below": 542,
+      "purged": 1,
+      "exp_r": 0.2933605918224881,
+      "readable": true
+     },
+     {
+      "fold": 5,
+      "n_below": 488,
+      "purged": 0,
+      "exp_r": 0.3573045515484318,
+      "readable": true
+     },
+     {
+      "fold": 6,
+      "n_below": 537,
+      "purged": 0,
+      "exp_r": 0.32510535312821454,
+      "readable": true
+     },
+     {
+      "fold": 7,
+      "n_below": 562,
+      "purged": 2,
+      "exp_r": 0.17214514371407907,
+      "readable": true
+     },
+     {
+      "fold": 8,
+      "n_below": 554,
+      "purged": 1,
+      "exp_r": 0.22575452972283788,
+      "readable": true
+     }
+    ],
+    "graded": 8,
+    "positive": 8
+   },
+   "cells": {
+    "XAUUSD 30m": {
+     "n_below": 2150,
+     "n_above": 62,
+     "exp_r_below": 0.2636553588873903,
+     "exp_r_above": 0.12787833228328233
+    },
+    "BTCUSD 30m": {
+     "n_below": 2073,
+     "n_above": 64,
+     "exp_r_below": 0.2506963678375165,
+     "exp_r_above": 0.1360927830387848
+    }
+   }
+  },
+  {
+   "min_gap_atr": 0.05,
+   "gate_atr": 0.0,
+   "n_below": 4349,
+   "n_above": 0,
+   "exp_r_below": 0.25366543730768143,
+   "exp_r_above": null,
+   "t_below_vs_zero": 10.3173122104257,
+   "welch_t": null,
+   "walk_forward": {
+    "folds": [
+     {
+      "fold": 1,
+      "n_below": 546,
+      "purged": 2,
+      "exp_r": 0.25476902610719465,
+      "readable": true
+     },
+     {
+      "fold": 2,
+      "n_below": 583,
+      "purged": 0,
+      "exp_r": 0.28360142306566066,
+      "readable": true
+     },
+     {
+      "fold": 3,
+      "n_below": 452,
+      "purged": 1,
+      "exp_r": 0.11945092892313339,
+      "readable": true
+     },
+     {
+      "fold": 4,
+      "n_below": 554,
+      "purged": 1,
+      "exp_r": 0.2888930214329396,
+      "readable": true
+     },
+     {
+      "fold": 5,
+      "n_below": 503,
+      "purged": 0,
+      "exp_r": 0.3540121208003068,
+      "readable": true
+     },
+     {
+      "fold": 6,
+      "n_below": 555,
+      "purged": 0,
+      "exp_r": 0.30765634711001083,
+      "readable": true
+     },
+     {
+      "fold": 7,
+      "n_below": 576,
+      "purged": 2,
+      "exp_r": 0.17732130281493863,
+      "readable": true
+     },
+     {
+      "fold": 8,
+      "n_below": 572,
+      "purged": 1,
+      "exp_r": 0.2267578537077356,
+      "readable": true
+     }
+    ],
+    "graded": 8,
+    "positive": 8
+   },
+   "cells": {
+    "XAUUSD 30m": {
+     "n_below": 2212,
+     "n_above": 0,
+     "exp_r_below": 0.2598496736932426,
+     "exp_r_above": null
+    },
+    "BTCUSD 30m": {
+     "n_below": 2137,
+     "n_above": 0,
+     "exp_r_below": 0.24726415940180344,
+     "exp_r_above": null
+    }
+   }
+  },
+  {
+   "min_gap_atr": 0.1,
+   "gate_atr": 1.0,
+   "n_below": 3340,
+   "n_above": 564,
+   "exp_r_below": 0.23328863537999817,
+   "exp_r_above": 0.14852144905589085,
+   "t_below_vs_zero": 8.162981684880014,
+   "welch_t": 1.824366832163452,
+   "walk_forward": {
+    "folds": [
+     {
+      "fold": 1,
+      "n_below": 410,
+      "purged": 2,
+      "exp_r": 0.27429352042500654,
+      "readable": true
+     },
+     {
+      "fold": 2,
+      "n_below": 450,
+      "purged": 0,
+      "exp_r": 0.2673604330500324,
+      "readable": true
+     },
+     {
+      "fold": 3,
+      "n_below": 337,
+      "purged": 1,
+      "exp_r": 0.13730618223899035,
+      "readable": true
+     },
+     {
+      "fold": 4,
+      "n_below": 422,
+      "purged": 1,
+      "exp_r": 0.23593264562667823,
+      "readable": true
+     },
+     {
+      "fold": 5,
+      "n_below": 397,
+      "purged": 0,
+      "exp_r": 0.3109349342130387,
+      "readable": true
+     },
+     {
+      "fold": 6,
+      "n_below": 419,
+      "purged": 0,
+      "exp_r": 0.28481730241777975,
+      "readable": true
+     },
+     {
+      "fold": 7,
+      "n_below": 450,
+      "purged": 1,
+      "exp_r": 0.13791381415773335,
+      "readable": true
+     },
+     {
+      "fold": 8,
+      "n_below": 451,
+      "purged": 1,
+      "exp_r": 0.21296448940658175,
+      "readable": true
+     }
+    ],
+    "graded": 8,
+    "positive": 8
+   },
+   "cells": {
+    "XAUUSD 30m": {
+     "n_below": 1706,
+     "n_above": 279,
+     "exp_r_below": 0.23450724685402877,
+     "exp_r_above": 0.10935042626298992
+    },
+    "BTCUSD 30m": {
+     "n_below": 1634,
+     "n_above": 285,
+     "exp_r_below": 0.2320163274395476,
+     "exp_r_above": 0.18686781873736225
+    }
+   }
+  },
+  {
+   "min_gap_atr": 0.1,
+   "gate_atr": 1.5,
+   "n_below": 3651,
+   "n_above": 253,
+   "exp_r_below": 0.22898383372553038,
+   "exp_r_above": 0.10644333005851708,
+   "t_below_vs_zero": 8.611829607025276,
+   "welch_t": 2.4599735500704605,
+   "walk_forward": {
+    "folds": [
+     {
+      "fold": 1,
+      "n_below": 450,
+      "purged": 2,
+      "exp_r": 0.26507453076503124,
+      "readable": true
+     },
+     {
+      "fold": 2,
+      "n_below": 496,
+      "purged": 0,
+      "exp_r": 0.26458321520312617,
+      "readable": true
+     },
+     {
+      "fold": 3,
+      "n_below": 371,
+      "purged": 1,
+      "exp_r": 0.1142526671994627,
+      "readable": true
+     },
+     {
+      "fold": 4,
+      "n_below": 463,
+      "purged": 1,
+      "exp_r": 0.22922406416737334,
+      "readable": true
+     },
+     {
+      "fold": 5,
+      "n_below": 424,
+      "purged": 0,
+      "exp_r": 0.3019782668554373,
+      "readable": true
+     },
+     {
+      "fold": 6,
+      "n_below": 456,
+      "purged": 0,
+      "exp_r": 0.2968054299907675,
+      "readable": true
+     },
+     {
+      "fold": 7,
+      "n_below": 497,
+      "purged": 1,
+      "exp_r": 0.14943463435420723,
+      "readable": true
+     },
+     {
+      "fold": 8,
+      "n_below": 488,
+      "purged": 1,
+      "exp_r": 0.20286522145191244,
+      "readable": true
+     }
+    ],
+    "graded": 8,
+    "positive": 8
+   },
+   "cells": {
+    "XAUUSD 30m": {
+     "n_below": 1861,
+     "n_above": 124,
+     "exp_r_below": 0.22339498412469622,
+     "exp_r_above": 0.11967795648619017
+    },
+    "BTCUSD 30m": {
+     "n_below": 1790,
+     "n_above": 129,
+     "exp_r_below": 0.2347943639529898,
+     "exp_r_above": 0.09372167364742047
+    }
+   }
+  },
+  {
+   "min_gap_atr": 0.1,
+   "gate_atr": 2.0,
+   "n_below": 3778,
+   "n_above": 126,
+   "exp_r_below": 0.2238400524971145,
+   "exp_r_above": 0.13716207224299684,
+   "t_below_vs_zero": 8.678348721347467,
+   "welch_t": 1.4712269717793711,
+   "walk_forward": {
+    "folds": [
+     {
+      "fold": 1,
+      "n_below": 473,
+      "purged": 2,
+      "exp_r": 0.26509683281867596,
+      "readable": true
+     },
+     {
+      "fold": 2,
+      "n_below": 516,
+      "purged": 0,
+      "exp_r": 0.24944550347435468,
+      "readable": true
+     },
+     {
+      "fold": 3,
+      "n_below": 379,
+      "purged": 1,
+      "exp_r": 0.10730467256709109,
+      "readable": true
+     },
+     {
+      "fold": 4,
+      "n_below": 479,
+      "purged": 1,
+      "exp_r": 0.21694785784148193,
+      "readable": true
+     },
+     {
+      "fold": 5,
+      "n_below": 440,
+      "purged": 0,
+      "exp_r": 0.31142535130183097,
+      "readable": true
+     },
+     {
+      "fold": 6,
+      "n_below": 476,
+      "purged": 0,
+      "exp_r": 0.2748355893435938,
+      "readable": true
+     },
+     {
+      "fold": 7,
+      "n_below": 510,
+      "purged": 1,
+      "exp_r": 0.15193297390296273,
+      "readable": true
+     },
+     {
+      "fold": 8,
+      "n_below": 499,
+      "purged": 1,
+      "exp_r": 0.20301893883146427,
+      "readable": true
+     }
+    ],
+    "graded": 8,
+    "positive": 8
+   },
+   "cells": {
+    "XAUUSD 30m": {
+     "n_below": 1923,
+     "n_above": 62,
+     "exp_r_below": 0.2193646272197015,
+     "exp_r_above": 0.14096699865905232
+    },
+    "BTCUSD 30m": {
+     "n_below": 1855,
+     "n_above": 64,
+     "exp_r_below": 0.2284795364908963,
+     "exp_r_above": 0.13347604977744304
+    }
+   }
+  },
+  {
+   "min_gap_atr": 0.1,
+   "gate_atr": 0.0,
+   "n_below": 3904,
+   "n_above": 0,
+   "exp_r_below": 0.22104255620817526,
+   "exp_r_above": null,
+   "t_below_vs_zero": 8.834776590061136,
+   "welch_t": null,
+   "walk_forward": {
+    "folds": [
+     {
+      "fold": 1,
+      "n_below": 493,
+      "purged": 2,
+      "exp_r": 0.27185257413054636,
+      "readable": true
+     },
+     {
+      "fold": 2,
+      "n_below": 528,
+      "purged": 0,
+      "exp_r": 0.24220058001037803,
+      "readable": true
+     },
+     {
+      "fold": 3,
+      "n_below": 395,
+      "purged": 1,
+      "exp_r": 0.09973013133356971,
+      "readable": true
+     },
+     {
+      "fold": 4,
+      "n_below": 491,
+      "purged": 1,
+      "exp_r": 0.21377457639944972,
+      "readable": true
+     },
+     {
+      "fold": 5,
+      "n_below": 455,
+      "purged": 0,
+      "exp_r": 0.3098138490603432,
+      "readable": true
+     },
+     {
+      "fold": 6,
+      "n_below": 494,
+      "purged": 0,
+      "exp_r": 0.25823130509376957,
+      "readable": true
+     },
+     {
+      "fold": 7,
+      "n_below": 524,
+      "purged": 1,
+      "exp_r": 0.1581628174515328,
+      "readable": true
+     },
+     {
+      "fold": 8,
+      "n_below": 517,
+      "purged": 1,
+      "exp_r": 0.2049205673719019,
+      "readable": true
+     }
+    ],
+    "graded": 8,
+    "positive": 8
+   },
+   "cells": {
+    "XAUUSD 30m": {
+     "n_below": 1985,
+     "n_above": 0,
+     "exp_r_below": 0.21691593554677444,
+     "exp_r_above": null
+    },
+    "BTCUSD 30m": {
+     "n_below": 1919,
+     "n_above": 0,
+     "exp_r_below": 0.22531110337486665,
+     "exp_r_above": null
+    }
+   }
+  },
+  {
+   "min_gap_atr": 0.15,
+   "gate_atr": 0.5,
+   "n_below": 1938,
+   "n_above": 1537,
+   "exp_r_below": 0.19203292717898807,
+   "exp_r_above": 0.13404161145936447,
+   "t_below_vs_zero": 5.097728252877735,
+   "welch_t": 1.2318774899160116,
+   "walk_forward": {
+    "folds": [
+     {
+      "fold": 1,
+      "n_below": 229,
+      "purged": 2,
+      "exp_r": 0.3214344538114216,
+      "readable": true
+     },
+     {
+      "fold": 2,
+      "n_below": 266,
+      "purged": 0,
+      "exp_r": 0.17360948156035094,
+      "readable": true
+     },
+     {
+      "fold": 3,
+      "n_below": 189,
+      "purged": 1,
+      "exp_r": 0.1541704245385396,
+      "readable": true
+     },
+     {
+      "fold": 4,
+      "n_below": 249,
+      "purged": 1,
+      "exp_r": 0.19910663906399143,
+      "readable": true
+     },
+     {
+      "fold": 5,
+      "n_below": 236,
+      "purged": 0,
+      "exp_r": 0.3070198943169947,
+      "readable": true
+     },
+     {
+      "fold": 6,
+      "n_below": 246,
+      "purged": 0,
+      "exp_r": 0.16772557711319908,
+      "readable": true
+     },
+     {
+      "fold": 7,
+      "n_below": 263,
+      "purged": 1,
+      "exp_r": 0.08445122780514433,
+      "readable": true
+     },
+     {
+      "fold": 8,
+      "n_below": 257,
+      "purged": 1,
+      "exp_r": 0.14832264468802406,
+      "readable": true
+     }
+    ],
+    "graded": 8,
+    "positive": 8
+   },
+   "cells": {
+    "XAUUSD 30m": {
+     "n_below": 977,
+     "n_above": 793,
+     "exp_r_below": 0.1773463175436172,
+     "exp_r_above": 0.10086312621655902
+    },
+    "BTCUSD 30m": {
+     "n_below": 961,
+     "n_above": 744,
+     "exp_r_below": 0.20696405893107692,
+     "exp_r_above": 0.16940523887541914
+    }
+   }
+  },
+  {
+   "min_gap_atr": 0.15,
+   "gate_atr": 1.5,
+   "n_below": 3222,
+   "n_above": 253,
+   "exp_r_below": 0.1725478368211783,
+   "exp_r_above": 0.08787604524935017,
+   "t_below_vs_zero": 6.603798285747777,
+   "welch_t": 1.6479962856101122,
+   "walk_forward": {
+    "folds": [
+     {
+      "fold": 1,
+      "n_below": 406,
+      "purged": 2,
+      "exp_r": 0.27457001785065116,
+      "readable": true
+     },
+     {
+      "fold": 2,
+      "n_below": 435,
+      "purged": 0,
+      "exp_r": 0.17768531640012156,
+      "readable": true
+     },
+     {
+      "fold": 3,
+      "n_below": 314,
+      "purged": 1,
+      "exp_r": 0.09416208768385892,
+      "readable": true
+     },
+     {
+      "fold": 4,
+      "n_below": 413,
+      "purged": 1,
+      "exp_r": 0.14265654265820504,
+      "readable": true
+     },
+     {
+      "fold": 5,
+      "n_below": 376,
+      "purged": 0,
+      "exp_r": 0.2472838691541204,
+      "readable": true
+     },
+     {
+      "fold": 6,
+      "n_below": 398,
+      "purged": 0,
+      "exp_r": 0.16909650435314558,
+      "readable": true
+     },
+     {
+      "fold": 7,
+      "n_below": 439,
+      "purged": 1,
+      "exp_r": 0.07172081164811693,
+      "readable": true
+     },
+     {
+      "fold": 8,
+      "n_below": 435,
+      "purged": 1,
+      "exp_r": 0.19907260532526813,
+      "readable": true
+     }
+    ],
+    "graded": 8,
+    "positive": 8
+   },
+   "cells": {
+    "XAUUSD 30m": {
+     "n_below": 1646,
+     "n_above": 124,
+     "exp_r_below": 0.14695018309637947,
+     "exp_r_above": 0.09170814478390894
+    },
+    "BTCUSD 30m": {
+     "n_below": 1576,
+     "n_above": 129,
+     "exp_r_below": 0.19928244217080954,
+     "exp_r_above": 0.084192476704503
+    }
+   }
+  },
+  {
+   "min_gap_atr": 0.15,
+   "gate_atr": 1.0,
+   "n_below": 2912,
+   "n_above": 563,
+   "exp_r_below": 0.17186195070359891,
+   "exp_r_above": 0.13804577129137127,
+   "t_below_vs_zero": 6.085931120058361,
+   "welch_t": 0.717166251635293,
+   "walk_forward": {
+    "folds": [
+     {
+      "fold": 1,
+      "n_below": 367,
+      "purged": 2,
+      "exp_r": 0.28503019221284154,
+      "readable": true
+     },
+     {
+      "fold": 2,
+      "n_below": 389,
+      "purged": 0,
+      "exp_r": 0.17522235346304474,
+      "readable": true
+     },
+     {
+      "fold": 3,
+      "n_below": 280,
+      "purged": 1,
+      "exp_r": 0.11430918596569625,
+      "readable": true
+     },
+     {
+      "fold": 4,
+      "n_below": 372,
+      "purged": 1,
+      "exp_r": 0.14031964486591667,
+      "readable": true
+     },
+     {
+      "fold": 5,
+      "n_below": 349,
+      "purged": 0,
+      "exp_r": 0.2560783928631286,
+      "readable": true
+     },
+     {
+      "fold": 6,
+      "n_below": 361,
+      "purged": 0,
+      "exp_r": 0.1420930259551571,
+      "readable": true
+     },
+     {
+      "fold": 7,
+      "n_below": 392,
+      "purged": 1,
+      "exp_r": 0.05226308125746023,
+      "readable": true
+     },
+     {
+      "fold": 8,
+      "n_below": 398,
+      "purged": 1,
+      "exp_r": 0.20765565515754938,
+      "readable": true
+     }
+    ],
+    "graded": 8,
+    "positive": 8
+   },
+   "cells": {
+    "XAUUSD 30m": {
+     "n_below": 1492,
+     "n_above": 278,
+     "exp_r_below": 0.15150269720397713,
+     "exp_r_above": 0.09787693201982534
+    },
+    "BTCUSD 30m": {
+     "n_below": 1420,
+     "n_above": 285,
+     "exp_r_below": 0.19325350438066627,
+     "exp_r_above": 0.17722800749308978
+    }
+   }
+  },
+  {
+   "min_gap_atr": 0.15,
+   "gate_atr": 2.0,
+   "n_below": 3349,
+   "n_above": 126,
+   "exp_r_below": 0.16738761658048704,
+   "exp_r_above": 0.13968763299897657,
+   "t_below_vs_zero": 6.6239276622523535,
+   "welch_t": 0.44329091454353764,
+   "walk_forward": {
+    "folds": [
+     {
+      "fold": 1,
+      "n_below": 429,
+      "purged": 2,
+      "exp_r": 0.2717747389332382,
+      "readable": true
+     },
+     {
+      "fold": 2,
+      "n_below": 455,
+      "purged": 0,
+      "exp_r": 0.1643378410682842,
+      "readable": true
+     },
+     {
+      "fold": 3,
+      "n_below": 322,
+      "purged": 1,
+      "exp_r": 0.08648331336850487,
+      "readable": true
+     },
+     {
+      "fold": 4,
+      "n_below": 429,
+      "purged": 1,
+      "exp_r": 0.12809552635003035,
+      "readable": true
+     },
+     {
+      "fold": 5,
+      "n_below": 392,
+      "purged": 0,
+      "exp_r": 0.25711114257399675,
+      "readable": true
+     },
+     {
+      "fold": 6,
+      "n_below": 418,
+      "purged": 0,
+      "exp_r": 0.15018869182849912,
+      "readable": true
+     },
+     {
+      "fold": 7,
+      "n_below": 452,
+      "purged": 1,
+      "exp_r": 0.07677486665927732,
+      "readable": true
+     },
+     {
+      "fold": 8,
+      "n_below": 446,
+      "purged": 1,
+      "exp_r": 0.19688650041738914,
+      "readable": true
+     }
+    ],
+    "graded": 8,
+    "positive": 8
+   },
+   "cells": {
+    "XAUUSD 30m": {
+     "n_below": 1708,
+     "n_above": 62,
+     "exp_r_below": 0.1432762434791252,
+     "exp_r_above": 0.1376772172177326
+    },
+    "BTCUSD 30m": {
+     "n_below": 1641,
+     "n_above": 64,
+     "exp_r_below": 0.19248342721858935,
+     "exp_r_above": 0.1416352232870567
+    }
+   }
+  },
+  {
+   "min_gap_atr": 0.15,
+   "gate_atr": 0.0,
+   "n_below": 3475,
+   "n_above": 0,
+   "exp_r_below": 0.16638324307508548,
+   "exp_r_above": null,
+   "t_below_vs_zero": 6.8074828858486285,
+   "welch_t": null,
+   "walk_forward": {
+    "folds": [
+     {
+      "fold": 1,
+      "n_below": 449,
+      "purged": 2,
+      "exp_r": 0.2823633160379881,
+      "readable": true
+     },
+     {
+      "fold": 2,
+      "n_below": 467,
+      "purged": 0,
+      "exp_r": 0.1583334992265137,
+      "readable": true
+     },
+     {
+      "fold": 3,
+      "n_below": 338,
+      "purged": 1,
+      "exp_r": 0.07861703514346473,
+      "readable": true
+     },
+     {
+      "fold": 4,
+      "n_below": 441,
+      "purged": 1,
+      "exp_r": 0.1269802129483515,
+      "readable": true
+     },
+     {
+      "fold": 5,
+      "n_below": 407,
+      "purged": 0,
+      "exp_r": 0.2573113381785191,
+      "readable": true
+     },
+     {
+      "fold": 6,
+      "n_below": 436,
+      "purged": 0,
+      "exp_r": 0.13394961493576257,
+      "readable": true
+     },
+     {
+      "fold": 7,
+      "n_below": 466,
+      "purged": 1,
+      "exp_r": 0.08477442991513293,
+      "readable": true
+     },
+     {
+      "fold": 8,
+      "n_below": 464,
+      "purged": 1,
+      "exp_r": 0.20025873755373938,
+      "readable": true
+     }
+    ],
+    "graded": 8,
+    "positive": 8
+   },
+   "cells": {
+    "XAUUSD 30m": {
+     "n_below": 1770,
+     "n_above": 0,
+     "exp_r_below": 0.14308011939539284,
+     "exp_r_above": null
+    },
+    "BTCUSD 30m": {
+     "n_below": 1705,
+     "n_above": 0,
+     "exp_r_below": 0.19057475563406262,
+     "exp_r_above": null
+    }
+   }
+  },
+  {
+   "min_gap_atr": 0.2,
+   "gate_atr": 0.0,
+   "n_below": 3090,
+   "n_above": 0,
+   "exp_r_below": 0.15778195676158627,
+   "exp_r_above": null,
+   "t_below_vs_zero": 6.098683106866252,
+   "welch_t": null,
+   "walk_forward": {
+    "folds": [
+     {
+      "fold": 1,
+      "n_below": 392,
+      "purged": 2,
+      "exp_r": 0.28859475010461827,
+      "readable": true
+     },
+     {
+      "fold": 2,
+      "n_below": 413,
+      "purged": 0,
+      "exp_r": 0.13362037267446286,
+      "readable": true
+     },
+     {
+      "fold": 3,
+      "n_below": 298,
+      "purged": 1,
+      "exp_r": 0.08410461631661226,
+      "readable": true
+     },
+     {
+      "fold": 4,
+      "n_below": 389,
+      "purged": 1,
+      "exp_r": 0.11155551923206504,
+      "readable": true
+     },
+     {
+      "fold": 5,
+      "n_below": 358,
+      "purged": 0,
+      "exp_r": 0.2991263782437883,
+      "readable": true
+     },
+     {
+      "fold": 6,
+      "n_below": 395,
+      "purged": 0,
+      "exp_r": 0.1213463637698954,
+      "readable": true
+     },
+     {
+      "fold": 7,
+      "n_below": 423,
+      "purged": 1,
+      "exp_r": 0.006449728793189293,
+      "readable": true
+     },
+     {
+      "fold": 8,
+      "n_below": 415,
+      "purged": 1,
+      "exp_r": 0.2257613153563317,
+      "readable": true
+     }
+    ],
+    "graded": 8,
+    "positive": 8
+   },
+   "cells": {
+    "XAUUSD 30m": {
+     "n_below": 1583,
+     "n_above": 0,
+     "exp_r_below": 0.132811834999877,
+     "exp_r_above": null
+    },
+    "BTCUSD 30m": {
+     "n_below": 1507,
+     "n_above": 0,
+     "exp_r_below": 0.18401135473689195,
+     "exp_r_above": null
+    }
+   }
+  },
+  {
+   "min_gap_atr": 0.3,
+   "gate_atr": 0.5,
+   "n_below": 938,
+   "n_above": 1535,
+   "exp_r_below": 0.24163771451870092,
+   "exp_r_above": 0.12331989481045885,
+   "t_below_vs_zero": 3.9087442873841454,
+   "welch_t": 1.6963049428321852,
+   "walk_forward": {
+    "folds": [
+     {
+      "fold": 1,
+      "n_below": 98,
+      "purged": 1,
+      "exp_r": 0.3453629710107321,
+      "readable": true
+     },
+     {
+      "fold": 2,
+      "n_below": 113,
+      "purged": 2,
+      "exp_r": 0.16616674789318736,
+      "readable": true
+     },
+     {
+      "fold": 3,
+      "n_below": 91,
+      "purged": 1,
+      "exp_r": 0.2639509136230765,
+      "readable": true
+     },
+     {
+      "fold": 4,
+      "n_below": 122,
+      "purged": 1,
+      "exp_r": 0.35766025381940364,
+      "readable": true
+     },
+     {
+      "fold": 5,
+      "n_below": 121,
+      "purged": 0,
+      "exp_r": 0.6529529344278816,
+      "readable": true
+     },
+     {
+      "fold": 6,
+      "n_below": 122,
+      "purged": 0,
+      "exp_r": 0.08117283263289451,
+      "readable": true
+     },
+     {
+      "fold": 7,
+      "n_below": 133,
+      "purged": 1,
+      "exp_r": -0.1496291095955117,
+      "readable": true
+     },
+     {
+      "fold": 8,
+      "n_below": 133,
+      "purged": 1,
+      "exp_r": 0.2411865868485857,
+      "readable": true
+     }
+    ],
+    "graded": 8,
+    "positive": 7
+   },
+   "cells": {
+    "XAUUSD 30m": {
+     "n_below": 495,
+     "n_above": 791,
+     "exp_r_below": 0.11404018241363933,
+     "exp_r_above": 0.08551200632834403
+    },
+    "BTCUSD 30m": {
+     "n_below": 443,
+     "n_above": 744,
+     "exp_r_below": 0.3842128350424155,
+     "exp_r_above": 0.16351618484991157
+    }
+   }
+  },
+  {
+   "min_gap_atr": 0.2,
+   "gate_atr": 0.5,
+   "n_below": 1553,
+   "n_above": 1537,
+   "exp_r_below": 0.18738089416567652,
+   "exp_r_above": 0.1278748976929121,
+   "t_below_vs_zero": 4.414478554889246,
+   "welch_t": 1.1521952381786393,
+   "walk_forward": {
+    "folds": [
+     {
+      "fold": 1,
+      "n_below": 172,
+      "purged": 2,
+      "exp_r": 0.3553792714154262,
+      "readable": true
+     },
+     {
+      "fold": 2,
+      "n_below": 212,
+      "purged": 0,
+      "exp_r": 0.1865399100132772,
+      "readable": true
+     },
+     {
+      "fold": 3,
+      "n_below": 149,
+      "purged": 1,
+      "exp_r": 0.1997739226422146,
+      "readable": true
+     },
+     {
+      "fold": 4,
+      "n_below": 197,
+      "purged": 1,
+      "exp_r": 0.20848113118957487,
+      "readable": true
+     },
+     {
+      "fold": 5,
+      "n_below": 187,
+      "purged": 0,
+      "exp_r": 0.407489571699647,
+      "readable": true
+     },
+     {
+      "fold": 6,
+      "n_below": 205,
+      "purged": 0,
+      "exp_r": 0.15657346165706837,
+      "readable": true
+     },
+     {
+      "fold": 7,
+      "n_below": 220,
+      "purged": 1,
+      "exp_r": -0.09576075250523866,
+      "readable": true
+     },
+     {
+      "fold": 8,
+      "n_below": 208,
+      "purged": 1,
+      "exp_r": 0.15699198968534359,
+      "readable": true
+     }
+    ],
+    "graded": 8,
+    "positive": 7
+   },
+   "cells": {
+    "XAUUSD 30m": {
+     "n_below": 790,
+     "n_above": 793,
+     "exp_r_below": 0.1657632453232003,
+     "exp_r_above": 0.09998508322758776
+    },
+    "BTCUSD 30m": {
+     "n_below": 763,
+     "n_above": 744,
+     "exp_r_below": 0.20976351878632687,
+     "exp_r_above": 0.1576015413367323
+    }
+   }
+  },
+  {
+   "min_gap_atr": 0.3,
+   "gate_atr": 1.0,
+   "n_below": 1911,
+   "n_above": 562,
+   "exp_r_below": 0.18078630446809,
+   "exp_r_above": 0.1253907240463984,
+   "t_below_vs_zero": 4.756864981999773,
+   "welch_t": 0.9806988354136109,
+   "walk_forward": {
+    "folds": [
+     {
+      "fold": 1,
+      "n_below": 236,
+      "purged": 1,
+      "exp_r": 0.2742663305493792,
+      "readable": true
+     },
+     {
+      "fold": 2,
+      "n_below": 236,
+      "purged": 2,
+      "exp_r": 0.18819606624506277,
+      "readable": true
+     },
+     {
+      "fold": 3,
+      "n_below": 180,
+      "purged": 1,
+      "exp_r": 0.17645584038208872,
+      "readable": true
+     },
+     {
+      "fold": 4,
+      "n_below": 246,
+      "purged": 1,
+      "exp_r": 0.1520402752682814,
+      "readable": true
+     },
+     {
+      "fold": 5,
+      "n_below": 234,
+      "purged": 0,
+      "exp_r": 0.4162452789765405,
+      "readable": true
+     },
+     {
+      "fold": 6,
+      "n_below": 237,
+      "purged": 0,
+      "exp_r": 0.039884075997280256,
+      "readable": true
+     },
+     {
+      "fold": 7,
+      "n_below": 260,
+      "purged": 1,
+      "exp_r": -0.11237901010792499,
+      "readable": true
+     },
+     {
+      "fold": 8,
+      "n_below": 276,
+      "purged": 1,
+      "exp_r": 0.30496650262975183,
+      "readable": true
+     }
+    ],
+    "graded": 8,
+    "positive": 7
+   },
+   "cells": {
+    "XAUUSD 30m": {
+     "n_below": 1009,
+     "n_above": 277,
+     "exp_r_below": 0.09446347516998252,
+     "exp_r_above": 0.10388534604317416
+    },
+    "BTCUSD 30m": {
+     "n_below": 902,
+     "n_above": 285,
+     "exp_r_below": 0.27734920331708157,
+     "exp_r_above": 0.14629244231619876
+    }
+   }
+  },
+  {
+   "min_gap_atr": 0.3,
+   "gate_atr": 1.5,
+   "n_below": 2221,
+   "n_above": 252,
+   "exp_r_below": 0.17868643412541255,
+   "exp_r_above": 0.07575255777799417,
+   "t_below_vs_zero": 5.27968187351917,
+   "welch_t": 1.6492959998338697,
+   "walk_forward": {
+    "folds": [
+     {
+      "fold": 1,
+      "n_below": 275,
+      "purged": 1,
+      "exp_r": 0.2605320887749158,
+      "readable": true
+     },
+     {
+      "fold": 2,
+      "n_below": 282,
+      "purged": 2,
+      "exp_r": 0.18842094315070845,
+      "readable": true
+     },
+     {
+      "fold": 3,
+      "n_below": 214,
+      "purged": 1,
+      "exp_r": 0.13661662731292348,
+      "readable": true
+     },
+     {
+      "fold": 4,
+      "n_below": 288,
+      "purged": 1,
+      "exp_r": 0.1561844235743673,
+      "readable": true
+     },
+     {
+      "fold": 5,
+      "n_below": 262,
+      "purged": 0,
+      "exp_r": 0.37676127295717976,
+      "readable": true
+     },
+     {
+      "fold": 6,
+      "n_below": 274,
+      "purged": 0,
+      "exp_r": 0.08485614901195267,
+      "readable": true
+     },
+     {
+      "fold": 7,
+      "n_below": 307,
+      "purged": 1,
+      "exp_r": -0.06065557755170834,
+      "readable": true
+     },
+     {
+      "fold": 8,
+      "n_below": 313,
+      "purged": 1,
+      "exp_r": 0.28483157099116,
+      "readable": true
+     }
+    ],
+    "graded": 8,
+    "positive": 7
+   },
+   "cells": {
+    "XAUUSD 30m": {
+     "n_below": 1163,
+     "n_above": 123,
+     "exp_r_below": 0.09513073888674796,
+     "exp_r_above": 0.10937266646490847
+    },
+    "BTCUSD 30m": {
+     "n_below": 1058,
+     "n_above": 129,
+     "exp_r_below": 0.27053451877812235,
+     "exp_r_above": 0.04369617507651776
+    }
+   }
+  },
+  {
+   "min_gap_atr": 0.3,
+   "gate_atr": 2.0,
+   "n_below": 2348,
+   "n_above": 125,
+   "exp_r_below": 0.17381502707534965,
+   "exp_r_above": 0.06267624943739802,
+   "t_below_vs_zero": 5.384028273281494,
+   "welch_t": 1.417748789551784,
+   "walk_forward": {
+    "folds": [
+     {
+      "fold": 1,
+      "n_below": 298,
+      "purged": 1,
+      "exp_r": 0.2698334598916938,
+      "readable": true
+     },
+     {
+      "fold": 2,
+      "n_below": 302,
+      "purged": 2,
+      "exp_r": 0.1676558772651415,
+      "readable": true
+     },
+     {
+      "fold": 3,
+      "n_below": 222,
+      "purged": 1,
+      "exp_r": 0.12514446986195163,
+      "readable": true
+     },
+     {
+      "fold": 4,
+      "n_below": 304,
+      "purged": 1,
+      "exp_r": 0.13618711190193658,
+      "readable": true
+     },
+     {
+      "fold": 5,
+      "n_below": 278,
+      "purged": 0,
+      "exp_r": 0.39186767144684226,
+      "readable": true
+     },
+     {
+      "fold": 6,
+      "n_below": 294,
+      "purged": 0,
+      "exp_r": 0.06382381902429175,
+      "readable": true
+     },
+     {
+      "fold": 7,
+      "n_below": 320,
+      "purged": 1,
+      "exp_r": -0.048592561257252774,
+      "readable": true
+     },
+     {
+      "fold": 8,
+      "n_below": 324,
+      "purged": 1,
+      "exp_r": 0.2789107333021513,
+      "readable": true
+     }
+    ],
+    "graded": 8,
+    "positive": 7
+   },
+   "cells": {
+    "XAUUSD 30m": {
+     "n_below": 1225,
+     "n_above": 61,
+     "exp_r_below": 0.09509965851226401,
+     "exp_r_above": 0.12447222332701935
+    },
+    "BTCUSD 30m": {
+     "n_below": 1123,
+     "n_above": 64,
+     "exp_r_below": 0.2596799660689204,
+     "exp_r_above": 0.003776961823852662
+    }
+   }
+  },
+  {
+   "min_gap_atr": 0.3,
+   "gate_atr": 0.0,
+   "n_below": 2473,
+   "n_above": 0,
+   "exp_r_below": 0.16819741801560686,
+   "exp_r_above": null,
+   "t_below_vs_zero": 5.449357998821274,
+   "welch_t": null,
+   "walk_forward": {
+    "folds": [
+     {
+      "fold": 1,
+      "n_below": 318,
+      "purged": 1,
+      "exp_r": 0.27531070714683614,
+      "readable": true
+     },
+     {
+      "fold": 2,
+      "n_below": 313,
+      "purged": 2,
+      "exp_r": 0.15450214286970923,
+      "readable": true
+     },
+     {
+      "fold": 3,
+      "n_below": 238,
+      "purged": 1,
+      "exp_r": 0.105267019444441,
+      "readable": true
+     },
+     {
+      "fold": 4,
+      "n_below": 316,
+      "purged": 1,
+      "exp_r": 0.1290333284818427,
+      "readable": true
+     },
+     {
+      "fold": 5,
+      "n_below": 292,
+      "purged": 0,
+      "exp_r": 0.38772425547463285,
+      "readable": true
+     },
+     {
+      "fold": 6,
+      "n_below": 312,
+      "purged": 0,
+      "exp_r": 0.03533808646001583,
+      "readable": true
+     },
+     {
+      "fold": 7,
+      "n_below": 334,
+      "purged": 1,
+      "exp_r": -0.027604537534927857,
+      "readable": true
+     },
+     {
+      "fold": 8,
+      "n_below": 342,
+      "purged": 1,
+      "exp_r": 0.28018624817412374,
+      "readable": true
+     }
+    ],
+    "graded": 8,
+    "positive": 7
+   },
+   "cells": {
+    "XAUUSD 30m": {
+     "n_below": 1286,
+     "n_above": 0,
+     "exp_r_below": 0.0964929139194958,
+     "exp_r_above": null
+    },
+    "BTCUSD 30m": {
+     "n_below": 1187,
+     "n_above": 0,
+     "exp_r_below": 0.24588233146766997,
+     "exp_r_above": null
+    }
+   }
+  },
+  {
+   "min_gap_atr": 0.2,
+   "gate_atr": 1.0,
+   "n_below": 2527,
+   "n_above": 563,
+   "exp_r_below": 0.16535181225289483,
+   "exp_r_above": 0.12380500325086366,
+   "t_below_vs_zero": 5.4338300737293315,
+   "welch_t": 0.842082036077543,
+   "walk_forward": {
+    "folds": [
+     {
+      "fold": 1,
+      "n_below": 310,
+      "purged": 2,
+      "exp_r": 0.29833331868703783,
+      "readable": true
+     },
+     {
+      "fold": 2,
+      "n_below": 335,
+      "purged": 0,
+      "exp_r": 0.15277808108478902,
+      "readable": true
+     },
+     {
+      "fold": 3,
+      "n_below": 240,
+      "purged": 1,
+      "exp_r": 0.13597781794292066,
+      "readable": true
+     },
+     {
+      "fold": 4,
+      "n_below": 320,
+      "purged": 1,
+      "exp_r": 0.12638353561278193,
+      "readable": true
+     },
+     {
+      "fold": 5,
+      "n_below": 300,
+      "purged": 0,
+      "exp_r": 0.3123552218090188,
+      "readable": true
+     },
+     {
+      "fold": 6,
+      "n_below": 320,
+      "purged": 0,
+      "exp_r": 0.13232303144744564,
+      "readable": true
+     },
+     {
+      "fold": 7,
+      "n_below": 349,
+      "purged": 1,
+      "exp_r": -0.053060179689894287,
+      "readable": true
+     },
+     {
+      "fold": 8,
+      "n_below": 349,
+      "purged": 1,
+      "exp_r": 0.24035179841180157,
+      "readable": true
+     }
+    ],
+    "graded": 8,
+    "positive": 7
+   },
+   "cells": {
+    "XAUUSD 30m": {
+     "n_below": 1305,
+     "n_above": 278,
+     "exp_r_below": 0.13833250176257061,
+     "exp_r_above": 0.10689647483687294
+    },
+    "BTCUSD 30m": {
+     "n_below": 1222,
+     "n_above": 285,
+     "exp_r_below": 0.19420631322660445,
+     "exp_r_above": 0.1402982344757388
+    }
+   }
+  },
+  {
+   "min_gap_atr": 0.2,
+   "gate_atr": 1.5,
+   "n_below": 2837,
+   "n_above": 253,
+   "exp_r_below": 0.16350583517174663,
+   "exp_r_above": 0.09359759688164561,
+   "t_below_vs_zero": 5.867417917952864,
+   "welch_t": 1.2832579107754842,
+   "walk_forward": {
+    "folds": [
+     {
+      "fold": 1,
+      "n_below": 349,
+      "purged": 2,
+      "exp_r": 0.2846781532900666,
+      "readable": true
+     },
+     {
+      "fold": 2,
+      "n_below": 381,
+      "purged": 0,
+      "exp_r": 0.15363932391029958,
+      "readable": true
+     },
+     {
+      "fold": 3,
+      "n_below": 274,
+      "purged": 1,
+      "exp_r": 0.10374349243966745,
+      "readable": true
+     },
+     {
+      "fold": 4,
+      "n_below": 361,
+      "purged": 1,
+      "exp_r": 0.12723001619513122,
+      "readable": true
+     },
+     {
+      "fold": 5,
+      "n_below": 327,
+      "purged": 0,
+      "exp_r": 0.28839620466241916,
+      "readable": true
+     },
+     {
+      "fold": 6,
+      "n_below": 357,
+      "purged": 0,
+      "exp_r": 0.15908973892874534,
+      "readable": true
+     },
+     {
+      "fold": 7,
+      "n_below": 396,
+      "purged": 1,
+      "exp_r": -0.020632659395511295,
+      "readable": true
+     },
+     {
+      "fold": 8,
+      "n_below": 386,
+      "purged": 1,
+      "exp_r": 0.2289005221668218,
+      "readable": true
+     }
+    ],
+    "graded": 8,
+    "positive": 7
+   },
+   "cells": {
+    "XAUUSD 30m": {
+     "n_below": 1459,
+     "n_above": 124,
+     "exp_r_below": 0.13375210200852344,
+     "exp_r_above": 0.12174853205136787
+    },
+    "BTCUSD 30m": {
+     "n_below": 1378,
+     "n_above": 129,
+     "exp_r_below": 0.19500851781698803,
+     "exp_r_above": 0.06653778323012964
+    }
+   }
+  },
+  {
+   "min_gap_atr": 0.2,
+   "gate_atr": 2.0,
+   "n_below": 2964,
+   "n_above": 126,
+   "exp_r_below": 0.15855325559276975,
+   "exp_r_above": 0.1396380699708888,
+   "t_below_vs_zero": 5.908346420130986,
+   "welch_t": 0.2730833869471674,
+   "walk_forward": {
+    "folds": [
+     {
+      "fold": 1,
+      "n_below": 372,
+      "purged": 2,
+      "exp_r": 0.28082960014308617,
+      "readable": true
+     },
+     {
+      "fold": 2,
+      "n_below": 401,
+      "purged": 0,
+      "exp_r": 0.13969373431880444,
+      "readable": true
+     },
+     {
+      "fold": 3,
+      "n_below": 282,
+      "purged": 1,
+      "exp_r": 0.09470371737728989,
+      "readable": true
+     },
+     {
+      "fold": 4,
+      "n_below": 377,
+      "purged": 1,
+      "exp_r": 0.11233369728173292,
+      "readable": true
+     },
+     {
+      "fold": 5,
+      "n_below": 343,
+      "purged": 0,
+      "exp_r": 0.3007262293341855,
+      "readable": true
+     },
+     {
+      "fold": 6,
+      "n_below": 377,
+      "purged": 0,
+      "exp_r": 0.13874974737779533,
+      "readable": true
+     },
+     {
+      "fold": 7,
+      "n_below": 409,
+      "purged": 1,
+      "exp_r": -0.012111808567609909,
+      "readable": true
+     },
+     {
+      "fold": 8,
+      "n_below": 397,
+      "purged": 1,
+      "exp_r": 0.2256181295366679,
+      "readable": true
+     }
+    ],
+    "graded": 8,
+    "positive": 7
+   },
+   "cells": {
+    "XAUUSD 30m": {
+     "n_below": 1521,
+     "n_above": 62,
+     "exp_r_below": 0.13018756924934058,
+     "exp_r_above": 0.19719099962190756
+    },
+    "BTCUSD 30m": {
+     "n_below": 1443,
+     "n_above": 64,
+     "exp_r_below": 0.18845222227908698,
+     "exp_r_above": 0.0838836693714644
+    }
+   }
+  },
+  {
+   "min_gap_atr": 0.15,
+   "gate_atr": 0.25,
+   "n_below": 707,
+   "n_above": 2768,
+   "exp_r_below": 0.17862765075145115,
+   "exp_r_above": 0.16325578779069583,
+   "t_below_vs_zero": 2.801229933168247,
+   "welch_t": 0.22320622392745537,
+   "walk_forward": {
+    "folds": [
+     {
+      "fold": 1,
+      "n_below": 101,
+      "purged": 2,
+      "exp_r": 0.3588582979437468,
+      "readable": true
+     },
+     {
+      "fold": 2,
+      "n_below": 104,
+      "purged": 0,
+      "exp_r": 0.19734515860270094,
+      "readable": true
+     },
+     {
+      "fold": 3,
+      "n_below": 70,
+      "purged": 1,
+      "exp_r": -0.006900982221173131,
+      "readable": true
+     },
+     {
+      "fold": 4,
+      "n_below": 94,
+      "purged": 1,
+      "exp_r": 0.0574665831216943,
+      "readable": true
+     },
+     {
+      "fold": 5,
+      "n_below": 85,
+      "purged": 0,
+      "exp_r": -0.08816375418016,
+      "readable": true
+     },
+     {
+      "fold": 6,
+      "n_below": 78,
+      "purged": 0,
+      "exp_r": 0.28690008528553207,
+      "readable": true
+     },
+     {
+      "fold": 7,
+      "n_below": 88,
+      "purged": 1,
+      "exp_r": 0.3255192096294295,
+      "readable": true
+     },
+     {
+      "fold": 8,
+      "n_below": 86,
+      "purged": 1,
+      "exp_r": 0.22632254160363308,
+      "readable": true
+     }
+    ],
+    "graded": 8,
+    "positive": 6
+   },
+   "cells": {
+    "XAUUSD 30m": {
+     "n_below": 337,
+     "n_above": 1433,
+     "exp_r_below": 0.24576655654840313,
+     "exp_r_above": 0.11893125036499196
+    },
+    "BTCUSD 30m": {
+     "n_below": 370,
+     "n_above": 1335,
+     "exp_r_below": 0.11747680952557864,
+     "exp_r_above": 0.210834111484354
+    }
+   }
+  },
+  {
+   "min_gap_atr": 0.2,
+   "gate_atr": 0.25,
+   "n_below": 322,
+   "n_above": 2768,
+   "exp_r_below": 0.11954459710844562,
+   "exp_r_above": 0.1622300889177681,
+   "t_below_vs_zero": 1.3517276082780896,
+   "welch_t": -0.4616367842735105,
+   "walk_forward": {
+    "folds": [
+     {
+      "fold": 1,
+      "n_below": 44,
+      "purged": 2,
+      "exp_r": 0.5435227369457581,
+      "readable": true
+     },
+     {
+      "fold": 2,
+      "n_below": 50,
+      "purged": 0,
+      "exp_r": 0.1283890632255635,
+      "readable": true
+     },
+     {
+      "fold": 3,
+      "n_below": 30,
+      "purged": 1,
+      "exp_r": -0.06707364105978754,
+      "readable": true
+     },
+     {
+      "fold": 4,
+      "n_below": 42,
+      "purged": 1,
+      "exp_r": 0.07288753749892782,
+      "readable": true
+     },
+     {
+      "fold": 5,
+      "n_below": 36,
+      "purged": 0,
+      "exp_r": 0.05249166431370248,
+      "readable": true
+     },
+     {
+      "fold": 6,
+      "n_below": 37,
+      "purged": 0,
+      "exp_r": 0.2867517827640519,
+      "readable": true
+     },
+     {
+      "fold": 7,
+      "n_below": 45,
+      "purged": 1,
+      "exp_r": -0.29027353519875204,
+      "readable": true
+     },
+     {
+      "fold": 8,
+      "n_below": 37,
+      "purged": 1,
+      "exp_r": 0.16389120759967363,
+      "readable": true
+     }
+    ],
+    "graded": 8,
+    "positive": 6
+   },
+   "cells": {
+    "XAUUSD 30m": {
+     "n_below": 150,
+     "n_above": 1433,
+     "exp_r_below": 0.28355995933114947,
+     "exp_r_above": 0.1170321988172595
+    },
+    "BTCUSD 30m": {
+     "n_below": 172,
+     "n_above": 1335,
+     "exp_r_below": -0.023492055992749658,
+     "exp_r_above": 0.21074587656872593
+    }
+   }
+  },
+  {
+   "min_gap_atr": 0.5,
+   "gate_atr": 1.5,
+   "n_below": 1268,
+   "n_above": 250,
+   "exp_r_below": 0.09712606126874333,
+   "exp_r_above": 0.05421447036429081,
+   "t_below_vs_zero": 2.32492172016349,
+   "welch_t": 0.6085311301777864,
+   "walk_forward": {
+    "folds": [
+     {
+      "fold": 1,
+      "n_below": 176,
+      "purged": 0,
+      "exp_r": 0.20591945873465065,
+      "readable": true
+     },
+     {
+      "fold": 2,
+      "n_below": 163,
+      "purged": 0,
+      "exp_r": 0.17604452942530854,
+      "readable": true
+     },
+     {
+      "fold": 3,
+      "n_below": 121,
+      "purged": 0,
+      "exp_r": 0.036600523793725616,
+      "readable": true
+     },
+     {
+      "fold": 4,
+      "n_below": 163,
+      "purged": 0,
+      "exp_r": 0.0028299384123723643,
+      "readable": true
+     },
+     {
+      "fold": 5,
+      "n_below": 139,
+      "purged": 0,
+      "exp_r": 0.1913019182819732,
+      "readable": true
+     },
+     {
+      "fold": 6,
+      "n_below": 151,
+      "purged": 1,
+      "exp_r": -0.023744160810806107,
+      "readable": true
+     },
+     {
+      "fold": 7,
+      "n_below": 174,
+      "purged": 3,
+      "exp_r": -0.06454829926149772,
+      "readable": true
+     },
+     {
+      "fold": 8,
+      "n_below": 178,
+      "purged": 2,
+      "exp_r": 0.25030688217765906,
+      "readable": true
+     }
+    ],
+    "graded": 8,
+    "positive": 6
+   },
+   "cells": {
+    "XAUUSD 30m": {
+     "n_below": 654,
+     "n_above": 121,
+     "exp_r_below": 0.04201619539388927,
+     "exp_r_above": 0.09609757947956546
+    },
+    "BTCUSD 30m": {
+     "n_below": 614,
+     "n_above": 129,
+     "exp_r_below": 0.1558261464188322,
+     "exp_r_above": 0.014928763364692081
+    }
+   }
+  },
+  {
+   "min_gap_atr": 0.5,
+   "gate_atr": 2.0,
+   "n_below": 1395,
+   "n_above": 123,
+   "exp_r_below": 0.09686834941515382,
+   "exp_r_above": 0.012830210127639723,
+   "t_below_vs_zero": 2.49437105972766,
+   "welch_t": 1.060845030580244,
+   "walk_forward": {
+    "folds": [
+     {
+      "fold": 1,
+      "n_below": 199,
+      "purged": 0,
+      "exp_r": 0.2095100303589822,
+      "readable": true
+     },
+     {
+      "fold": 2,
+      "n_below": 183,
+      "purged": 0,
+      "exp_r": 0.16586484891952463,
+      "readable": true
+     },
+     {
+      "fold": 3,
+      "n_below": 129,
+      "purged": 0,
+      "exp_r": 0.02306029025913517,
+      "readable": true
+     },
+     {
+      "fold": 4,
+      "n_below": 179,
+      "purged": 0,
+      "exp_r": -0.0071903414294628475,
+      "readable": true
+     },
+     {
+      "fold": 5,
+      "n_below": 155,
+      "purged": 0,
+      "exp_r": 0.23897383635903222,
+      "readable": true
+     },
+     {
+      "fold": 6,
+      "n_below": 171,
+      "purged": 1,
+      "exp_r": -0.04215267065975212,
+      "readable": true
+     },
+     {
+      "fold": 7,
+      "n_below": 187,
+      "purged": 3,
+      "exp_r": -0.04997853362575861,
+      "readable": true
+     },
+     {
+      "fold": 8,
+      "n_below": 189,
+      "purged": 2,
+      "exp_r": 0.23233346850824868,
+      "readable": true
+     }
+    ],
+    "graded": 8,
+    "positive": 5
+   },
+   "cells": {
+    "XAUUSD 30m": {
+     "n_below": 716,
+     "n_above": 59,
+     "exp_r_below": 0.04662975448150112,
+     "exp_r_above": 0.09694058806569843
+    },
+    "BTCUSD 30m": {
+     "n_below": 679,
+     "n_above": 64,
+     "exp_r_below": 0.14984454083267273,
+     "exp_r_above": -0.06470904453400811
+    }
+   }
+  },
+  {
+   "min_gap_atr": 0.5,
+   "gate_atr": 1.0,
+   "n_below": 961,
+   "n_above": 557,
+   "exp_r_below": 0.08832980336565122,
+   "exp_r_above": 0.09304223024317497,
+   "t_below_vs_zero": 1.747359927378168,
+   "welch_t": -0.06913167979658881,
+   "walk_forward": {
+    "folds": [
+     {
+      "fold": 1,
+      "n_below": 137,
+      "purged": 0,
+      "exp_r": 0.2187420442803658,
+      "readable": true
+     },
+     {
+      "fold": 2,
+      "n_below": 118,
+      "purged": 0,
+      "exp_r": 0.19497295880434556,
+      "readable": true
+     },
+     {
+      "fold": 3,
+      "n_below": 88,
+      "purged": 0,
+      "exp_r": 0.10860104022588017,
+      "readable": true
+     },
+     {
+      "fold": 4,
+      "n_below": 122,
+      "purged": 0,
+      "exp_r": -0.05644152121285486,
+      "readable": true
+     },
+     {
+      "fold": 5,
+      "n_below": 111,
+      "purged": 0,
+      "exp_r": 0.2424324532739001,
+      "readable": true
+     },
+     {
+      "fold": 6,
+      "n_below": 114,
+      "purged": 1,
+      "exp_r": -0.13368356066340584,
+      "readable": true
+     },
+     {
+      "fold": 7,
+      "n_below": 127,
+      "purged": 3,
+      "exp_r": -0.17660963333030097,
+      "readable": true
+     },
+     {
+      "fold": 8,
+      "n_below": 141,
+      "purged": 2,
+      "exp_r": 0.3049559781016479,
+      "readable": true
+     }
+    ],
+    "graded": 8,
+    "positive": 5
+   },
+   "cells": {
+    "XAUUSD 30m": {
+     "n_below": 503,
+     "n_above": 272,
+     "exp_r_below": 0.03849625697745604,
+     "exp_r_above": 0.07258375604768613
+    },
+    "BTCUSD 30m": {
+     "n_below": 458,
+     "n_above": 285,
+     "exp_r_below": 0.14305965889679134,
+     "exp_r_above": 0.11256751087886957
+    }
+   }
+  },
+  {
+   "min_gap_atr": 0.5,
+   "gate_atr": 0.0,
+   "n_below": 1518,
+   "n_above": 0,
+   "exp_r_below": 0.09005893496695604,
+   "exp_r_above": null,
+   "t_below_vs_zero": 2.493016546882295,
+   "welch_t": null,
+   "walk_forward": {
+    "folds": [
+     {
+      "fold": 1,
+      "n_below": 219,
+      "purged": 0,
+      "exp_r": 0.2246875780145093,
+      "readable": true
+     },
+     {
+      "fold": 2,
+      "n_below": 196,
+      "purged": 0,
+      "exp_r": 0.1388203270143157,
+      "readable": true
+     },
+     {
+      "fold": 3,
+      "n_below": 144,
+      "purged": 0,
+      "exp_r": -0.015504757250184346,
+      "readable": true
+     },
+     {
+      "fold": 4,
+      "n_below": 191,
+      "purged": 0,
+      "exp_r": -0.00704498497307378,
+      "readable": true
+     },
+     {
+      "fold": 5,
+      "n_below": 169,
+      "purged": 0,
+      "exp_r": 0.2379954471737229,
+      "readable": true
+     },
+     {
+      "fold": 6,
+      "n_below": 186,
+      "purged": 1,
+      "exp_r": -0.07987438612077871,
+      "readable": true
+     },
+     {
+      "fold": 7,
+      "n_below": 200,
+      "purged": 3,
+      "exp_r": -0.03550737077003834,
+      "readable": true
+     },
+     {
+      "fold": 8,
+      "n_below": 207,
+      "purged": 2,
+      "exp_r": 0.23534215248998724,
+      "readable": true
+     }
+    ],
+    "graded": 8,
+    "positive": 4
+   },
+   "cells": {
+    "XAUUSD 30m": {
+     "n_below": 775,
+     "n_above": 0,
+     "exp_r_below": 0.05045986955436259,
+     "exp_r_above": null
+    },
+    "BTCUSD 30m": {
+     "n_below": 743,
+     "n_above": 0,
+     "exp_r_below": 0.13136347829772313,
+     "exp_r_above": null
+    }
+   }
+  },
+  {
+   "min_gap_atr": 0.3,
+   "gate_atr": 0.25,
+   "n_below": 0,
+   "n_above": 2473,
+   "exp_r_below": null,
+   "exp_r_above": 0.16819741801560686,
+   "t_below_vs_zero": null,
+   "welch_t": null,
+   "walk_forward": {
+    "folds": [
+     {
+      "fold": 1,
+      "n_below": 0,
+      "purged": 1,
+      "readable": false
+     },
+     {
+      "fold": 2,
+      "n_below": 0,
+      "purged": 2,
+      "readable": false
+     },
+     {
+      "fold": 3,
+      "n_below": 0,
+      "purged": 1,
+      "readable": false
+     },
+     {
+      "fold": 4,
+      "n_below": 0,
+      "purged": 1,
+      "readable": false
+     },
+     {
+      "fold": 5,
+      "n_below": 0,
+      "purged": 0,
+      "readable": false
+     },
+     {
+      "fold": 6,
+      "n_below": 0,
+      "purged": 0,
+      "readable": false
+     },
+     {
+      "fold": 7,
+      "n_below": 0,
+      "purged": 1,
+      "readable": false
+     },
+     {
+      "fold": 8,
+      "n_below": 0,
+      "purged": 1,
+      "readable": false
+     }
+    ],
+    "graded": 0,
+    "positive": 0
+   },
+   "cells": {
+    "XAUUSD 30m": {
+     "n_below": 0,
+     "n_above": 1286,
+     "exp_r_below": null,
+     "exp_r_above": 0.0964929139194958
+    },
+    "BTCUSD 30m": {
+     "n_below": 0,
+     "n_above": 1187,
+     "exp_r_below": null,
+     "exp_r_above": 0.24588233146766997
+    }
+   }
+  },
+  {
+   "min_gap_atr": 0.5,
+   "gate_atr": 0.25,
+   "n_below": 0,
+   "n_above": 1518,
+   "exp_r_below": null,
+   "exp_r_above": 0.09005893496695604,
+   "t_below_vs_zero": null,
+   "welch_t": null,
+   "walk_forward": {
+    "folds": [
+     {
+      "fold": 1,
+      "n_below": 0,
+      "purged": 0,
+      "readable": false
+     },
+     {
+      "fold": 2,
+      "n_below": 0,
+      "purged": 0,
+      "readable": false
+     },
+     {
+      "fold": 3,
+      "n_below": 0,
+      "purged": 0,
+      "readable": false
+     },
+     {
+      "fold": 4,
+      "n_below": 0,
+      "purged": 0,
+      "readable": false
+     },
+     {
+      "fold": 5,
+      "n_below": 0,
+      "purged": 0,
+      "readable": false
+     },
+     {
+      "fold": 6,
+      "n_below": 0,
+      "purged": 1,
+      "readable": false
+     },
+     {
+      "fold": 7,
+      "n_below": 0,
+      "purged": 3,
+      "readable": false
+     },
+     {
+      "fold": 8,
+      "n_below": 0,
+      "purged": 2,
+      "readable": false
+     }
+    ],
+    "graded": 0,
+    "positive": 0
+   },
+   "cells": {
+    "XAUUSD 30m": {
+     "n_below": 0,
+     "n_above": 775,
+     "exp_r_below": null,
+     "exp_r_above": 0.05045986955436259
+    },
+    "BTCUSD 30m": {
+     "n_below": 0,
+     "n_above": 743,
+     "exp_r_below": null,
+     "exp_r_above": 0.13136347829772313
+    }
+   }
+  },
+  {
+   "min_gap_atr": 0.5,
+   "gate_atr": 0.5,
+   "n_below": 0,
+   "n_above": 1518,
+   "exp_r_below": null,
+   "exp_r_above": 0.09005893496695604,
+   "t_below_vs_zero": null,
+   "welch_t": null,
+   "walk_forward": {
+    "folds": [
+     {
+      "fold": 1,
+      "n_below": 0,
+      "purged": 0,
+      "readable": false
+     },
+     {
+      "fold": 2,
+      "n_below": 0,
+      "purged": 0,
+      "readable": false
+     },
+     {
+      "fold": 3,
+      "n_below": 0,
+      "purged": 0,
+      "readable": false
+     },
+     {
+      "fold": 4,
+      "n_below": 0,
+      "purged": 0,
+      "readable": false
+     },
+     {
+      "fold": 5,
+      "n_below": 0,
+      "purged": 0,
+      "readable": false
+     },
+     {
+      "fold": 6,
+      "n_below": 0,
+      "purged": 1,
+      "readable": false
+     },
+     {
+      "fold": 7,
+      "n_below": 0,
+      "purged": 3,
+      "readable": false
+     },
+     {
+      "fold": 8,
+      "n_below": 0,
+      "purged": 2,
+      "readable": false
+     }
+    ],
+    "graded": 0,
+    "positive": 0
+   },
+   "cells": {
+    "XAUUSD 30m": {
+     "n_below": 0,
+     "n_above": 775,
+     "exp_r_below": null,
+     "exp_r_above": 0.05045986955436259
+    },
+    "BTCUSD 30m": {
+     "n_below": 0,
+     "n_above": 743,
+     "exp_r_below": null,
+     "exp_r_above": 0.13136347829772313
+    }
+   }
+  }
+ ]
+}

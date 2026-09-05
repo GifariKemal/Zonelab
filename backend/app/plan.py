@@ -39,7 +39,7 @@ from __future__ import annotations
 
 import math
 
-from .models import CostSpec, LotSpec, TradePlan, Zone, ZoneSide
+from .models import CostSpec, LotSpec, TradePlan, Zone, ZoneKind, ZoneSide
 
 # Measured cohort survival at reward 2.0 ATR. Held as named constants so a doc
 # edit and a code edit cannot silently disagree.
@@ -68,8 +68,12 @@ from .models import CostSpec, LotSpec, TradePlan, Zone, ZoneSide
 # +4,82 di `docs/QA-QUANT.md` bagian 6, dan itulah angka yang layak dikutip
 # sebagai alasan sebuah order.
 DEPARTURE_GATE_ATR = 2.0
+DEPARTURE_GATE_ATR_CEILING = 0.25
 HELD_CLEARED_GATE = 0.430
 HELD_BELOW_GATE = 0.402
+# FVG cohort expected R, from recalibration sweep (docs/QA-FVG-RECALIBRATION.md).
+EXP_R_CLEARED_CEILING = 0.426
+EXP_R_NOT_CLEARED_CEILING = 0.190
 #: Hold rate by AGE at touch 1, reward 2.0 ATR, from `docs/CALIBRATION.md`
 #: lines 858-861: 93,6% at 1-10 bars, 75,8% at 10-59, 77,2% at 59 and up.
 #:
@@ -205,19 +209,31 @@ def build(
             cost_share = cost_charged / reward
 
     age_bars = max(0, (now - zone.time_from) // max(interval_seconds, 1))
-    cleared = zone.departure_atr >= DEPARTURE_GATE_ATR
+    ceiling = zone.kind in (ZoneKind.FVG, ZoneKind.IFVG)
+    if ceiling:
+        cleared = zone.departure_atr < DEPARTURE_GATE_ATR_CEILING
+    else:
+        cleared = zone.departure_atr >= DEPARTURE_GATE_ATR
 
     # Indonesian, because these are surfaced by the advisor and the advisor is
     # the teaching surface. Mixing languages inside one panel is a defect the
     # first end-to-end run showed immediately.
     warnings: list[str] = []
     if not cleared:
-        warnings.append(
-            f"Kaki keluarnya {zone.departure_atr:.2f} ATR, di BAWAH gerbang "
-            f"{DEPARTURE_GATE_ATR} ATR. Formasi seperti ini cuma bertahan "
-            f"{pct(HELD_BELOW_GATE)}, lawan {pct(HELD_CLEARED_GATE)} yang "
-            f"melewatinya."
-        )
+        if ceiling:
+            warnings.append(
+                f"Kaki keluarnya {zone.departure_atr:.2f} ATR, di ATAS gerbang "
+                f"{DEPARTURE_GATE_ATR_CEILING} ATR. Kohort ini exp_r "
+                f"+{EXP_R_NOT_CLEARED_CEILING:.3f} R, lawan "
+                f"+{EXP_R_CLEARED_CEILING:.3f} R yang di bawah gerbang."
+            )
+        else:
+            warnings.append(
+                f"Kaki keluarnya {zone.departure_atr:.2f} ATR, di BAWAH gerbang "
+                f"{DEPARTURE_GATE_ATR} ATR. Formasi seperti ini cuma bertahan "
+                f"{pct(HELD_BELOW_GATE)}, lawan {pct(HELD_CLEARED_GATE)} yang "
+                f"melewatinya."
+            )
     if age_bars >= AGE_BANDS[-1][0]:
         warnings.append(
             f"Zona ini sudah berumur {age_bars} bar. Yang meluruh adalah WAKTU, "
@@ -343,7 +359,11 @@ def build(
         realised_risk_pct=round(realised_pct, 6) if realised_pct is not None else None,
         margin_required=round(margin, 2) if margin is not None else None,
         age_bars=int(age_bars),
-        departure_held_rate=HELD_CLEARED_GATE if cleared else HELD_BELOW_GATE,
+        departure_held_rate=(
+            (EXP_R_CLEARED_CEILING if cleared else EXP_R_NOT_CLEARED_CEILING)
+            if ceiling else
+            (HELD_CLEARED_GATE if cleared else HELD_BELOW_GATE)
+        ),
         age_held_rate=_age_held_rate(int(age_bars)),
         spread_charged=(
             round(cost, 6) if spread is not None or assumed_spread is not None else None

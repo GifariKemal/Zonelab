@@ -186,7 +186,7 @@ class ImbalanceParams(ParamBlock):
     atr_period: int = Field(default=14, ge=2, le=200)
 
     min_gap_atr: float = Field(
-        default=0.1,
+        default=0.0,
         ge=0.0,
         le=5.0,
         description=(
@@ -196,6 +196,25 @@ class ImbalanceParams(ParamBlock):
             "population is dominated by noise."
         ),
     )
+    filter_mother: bool = Field(
+        default=False,
+        description="Skip FVG where middle bar engulfs both neighbors.",
+    )
+    min_body_ratio: float = Field(
+        default=0.0, ge=0.0, le=1.0,
+        description=(
+            "Middle bar body/range ratio floor. 0.0 = no filter, "
+            "0.3 = skip dojis whose body is <30% of the bar range."
+        ),
+    )
+    body_gap: bool = Field(
+        default=False,
+        description=(
+            "Use close/open boundaries instead of high/low for gap edges. "
+            "Stricter: only counts gaps between candle bodies, not wicks."
+        ),
+    )
+
     displacement_atr: float = Field(
         default=1.5,
         ge=0.0,

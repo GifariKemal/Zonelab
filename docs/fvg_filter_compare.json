@@ -1,0 +1,194 @@
+{
+ "gate_atr": 0.25,
+ "variants": [
+  {
+   "variant": "A: baseline (no filter)",
+   "n_total": 4834,
+   "n_below_gate": 2025,
+   "n_above_gate": 2809,
+   "exp_r": 0.4263043200291833,
+   "win_rate": 0.4869,
+   "profit_factor": 1.9,
+   "welch_t": 4.594078882995568,
+   "t_vs_zero": 9.336474884980703,
+   "wf_positive": 8,
+   "wf_graded": 8,
+   "cells": {
+    "XAUUSD 30m": {
+     "n_below": 1002,
+     "n_above": 1457,
+     "exp_r_below": 0.5491279221516923,
+     "exp_r_above": 0.158837010485296
+    },
+    "BTCUSD 30m": {
+     "n_below": 1023,
+     "n_above": 1352,
+     "exp_r_below": 0.3060020235220925,
+     "exp_r_above": 0.22439495523527
+    }
+   }
+  },
+  {
+   "variant": "B: mother candle",
+   "n_total": 4778,
+   "n_below_gate": 1999,
+   "n_above_gate": 2779,
+   "exp_r": 0.4188180565786578,
+   "win_rate": 0.4857,
+   "profit_factor": 1.882,
+   "welch_t": 4.489405364611203,
+   "t_vs_zero": 9.144026333939177,
+   "wf_positive": 8,
+   "wf_graded": 8,
+   "cells": {
+    "XAUUSD 30m": {
+     "n_below": 989,
+     "n_above": 1441,
+     "exp_r_below": 0.5320723257314937,
+     "exp_r_above": 0.15132891202307905
+    },
+    "BTCUSD 30m": {
+     "n_below": 1010,
+     "n_above": 1338,
+     "exp_r_below": 0.30791857916068294,
+     "exp_r_above": 0.22643616400771105
+    }
+   }
+  },
+  {
+   "variant": "E: mother + body ratio 0.3",
+   "n_total": 4616,
+   "n_below_gate": 1871,
+   "n_above_gate": 2745,
+   "exp_r": 0.4096977079511764,
+   "win_rate": 0.4789,
+   "profit_factor": 1.848,
+   "welch_t": 4.1983803349723585,
+   "t_vs_zero": 8.582882910089053,
+   "wf_positive": 8,
+   "wf_graded": 8,
+   "cells": {
+    "XAUUSD 30m": {
+     "n_below": 923,
+     "n_above": 1411,
+     "exp_r_below": 0.5289853416887436,
+     "exp_r_above": 0.14890443789694088
+    },
+    "BTCUSD 30m": {
+     "n_below": 948,
+     "n_above": 1334,
+     "exp_r_below": 0.2935558451455071,
+     "exp_r_above": 0.2234439253150032
+    }
+   }
+  },
+  {
+   "variant": "G: mother + body ratio 0.3 + min_gap 0.05",
+   "n_total": 4239,
+   "n_below_gate": 1497,
+   "n_above_gate": 2742,
+   "exp_r": 0.39053696994026865,
+   "win_rate": 0.4709,
+   "profit_factor": 1.799,
+   "welch_t": 3.573352082130577,
+   "t_vs_zero": 7.1991074678831355,
+   "wf_positive": 8,
+   "wf_graded": 8,
+   "cells": {
+    "XAUUSD 30m": {
+     "n_below": 737,
+     "n_above": 1408,
+     "exp_r_below": 0.5042694551355069,
+     "exp_r_above": 0.13723327855482526
+    },
+    "BTCUSD 30m": {
+     "n_below": 760,
+     "n_above": 1334,
+     "exp_r_below": 0.2802463889022546,
+     "exp_r_above": 0.21946907547314734
+    }
+   }
+  },
+  {
+   "variant": "C: mother + min_gap 0.05",
+   "n_total": 4349,
+   "n_below_gate": 1573,
+   "n_above_gate": 2776,
+   "exp_r": 0.38502264339262127,
+   "win_rate": 0.4711,
+   "profit_factor": 1.789,
+   "welch_t": 3.5598471881940585,
+   "t_vs_zero": 7.349465730194566,
+   "wf_positive": 8,
+   "wf_graded": 8,
+   "cells": {
+    "XAUUSD 30m": {
+     "n_below": 774,
+     "n_above": 1438,
+     "exp_r_below": 0.4873747069254247,
+     "exp_r_above": 0.13738487833739493
+    },
+    "BTCUSD 30m": {
+     "n_below": 799,
+     "n_above": 1338,
+     "exp_r_below": 0.28587308497661384,
+     "exp_r_above": 0.22420845571400555
+    }
+   }
+  },
+  {
+   "variant": "D: mother + min_gap 0.1",
+   "n_total": 3904,
+   "n_below_gate": 1133,
+   "n_above_gate": 2771,
+   "exp_r": 0.34579709014864346,
+   "win_rate": 0.4651,
+   "profit_factor": 1.703,
+   "welch_t": 2.694976269999297,
+   "t_vs_zero": 5.7483114037766025,
+   "wf_positive": 8,
+   "wf_graded": 8,
+   "cells": {
+    "XAUUSD 30m": {
+     "n_below": 549,
+     "n_above": 1436,
+     "exp_r_below": 0.43755017596118145,
+     "exp_r_above": 0.1325648227421021
+    },
+    "BTCUSD 30m": {
+     "n_below": 584,
+     "n_above": 1335,
+     "exp_r_below": 0.2595429050269254,
+     "exp_r_above": 0.21033629276452778
+    }
+   }
+  },
+  {
+   "variant": "F: body-based gap edges",
+   "n_total": 5694,
+   "n_below_gate": 358,
+   "n_above_gate": 5336,
+   "exp_r": 0.13989776567401038,
+   "win_rate": 0.4916,
+   "profit_factor": 1.318,
+   "welch_t": 0.6746160302052471,
+   "t_vs_zero": 1.8437431364796701,
+   "wf_positive": 6,
+   "wf_graded": 8,
+   "cells": {
+    "XAUUSD 30m": {
+     "n_below": 168,
+     "n_above": 2715,
+     "exp_r_below": 0.26301143497644486,
+     "exp_r_above": 0.06542638012601332
+    },
+    "BTCUSD 30m": {
+     "n_below": 190,
+     "n_above": 2621,
+     "exp_r_below": 0.0310393633434367,
+     "exp_r_above": 0.111092255730352
+    }
+   }
+  }
+ ]
+}

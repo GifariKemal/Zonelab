@@ -67,10 +67,18 @@ def test_it_never_tells_anyone_to_buy_or_sell():
 
 
 def test_it_quotes_the_gate_the_zone_is_actually_on_the_right_side_of():
-    passed = " ".join(n.text for n in advice_for(departure_atr=3.0).notes)
-    failed = " ".join(n.text for n in advice_for(departure_atr=1.0).notes)
-    assert "melewati gerbang 2 ATR" in passed
-    assert "BELUM melewati" in failed
+    # S&D zone (DBR default): floor gate at 2.0 ATR
+    passed_sd = " ".join(n.text for n in advice_for(departure_atr=3.0).notes)
+    failed_sd = " ".join(n.text for n in advice_for(departure_atr=1.0).notes)
+    assert "di ATAS gerbang 2,0 ATR" in passed_sd
+    assert "di BAWAH gerbang 2,0 ATR" in failed_sd
+    # FVG zone: ceiling gate at 0.25 ATR
+    passed_fvg = " ".join(
+        n.text for n in advice_for(kind=ZoneKind.FVG, departure_atr=0.1).notes)
+    failed_fvg = " ".join(
+        n.text for n in advice_for(kind=ZoneKind.FVG, departure_atr=1.0).notes)
+    assert "di bawah gerbang 0,25 ATR" in passed_fvg
+    assert "di ATAS gerbang 0,25 ATR" in failed_fvg
 
 
 def test_no_wall_ahead_is_said_rather_than_filled_in():

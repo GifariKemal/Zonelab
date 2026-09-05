@@ -301,12 +301,13 @@ def detect_fvg(
     n = len(candles)
     stats: dict[str, float] = {
         "bars": n, "candidates": 0, "rejected_too_small": 0,
+        "rejected_mother": 0, "rejected_body_ratio": 0,
         "rejected_state_filter": 0,
     }
     if n < params.atr_period + 3:
         return [], stats
 
-    time, _open, high, low, close = _arrays(candles)
+    time, opn, high, low, close = _arrays(candles)
     atr = wilder_atr(high, low, close, params.atr_period)
 
     found: list[Zone] = []
@@ -318,10 +319,37 @@ def detect_fvg(
         up = direction == 1
         stats["candidates"] += 1
 
-        top, bottom = (
-            (float(low[third]), float(high[first])) if up
-            else (float(low[first]), float(high[third]))
-        )
+        if params.filter_mother and (
+                high[i] >= high[first] and high[i] >= high[third]
+                and low[i] <= low[first] and low[i] <= low[third]):
+            stats["rejected_mother"] += 1
+            continue
+
+        if params.min_body_ratio > 0:
+            rng = float(high[i] - low[i])
+            body = abs(float(close[i] - opn[i]))
+            if rng > EPS and body / rng < params.min_body_ratio:
+                stats["rejected_body_ratio"] += 1
+                continue
+
+        if params.body_gap:
+            # Zone edges dari body (close/open), bukan wick (high/low).
+            # Deteksi tetap wick-to-wick, tapi zona lebih ketat.
+            body_top_1 = float(max(opn[first], close[first]))
+            body_bot_3 = float(min(opn[third], close[third]))
+            body_bot_1 = float(min(opn[first], close[first]))
+            body_top_3 = float(max(opn[third], close[third]))
+            if up:
+                top, bottom = body_bot_3, body_top_1
+            else:
+                top, bottom = body_bot_1, body_top_3
+            if top <= bottom:
+                continue
+        else:
+            top, bottom = (
+                (float(low[third]), float(high[first])) if up
+                else (float(low[first]), float(high[third]))
+            )
         scale = float(atr[max(0, first - 1)])
         if scale <= EPS or (top - bottom) < params.min_gap_atr * scale:
             stats["rejected_too_small"] += 1

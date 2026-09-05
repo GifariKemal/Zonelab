@@ -94,26 +94,26 @@ def test_direction_is_never_claimed():
 
 
 def test_a_zone_below_the_departure_gate_says_so_with_both_rates():
-    """Angkanya 0,644 sampai 22 Agustus 2026, dan itu milik pasar lain.
-
-    0,858 dan 0,644 diukur pada PAXGUSDT, BTCUSDT dan ETHUSDT dari Binance,
-    sementara eksekutor mencetaknya sebagai alasan order gold Exness. Diukur
-    ulang di bar 5 menit pada instrumen yang benar-benar ditradingkan: 0,430 di
-    atas gerbang dan 0,402 di bawahnya. Test ini mengikat konstanta ke
-    `HELD_BELOW_GATE` alih-alih ke angka yang diketik ulang, supaya pengukuran
-    berikutnya tidak perlu menyunting dua tempat.
-    """
+    """S&D zone (DBR) with departure_atr=1.0 is below the 2.0 floor gate."""
     from app.plan import HELD_BELOW_GATE
 
     plan = build(zone(departure_atr=1.0), atr=1.0, now=T0,
                  interval_seconds=STEP)
     assert plan is not None
     assert plan.departure_held_rate == HELD_BELOW_GATE
-    assert plan.departure_held_rate < 0.5, (
-        "sebuah kohort yang bertahan lebih dari separuh waktu pada reward 2 ATR "
-        "akan berarti edge yang tidak ditemukan pengukuran mana pun di sini"
-    )
+    assert plan.departure_held_rate < 0.5
     assert any("di BAWAH gerbang 2.0 ATR" in w for w in plan.warnings)
+
+
+def test_fvg_zone_above_ceiling_gate_warns():
+    """FVG zone with departure_atr=1.0 is above the 0.25 ceiling gate."""
+    from app.plan import EXP_R_NOT_CLEARED_CEILING
+
+    plan = build(zone(kind=ZoneKind.FVG, departure_atr=1.0), atr=1.0,
+                 now=T0, interval_seconds=STEP)
+    assert plan is not None
+    assert plan.departure_held_rate == EXP_R_NOT_CLEARED_CEILING
+    assert any("di ATAS gerbang 0.25 ATR" in w for w in plan.warnings)
 
 
 def test_age_comes_from_the_interval_not_from_bar_count_guessing():

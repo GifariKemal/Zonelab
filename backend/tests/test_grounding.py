@@ -18,7 +18,7 @@ PAYLOAD = {
     "stop": 4377.44,
     "departure_held_rate": 0.858,
     "age_bars": 23,
-    "warnings": ["Kaki keluarnya 1.20 ATR, di BAWAH gerbang 2.0 ATR."],
+    "warnings": ["Kaki keluarnya 1.20 ATR, di ATAS gerbang 0.25 ATR."],
 }
 
 
@@ -56,7 +56,7 @@ def test_rounding_is_allowed_but_a_new_magnitude_is_not():
 def test_numbers_inside_warning_strings_count_as_given():
     """The warnings are engine output too. A model quoting one back is
     repeating, not inventing."""
-    assert check("Kaki keluarnya cuma 1.20 ATR, di bawah gerbang 2.0.",
+    assert check("Kaki keluarnya cuma 1.20 ATR, di atas gerbang 0.25.",
                  PAYLOAD).grounded
 
 

@@ -333,6 +333,9 @@ export interface ImbalanceParams {
   /** Fractal width of the swings that break is tested against. Read only when
    *  `require_structure_break` is on. */
   structure_n: number;
+  filter_mother: boolean;
+  min_body_ratio: number;
+  body_gap: boolean;
   show_broken: boolean;
   show_mitigated: boolean;
   max_zones_per_side: number;
@@ -1698,7 +1701,7 @@ export const DEFAULT_LAYER_PARAMS: LayerParams = {
   },
   imbalance: {
     atr_period: 14,
-    min_gap_atr: 0.1,
+    min_gap_atr: 0.0,
     displacement_atr: 1.5,
     displacement_bars: 5,
     mitigation_pct: 0.5,
@@ -1706,6 +1709,9 @@ export const DEFAULT_LAYER_PARAMS: LayerParams = {
     require_structure_break: false,
     structure_break_bars: 5,
     structure_n: 5,
+    filter_mother: false,
+    min_body_ratio: 0.0,
+    body_gap: false,
     show_broken: false,
     show_mitigated: true,
     max_zones_per_side: 6,

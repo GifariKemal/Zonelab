@@ -54,7 +54,7 @@ from app.ict import (
 from app.indicators import bb_width, vwap as compute_vwap, volume_profile as compute_vp, wilder_adx, wilder_atr
 from app.layers import LAYERS
 from app.models import ImbalanceParams, LotSpec, SupplyDemandParams, ZoneSide
-from app.plan import DEPARTURE_GATE_ATR, build
+from app.plan import DEPARTURE_GATE_ATR, DEPARTURE_GATE_ATR_CEILING, build
 from app.probability import outcome_odds, summary as odds_line
 from app.portfolio import Book, Held, admits, aligned
 from app.poi import confluence, other_boxes
@@ -185,7 +185,7 @@ def grounds(zone, plan, layer: str, odds: dict | None = None) -> list[str]:
                 f"{DEPARTURE_GATE_ATR} ATR floor, the measured side for {layer}")
     else:
         gate = (f"departure {zone.departure_atr} ATR is below the "
-                f"{DEPARTURE_GATE_ATR} ATR ceiling, the measured side for {layer}")
+                f"{DEPARTURE_GATE_ATR_CEILING} ATR ceiling, the measured side for {layer}")
     # `odds is None` DIUCAPKAN, tidak dilewati. Sebuah order pada populasi yang
     # belum diukur adalah fakta yang harus ada di journal-nya, dan n=0 adalah
     # angkanya - baris tanpa angka adalah opini, yang file ini menolak punya.
@@ -534,7 +534,7 @@ def candidates(
         if GATE_DIRECTION.get(layer, "floor") == "floor":
             if departure < DEPARTURE_GATE_ATR:
                 continue
-        elif departure >= DEPARTURE_GATE_ATR:
+        elif departure >= DEPARTURE_GATE_ATR_CEILING:
             above_gate.append(zone.id)
             continue
 
@@ -682,7 +682,7 @@ def candidates(
               f"komentarnya di gerbang itu")
     if above_gate:
         print(f"  {len(above_gate)} zona ditolak karena DI ATAS gerbang "
-              f"{DEPARTURE_GATE_ATR} ATR (arah gerbang layer ini `ceiling`, "
+              f"{DEPARTURE_GATE_ATR_CEILING} ATR (arah gerbang layer ini `ceiling`, "
               f"populasi terukurnya sisi bawah): "
               f"{', '.join(above_gate[:4])}"
               f"{' ...' if len(above_gate) > 4 else ''}")
