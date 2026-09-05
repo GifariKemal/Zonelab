@@ -19,10 +19,11 @@ out/
 backend/.cache/
 frontend/.playwright-shots/
 
-# Baris hasil resolusi bar halus, 5 MB dan seluruhnya bisa dibangkitkan ulang
-# oleh `tools/ifvg_gate.py`. Yang layak dilacak adalah RINGKASANNYA,
-# `docs/ifvg_gate.json`, bukan bahan mentahnya.
-docs/ifvg_rows_cache.json
+# Baris hasil resolusi bar halus, satu berkas per detector dan masing masing
+# beberapa MB, seluruhnya bisa dibangkitkan ulang oleh `tools/gate_sweep.py`.
+# Yang layak dilacak adalah RINGKASANNYA, `docs/*_gate.json`, bukan bahan
+# mentahnya.
+docs/*_rows_cache.json
 
 # Ledger dan task brief milik skill subagent-driven-development. Scratch proses,
 # bukan artefak project.

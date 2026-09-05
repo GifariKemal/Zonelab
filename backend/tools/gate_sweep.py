@@ -1,6 +1,7 @@
 """Apakah IFVG punya gerbang departure, dan ke arah mana.
 
-    PYTHONPATH=. .venv/Scripts/python.exe -m tools.ifvg_gate
+    PYTHONPATH=. .venv/Scripts/python.exe -m tools.gate_sweep --detector ifvg
+    PYTHONPATH=. .venv/Scripts/python.exe -m tools.gate_sweep --detector order_block
 
 PERTANYAAN INI BELUM PERNAH DITANYAKAN, dan itu alasan berkas ini ada. Plafon
 0,25 ATR yang dipakai `CEILING_KINDS` diukur pada FVG saja: sweep di commit
@@ -43,6 +44,7 @@ PRAREGISTRASI, ditulis sebelum angkanya dilihat:
 
 from __future__ import annotations
 
+import argparse
 import json
 import math
 import pathlib
@@ -217,10 +219,17 @@ def evaluate(rows: list[dict], gate: float, direction: str) -> dict:
 #: pada populasi yang SAMA harus menunggunya lagi. `docs/` sudah memuat catatan
 #: bahwa run panjang di sini bisa terbunuh di tengah; menulis per sel berarti
 #: sel yang sudah selesai tidak diulang.
-CACHE = pathlib.Path(__file__).resolve().parents[2] / "docs" / "ifvg_rows_cache.json"
+DOCS = pathlib.Path(__file__).resolve().parents[2] / "docs"
 
 
-def cell_rows(symbol: str, interval: str) -> tuple[list[dict], int]:
+def cache_path(detector: str) -> pathlib.Path:
+    """Cache PER DETECTOR. Satu berkas bersama akan membuat populasi order
+    block terbaca sebagai populasi IFVG pada run berikutnya, tanpa satu pun
+    pesan kesalahan."""
+    return DOCS / f"{detector}_rows_cache.json"
+
+
+def cell_rows(detector: str, symbol: str, interval: str) -> tuple[list[dict], int]:
     """`detectors_costed.cell_rows`, tapi deret halusnya dari `FINER_EXT`.
 
     Disalin dan bukan dipanggil KARENA SATU BARIS: yang asli membaca
@@ -231,7 +240,7 @@ def cell_rows(symbol: str, interval: str) -> tuple[list[dict], int]:
     bawah ditulis ulang dengan `len(candles)`.
     """
     fine = FINER_EXT[interval]
-    rows = resolved_as("ifvg", symbol, interval, fine)
+    rows = resolved_as(detector, symbol, interval, fine)
     span = len(clean(symbol, interval)[0])
     ratio = INTERVALS[interval] // INTERVALS[fine]
     for r in rows:
@@ -246,16 +255,17 @@ def cell_rows(symbol: str, interval: str) -> tuple[list[dict], int]:
     return rows, span
 
 
-def _rows_cached() -> tuple[list[dict], dict[str, dict]]:
+def _rows_cached(detector: str) -> tuple[list[dict], dict[str, dict]]:
     """Baris tiap sel, DITULIS SEGERA setelah selnya selesai.
 
     Bukan sekali di akhir. Run ini dua belas sel panjang dan sebuah proses yang
     terbunuh di sel kesebelas tidak boleh membuang sepuluh sel yang sudah
     selesai.
     """
+    cache = cache_path(detector)
     cached: dict = {}
-    if CACHE.exists():
-        cached = json.loads(CACHE.read_text(encoding="utf-8"))
+    if cache.exists():
+        cached = json.loads(cache.read_text(encoding="utf-8"))
     all_rows: list[dict] = []
     cells: dict[str, dict] = {}
     for symbol, interval in CELLS:
@@ -266,7 +276,7 @@ def _rows_cached() -> tuple[list[dict], dict[str, dict]]:
         else:
             print(f"  {key}...", file=sys.stderr, flush=True)
             try:
-                rows, span = cell_rows(symbol, interval)
+                rows, span = cell_rows(detector, symbol, interval)
             except Exception as exc:  # noqa: BLE001
                 # SATU SEL YANG GAGAL BUKAN RUN YANG MATI. Sebuah timeframe
                 # tanpa riwayat halus yang cukup akan meledak di sini, dan
@@ -275,15 +285,41 @@ def _rows_cached() -> tuple[list[dict], dict[str, dict]]:
                 cells[key] = {"error": f"{type(exc).__name__}: {exc}"}
                 continue
             cached[key] = {"span_bars": span, "rows": rows}
-            CACHE.write_text(json.dumps(cached), encoding="utf-8")
+            cache.write_text(json.dumps(cached), encoding="utf-8")
             print(f"    n={len(rows)}, ditulis ke cache", file=sys.stderr, flush=True)
         all_rows.extend(rows)
         cells[key] = {"span_bars": span, "census": census(rows)}
     return all_rows, cells
 
 
+#: Ambang yang diuji PER DETECTOR, karena `departure_atr` bukan besaran yang
+#: sama di keduanya dan sebuah grid bersama akan meleset di salah satunya.
+#: `docs/detectors_costed.json` sudah menyatakan caveat itu di
+#: praregistrasinya: excursion kaki keluar untuk supply_demand, TINGGI GAP
+#: untuk fvg, impuls lima bar untuk order_block.
+#:
+#: Grid order block karena itu naik jauh lebih tinggi: impulsnya diukur dalam
+#: ATR terhadap gerakan, bukan terhadap lebar sebuah celah, dan populasinya
+#: memang duduk di angka yang lebih besar.
+GRIDS = {
+    "ifvg": [0.1, 0.25, 0.5, 1.0, 1.5, 2.0, 3.0],
+    "order_block": [1.0, 1.5, 2.0, 2.5, 3.0, 4.0, 6.0],
+}
+
+
 def main() -> int:
-    all_rows, cells = _rows_cached()
+    ap = argparse.ArgumentParser()
+    ap.add_argument("--detector", default="ifvg", choices=sorted(GRIDS))
+    args = ap.parse_args()
+    detector = args.detector
+
+    global GATE_GRID, T_THRESHOLD
+    GATE_GRID = GRIDS[detector]
+    T_THRESHOLD = _critical_t(len(GATE_GRID) * len(DIRECTIONS))
+    print(f"  detector={detector} grid={GATE_GRID} "
+          f"bonferroni={T_THRESHOLD:.4f}", file=sys.stderr)
+
+    all_rows, cells = _rows_cached(detector)
     for key, meta in cells.items():
         print(f"    {key} {meta['census']}", file=sys.stderr)
 
@@ -333,7 +369,8 @@ def main() -> int:
     ) if passing else None
 
     json.dump({
-        "question": "apakah IFVG punya gerbang departure, dan ke arah mana",
+        "detector": detector,
+        "question": "apakah detector ini punya gerbang departure, dan ke arah mana",
         "not_asked": "arah pasca-inversi; sudah diukur negatif di H8, n=38058",
         "cells": cells,
         "t_threshold_bonferroni": round(T_THRESHOLD, 4),

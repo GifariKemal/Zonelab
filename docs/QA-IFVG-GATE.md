@@ -14,9 +14,9 @@ harus dibaca.
 > |---|---|---|---|
 > | `supply_demand` | ya | floor 2,0 ATR | semua |
 > | `fvg` | ya | ceiling 0,25 ATR | 30m |
-> | `order_block` | ya | floor 2,0 ATR | semua |
+> | `order_block` | ya | floor **2,5** ATR | semua, lihat QA-OB-GATE.md |
 > | `ifvg` | **tidak** | ceiling 0,25 ATR | 15m sampai 4h, dokumen ini |
-> | `breaker` | **tidak** | floor 2,0 ATR | **belum pernah** |
+> | `breaker` | **tidak** | floor 2,5 ATR, ikut induknya | **belum pernah** |
 
 ## Kenapa diukur
 
@@ -41,7 +41,7 @@ flowchart LR
 
 ## Praregistrasi
 
-Ditulis sebelum angkanya dilihat, ada di docstring `tools/ifvg_gate.py`:
+Ditulis sebelum angkanya dilihat, ada di docstring `tools/gate_sweep.py`:
 
 - [x] Sel, ambang dan geometri sama dengan sweep FVG supaya sebanding
 - [x] **Kedua arah** diuji untuk setiap ambang, karena menguji satu arah saja
@@ -225,10 +225,13 @@ sini supaya tidak dilupakan.
 ## Cara mengulang
 
 ```bash
-cd backend && PYTHONPATH=. .venv/Scripts/python.exe -m tools.ifvg_gate
+cd backend && PYTHONPATH=. .venv/Scripts/python.exe -m tools.gate_sweep --detector ifvg
 ```
 
-Baris hasil resolusi bar halus di-cache per sel di `docs/ifvg_rows_cache.json`,
+Tool-nya dinamai `gate_sweep` sejak 6 September 2026, saat order block
+diukur di rig yang sama: sebuah modul bernama `ifvg_gate` yang mengukur
+order block adalah drift yang persis project ini hindari. Baris hasil
+resolusi bar halus di-cache per detector di `docs/ifvg_rows_cache.json`,
 jadi run kedua menjawab dalam hitungan detik. Hapus file itu untuk mengukur
 ulang dari nol.
 

@@ -355,13 +355,26 @@ class TradePlan(BaseModel):
     )
 
     age_bars: int
-    departure_held_rate: float = Field(
+    departure_held_rate: float | None = Field(
+        default=None,
         description=(
-            "Measured survival of the cohort this zone belongs to, 0.430 above "
+            "Measured SURVIVAL of the cohort this zone belongs to, 0.430 above "
             "the 2 ATR gate and 0.402 below it, diukur di bar 5 menit pada "
             "instrumen yang ditradingkan. A COHORT RATE, not this trade's "
-            "probability, and it excludes costs."
-        )
+            "probability, and it excludes costs.\n\n"
+            "ONE QUANTITY AGAIN, AND IT WAS TWO. Until 6 September 2026 this "
+            "field carried a survival rate for the floor kinds and an "
+            "EXPECTANCY IN R for the ceiling ones, because the FVG "
+            "recalibration put `EXP_R_CLEARED_CEILING` here. The panel renders "
+            "it through `pct()` under the label 'Departure cohort', so an "
+            "expectancy of +0.190 R was displayed as '19,0%' survival - two "
+            "different quantities, one label, one unit. It is the survival "
+            "rate only now.\n\n"
+            "None where no survival rate was measured for this kind. That is "
+            "every imbalance kind: FVG, IFVG, OB and BRK. Their measured "
+            "cohort figures are expectancies, and those are stated with their "
+            "unit in `warnings` instead of being squeezed into a percentage."
+        ),
     )
     age_held_rate: float = Field(
         description=(

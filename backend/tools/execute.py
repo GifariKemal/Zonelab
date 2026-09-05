@@ -57,7 +57,7 @@ from app.models import ImbalanceParams, LotSpec, SupplyDemandParams, ZoneSide
 # Kedua ambang dari `app.models`, tempat mereka hidup, bukan lewat `app.plan`
 # yang cuma meneruskannya. Sebuah re-export adalah sumber kedua yang bisa
 # hilang tanpa suara saat modul di tengahnya berubah.
-from app.models import DEPARTURE_GATE_ATR, DEPARTURE_GATE_ATR_CEILING
+from app.models import CEILING_KINDS, DEPARTURE_GATE_ATR, DEPARTURE_GATE_ATR_CEILING
 from app.plan import build
 from app.probability import outcome_odds, summary as odds_line
 from app.portfolio import Book, Held, admits, aligned
@@ -531,15 +531,18 @@ def candidates(
     for zone in zones:
         if zone.first_test_time is not None:
             continue
-        # ARAHNYA PER LAYER, lihat `GATE_DIRECTION`. `floor` membuang yang di
-        # BAWAH gerbang, `ceiling` membuang yang di ATAS, dan untuk `fvg`
-        # arahnya terbalik karena populasi yang terukur ada di sisi bawahnya.
-        departure = zone.departure_atr or 0.0
-        if GATE_DIRECTION.get(layer, "floor") == "floor":
-            if departure < DEPARTURE_GATE_ATR:
-                continue
-        elif departure >= DEPARTURE_GATE_ATR_CEILING:
-            above_gate.append(zone.id)
+        # ARAH DAN AMBANGNYA DARI ZONANYA, bukan dihitung ulang di sini.
+        #
+        # Blok ini memakai `GATE_DIRECTION[layer]` plus dua konstanta modul
+        # sampai 6 September 2026, dan itu berarti satu ambang untuk semua
+        # layer lantai. Begitu `docs/QA-OB-GATE.md` menaikkan lantai order
+        # block ke 2,5 sementara supply/demand tetap 2,0, versi itu akan diam
+        # diam mengirim order block dengan ambang yang bukan miliknya.
+        # `Zone.gate_cleared` sudah menyandi arah DAN ambang per kind, jadi
+        # jalur order membacanya alih alih menyimpan salinan kedua.
+        if not zone.gate_cleared:
+            if zone.kind in CEILING_KINDS:
+                above_gate.append(zone.id)
             continue
 
         # FILTER CISD-DI-DALAM-BLOCK, dan ia POPULASI bukan penolakan.

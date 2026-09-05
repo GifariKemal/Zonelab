@@ -43,6 +43,7 @@ from .models import (
     CEILING_COHORT_EXP_R,
     CEILING_KINDS,
     DEPARTURE_GATE_ATR,
+    SUPPLY_DEMAND_KINDS,
     CostSpec,
     LotSpec,
     TradePlan,
@@ -378,13 +379,13 @@ def build(
         realised_risk_pct=round(realised_pct, 6) if realised_pct is not None else None,
         margin_required=round(margin, 2) if margin is not None else None,
         age_bars=int(age_bars),
-        # PER KIND DI SISI PLAFON. Field ini melaporkan angka FVG untuk setiap
-        # kind plafon sampai 5 September 2026, jadi sebuah zona IFVG membawa
-        # +0,426 atau +0,190 milik populasi lain di dalam TradePlan-nya.
+        # HANYA KIND YANG PUNYA SURVIVAL RATE-NYA SENDIRI. Kedua angka di bawah
+        # diukur pada supply/demand; mengirimkannya untuk OB atau BRK adalah
+        # angka detector lain, dan mengirim exp_r untuk FVG atau IFVG adalah
+        # besaran lain di bawah label yang sama. Keduanya sudah terjadi.
         departure_held_rate=(
-            CEILING_COHORT_EXP_R[zone.kind][0 if cleared else 1]
-            if ceiling else
             (HELD_CLEARED_GATE if cleared else HELD_BELOW_GATE)
+            if zone.kind in SUPPLY_DEMAND_KINDS else None
         ),
         age_held_rate=_age_held_rate(int(age_bars)),
         spread_charged=(

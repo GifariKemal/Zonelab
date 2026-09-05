@@ -706,7 +706,18 @@ function PlanPanel({
           ribuan zona lama. Ini angka kelompok, bukan peluang trade ini, dan
           belum dipotong biaya. Jangan dikalikan satu sama lain.
         </p>
-        <Row label="Departure cohort" value={pct(plan.departure_held_rate)} />
+        {/* HILANG SAAT TIDAK ADA SURVIVAL RATE UNTUK KIND INI, dan cacat yang
+            dibawanya lebih halus daripada baris yang kosong. `pct()` merender
+            angkanya sebagai persen di bawah label "Departure cohort", yang
+            berarti survival. Untuk FVG dan IFVG field itu berisi EKSPEKTASI
+            DALAM R sampai 6 September 2026, jadi +0,190 R tampil di sini
+            sebagai "19,0%" bertahan - dua besaran, satu label, satu satuan.
+            Untuk OB dan BRK isinya survival milik supply/demand. Angka kohort
+            keduanya sekarang ada di peringatan PLAN, lengkap dengan
+            satuannya. */}
+        {plan.departure_held_rate === null ? null : (
+          <Row label="Departure cohort" value={pct(plan.departure_held_rate)} />
+        )}
         <Row
           label={`Age cohort, ${plan.age_bars} bar`}
           value={pct(plan.age_held_rate)}

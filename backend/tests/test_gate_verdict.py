@@ -13,6 +13,7 @@ mengutip ambang itu MENGUTIP zonanya.
 from app.advisor import explain
 from app.models import (
     CEILING_COHORT_EXP_R,
+    FLOOR_GATE_ATR,
     CEILING_KINDS,
     GATE_UNMEASURED_KINDS,
     DEPARTURE_GATE_ATR,
@@ -71,12 +72,12 @@ def _plan_for(zone: Zone):
 #: dipakainya" selalu menjawab ya. Yang mengikat sekarang adalah tabel di
 #: bawah, yang menyebut kedelapan kind dan angkanya sebagai literal.
 EXPECTED_GATE_ATR = {
-    ZoneKind.RBR: 2.0,
+    ZoneKind.RBR: 2.0,   # DIUKUR, docs/QA-QUANT.md bagian 6
     ZoneKind.DBR: 2.0,
     ZoneKind.DBD: 2.0,
     ZoneKind.RBD: 2.0,
-    ZoneKind.OB: 2.0,
-    ZoneKind.BRK: 2.0,
+    ZoneKind.OB: 2.5,    # DIUKUR, docs/QA-OB-GATE.md, dinaikkan 6 Sep 2026
+    ZoneKind.BRK: 2.5,   # mengikut induknya OB; belum diukur untuk BRK sendiri
     ZoneKind.FVG: 0.25,   # DIUKUR, docs/QA-FVG-RECALIBRATION.md
     ZoneKind.IFVG: 0.25,  # DIUKUR, docs/QA-IFVG-GATE.md
 }
@@ -139,13 +140,35 @@ def test_the_ceiling_kinds_clear_by_being_small():
 
 
 def test_the_floor_kinds_clear_by_being_large():
+    """Dan ambangnya PER KIND, karena tidak semua lantai ada di 2,0.
+
+    Order block naik ke 2,5 pada 6 September 2026 sementara supply/demand
+    tetap 2,0. Sebuah test yang memakai satu konstanta untuk semua kind lantai
+    akan lolos di kedua dunia itu dan karena itu tidak menjaga apa pun.
+    """
     for kind in ZoneKind:
         if kind in CEILING_KINDS:
             continue
-        assert _zone(kind, DEPARTURE_GATE_ATR + 0.01).gate_cleared
-        assert not _zone(kind, DEPARTURE_GATE_ATR - 0.01).gate_cleared
+        floor = FLOOR_GATE_ATR[kind]
+        assert _zone(kind, floor + 0.01).gate_cleared, kind
+        assert not _zone(kind, floor - 0.01).gate_cleared, kind
         # 0,10 ATR lolos plafon FVG dan GAGAL di sini, arah yang berlawanan.
-        assert not _zone(kind, 0.10).gate_cleared
+        assert not _zone(kind, 0.10).gate_cleared, kind
+
+
+def test_order_block_sits_above_supply_demand_and_brk_follows_it():
+    """Selisih 0,5 ATR yang dibawa `docs/QA-OB-GATE.md`, dipatok ke angka.
+
+    Kalau seseorang menyeragamkan kembali kedua lantai ini jadi satu
+    konstanta, populasi order block yang diorder berubah 3.188 trade tanpa
+    satu angka pun berubah di layar.
+    """
+    assert FLOOR_GATE_ATR[ZoneKind.OB] == 2.5
+    assert FLOOR_GATE_ATR[ZoneKind.DBR] == 2.0
+    assert FLOOR_GATE_ATR[ZoneKind.BRK] == FLOOR_GATE_ATR[ZoneKind.OB], (
+        "BRK mewarisi departure_atr dari order block induknya, jadi ambang "
+        "yang berlaku untuk angka itu adalah ambang order block"
+    )
 
 
 def test_the_boundary_belongs_to_the_side_the_original_code_gave_it():
@@ -218,7 +241,10 @@ def test_each_ceiling_kind_quotes_its_own_cohort_not_another_populations():
         zone = _full_zone(kind, 1.50)
         plan = _plan_for(zone)
         assert plan is not None
-        assert plan.departure_held_rate == above, (kind, plan.departure_held_rate)
+        # SURVIVAL RATE DITAHAN DI SINI, bukan diisi exp_r. Field itu dirender
+        # panel lewat `pct()` berlabel "Departure cohort", jadi +0,190 R sempat
+        # tampil sebagai "19,0%" survival - dua besaran, satu label, satu unit.
+        assert plan.departure_held_rate is None, (kind, plan.departure_held_rate)
 
         text = " ".join(plan.warnings) + " " + " ".join(
             n.text for n in explain(zone, plan, "15m").notes

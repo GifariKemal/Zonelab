@@ -407,7 +407,13 @@ export interface TradePlan {
   age_bars: number;
   /** Measured survival of the cohort this zone belongs to, not this trade's
    *  probability, and it excludes costs. */
-  departure_held_rate: number;
+  /** Measured SURVIVAL of this zone's departure cohort. Null where no survival
+   *  rate was ever measured for the kind, which is every imbalance kind: FVG,
+   *  IFVG, OB and BRK. It carried an expectancy in R for the ceiling kinds
+   *  until 6 September 2026, and this panel renders it through `pct()` under a
+   *  label that means survival, so +0.190 R was displayed as "19,0%". Their
+   *  cohort figures live in the plan warnings now, with their unit. */
+  departure_held_rate: number | null;
   /** Same kind of number for the age band. Not independent of
    *  `departure_held_rate`, so the two must never be multiplied. */
   age_held_rate: number;

@@ -53,9 +53,23 @@ page.on("requestfailed", (r) => {
   // Hanya request ke API sendiri. Sebuah font pihak ketiga yang gagal bukan
   // cacat aplikasi ini, dan menghitungnya akan membuat harness merah karena
   // jaringan.
-  if (r.url().includes("127.0.0.1") || r.url().includes("localhost")) {
-    failedRequests.push(`${r.method()} ${r.url()} ${r.failure()?.errorText}`);
-  }
+  const mine = r.url().includes("127.0.0.1") || r.url().includes("localhost");
+  if (!mine) return;
+  // DAN `ERR_ABORTED` BUKAN REQUEST YANG GAGAL, ia request yang aplikasi ini
+  // SENDIRI batalkan. Harness ini mengklik 21 saklar layer berturut-turut dan
+  // tiap klik memicu satu `POST /api/draw`; fetch yang tersalip dibatalkan,
+  // yang justru perilaku yang benar. Apakah pembatalan itu SEMPAT terjadi
+  // bergantung pada seberapa cepat API menjawab relatif terhadap klik
+  // berikutnya, jadi baris ini dulu merah atau hijau menurut beban mesin dan
+  // bukan menurut kode: terbukti merah pada 6 September 2026 di tree yang
+  // hijau tiga jam sebelumnya, dan merah juga di HEAD saat diuji dengan
+  // `git stash`.
+  //
+  // Yang TIDAK dilonggarkan: status 5xx masih dihitung oleh handler
+  // `response` di bawah, dan setiap `errorText` lain - koneksi ditolak,
+  // ERR_FAILED, timeout - masih dihitung di sini.
+  if (r.failure()?.errorText === "net::ERR_ABORTED") return;
+  failedRequests.push(`${r.method()} ${r.url()} ${r.failure()?.errorText}`);
 });
 page.on("response", (r) => {
   if (r.status() >= 500 && (r.url().includes("127.0.0.1") || r.url().includes("localhost"))) {

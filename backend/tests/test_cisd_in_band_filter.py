@@ -161,12 +161,28 @@ def test_the_ceiling_keeps_the_measured_side_and_drops_the_other():
     """
     import inspect
 
+    from app.models import Zone, ZoneKind
     from tools.execute import GATE_DIRECTION, candidates
-    src = inspect.getsource(candidates)
-    body = src[src.index("departure = zone.departure_atr"):]
-    head = body[:body.index("plan = build") if "plan = build" in body else 400]
-    # `floor` membuang yang di bawah; `ceiling` membuang yang di atas. Kedua
-    # perbandingan harus ada, dan ke arah yang berbeda.
-    assert "departure < DEPARTURE_GATE_ATR" in head, head
-    assert "departure >= DEPARTURE_GATE_ATR" in head, head
+
+    def verdict(kind: ZoneKind, departure: float) -> bool:
+        return Zone.model_construct(kind=kind, departure_atr=departure).gate_cleared
+
+    # ARAHNYA DIUJI SEBAGAI PERILAKU, bukan sebagai teks sumber. Versi
+    # pertama test ini mencari dua string perbandingan di dalam `candidates`,
+    # dan itu berhenti bekerja begitu jalur order berhenti menyimpan ambangnya
+    # sendiri - yang justru perbaikan, bukan regresi.
+    #
+    # 1,0 ATR: di ATAS plafon fvg jadi dibuang, di BAWAH lantai supply/demand
+    # jadi juga dibuang. 3,0 ATR dan 0,1 ATR memisahkan keduanya, dan tandanya
+    # berlawanan. Itulah keseluruhan isi klaim "arahnya membalik".
+    assert verdict(ZoneKind.FVG, 0.1) is True
+    assert verdict(ZoneKind.FVG, 3.0) is False
+    assert verdict(ZoneKind.DBR, 0.1) is False
+    assert verdict(ZoneKind.DBR, 3.0) is True
     assert GATE_DIRECTION.get("fvg") == "ceiling"
+
+    # DAN JALUR ORDER MEMBACANYA, bukan menghitung ulang. Sebuah salinan kedua
+    # di sini adalah cara ambang order block yang naik ke 2,5 pada 6 September
+    # 2026 bisa gagal sampai ke order tanpa satu test pun gagal.
+    src = inspect.getsource(candidates)
+    assert "zone.gate_cleared" in src, "jalur order tidak membaca verdict zonanya"

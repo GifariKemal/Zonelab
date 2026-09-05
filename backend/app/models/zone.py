@@ -61,6 +61,34 @@ from .psp import PSPModel
 #: sering benar" membacanya terbalik. Berlaku sama untuk kedua kind.
 DEPARTURE_GATE_ATR = 2.0
 DEPARTURE_GATE_ATR_CEILING = 0.25
+
+#: Lantai PER KIND, karena 2,0 tidak selamat di setiap detector yang memakainya.
+#:
+#: supply/demand tetap 2,0: itu angka yang diukur untuknya di
+#: `docs/QA-QUANT.md` bagian 6, selisih ekspektasi +0,124 R dengan Welch
+#: t=+4,82.
+#:
+#: ORDER BLOCK NAIK KE 2,5 pada 6 September 2026. `docs/QA-OB-GATE.md` menyapu
+#: tujuh ambang di 12 sel, n=13.309, dan 2,0 memberi walk-forward 7 dari 8 -
+#: gagal menurut aturan praregistrasi repo ini sendiri, yang menuntut 8 dari 8.
+#: Hanya 2,5 yang selamat: exp_r +0,0551 lawan +0,0281, PF 1,166 lawan 1,086,
+#: Welch t=+6,06. Dan 2,5 BUKAN argmax - 3,0 memberi exp_r lebih tinggi lalu
+#: gagal walk-forward 6 dari 8, 6,0 lebih tinggi lagi dengan t di bawah ambang.
+#:
+#: BRK MENGIKUT ORDER BLOCK, dan itu bukan pengukuran melainkan konsistensi. Ia
+#: mewarisi `departure_atr` dari order block induknya, jadi ambang yang berlaku
+#: untuk angka itu adalah ambang order block. Membiarkannya di 2,0 akan membuat
+#: ia dinilai dengan angka yang tidak dimiliki siapa pun. Ia tetap terdaftar di
+#: `GATE_UNMEASURED_KINDS`, karena tidak ada satu pun sel yang mengukur populasi
+#: breaker itu sendiri.
+FLOOR_GATE_ATR: dict[ZoneKind, float] = {
+    ZoneKind.RBR: DEPARTURE_GATE_ATR,
+    ZoneKind.DBR: DEPARTURE_GATE_ATR,
+    ZoneKind.DBD: DEPARTURE_GATE_ATR,
+    ZoneKind.RBD: DEPARTURE_GATE_ATR,
+    ZoneKind.OB: 2.5,
+    ZoneKind.BRK: 2.5,
+}
 #: Kind yang gerbangnya plafon, bukan lantai.
 #:
 #: BRK TIDAK DI SINI, dan itu keputusan yang belum punya angka. Ia mewarisi
@@ -85,6 +113,12 @@ CEILING_COHORT_EXP_R: dict[ZoneKind, tuple[float, float]] = {
     ZoneKind.FVG: (0.426, 0.190),
     ZoneKind.IFVG: (0.345, 0.160),
 }
+
+#: Keempat formasi supply/demand, yang survival rate-nya diukur di
+#: `docs/QA-QUANT.md` bagian 6. Dinamai karena `plan.py` perlu membedakan
+#: "punya survival rate sendiri" dari "kind lantai": OB dan BRK adalah kind
+#: lantai dan tidak punya satu pun.
+SUPPLY_DEMAND_KINDS = (ZoneKind.RBR, ZoneKind.DBR, ZoneKind.DBD, ZoneKind.RBD)
 
 #: Kind yang ambang gerbangnya BELUM pernah diukur untuknya sendiri.
 #:
@@ -171,11 +205,9 @@ class Zone(BaseModel):
         executor, zone card - membandingkan `departure_atr` dengan angka yang
         sama.
         """
-        return (
-            DEPARTURE_GATE_ATR_CEILING
-            if self.kind in CEILING_KINDS
-            else DEPARTURE_GATE_ATR
-        )
+        if self.kind in CEILING_KINDS:
+            return DEPARTURE_GATE_ATR_CEILING
+        return FLOOR_GATE_ATR[self.kind]
 
     @computed_field  # type: ignore[prop-decorator]
     @property
@@ -194,7 +226,7 @@ class Zone(BaseModel):
         """
         if self.kind in CEILING_KINDS:
             return self.departure_atr < DEPARTURE_GATE_ATR_CEILING
-        return self.departure_atr >= DEPARTURE_GATE_ATR
+        return self.departure_atr >= FLOOR_GATE_ATR[self.kind]
 
     @computed_field  # type: ignore[prop-decorator]
     @property

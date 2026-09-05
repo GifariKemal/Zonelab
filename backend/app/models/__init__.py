@@ -61,6 +61,8 @@ from .cycle import (
 )
 from .zone import (
     CEILING_COHORT_EXP_R,
+    FLOOR_GATE_ATR,
+    SUPPLY_DEMAND_KINDS,
     CEILING_KINDS,
     GATE_UNMEASURED_KINDS,
     DEPARTURE_GATE_ATR,
@@ -155,6 +157,8 @@ __all__ = [
     "Zone",
     "Drawing",
     "CEILING_COHORT_EXP_R",
+    "FLOOR_GATE_ATR",
+    "SUPPLY_DEMAND_KINDS",
     "CEILING_KINDS",
     "GATE_UNMEASURED_KINDS",
     "DEPARTURE_GATE_ATR",

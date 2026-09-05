@@ -112,7 +112,13 @@ def test_fvg_zone_above_ceiling_gate_warns():
     plan = build(zone(kind=ZoneKind.FVG, departure_atr=1.0), atr=1.0,
                  now=T0, interval_seconds=STEP)
     assert plan is not None
-    assert plan.departure_held_rate == EXP_R_NOT_CLEARED_CEILING
+    # SURVIVAL RATE-NYA None, karena tidak ada yang pernah mengukurnya untuk
+    # FVG. Field ini membawa `EXP_R_NOT_CLEARED_CEILING` sampai 6 September
+    # 2026, dan panel merendernya lewat `pct()` berlabel "Departure cohort" -
+    # jadi ekspektasi +0,190 R tampil sebagai "19,0%" survival.
+    assert plan.departure_held_rate is None
+    # Angka kohortnya tetap ada, di `warnings`, DENGAN satuannya.
+    assert any(f"+{EXP_R_NOT_CLEARED_CEILING:.3f} R" in w for w in plan.warnings)
     assert any("di ATAS gerbang 0.25 ATR" in w for w in plan.warnings)
 
 
