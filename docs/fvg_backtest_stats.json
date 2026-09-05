@@ -1,0 +1,114 @@
+{
+ "configs": {
+  "old": {
+   "min_gap_atr": 0.1,
+   "gate_atr": 2.0
+  },
+  "new": {
+   "min_gap_atr": 0.0,
+   "gate_atr": 0.25
+  }
+ },
+ "cells": [
+  "XAUUSD 30m",
+  "BTCUSD 30m"
+ ],
+ "old": {
+  "pooled": {
+   "n_trades": 3814,
+   "n_win": 1989,
+   "n_loss": 1825,
+   "winrate_pct": 52.15,
+   "profit_factor": 1.5188910511262188,
+   "expected_r": 0.22356183137198402,
+   "max_consec_wins": 18,
+   "max_consec_losses": 12,
+   "sharpe_r": 0.14165159957851245,
+   "best_r": 29.070530809932066,
+   "worst_r": -1.0,
+   "avg_win_r": 1.2548563327398328,
+   "avg_loss_r": -0.9004079018996055
+  },
+  "per_instrument": {
+   "XAUUSD 30m": {
+    "n_trades": 1941,
+    "n_win": 1023,
+    "n_loss": 918,
+    "winrate_pct": 52.7048,
+    "profit_factor": 1.5269453664325363,
+    "expected_r": 0.22350750616649662,
+    "max_consec_wins": 8,
+    "max_consec_losses": 8,
+    "sharpe_r": 0.139787502554009,
+    "best_r": 29.070530809932066,
+    "worst_r": -1.0,
+    "avg_win_r": 1.2288529685695393,
+    "avg_loss_r": -0.8968284503022536
+   },
+   "BTCUSD 30m": {
+    "n_trades": 1873,
+    "n_win": 966,
+    "n_loss": 907,
+    "winrate_pct": 51.575,
+    "profit_factor": 1.5108040000079794,
+    "expected_r": 0.22361812887537488,
+    "max_consec_wins": 18,
+    "max_consec_losses": 12,
+    "sharpe_r": 0.14366225999470514,
+    "best_r": 14.193429034362232,
+    "worst_r": -1.0,
+    "avg_win_r": 1.282394056907752,
+    "avg_loss_r": -0.9040307647070686
+   }
+  }
+ },
+ "new": {
+  "pooled": {
+   "n_trades": 2024,
+   "n_win": 985,
+   "n_loss": 1039,
+   "winrate_pct": 48.666,
+   "profit_factor": 1.8983772687247433,
+   "expected_r": 0.4257201532584174,
+   "max_consec_wins": 14,
+   "max_consec_losses": 17,
+   "sharpe_r": 0.2072098716025983,
+   "best_r": 29.070530809932066,
+   "worst_r": -1.0,
+   "avg_win_r": 1.848511930288249,
+   "avg_loss_r": -0.9231247941663987
+  },
+  "per_instrument": {
+   "XAUUSD 30m": {
+    "n_trades": 1002,
+    "n_win": 509,
+    "n_loss": 493,
+    "winrate_pct": 50.7984,
+    "profit_factor": 2.223138895696391,
+    "expected_r": 0.5491279221516923,
+    "max_consec_wins": 9,
+    "max_consec_losses": 12,
+    "sharpe_r": 0.24550804732501286,
+    "best_r": 29.070530809932066,
+    "worst_r": -1.0,
+    "avg_win_r": 1.9647816197732615,
+    "avg_loss_r": -0.9124699117010036
+   },
+   "BTCUSD 30m": {
+    "n_trades": 1022,
+    "n_win": 476,
+    "n_loss": 546,
+    "winrate_pct": 46.5753,
+    "profit_factor": 1.6115143476527274,
+    "expected_r": 0.30472740919671365,
+    "max_consec_wins": 14,
+    "max_consec_losses": 17,
+    "sharpe_r": 0.16465413246066574,
+    "best_r": 13.6996787413332,
+    "worst_r": -1.0,
+    "avg_win_r": 1.7241815270364178,
+    "avg_loss_r": -0.9327454114840541
+   }
+  }
+ }
+}

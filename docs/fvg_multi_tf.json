@@ -1,0 +1,287 @@
+{
+ "symbols": [
+  "XAUUSD",
+  "BTCUSD"
+ ],
+ "timeframes": [
+  "15m",
+  "1h",
+  "4h",
+  "1d"
+ ],
+ "configs": [
+  [
+   "recommended",
+   0.0,
+   0.25
+  ],
+  [
+   "no_gate_baseline",
+   0.0,
+   0.0
+  ],
+  [
+   "old_production",
+   0.1,
+   2.0
+  ]
+ ],
+ "results": {
+  "XAUUSD 15m": {
+   "recommended": {
+    "min_gap_atr": 0.0,
+    "gate_atr": 0.25,
+    "n_below": 404,
+    "n_above": 607,
+    "exp_r_below": 0.4166278176105085,
+    "exp_r_above": 0.18558885886907384,
+    "t_below_vs_zero": 3.6648151583119524,
+    "welch_t": 1.8104443919207238
+   },
+   "no_gate_baseline": {
+    "min_gap_atr": 0.0,
+    "gate_atr": 0.0,
+    "n_below": 1011,
+    "n_above": 0,
+    "exp_r_below": 0.2779130322929508,
+    "exp_r_above": null,
+    "t_below_vs_zero": 4.849385133236958,
+    "welch_t": null
+   },
+   "old_production": {
+    "min_gap_atr": 0.1,
+    "gate_atr": 2.0,
+    "n_below": 809,
+    "n_above": 25,
+    "exp_r_below": 0.16757513857466702,
+    "exp_r_above": 0.1369394789522762,
+    "t_below_vs_zero": 3.094419750591521,
+    "welch_t": 0.2584259451397023
+   }
+  },
+  "BTCUSD 15m": {
+   "recommended": {
+    "min_gap_atr": 0.0,
+    "gate_atr": 0.25,
+    "n_below": 403,
+    "n_above": 569,
+    "exp_r_below": 0.2451614946556646,
+    "exp_r_above": 0.16827052105243645,
+    "t_below_vs_zero": 2.2892825793462284,
+    "welch_t": 0.6446534934949084
+   },
+   "no_gate_baseline": {
+    "min_gap_atr": 0.0,
+    "gate_atr": 0.0,
+    "n_below": 972,
+    "n_above": 0,
+    "exp_r_below": 0.20015021484060613,
+    "exp_r_above": null,
+    "t_below_vs_zero": 3.7074475097418493,
+    "welch_t": null
+   },
+   "old_production": {
+    "min_gap_atr": 0.1,
+    "gate_atr": 2.0,
+    "n_below": 773,
+    "n_above": 22,
+    "exp_r_below": 0.15040856127206081,
+    "exp_r_above": -0.08451480615416564,
+    "t_below_vs_zero": 2.880451785523774,
+    "welch_t": 1.5225164452385396
+   }
+  },
+  "XAUUSD 1h": {
+   "recommended": {
+    "min_gap_atr": 0.0,
+    "gate_atr": 0.25,
+    "n_below": 449,
+    "n_above": 710,
+    "exp_r_below": 0.40408489032513195,
+    "exp_r_above": 0.13905705545896482,
+    "t_below_vs_zero": 4.277894552182184,
+    "welch_t": 2.546045663781426
+   },
+   "no_gate_baseline": {
+    "min_gap_atr": 0.0,
+    "gate_atr": 0.0,
+    "n_below": 1159,
+    "n_above": 0,
+    "exp_r_below": 0.24172961616207875,
+    "exp_r_above": null,
+    "t_below_vs_zero": 5.31409169139215,
+    "welch_t": null
+   },
+   "old_production": {
+    "min_gap_atr": 0.1,
+    "gate_atr": 2.0,
+    "n_below": 921,
+    "n_above": 34,
+    "exp_r_below": 0.16843174080412307,
+    "exp_r_above": 0.06502463755648959,
+    "t_below_vs_zero": 3.633422348400183,
+    "welch_t": 0.933458747787724
+   }
+  },
+  "BTCUSD 1h": {
+   "recommended": {
+    "min_gap_atr": 0.0,
+    "gate_atr": 0.25,
+    "n_below": 488,
+    "n_above": 658,
+    "exp_r_below": 0.4588325728268293,
+    "exp_r_above": 0.13449042310489548,
+    "t_below_vs_zero": 5.1420790945105574,
+    "welch_t": 3.245202351408987
+   },
+   "no_gate_baseline": {
+    "min_gap_atr": 0.0,
+    "gate_atr": 0.0,
+    "n_below": 1146,
+    "n_above": 0,
+    "exp_r_below": 0.2726047067561203,
+    "exp_r_above": null,
+    "t_below_vs_zero": 5.903476222813926,
+    "welch_t": null
+   },
+   "old_production": {
+    "min_gap_atr": 0.1,
+    "gate_atr": 2.0,
+    "n_below": 897,
+    "n_above": 44,
+    "exp_r_below": 0.23735408109938042,
+    "exp_r_above": -0.06392696065937636,
+    "t_below_vs_zero": 4.8102218515971895,
+    "welch_t": 2.8595766867849437
+   }
+  },
+  "XAUUSD 4h": {
+   "recommended": {
+    "min_gap_atr": 0.0,
+    "gate_atr": 0.25,
+    "n_below": 345,
+    "n_above": 572,
+    "exp_r_below": 0.22638727790108756,
+    "exp_r_above": 0.07392734617931791,
+    "t_below_vs_zero": 2.5564990828415968,
+    "welch_t": 1.5816288197564212
+   },
+   "no_gate_baseline": {
+    "min_gap_atr": 0.0,
+    "gate_atr": 0.0,
+    "n_below": 917,
+    "n_above": 0,
+    "exp_r_below": 0.13128686247594878,
+    "exp_r_above": null,
+    "t_below_vs_zero": 3.2051960591547615,
+    "welch_t": null
+   },
+   "old_production": {
+    "min_gap_atr": 0.1,
+    "gate_atr": 2.0,
+    "n_below": 733,
+    "n_above": 42,
+    "exp_r_below": 0.12123924378170922,
+    "exp_r_above": 0.10275646711068488,
+    "t_below_vs_zero": 2.8477119973742657,
+    "welch_t": 0.2762189067229981
+   }
+  },
+  "BTCUSD 4h": {
+   "recommended": {
+    "min_gap_atr": 0.0,
+    "gate_atr": 0.25,
+    "n_below": 296,
+    "n_above": 446,
+    "exp_r_below": 0.29796137626368824,
+    "exp_r_above": 0.0968096020353827,
+    "t_below_vs_zero": 3.185643974689328,
+    "welch_t": 1.9753411227947928
+   },
+   "no_gate_baseline": {
+    "min_gap_atr": 0.0,
+    "gate_atr": 0.0,
+    "n_below": 742,
+    "n_above": 0,
+    "exp_r_below": 0.17705343649842645,
+    "exp_r_above": null,
+    "t_below_vs_zero": 3.9712621733622098,
+    "welch_t": null
+   },
+   "old_production": {
+    "min_gap_atr": 0.1,
+    "gate_atr": 2.0,
+    "n_below": 571,
+    "n_above": 19,
+    "exp_r_below": 0.1109362010018158,
+    "exp_r_above": 0.08851722038284687,
+    "t_below_vs_zero": 2.5837480021539068,
+    "welch_t": 0.21952389667908603
+   }
+  },
+  "XAUUSD 1d": {
+   "recommended": {
+    "min_gap_atr": 0.0,
+    "gate_atr": 0.25,
+    "n_below": 135,
+    "n_above": 316,
+    "exp_r_below": -0.01565148287101053,
+    "exp_r_above": -0.05046830708773333,
+    "t_below_vs_zero": -0.18476393889781484,
+    "welch_t": 0.37826637371246874
+   },
+   "no_gate_baseline": {
+    "min_gap_atr": 0.0,
+    "gate_atr": 0.0,
+    "n_below": 451,
+    "n_above": 0,
+    "exp_r_below": -0.04004641957274979,
+    "exp_r_above": null,
+    "t_below_vs_zero": -1.1211494411313472,
+    "welch_t": null
+   },
+   "old_production": {
+    "min_gap_atr": 0.1,
+    "gate_atr": 2.0,
+    "n_below": 375,
+    "n_above": 12,
+    "exp_r_below": -0.0694579396807862,
+    "exp_r_above": -0.04843062882065647,
+    "t_below_vs_zero": -1.9350623540713052,
+    "welch_t": -0.28525935117376355
+   }
+  },
+  "BTCUSD 1d": {
+   "recommended": {
+    "min_gap_atr": 0.0,
+    "gate_atr": 0.25,
+    "n_below": 103,
+    "n_above": 186,
+    "exp_r_below": 0.25723447266195176,
+    "exp_r_above": 0.014603683128052441,
+    "t_below_vs_zero": 2.338852423474492,
+    "welch_t": 2.087739168533869
+   },
+   "no_gate_baseline": {
+    "min_gap_atr": 0.0,
+    "gate_atr": 0.0,
+    "n_below": 289,
+    "n_above": 0,
+    "exp_r_below": 0.10107763233909607,
+    "exp_r_above": null,
+    "t_below_vs_zero": 2.1765018905000004,
+    "welch_t": null
+   },
+   "old_production": {
+    "min_gap_atr": 0.1,
+    "gate_atr": 2.0,
+    "n_below": 236,
+    "n_above": 9,
+    "exp_r_below": 0.07236662227763102,
+    "exp_r_above": -0.09211980493459188,
+    "t_below_vs_zero": 1.7276129079707372,
+    "welch_t": 1.7423582761077259
+   }
+  }
+ }
+}

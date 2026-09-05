@@ -45,6 +45,82 @@ Gate baru memisahkan kohort +0.4257 R (di bawah gate) dari +0.1904 R (di atas).
 
 XAU edge paling tajam: hampir +0.4 R selisih antara kohort bawah dan atas.
 
+## Backtest statistics (30m)
+
+Statistik trade-level dari `cell_rows`, pooled XAU+BTC.
+
+| Metrik | Lama (0.1/2.0) | Baru (0.0/0.25) |
+|---|---|---|
+| Trade count | 3814 | 2024 |
+| Win / loss | 1989 / 1825 | 985 / 1039 |
+| Winrate | 52.15% | 48.67% |
+| **Profit factor** | **1.52** | **1.90** |
+| Expected R | +0.2236 | +0.4257 |
+| Sharpe (R) | 0.142 | 0.207 |
+| Avg win R | 1.255 | 1.849 |
+| Avg loss R | -0.900 | -0.923 |
+| Max consec wins | 18 | 14 |
+| Max consec losses | 12 | 17 |
+| Best / worst R | +29.07 / -1.00 | +29.07 / -1.00 |
+
+Winrate turun 3,5 pp tapi avg win R naik dari 1.25 ke 1.85 - gate ketat memilih
+FVG yang kalau menang, menangnya besar. PF naik dari 1.52 ke 1.90.
+
+Trade-off: max consecutive losses naik dari 12 ke 17, jadi drawdown per losing
+streak lebih berat meski per-trade result lebih baik.
+
+### Per-instrumen (30m)
+
+| | XAU lama | XAU baru | BTC lama | BTC baru |
+|---|---|---|---|---|
+| Trades | 1941 | 1002 | 1873 | 1022 |
+| Winrate | 52.70% | 50.80% | 51.58% | 46.58% |
+| PF | 1.53 | 2.22 | 1.51 | 1.61 |
+| Exp R | +0.224 | +0.549 | +0.224 | +0.305 |
+| Sharpe | 0.140 | 0.246 | 0.144 | 0.165 |
+
+XAU paling banyak untung: PF dari 1.53 ke 2.22, exp R dari +0.224 ke +0.549.
+
+## Multi-timeframe sweep
+
+Tiga konfigurasi diuji di 15m, 1h, 4h, dan 1d. Konfigurasi: recommended (0.0/0.25),
+no-gate baseline (0.0/0.0), old production (0.1/2.0).
+
+| TF | Symbol | Rec n | Rec exp_r | Rec t | Baseline exp_r | Old exp_r |
+|---|---|---|---|---|---|---|
+| 15m | XAU | 404 | +0.417 | 3.67 | +0.278 | +0.168 |
+| 15m | BTC | 403 | +0.245 | 2.29 | +0.200 | +0.150 |
+| **30m** | **XAU** | **1002** | **+0.549** | **9.32** | **+0.289** | **+0.224** |
+| **30m** | **BTC** | **1022** | **+0.305** | **4.58** | **+0.289** | **+0.224** |
+| 1h | XAU | 449 | +0.404 | 4.28 | +0.242 | +0.168 |
+| 1h | BTC | 488 | +0.459 | 5.14 | +0.273 | +0.237 |
+| 4h | XAU | 345 | +0.226 | 2.56 | +0.131 | +0.121 |
+| 4h | BTC | 296 | +0.298 | 3.19 | +0.177 | +0.111 |
+| 1d | XAU | 135 | -0.016 | -0.18 | -0.040 | -0.070 |
+| 1d | BTC | 103 | +0.257 | 2.34 | +0.101 | +0.072 |
+
+**Pattern:** edge bertahan di 15m, 1h, 4h untuk kedua instrumen. Recommended config
+mengalahkan old production di SETIAP sel. Edge pecah di 1d: XAU daily negatif di
+semua konfigurasi (t tidak signifikan), BTC daily masih positif tapi n tipis (103 trade).
+
+**Strongest:** 30m dan 1h. Di 1h BTC, recommended config bahkan lebih kuat dari 30m
+(+0.459 R, t=5.14).
+
+## Visual compare (Zonelab vs TradingView Pine)
+
+Pine indicator menggambar SEMUA FVG tanpa filter (200 box limit TradingView). Hasilnya
+chart penuh garis overlapping, tidak bisa dibaca. Ini sengaja: indicator-nya bukan
+untuk trading, hanya parity check formula.
+
+Zonelab FVG layer menampilkan 12 zone (6 per side) dengan state tracking (Fresh,
+Mitigated, Tested). Lebih bersih dan actionable karena:
+
+1. `max_zones_per_side` membatasi tampilan ke zone terdekat
+2. State tracking menandai mana yang sudah tersentuh harga
+3. Departure gate (kalau diterapkan) menyaring zone yang entry-nya terlalu jauh
+
+Zone price levels cocok antara kedua engine (99.5% match, offset broker 0.18).
+
 ## Parity check (Pine vs Python)
 
 Pine Script indicator (`mql5/pine/ZonelabFVG.pine`, commit `08b72be`) dibandingkan
@@ -82,9 +158,15 @@ Formula identik: `high[i-2] < low[i]` (bullish), `low[i-2] > high[i]` (bearish).
 | `backend/tools/fvg_sweep.py` | Grid sweep tool, commit `3a36128` |
 | `docs/fvg_sweep.json` | 42 hasil sweep lengkap |
 | `docs/pine_boxes_xauusd_30m.json` | 200 Pine box untuk parity check |
+| `backend/tools/fvg_stats_compare.py` | Backtest stats tool |
+| `docs/fvg_backtest_stats.json` | Statistik trade-level OLD vs NEW |
+| `backend/tools/fvg_multi_tf_sweep.py` | Multi-TF sweep tool |
+| `docs/fvg_multi_tf.json` | Hasil sweep 4 timeframe x 2 instrumen |
 
 ## Langkah selanjutnya
 
 1. Terapkan `min_gap_atr=0.0` dan `gate_atr=0.25` ke parameter produksi
 2. Jalankan ulang semua e2e harness setelah perubahan parameter
-3. Monitor live performance selama minimal satu minggu sebelum menyimpulkan
+3. Pertimbangkan menerapkan gate yang sama di 1h (edge kuat, terutama BTC +0.459 R)
+4. Jangan terapkan di daily XAU (edge negatif)
+5. Monitor live performance selama minimal satu minggu sebelum menyimpulkan
