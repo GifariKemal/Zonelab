@@ -40,13 +40,14 @@ from __future__ import annotations
 import math
 
 from .models import (
+    CEILING_COHORT_EXP_R,
     CEILING_KINDS,
     DEPARTURE_GATE_ATR,
-    DEPARTURE_GATE_ATR_CEILING,
     CostSpec,
     LotSpec,
     TradePlan,
     Zone,
+    ZoneKind,
     ZoneSide,
 )
 
@@ -85,8 +86,13 @@ from .models import (
 HELD_CLEARED_GATE = 0.430
 HELD_BELOW_GATE = 0.402
 # FVG cohort expected R, from recalibration sweep (docs/QA-FVG-RECALIBRATION.md).
-EXP_R_CLEARED_CEILING = 0.426
-EXP_R_NOT_CLEARED_CEILING = 0.190
+#
+# DITURUNKAN DARI TABEL PER KIND, dan namanya menyebut FVG karena itulah
+# populasi yang mengukurnya. Keduanya adalah literal sampai 5 September 2026 dan
+# dipakai untuk SETIAP kind plafon, jadi sebuah zona IFVG melaporkan angka FVG.
+# Nama ini dipertahankan supaya `tests/test_plan.py` tetap menunjuk ke angka
+# yang sama, tetapi sekarang ia satu bacaan dari tabel dan bukan salinan kedua.
+EXP_R_CLEARED_CEILING, EXP_R_NOT_CLEARED_CEILING = CEILING_COHORT_EXP_R[ZoneKind.FVG]
 #: Hold rate by AGE at touch 1, reward 2.0 ATR, from `docs/CALIBRATION.md`
 #: lines 858-861: 93,6% at 1-10 bars, 75,8% at 10-59, 77,2% at 59 and up.
 #:
@@ -231,11 +237,14 @@ def build(
     warnings: list[str] = []
     if not cleared:
         if ceiling:
+            # KOHORTNYA MILIK KIND INI, bukan milik FVG. Kalimat ini memakai
+            # satu pasang konstanta sampai 5 September 2026 dan mencetak angka
+            # FVG di panel sebuah zona IFVG.
+            below, above = CEILING_COHORT_EXP_R[zone.kind]
             warnings.append(
                 f"Kaki keluarnya {zone.departure_atr:.2f} ATR, di ATAS gerbang "
-                f"{DEPARTURE_GATE_ATR_CEILING} ATR. Kohort ini exp_r "
-                f"+{EXP_R_NOT_CLEARED_CEILING:.3f} R, lawan "
-                f"+{EXP_R_CLEARED_CEILING:.3f} R yang di bawah gerbang."
+                f"{zone.gate_atr} ATR. Kohort {zone.kind.value} ini exp_r "
+                f"+{above:.3f} R, lawan +{below:.3f} R yang di bawah gerbang."
             )
         else:
             warnings.append(
@@ -369,8 +378,11 @@ def build(
         realised_risk_pct=round(realised_pct, 6) if realised_pct is not None else None,
         margin_required=round(margin, 2) if margin is not None else None,
         age_bars=int(age_bars),
+        # PER KIND DI SISI PLAFON. Field ini melaporkan angka FVG untuk setiap
+        # kind plafon sampai 5 September 2026, jadi sebuah zona IFVG membawa
+        # +0,426 atau +0,190 milik populasi lain di dalam TradePlan-nya.
         departure_held_rate=(
-            (EXP_R_CLEARED_CEILING if cleared else EXP_R_NOT_CLEARED_CEILING)
+            CEILING_COHORT_EXP_R[zone.kind][0 if cleared else 1]
             if ceiling else
             (HELD_CLEARED_GATE if cleared else HELD_BELOW_GATE)
         ),

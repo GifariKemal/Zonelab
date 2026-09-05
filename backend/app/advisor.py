@@ -21,7 +21,7 @@ decides what is true.
 
 from __future__ import annotations
 
-from .models import CEILING_KINDS, Advice, Note, TradePlan, Zone, ZoneKind, ZoneSide
+from .models import CEILING_COHORT_EXP_R, CEILING_KINDS, Advice, Note, TradePlan, Zone, ZoneKind, ZoneSide
 from .plan import pct
 
 # Each formation, and what the leg names actually mean. The reversal ones are
@@ -94,13 +94,21 @@ def explain(zone: Zone, plan: TradePlan | None, interval: str) -> Advice:
     # sampai jadi "2". Koma karena kalimat ini Bahasa Indonesia.
     gate_text = f"{zone.gate_atr}".replace(".", ",")
     if ceiling:
+        # ANGKA KOHORT MILIK KIND INI. Keduanya ditulis sebagai literal +0,426
+        # dan +0,190 sampai 5 September 2026, yaitu angka FVG, dan dicetak apa
+        # adanya di ADVISOR sebuah zona IFVG yang kohortnya +0,345 lawan +0,160.
+        below, above = CEILING_COHORT_EXP_R[zone.kind]
+        low = f"{below:.3f}".replace(".", ",")
+        high = f"{above:.3f}".replace(".", ",")
         cleared_text = (
-            f"Itu di bawah gerbang {gate_text} ATR. Kohort ini exp_r +0,426 R "
-            f"lawan +0,190 R yang di atasnya (welch t=4,58, walk-forward 8/8)."
+            f"Itu di bawah gerbang {gate_text} ATR. Kohort {zone.kind.value} "
+            f"ini exp_r +{low} R lawan +{high} R yang di atasnya, dan yang "
+            f"disortir adalah KERAPATAN STOP: win rate justru turun saat "
+            f"plafon diperketat."
         )
         not_cleared_text = (
-            f"Itu di ATAS gerbang {gate_text} ATR. Kohort ini exp_r +0,190 R "
-            f"lawan +0,426 R yang di bawahnya (welch t=4,58, walk-forward 8/8)."
+            f"Itu di ATAS gerbang {gate_text} ATR. Kohort {zone.kind.value} "
+            f"ini exp_r +{high} R lawan +{low} R yang di bawahnya."
         )
     else:
         cleared_text = (

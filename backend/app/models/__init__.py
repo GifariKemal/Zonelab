@@ -60,7 +60,9 @@ from .cycle import (
     VortexDial,
 )
 from .zone import (
+    CEILING_COHORT_EXP_R,
     CEILING_KINDS,
+    GATE_UNMEASURED_KINDS,
     DEPARTURE_GATE_ATR,
     DEPARTURE_GATE_ATR_CEILING,
     Zone,
@@ -152,7 +154,9 @@ __all__ = [
     "VortexDial",
     "Zone",
     "Drawing",
+    "CEILING_COHORT_EXP_R",
     "CEILING_KINDS",
+    "GATE_UNMEASURED_KINDS",
     "DEPARTURE_GATE_ATR",
     "DEPARTURE_GATE_ATR_CEILING",
     "QuantileSet",

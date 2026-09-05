@@ -32,12 +32,74 @@ from .psp import PSPModel
 #:
 #: 2,0 ATR adalah LANTAI untuk formasi supply/demand, dan alasannya ada di
 #: deskripsi `departure_atr` di bawah. 0,25 ATR adalah PLAFON untuk FVG dan
-#: IFVG, karena di sana gerbangnya terukur TERBALIK: exp_r +0,426 R di bawah
-#: plafon lawan +0,190 R di atasnya, welch t=4,58, walk-forward 8 dari 8.
+#: IFVG, karena di sana gerbangnya terukur TERBALIK:
+#:
+#:   FVG   exp_r +0,426 R di bawah plafon lawan +0,190 R di atasnya,
+#:         welch t=4,58, walk-forward 8 dari 8. docs/QA-FVG-RECALIBRATION.md
+#:   IFVG  exp_r +0,3450 lawan baseline +0,2348, welch t=+5,18, walk-forward
+#:         8 dari 8, n=11.068 di 12 sel. docs/QA-IFVG-GATE.md, 5 Sep 2026.
+#:         Arah plafon menang di SETIAP ambang yang diuji. Terukur di 15m
+#:         sampai 4h; di 1d tandanya konsisten tapi |t| tertinggi 2,909 tidak
+#:         melewati Bonferroni 2,914, dan di 1w populasinya 16 trade.
+#:
+#: PLAFON INI MENYORTIR KERAPATAN STOP, BUKAN KEMUNGKINAN BERHASIL, dan itu
+#: harus dibaca bersama angka di atas karena keduanya benar sekaligus. Win rate
+#: TURUN monoton saat plafon diperketat - 0,4777 di 3,0 ATR menjadi 0,3967 di
+#: 0,1 ATR - sementara mean win naik dari 1,43 R ke 2,41 R dan mean loss hampir
+#: tidak bergerak di sekitar -0,9 R.
+#:
+#: Mekanismenya bisa dinamai. Untuk FVG `departure_atr` ADALAH TINGGI GAP dalam
+#: ATR (`detect/imbalance.py`, `size = (top - bottom) / scale`), bukan jarak
+#: kaki keluar seperti pada supply/demand. `plan.py` menaruh target di zona
+#: lawan terdekat dan stop di luar distal, jadi reward adalah jarak ABSOLUT ke
+#: zona lawan sementara risk adalah tinggi box plus buffer. Plafon yang lebih
+#: ketat menyimpan gap yang lebih kecil, gap yang lebih kecil memberi stop yang
+#: lebih rapat, dan R dinormalisasi terhadap risk. exp_r dan profit factor tetap
+#: naik karena keduanya dinormalisasi risiko, jadi plafon ini tetap berguna
+#: sebagai PENYORTIR - tetapi harga justru lebih SERING kena stop pada kohort
+#: yang ia pertahankan, dan siapa pun yang membacanya sebagai "setup yang lebih
+#: sering benar" membacanya terbalik. Berlaku sama untuk kedua kind.
 DEPARTURE_GATE_ATR = 2.0
 DEPARTURE_GATE_ATR_CEILING = 0.25
 #: Kind yang gerbangnya plafon, bukan lantai.
+#:
+#: BRK TIDAK DI SINI, dan itu keputusan yang belum punya angka. Ia mewarisi
+#: `departure_atr` dari order block induknya lewat mekanisme yang persis sama
+#: dengan IFVG, lalu dinilai dengan lantai 2,0 ATR yang tidak pernah diukur
+#: untuknya. Dicatat di `docs/QA-IFVG-GATE.md` bagian penutup.
 CEILING_KINDS = (ZoneKind.FVG, ZoneKind.IFVG)
+
+#: exp_r kedua kohort plafon, PER KIND, sebagai (di bawah plafon, di atasnya).
+#:
+#: PER KIND KARENA PANEL PERNAH MENGUTIP ANGKA MILIK POPULASI LAIN. Sampai
+#: 5 September 2026 `plan.py` dan `advisor.py` memegang satu pasang konstanta,
+#: +0,426 dan +0,190, yang diukur pada FVG - dan mencetaknya di panel PLAN
+#: sebuah zona IFVG. Angkanya terlihat persis seterukur angka yang benar.
+#: Terlihat di layar hari itu pada zona IFVG 0,37 ATR: "Kohort ini exp_r
+#: +0.190 R, lawan +0.426 R yang di bawah gerbang", sementara kohort IFVG yang
+#: sebenarnya adalah +0,1597 lawan +0,3450.
+#:
+#:   FVG   docs/QA-FVG-RECALIBRATION.md
+#:   IFVG  docs/QA-IFVG-GATE.md, n=11.068, 4.484 di bawah dan 6.584 di atas
+CEILING_COHORT_EXP_R: dict[ZoneKind, tuple[float, float]] = {
+    ZoneKind.FVG: (0.426, 0.190),
+    ZoneKind.IFVG: (0.345, 0.160),
+}
+
+#: Kind yang ambang gerbangnya BELUM pernah diukur untuknya sendiri.
+#:
+#: SETIAP KIND MENDAPAT `gate_atr` DAN `gate_cleared`, karena keduanya
+#: diturunkan dan tidak punya cara mengembalikan "tidak tahu". Tanpa daftar ini
+#: sebuah zona BRK memajang verdict yang terlihat sama otoritatifnya dengan
+#: verdict FVG, padahal lantai 2,0 ATR tidak pernah diukur untuk BRK: ia
+#: mewarisi `departure_atr` dari order block induknya lewat mekanisme yang sama
+#: dengan IFVG, lalu dinilai dengan ambang milik induknya.
+#:
+#: Yang SUDAH diukur, dan sumbernya: keempat kind supply/demand plus OB pada
+#: lantai 2,0 (`docs/CALIBRATION.md`), FVG pada plafon 0,25
+#: (`docs/QA-FVG-RECALIBRATION.md`), IFVG pada plafon 0,25
+#: (`docs/QA-IFVG-GATE.md`, 5 September 2026).
+GATE_UNMEASURED_KINDS = (ZoneKind.BRK,)
 
 
 class Zone(BaseModel):
@@ -133,6 +195,18 @@ class Zone(BaseModel):
         if self.kind in CEILING_KINDS:
             return self.departure_atr < DEPARTURE_GATE_ATR_CEILING
         return self.departure_atr >= DEPARTURE_GATE_ATR
+
+    @computed_field  # type: ignore[prop-decorator]
+    @property
+    def gate_measured(self) -> bool:
+        """Apakah ambang yang `gate_cleared` pakai pernah diukur untuk kind ini.
+
+        `gate_cleared` selalu menjawab, karena ia aritmetika dan tidak punya
+        cara mengembalikan "tidak tahu". Field ini yang membawa perbedaan itu,
+        supaya permukaan yang menampilkan verdict bisa menahan diri di kind
+        yang ambangnya diwarisi alih alih diukur. Hari ini itu cuma BRK.
+        """
+        return self.kind not in GATE_UNMEASURED_KINDS
 
     # NONE BERARTI TIDAK DIHITUNG, DAN ITU SEBABNYA KELIMA FIELD DI BAWAH
     # OPTIONAL. Semuanya hanya diisi oleh `detect/supply_demand.py`.

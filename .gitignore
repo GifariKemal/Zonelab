@@ -19,6 +19,15 @@ out/
 backend/.cache/
 frontend/.playwright-shots/
 
+# Baris hasil resolusi bar halus, 5 MB dan seluruhnya bisa dibangkitkan ulang
+# oleh `tools/ifvg_gate.py`. Yang layak dilacak adalah RINGKASANNYA,
+# `docs/ifvg_gate.json`, bukan bahan mentahnya.
+docs/ifvg_rows_cache.json
+
+# Ledger dan task brief milik skill subagent-driven-development. Scratch proses,
+# bukan artefak project.
+.superpowers/
+
 # The owner's own reference material: 89 files, 12,8 MB across three sources -
 # Whatsapp 63, Discord 18, Telegram 8 - being 82 annotated TradingView
 # screenshots and 7 text files, of which two chat logs and `Discord/Buku=Pegangan.txt`

@@ -228,6 +228,14 @@ export interface Zone {
    *  card printed the figure for months without a verdict beside it. */
   gate_atr: number;
   gate_cleared: boolean;
+  /** Whether the threshold `gate_cleared` used was ever measured for THIS kind.
+   *  `gate_cleared` always answers, because it is arithmetic and has no way to
+   *  return "don't know". Today only BRK is false: it inherits `departure_atr`
+   *  from its parent order block and is then judged by the parent's 2.0 ATR
+   *  floor, which was never measured on the breaker population. The card must
+   *  withhold its verdict there rather than print a dot that looks as
+   *  authoritative as the one on an FVG. */
+  gate_measured: boolean;
   /** Leg-out travel as a multiple of the zone's own height. The doctrine's own
    *  test, which asks for 3; calibration puts the knee nearer 2. Null on the
    *  imbalance detectors: a gap has no base whose height it could be a

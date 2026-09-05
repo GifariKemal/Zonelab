@@ -422,19 +422,30 @@ function ZoneRow({
             kedua. Pembaca tidak bisa menyimpulkan mana yang berlaku dari
             angkanya sendiri. Kedua field diturunkan di server supaya ambangnya
             tidak jadi salinan kedua di sini. */}
+        {/* VERDICT DITAHAN DI KIND YANG AMBANGNYA TIDAK PERNAH DIUKUR UNTUKNYA.
+            Hari ini itu cuma BRK: ia mewarisi `departure_atr` dari order block
+            induknya lalu dinilai dengan lantai 2,0 ATR milik induk itu, yang
+            tidak pernah diukur pada populasi breaker. Tanpa cabang ini kotak
+            BRK membawa titik yang terlihat sama otoritatifnya dengan titik
+            pada FVG, dan itu cacat yang dibawa oleh verdict ini sendiri. */}
         <span
           className={`num block text-[10px] ${
-            zone.gate_cleared ? "text-text" : "text-text-faint"
+            zone.gate_measured && zone.gate_cleared ? "text-text" : "text-text-faint"
           }`}
           title={
-            `Leg-out ${zone.departure_atr.toFixed(2)} ATR, ` +
-            (zone.gate_cleared
-              ? `lolos gerbang ${zone.gate_atr} ATR untuk ${zone.kind}.`
-              : `di luar gerbang ${zone.gate_atr} ATR untuk ${zone.kind}, ` +
-                "jadi kohortnya yang lebih lemah.") +
-            (zone.settled
-              ? ""
-              : " Window departure belum selesai tercetak, jadi verdict ini masih bisa bergerak.")
+            !zone.gate_measured
+              ? `Leg-out ${zone.departure_atr.toFixed(2)} ATR. Ambang ` +
+                `${zone.gate_atr} ATR yang dipakai ${zone.kind} adalah ambang ` +
+                "kotak INDUKNYA dan tidak pernah diukur untuk kind ini, jadi " +
+                "tidak ada verdict yang ditampilkan."
+              : `Leg-out ${zone.departure_atr.toFixed(2)} ATR, ` +
+                (zone.gate_cleared
+                  ? `lolos gerbang ${zone.gate_atr} ATR untuk ${zone.kind}.`
+                  : `di luar gerbang ${zone.gate_atr} ATR untuk ${zone.kind}, ` +
+                    "jadi kohortnya yang lebih lemah.") +
+                (zone.settled
+                  ? ""
+                  : " Window departure belum selesai tercetak, jadi verdict ini masih bisa bergerak.")
           }
         >
           {zone.departure_atr.toFixed(1)} ATR
@@ -444,10 +455,16 @@ function ZoneRow({
               derajat dari accent dan 22 derajat dari supply. Verdict ini
               karena itu dibawa glyph isi lawan kosong plus tier teks, cara
               yang sama yang dipakai untuk membedakan info dari peringatan. */}
-          <span aria-hidden>{zone.gate_cleared ? " ●" : " ○"}</span>
-          <span className="sr-only">
-            {zone.gate_cleared ? ", lolos gerbang" : ", di luar gerbang"}
-          </span>
+          {zone.gate_measured ? (
+            <>
+              <span aria-hidden>{zone.gate_cleared ? " ●" : " ○"}</span>
+              <span className="sr-only">
+                {zone.gate_cleared ? ", lolos gerbang" : ", di luar gerbang"}
+              </span>
+            </>
+          ) : (
+            <span className="sr-only">, gerbang belum diukur untuk kind ini</span>
+          )}
         </span>
       </span>
     </button>

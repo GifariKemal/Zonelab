@@ -12,7 +12,9 @@ mengutip ambang itu MENGUTIP zonanya.
 
 from app.advisor import explain
 from app.models import (
+    CEILING_COHORT_EXP_R,
     CEILING_KINDS,
+    GATE_UNMEASURED_KINDS,
     DEPARTURE_GATE_ATR,
     DEPARTURE_GATE_ATR_CEILING,
     Anatomy,
@@ -75,9 +77,33 @@ EXPECTED_GATE_ATR = {
     ZoneKind.RBD: 2.0,
     ZoneKind.OB: 2.0,
     ZoneKind.BRK: 2.0,
-    ZoneKind.FVG: 0.25,
-    ZoneKind.IFVG: 0.25,
+    ZoneKind.FVG: 0.25,   # DIUKUR, docs/QA-FVG-RECALIBRATION.md
+    ZoneKind.IFVG: 0.25,  # DIUKUR, docs/QA-IFVG-GATE.md
 }
+
+#: KEDUANYA SEKARANG TERUKUR, dan urutan kejadiannya layak dicatat karena satu
+#: di antaranya sempat dikirim sebagai analogi.
+#:
+#: Plafon 0,25 lahir dari sweep FVG di commit 44196e2. Sweep itu menyuntik
+#: `detect_fvg` ke `DETECTORS` dan tidak menyentuh satu zona inversi pun, tetapi
+#: commit yang sama memasukkan `ZoneKind.IFVG` ke `CEILING_KINDS`. Versi pertama
+#: berkas ini menamai test di bawah "the two measured kinds" dan menulis "Cuma
+#: FVG dan IFVG yang gerbangnya diukur terbalik". Kalimat itu SALAH untuk IFVG
+#: dan sempat ter-push di 864d0d8.
+#:
+#: `docs/QA-IFVG-GATE.md` menutupnya pada 5 September 2026, 12 sel dan
+#: n=11.068: arah plafon menang di SETIAP ambang, dan di 0,25 exp_r +0,3450
+#: lawan baseline +0,2348 dengan Welch t=+5,18 dan walk-forward 8 dari 8.
+#: Terukur di 15m sampai 4h; di 1d tandanya konsisten tetapi |t| tertinggi 2,909
+#: tidak melewati Bonferroni 2,914, dan di 1w populasinya 16 trade.
+#:
+#: YANG DIUKUR ITU ARAH DAN AMBANGNYA, BUKAN SEBUAH KLAIM HIT RATE. Win rate
+#: JUSTRU TURUN saat plafon diperketat, 0,4777 di 3,0 ATR menjadi 0,3967 di 0,1
+#: ATR, sementara mean win naik dari 1,43 R ke 2,41 R. Untuk FVG `departure_atr`
+#: adalah TINGGI GAP dalam ATR, jadi plafon yang lebih ketat menyimpan gap yang
+#: lebih kecil, gap yang lebih kecil memberi stop yang lebih rapat, dan R
+#: dinormalisasi terhadap risk. Gerbang ini menyortir kerapatan stop.
+IFVG_GATE_MEASURED_AT = "docs/QA-IFVG-GATE.md, 2026-09-05, n=11068"
 
 
 def test_every_zone_kind_is_assigned_a_gate_direction():
@@ -90,13 +116,15 @@ def test_every_zone_kind_is_assigned_a_gate_direction():
         assert _zone(kind, 1.0).gate_atr == expected, kind
 
 
-def test_the_ceiling_membership_is_exactly_the_two_measured_kinds():
-    """Keanggotaan plafon, dipatok ke nama.
+def test_the_ceiling_membership_is_pinned_to_names():
+    """Keanggotaan plafon, dipatok ke nama, dan keduanya terukur.
 
-    Cuma FVG dan IFVG yang gerbangnya diukur terbalik. Sebuah kind yang
-    ditambahkan ke tuple itu tanpa pengukurannya sendiri akan memakai ambang
-    yang tidak pernah diukur untuknya, dan sebuah kind yang HILANG dari tuple
-    itu akan dinilai dengan arah yang berlawanan.
+    Test ini menahan keanggotaannya supaya perubahan di kedua arah terlihat:
+    menambah kind memberinya ambang yang tidak pernah diukur untuknya, dan
+    menghapus kind menilainya dengan arah yang berlawanan. BRK sengaja TIDAK
+    di sini - ia mewarisi `departure_atr` dari order block induknya lewat
+    mekanisme yang sama dan memakai lantai 2,0 ATR yang belum pernah diukur
+    untuknya, dicatat di `docs/QA-IFVG-GATE.md` bagian penutup.
     """
     assert set(CEILING_KINDS) == {ZoneKind.FVG, ZoneKind.IFVG}
 
@@ -129,6 +157,79 @@ def test_the_boundary_belongs_to_the_side_the_original_code_gave_it():
     """
     assert not _zone(ZoneKind.FVG, DEPARTURE_GATE_ATR_CEILING).gate_cleared
     assert _zone(ZoneKind.DBR, DEPARTURE_GATE_ATR).gate_cleared
+
+
+#: Kind yang ambangnya PERNAH diukur untuk dirinya sendiri, ditulis satu per
+#: satu dengan sumbernya. Diturunkan dari `GATE_UNMEASURED_KINDS` akan jadi
+#: tautologi yang sama yang membuat versi pertama sensus di atas hampa.
+GATE_MEASURED = {
+    ZoneKind.RBR: "docs/CALIBRATION.md",
+    ZoneKind.DBR: "docs/CALIBRATION.md",
+    ZoneKind.DBD: "docs/CALIBRATION.md",
+    ZoneKind.RBD: "docs/CALIBRATION.md",
+    ZoneKind.OB: "docs/CALIBRATION.md, rig yang sama dengan fvg",
+    ZoneKind.FVG: "docs/QA-FVG-RECALIBRATION.md",
+    ZoneKind.IFVG: "docs/QA-IFVG-GATE.md",
+}
+
+
+def test_only_the_kinds_with_their_own_measurement_claim_one():
+    """BRK memajang verdict dari ambang yang tidak pernah diukur untuknya.
+
+    `gate_cleared` selalu menjawab karena ia aritmetika, jadi tanpa
+    `gate_measured` sebuah kotak BRK di zone card membawa titik verdict yang
+    terlihat sama otoritatifnya dengan titik pada FVG. Lantai 2,0 ATR yang
+    dipakainya adalah ambang milik ORDER BLOCK induknya, diwarisi lewat
+    mekanisme yang sama dengan IFVG dan tidak pernah diukur pada populasi
+    breaker.
+    """
+    for kind in ZoneKind:
+        expected = kind in GATE_MEASURED
+        assert _zone(kind, 1.0).gate_measured is expected, kind
+    assert ZoneKind.BRK not in GATE_MEASURED
+    assert set(GATE_MEASURED) | set(GATE_UNMEASURED_KINDS) == set(ZoneKind), (
+        "kind baru masuk enum tanpa dinyatakan terukur atau belum terukur"
+    )
+
+
+def test_each_ceiling_kind_quotes_its_own_cohort_not_another_populations():
+    """Cacat yang terlihat di layar sebelum diperbaiki, 5 September 2026.
+
+    Panel PLAN sebuah zona IFVG 0,37 ATR mencetak "Kohort ini exp_r +0.190 R,
+    lawan +0.426 R yang di bawah gerbang". Kedua angka itu milik FVG. Kohort
+    IFVG yang sebenarnya +0,160 lawan +0,345, diukur di
+    `docs/QA-IFVG-GATE.md` pada n=11.068.
+
+    Yang diikat: angka yang DICETAK harus angka kind itu sendiri, di kedua
+    permukaan teks dan di field `departure_held_rate` yang membawanya.
+    """
+    assert CEILING_COHORT_EXP_R[ZoneKind.FVG] != CEILING_COHORT_EXP_R[ZoneKind.IFVG], (
+        "kalau kedua kind memakai angka yang sama, test ini tidak bisa "
+        "membedakan tabel per kind dari satu pasang konstanta"
+    )
+    assert set(CEILING_COHORT_EXP_R) == set(CEILING_KINDS)
+
+    for kind in CEILING_KINDS:
+        below, above = CEILING_COHORT_EXP_R[kind]
+        other = next(k for k in CEILING_KINDS if k is not kind)
+        wrong_below, wrong_above = CEILING_COHORT_EXP_R[other]
+
+        # Di ATAS plafon, jadi peringatannya menyala dan mengutip kohortnya.
+        zone = _full_zone(kind, 1.50)
+        plan = _plan_for(zone)
+        assert plan is not None
+        assert plan.departure_held_rate == above, (kind, plan.departure_held_rate)
+
+        text = " ".join(plan.warnings) + " " + " ".join(
+            n.text for n in explain(zone, plan, "15m").notes
+        )
+        assert f"+{above:.3f}" in text, (kind, text)
+        assert f"+{wrong_above:.3f}" not in text, (
+            f"{kind} mengutip angka kohort {other}", text,
+        )
+        assert f"+{wrong_below:.3f}" not in text, (
+            f"{kind} mengutip angka kohort {other}", text,
+        )
 
 
 def test_the_advisor_quotes_the_threshold_the_zone_reports():

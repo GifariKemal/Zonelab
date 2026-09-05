@@ -54,7 +54,11 @@ from app.ict import (
 from app.indicators import bb_width, vwap as compute_vwap, volume_profile as compute_vp, wilder_adx, wilder_atr
 from app.layers import LAYERS
 from app.models import ImbalanceParams, LotSpec, SupplyDemandParams, ZoneSide
-from app.plan import DEPARTURE_GATE_ATR, DEPARTURE_GATE_ATR_CEILING, build
+# Kedua ambang dari `app.models`, tempat mereka hidup, bukan lewat `app.plan`
+# yang cuma meneruskannya. Sebuah re-export adalah sumber kedua yang bisa
+# hilang tanpa suara saat modul di tengahnya berubah.
+from app.models import DEPARTURE_GATE_ATR, DEPARTURE_GATE_ATR_CEILING
+from app.plan import build
 from app.probability import outcome_odds, summary as odds_line
 from app.portfolio import Book, Held, admits, aligned
 from app.poi import confluence, other_boxes

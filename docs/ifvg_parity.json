@@ -1,0 +1,53 @@
+{
+ "cell": "FX:XAUUSD 30m, 2026-09-05",
+ "tolerance_price": 0.01,
+ "our_window": {
+  "low": 4291.15,
+  "high": 4486.03,
+  "n_boxes": 40
+ },
+ "note": "Perbandingan HANYA di dalam jendela harga kita. Kotak pembanding di luar rentang itu tidak dihitung sebagai selisih aturan, ia di luar cap tampilan kita.",
+ "benchmarks": {
+  "LuxAlgo": {
+   "comparable": true,
+   "zones_total": 10,
+   "zones_in_our_window": 5,
+   "exact_matches": 5,
+   "rate": 1.0,
+   "unmatched": []
+  },
+  "ChartPrime": {
+   "comparable": true,
+   "zones_total": 37,
+   "zones_in_our_window": 7,
+   "exact_matches": 2,
+   "rate": 0.2857,
+   "unmatched": [
+    [
+     4432.85,
+     4425.97
+    ],
+    [
+     4378.9,
+     4358.23
+    ],
+    [
+     4356.88,
+     4339.19
+    ],
+    [
+     4329.05,
+     4324.37
+    ],
+    [
+     4321.61,
+     4310.7
+    ]
+   ]
+  },
+  "TradingFinder": {
+   "comparable": false,
+   "reason": "tidak menggambar box; menandai inversi dengan garis dan label"
+  }
+ }
+}

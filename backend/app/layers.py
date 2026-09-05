@@ -148,7 +148,17 @@ LAYERS: tuple[Layer, ...] = (
         note="The unfilled gap between the first and third of three candles.",
         evidence=(
             "+10 to +25 points against placebo, and it passed walk-forward 8 of 8 "
-            "on two geometries."
+            "on two geometries. "
+            "THE CEILING SORTS BY STOP TIGHTNESS, NOT BY HIT RATE, and that was "
+            "only named once the same gate was measured on the inversion in "
+            "docs/QA-IFVG-GATE.md: `departure_atr` here is the GAP HEIGHT in "
+            "ATR, so a tighter ceiling keeps smaller gaps, and a smaller gap is "
+            "a tighter stop against a target set by the opposing zone. Measured "
+            "on the inverted population the win rate FALLS as the ceiling "
+            "tightens, 47.8% to 39.7%, while the mean win rises 1.43 R to "
+            "2.41 R. Expectancy and profit factor still improve because both "
+            "are risk-normalised, so the gate earns its place - but price hits "
+            "the stop MORE often in the cohort it keeps."
         ),
     ),
     Layer(
@@ -165,6 +175,13 @@ LAYERS: tuple[Layer, ...] = (
     ),
     Layer(
         id="ifvg",
+        # DICATAT, TIDAK DIPAKAI UNTUK MENG-ORDER. `execute.py` menurunkan
+        # `GATE_DIRECTION` dengan penyaring `if layer.orderable`, jadi baris ini
+        # tidak menyentuh satu order pun; ia menyatakan arah yang diukur
+        # 5 September 2026 supaya registry tidak diam soal gerbang yang panel
+        # PLAN dan ADVISOR sudah pakai.
+        gate="ceiling",
+        measured_intervals=("15m", "30m", "1h", "4h"),
         role="Zona",
         family="ICT",
         label="Inverted fair value gap",
@@ -180,7 +197,15 @@ LAYERS: tuple[Layer, ...] = (
             "at a gap-free bar, t=+3,63, positive on eight of nine instruments. "
             "Price leaves an inverted gap and comes back slower than to an "
             "arbitrary level the same distance away. "
-            "Drawn for fidelity, never as a reading."
+            "Drawn for fidelity, never as a reading. "
+            "Its departure gate WAS measured, 5 September 2026, and the "
+            "ceiling direction held: exp_r +0.3450 below 0.25 ATR against a "
+            "+0.2348 baseline, Welch t=+5.18, walk-forward 8 of 8 on n=11,068 "
+            "over 15m to 4h. At 1d the sign agrees but no threshold clears "
+            "Bonferroni, and 1w has 16 trades. Read that as a SORTER and not "
+            "as a hit rate: the win rate FALLS as the ceiling tightens, 47.8% "
+            "to 39.7%, because the gate is keeping smaller gaps and a smaller "
+            "gap is a tighter stop. docs/QA-IFVG-GATE.md."
         ),
     ),
     Layer(
