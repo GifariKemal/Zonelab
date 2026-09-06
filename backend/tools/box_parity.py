@@ -1,6 +1,6 @@
-"""Parity kotak IFVG: detector kita lawan tiga script komunitas di TradingView.
+"""Parity kotak: detector kita lawan script komunitas di TradingView.
 
-    PYTHONPATH=. .venv/Scripts/python.exe -m tools.ifvg_parity
+    PYTHONPATH=. .venv/Scripts/python.exe -m tools.box_parity
 
 KENAPA PERBANDINGANNYA DI PINE, BUKAN LANGSUNG KE PYTHON. Feed-nya harus sama.
 Zonelab membaca terminal MT5 dan TradingView membaca FXCM; harga penutupan
@@ -75,6 +75,91 @@ def matches(a: tuple[float, float], b: tuple[float, float]) -> bool:
     return abs(a[0] - b[0]) <= TOL and abs(a[1] - b[1]) <= TOL
 
 
+#: ORDER BLOCK, 6 September 2026, setelah detector-nya diubah ke body-box plus
+#: impuls dari close.
+#:
+#: PEMBANDINGNYA BERGANTI, DAN ALASANNYA BUKAN SELERA. `Order Block Detector
+#: [LuxAlgo]` yang dipakai di putaran pertama ternyata memakai VOLUME PIVOT,
+#: bukan definisi adjacency: `ta.pivot` pada seri volume, tanpa syarat struktur
+#: dan tanpa syarat impuls, dengan box digambar low ke median. Ia mengukur objek
+#: yang berbeda, jadi membandingkan kotaknya dengan kotak kita bukan uji parity
+#: melainkan uji apakah dua definisi berbeda kebetulan bertemu.
+#:
+#: `Order Block Finder (Experimental)` memakai definisi yang SAMA dengan kita,
+#: yaitu lilin berlawanan terakhir sebelum sederet lilin searah. Ia menggambar
+#: GARIS, tiga per block - top, mid, bottom - dan mid-nya persis rata-rata
+#: keduanya, jadi ia memakai RENTANG PENUH lilin.
+#:
+#: KESAMAAN PERSIS KARENA ITU MUSTAHIL SECARA KONSTRUKSI, dan itu harus
+#: dinyatakan alih alih dilaporkan sebagai kegagalan: kita memakai BADAN lilin
+#: sejak 6 September 2026. Yang benar diuji adalah CONTAINMENT - kalau keduanya
+#: menandai lilin yang sama, badan kita harus duduk di dalam rentang mereka.
+OB_THEIRS = [
+    (4427.47, 4418.95),   # top/mid/bottom 4427.47 / 4423.21 / 4418.95
+    (4330.97, 4321.64),   # 4330.97 / 4326.305 / 4321.64
+]
+
+#: 40 kotak terbaru milik kita di sel yang sama, dari `Zonelab OB`.
+OB_OURS = [
+    (4610.66, 4607.57), (4605.02, 4603.89), (4605.02, 4552.04),
+    (4583.93, 4573.32), (4576.74, 4552.04), (4493.19, 4446.47),
+    (4483.35, 4472.50), (4479.86, 4470.48), (4473.71, 4467.67),
+    (4472.81, 4471.18), (4471.94, 4466.94), (4471.94, 4393.82),
+    (4468.80, 4462.93), (4463.18, 4453.89), (4460.22, 4452.24),
+    (4458.32, 4457.51), (4446.95, 4443.13), (4445.81, 4435.75),
+    (4445.81, 4418.54), (4440.10, 4426.82), (4440.06, 4435.54),
+    (4437.34, 4436.39), (4436.48, 4429.77), (4433.24, 4430.49),
+    (4429.56, 4429.07), (4427.47, 4422.46), (4421.51, 4420.61),
+    (4384.87, 4364.74), (4384.51, 4382.11), (4380.40, 4378.15),
+    (4372.79, 4364.74), (4372.73, 4365.89), (4356.31, 4342.99),
+    (4336.23, 4331.27), (4330.77, 4329.37), (4325.67, 4324.53),
+    (4317.25, 4315.64), (4309.83, 4309.27), (4308.92, 4308.47),
+    (4302.81, 4293.62),
+]
+
+#: Jejak filter, Python lawan cermin Pine-nya, pada aturan yang berlaku hari ini.
+#: Ini menguji SELURUH jalur keputusan dan bukan cuma koordinat, jadi ia
+#: pembanding yang berbeda dari tabel di atas dan keduanya perlu.
+OB_FILTER_TRACE = {
+    "python_mt5": {"candidates": 61222, "weak": 50293, "not_last": 2573, "drawn": 8356},
+    "pine_fxcm": {"candidates": 31635, "weak": 26015, "not_last": 1283, "drawn": 4337},
+}
+
+
+def order_block_parity() -> dict:
+    """Containment kotak, plus selisih jejak filter dalam poin persen."""
+    inside = []
+    for t_hi, t_lo in OB_THEIRS:
+        hits = [o for o in OB_OURS if o[0] <= t_hi + TOL and o[1] >= t_lo - TOL]
+        inside.append({
+            "theirs": [t_hi, t_lo],
+            "ours_inside": hits,
+            "count": len(hits),
+            "top_matches_exactly": any(abs(o[0] - t_hi) <= TOL for o in hits),
+        })
+
+    py, pine = OB_FILTER_TRACE["python_mt5"], OB_FILTER_TRACE["pine_fxcm"]
+    share = lambda d, k: d[k] / d["candidates"] * 100  # noqa: E731
+    trace = {
+        k: {
+            "python_pct": round(share(py, k), 2),
+            "pine_pct": round(share(pine, k), 2),
+            "diff_pp": round(share(pine, k) - share(py, k), 2),
+        }
+        for k in ("weak", "not_last", "drawn")
+    }
+    return {
+        "note": (
+            "Pembanding memakai RENTANG PENUH lilin dan kita memakai BADAN, jadi "
+            "yang diuji containment, bukan kesamaan persis."
+        ),
+        "containment": inside,
+        "all_contained": all(e["count"] >= 1 for e in inside),
+        "filter_trace": trace,
+        "max_abs_diff_pp": max(abs(v["diff_pp"]) for v in trace.values()),
+    }
+
+
 def main() -> int:
     lo = min(b for _t, b in OURS)
     hi = max(t for t, _b in OURS)
@@ -112,6 +197,12 @@ def main() -> int:
         for m in miss:
             print(f"      tak cocok: {m[0]} / {m[1]}", file=sys.stderr)
 
+    ob = order_block_parity()
+    out["order_block"] = ob
+    print(f"  order block: containment {sum(e['count'] >= 1 for e in ob['containment'])}"
+          f"/{len(ob['containment'])}, selisih jejak filter maksimum "
+          f"{ob['max_abs_diff_pp']} poin persen", file=sys.stderr)
+
     json.dump(out, sys.stdout, indent=1, ensure_ascii=False)
     print(file=sys.stdout)
     return 0
@@ -121,8 +212,10 @@ def _selftest() -> None:
     assert matches((100.0, 99.0), (100.005, 98.995))
     assert not matches((100.0, 99.0), (100.05, 99.0))
     # Tiap kotak harus punya top di atas bottom, di kedua daftar.
-    for z in OURS + BENCH["LuxAlgo"] + BENCH["ChartPrime"]:
+    for z in OURS + BENCH["LuxAlgo"] + BENCH["ChartPrime"] + OB_OURS + OB_THEIRS:
         assert z[0] > z[1], z
+    ob = order_block_parity()
+    assert ob["all_contained"], ob["containment"]
 
 
 if __name__ == "__main__":
