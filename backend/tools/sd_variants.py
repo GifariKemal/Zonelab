@@ -157,6 +157,52 @@ VARIANTS: list[dict] = [
     # repo ini mengukur sesuatu yang tidak persis dijalankan produksi.
     {"name": "K departure_min_atr 2,0 saat deteksi", "fn": None,
      "p": {"departure_min_atr": 2.0}},
+    # LENGAN L SAMPAI O DIUKUR DI ATAS K, BUKAN DI ATAS A, dan itu perbedaan
+    # yang menentukan. Produksi MENGIRIM gerbangnya, jadi sebuah aturan yang
+    # membantu populasi tanpa gerbang belum tentu membantu populasi yang sudah
+    # disaring gerbang itu - keduanya bisa menyaring hal yang sama. Persis itu
+    # yang terjadi di order block pada 6 September 2026: gerbang departure-nya
+    # berhenti memisahkan begitu filter impuls-dari-close dikirim.
+    {"name": "L K + proximal_basis body", "fn": None,
+     "p": {"departure_min_atr": 2.0, "proximal_basis": "body"}},
+    {"name": "M K + impulse_atr 1,5", "fn": None,
+     "p": {"departure_min_atr": 2.0, "impulse_atr": 1.5}},
+    {"name": "N K + body ratio 0,7", "fn": None,
+     "p": {"departure_min_atr": 2.0, "impulse_body_ratio": 0.7}},
+    {"name": "O K + body + impulse_atr 1,5", "fn": None,
+     "p": {"departure_min_atr": 2.0, "proximal_basis": "body", "impulse_atr": 1.5}},
+    # ATURAN MITIGASI, dan ini celah yang riset temukan, bukan tebakan. Empat
+    # aturan yang saling bertentangan beredar di literatur: mati saat disentuh
+    # sekali, mati saat close menembus, mati saat sumbu menembus, dan melemah
+    # setelah beberapa tes. PENETRASI PERSENTASE TIDAK ADA DI SATU SUMBER PUN,
+    # tidak di literatur metodenya dan tidak di tiga belas indikator TradingView
+    # terpopuler yang kodenya dibaca. Kita mengirim `mitigation_pct = 0.5`.
+    #
+    # Dua ujung grid-nya memetakan ke dua aturan yang MEMANG ada di literatur:
+    # 0,0 adalah "sekali pakai, mati saat disentuh", 1,0 adalah "hidup sampai
+    # tertembus penuh". Diukur sendiri sendiri dan di atas gerbang produksi,
+    # karena pelajaran lengan L adalah bahwa keduanya bisa menjawab berbeda.
+    {"name": "P mitigation_pct 0,0 sekali pakai", "fn": None,
+     "p": {"mitigation_pct": 0.0}},
+    {"name": "Q mitigation_pct 1,0 tembus penuh", "fn": None,
+     "p": {"mitigation_pct": 1.0}},
+    {"name": "R K + mitigation_pct 0,0", "fn": None,
+     "p": {"departure_min_atr": 2.0, "mitigation_pct": 0.0}},
+    {"name": "S K + mitigation_pct 1,0", "fn": None,
+     "p": {"departure_min_atr": 2.0, "mitigation_pct": 1.0}},
+    # AMBANG IMPULS 3,0, KARENA DUA RUTE MQL5 YANG BERBEDA MENDARAT DI SANA.
+    # `Liquidity Zone` menyatakannya sebagai default `RatioMultiplier`, dan
+    # artikel MQL5 20904 memperolehnya sebagai median cluster pada 9.663 pasangan
+    # base-exit XAUUSD M5. Kebetulan yang layak diuji, BUKAN konfirmasi: rute
+    # kedua meng-cluster geometri lilin tanpa satu variabel outcome pun di dalam
+    # pipeline-nya, jadi angkanya menggambarkan bentuk lilin yang paling umum,
+    # bukan zona yang paling sering bekerja. Dan besarannya pun tidak sama
+    # dengan `impulse_atr` kita: mereka rasio terhadap base, kita rasio terhadap
+    # ATR. Diuji karena murah, dilaporkan sebagai apa adanya.
+    {"name": "T K + impulse_atr 2,5", "fn": None,
+     "p": {"departure_min_atr": 2.0, "impulse_atr": 2.5}},
+    {"name": "U K + impulse_atr 3,0", "fn": None,
+     "p": {"departure_min_atr": 2.0, "impulse_atr": 3.0}},
 ]
 #: Bonferroni atas jumlah varian yang dibandingkan dengan produksi.
 T_THRESHOLD = _critical_t(len(VARIANTS) - 1)

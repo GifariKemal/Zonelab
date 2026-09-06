@@ -332,6 +332,26 @@ def detect(
 
     for k in range(len(run_list) - 2):
         leg_in, base_run, leg_out = run_list[k], run_list[k + 1], run_list[k + 2]
+        # THE LEG TESTS HERE ARE UNREACHABLE, and saying so is worth more than
+        # deleting them. `runs` never emits two adjacent runs with the same
+        # label, so a base run is ALWAYS flanked by exciting runs: measured on
+        # 6,000 bars of XAUUSD 30m, 1,971 runs, ZERO adjacent pairs share a
+        # label, and of 881 triples with a base in the middle, ZERO were
+        # rejected by `leg_in[0] == 0`.
+        #
+        # That matters beyond tidiness. A research pass on 6 September 2026
+        # reported that no source in this method's literature applies any test
+        # to the LEG-IN, and treated our applying `impulse_body_ratio` to both
+        # legs as a departure worth measuring. It is not a departure: there is
+        # no separate leg-in test to remove. One classifier decides what is base
+        # and what is a leg, and the run structure does the rest - so the axis
+        # is already covered by loosening that classifier, which measured
+        # t=+0.01 against baseline (arm E, docs/QA-SD-GATE.md).
+        #
+        # Kept rather than deleted because the guard states the shape the loop
+        # depends on. If `runs` ever merges differently, this is the line that
+        # should start rejecting things rather than the loop silently reading
+        # two legs of the same direction as a formation.
         if leg_in[0] == 0 or base_run[0] != 0 or leg_out[0] == 0:
             continue
 
