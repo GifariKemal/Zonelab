@@ -206,7 +206,14 @@ GATE_MEASURED = {
 
 
 def test_only_the_kinds_with_their_own_measurement_claim_one():
-    """BRK memajang verdict dari ambang yang tidak pernah diukur untuknya.
+    """BRK menahan verdict-nya, dan alasannya berbalik pada 6 September 2026.
+
+    Sampai hari itu ia ditahan karena ambangnya BELUM PERNAH diukur untuknya.
+    Sekarang terukur - `docs/QA-BRK-GATE.md`, 12 sel, n=7.410 - dan ia tetap
+    ditahan karena angkanya mengatakan TIDAK ADA gerbang: tidak satu ambang pun
+    dari 1,0 sampai 6,0 memisahkan, dan baseline tanpa gerbang sudah exp_r
+    +0,2618 di t=+12,60. Menampilkan verdict akan menyiratkan pemisahan yang
+    pengukurannya bantah.
 
     `gate_cleared` selalu menjawab karena ia aritmetika, jadi tanpa
     `gate_measured` sebuah kotak BRK di zone card membawa titik verdict yang

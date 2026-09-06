@@ -134,19 +134,34 @@ CEILING_COHORT_EXP_R: dict[ZoneKind, tuple[float, float]] = {
 #: lantai dan tidak punya satu pun.
 SUPPLY_DEMAND_KINDS = (ZoneKind.RBR, ZoneKind.DBR, ZoneKind.DBD, ZoneKind.RBD)
 
-#: Kind yang ambang gerbangnya BELUM pernah diukur untuknya sendiri.
+#: Kind yang verdict gerbangnya TIDAK LAYAK DITAMPILKAN, dan alasannya berbeda
+#: per kind.
 #:
 #: SETIAP KIND MENDAPAT `gate_atr` DAN `gate_cleared`, karena keduanya
-#: diturunkan dan tidak punya cara mengembalikan "tidak tahu". Tanpa daftar ini
-#: sebuah zona BRK memajang verdict yang terlihat sama otoritatifnya dengan
-#: verdict FVG, padahal lantai 2,0 ATR tidak pernah diukur untuk BRK: ia
+#: diturunkan dan tidak punya cara mengembalikan "tidak tahu". Daftar ini yang
+#: menahan verdict itu di permukaan yang menampilkannya.
+#:
+#: BRK, SAMPAI 6 SEPTEMBER 2026, ada di sini karena BELUM PERNAH DIUKUR: ia
 #: mewarisi `departure_atr` dari order block induknya lewat mekanisme yang sama
 #: dengan IFVG, lalu dinilai dengan ambang milik induknya.
 #:
-#: Yang SUDAH diukur, dan sumbernya: keempat kind supply/demand plus OB pada
-#: lantai 2,0 (`docs/CALIBRATION.md`), FVG pada plafon 0,25
+#: SEKARANG IA TERUKUR, DAN TETAP DI SINI, dengan alasan yang berbalik.
+#: `docs/QA-BRK-GATE.md`, 12 sel dan n=7.410: gerbangnya TIDAK MEMISAHKAN di
+#: satu ambang pun dari 1,0 sampai 6,0. Baseline tanpa gerbang exp_r +0,2618
+#: dengan t=+12,60, dan tiap lantai cuma memangkas populasi tanpa selisih yang
+#: melewati Bonferroni. Sebuah verdict yang ditampilkan menyiratkan pemisahan
+#: yang pengukurannya justru bantah, jadi ia tetap ditahan - bukan karena tidak
+#: ada angkanya, melainkan karena angkanya mengatakan tidak ada gerbang.
+#:
+#: Yang SUDAH diukur DAN memisahkan, dengan sumbernya: keempat kind
+#: supply/demand pada lantai 2,0 (`docs/CALIBRATION.md`), FVG pada plafon 0,25
 #: (`docs/QA-FVG-RECALIBRATION.md`), IFVG pada plafon 0,25
-#: (`docs/QA-IFVG-GATE.md`, 5 September 2026).
+#: (`docs/QA-IFVG-GATE.md`).
+#:
+#: OB TIDAK DI SINI meski gerbangnya juga berhenti memisahkan setelah detector
+#: itu diperbaiki, dan itu perbedaan yang disengaja: lantainya masih MENGIKAT
+#: jalur order-nya lewat `tools/execute.py`, jadi pembaca berhak melihat
+#: verdict yang benar-benar menentukan apakah sebuah order dikirim.
 GATE_UNMEASURED_KINDS = (ZoneKind.BRK,)
 
 

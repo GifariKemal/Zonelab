@@ -304,6 +304,11 @@ def _rows_cached(detector: str) -> tuple[list[dict], dict[str, dict]]:
 GRIDS = {
     "ifvg": [0.1, 0.25, 0.5, 1.0, 1.5, 2.0, 3.0],
     "order_block": [1.0, 1.5, 2.0, 2.5, 3.0, 4.0, 6.0],
+    # BREAKER MEMAKAI GRID ORDER BLOCK, karena `departure_atr`-nya adalah milik
+    # order block induknya, dibawa apa adanya oleh `detect/inversion.py`. Sebuah
+    # grid sendiri akan menyiratkan besaran yang berbeda, padahal angkanya
+    # persis angka yang sama.
+    "breaker": [1.0, 1.5, 2.0, 2.5, 3.0, 4.0, 6.0],
 }
 
 
