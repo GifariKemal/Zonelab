@@ -235,7 +235,30 @@ function rect(box: Box, kx: number, ky: number) {
  *  Diukur di 500 bar terakhir XAUUSD, pane 564 px, layer breaker saja: sebelum
  *  angka ini dinaikkan, 1w menggambar 12 dari 51 box lebih tipis dari satu
  *  pixel, dan dua di antaranya terlihat di layar sebagai garis horizontal
- *  polos di sekitar 2700 dan 2450. */
+ *  polos di sekitar 2700 dan 2450.
+ *
+ *  6 SUDAH DICOBA DAN DITOLAK, jadi angkanya tidak perlu ditebak lagi. Yang
+ *  dibeli dua baris interior tambahan pada box yang di 4 pun sudah terbaca
+ *  sebagai box: interior naik 4 baris ke 6, tinggi 7 device px ke 9, diukur di
+ *  box breaker tertipis di 1w pada canvas 913x413.
+ *
+ *  Yang dibayar diukur di baris yang sama, karena memekar berarti tepi distal
+ *  digambar jauh dari harga sebenarnya:
+ *
+ *    tf   harga/px   lantai 4 mengikat        lantai 6 mengikat
+ *    1w   13,42      44/51, sampai 50,2, 15x  46/51, sampai 77,1, 23x
+ *    1d    8,66      30/49, sampai 31,3, 10x  36/49, sampai 48,6, 16x
+ *    4h    2,29      27/70, sampai  8,2, 10x  38/70, sampai 12,8, 15x
+ *    1h    1,43      20/56, sampai  4,9,  7x  29/56, sampai  7,7, 10x
+ *
+ *  Baris 1h yang memutuskan: 4 ke 6 menaikkan porsi box yang tepinya digambar
+ *  bohong dari 36 ke 52 persen, di timeframe yang tepinya benar benar dibaca.
+ *
+ *  Angka 15x dan 23x di 1w bukan cacat konstruksi ini. Lantai pixel APA PUN
+ *  akan banyak mengikat di sana, karena 500 minggu di pane 330 px memang tidak
+ *  bisa menampilkan zona setipis itu. Yang menyelamatkannya: lantai ini
+ *  berhenti mengikat begitu pembaca zoom in, jadi distorsinya ada persis di
+ *  tempat alternatifnya tidak terlihat sama sekali. */
 const MIN_BOX_MEDIA_PX = 4;
 
 /** Menegakkan `MIN_BOX_MEDIA_PX`, memekar dari sisi DISTAL.
