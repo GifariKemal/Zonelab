@@ -314,6 +314,11 @@ def _rows_cached(detector: str) -> tuple[list[dict], dict[str, dict]]:
 #: memang duduk di angka yang lebih besar.
 GRIDS = {
     "ifvg": [0.1, 0.25, 0.5, 1.0, 1.5, 2.0, 3.0],
+    # SUPPLY AND DEMAND MEMAKAI GRID ORDER BLOCK, dan di sini itu memang
+    # besaran yang sebanding: `departure_atr` untuk keduanya adalah panjang
+    # LEG-OUT dalam ATR. Untuk FVG angka itu berarti TINGGI GAP, yang sebabnya
+    # grid ifvg dimulai sepuluh kali lebih rendah.
+    "supply_demand": [1.0, 1.5, 2.0, 2.5, 3.0, 4.0, 6.0],
     "order_block": [1.0, 1.5, 2.0, 2.5, 3.0, 4.0, 6.0],
     # BREAKER MEMAKAI GRID ORDER BLOCK, karena `departure_atr`-nya adalah milik
     # order block induknya, dibawa apa adanya oleh `detect/inversion.py`. Sebuah
