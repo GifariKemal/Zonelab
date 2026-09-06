@@ -171,7 +171,27 @@ LAYERS: tuple[Layer, ...] = (
         kind="detector",
         params="imbalance",
         note="The LAST opposing candle before the impulse.",
-        evidence="Measured through the same rig as the fair value gap, same result.",
+        evidence=(
+            "REBUILT AND RE-MEASURED 6 September 2026, docs/QA-OB-GATE.md, "
+            "12 cells and n=7,777. This line used to read 'measured through the "
+            "same rig as the fair value gap, same result', which pointed at "
+            "another detector's result and at a version of this one that no "
+            "longer exists. Its own numbers: profit factor 0.984 to 1.320, "
+            "expectancy -0.0053 to +0.1600, Welch t=+8.10 against the old rule, "
+            "walk-forward 8 of 8. Four of six timeframes now clear PF 1, "
+            "including 4h which was 0.761 at walk-forward 0 of 8. "
+            "TWO CHANGES DID IT. The box is the candle BODY rather than its "
+            "whole range, because the stop sits beyond the distal and risk is "
+            "therefore box height - which the whole range hands to wick length, "
+            "a quantity unrelated to the signal being tested. And the impulse is "
+            "measured to the extreme CLOSE rather than the extreme wick, because "
+            "30.6% of blocks qualified on a wick no close ever confirmed. "
+            "READ IT AS GEOMETRY, NOT AS A BETTER GUESS: the win rate FELL, "
+            "53.7% to 43.1%, and what rose is R per win. Only the close-impulse "
+            "half is a true filter, and that half barely moves the win rate. "
+            "1d still measures PF 0.975, below one, and this layer carries no "
+            "measured_intervals - so the executor accepts it there."
+        ),
     ),
     Layer(
         id="ifvg",

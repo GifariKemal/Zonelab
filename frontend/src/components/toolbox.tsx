@@ -269,7 +269,7 @@ export const Toolbox = memo(function Toolbox({
               k="require-structure-break"
               hint="Order block only: the impulse must CLOSE beyond a confirmed swing, not merely travel the displacement size."
               note="Ships off, and that is this engine's biggest departure from ICT. The figures usually quoted to justify requiring it - 52% against 65-68% on 2,400 setups - are untraceable, so neither camp has evidence to hand. On costs a second pass over the bars: fractal swings plus a forward walk."
-              evidence="On 600 hourly gold bars it cut the order block from 23 boxes to 10 and rejected 84 candidates - two thirds of the drawing. WHAT THE REMAINING THIRD IS WORTH is unmeasured, here as everywhere else: a stricter gate is not a better one until something has been measured against outcomes."
+              evidence="On 600 hourly gold bars it cut the order block from 23 boxes to 10 and rejected 84 candidates - two thirds of the drawing. WHAT THE REMAINING THIRD IS WORTH WAS MEASURED on 6 September 2026, docs/QA-OB-GATE.md, and it is worth almost nothing: profit factor 1.007 against a 1.128 baseline, walk-forward 4 of 8, and the win rate collapsing to 39.4%. Added on top of the body-box rule it moves profit factor from 1.351 to 1.354 while cutting the population 73%. This is the most contested rule in the ICT literature and the one LuxAlgo's Smart Money Concepts makes structurally mandatory; here it buys nothing."
             />
             {/* Hidden rather than greyed while the gate is off, because the
                 engine does not read either of them then - a slider that moves

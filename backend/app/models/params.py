@@ -249,8 +249,14 @@ class ImbalanceParams(ParamBlock):
             "the contested rule and the engine's biggest ICT departure. It ships "
             "OFF, and the reason is the same one every gate here answers to: the "
             "figures usually quoted to justify requiring it (52% against 65-68% "
-            "on 2,400 setups) are untraceable, so neither camp has evidence. On "
-            "by request, measured like everything else."
+            "on 2,400 setups) are untraceable, so neither camp has evidence. "
+            "MEASURED AGAINST OUTCOMES 6 September 2026, docs/QA-OB-GATE.md, "
+            "and it buys almost nothing: profit factor 1.007 against a 1.128 "
+            "baseline, walk-forward 4 of 8, and the win rate collapsing to "
+            "39.4%. Stacked on top of the body-box rule it moves profit factor "
+            "1.351 to 1.354 while cutting the population 73%. Until that day "
+            "this line said only that the flag was 'measured like everything "
+            "else', which was a promise rather than a result."
         ),
     )
     structure_break_bars: int = Field(
