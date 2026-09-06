@@ -220,6 +220,108 @@ Yang mengungkapkannya aritmetika, bukan kecurigaan: lengan A memberi n=274 di
 sekarang diimpor dari `tools.calibrate`, satu sumber, dan `_selftest` mengikat
 ketiga knob-nya.
 
+## Multi timeframe, dan ia membalik bacaan 30m
+
+Lengan yang punya sinyal di 30m diulang di dua belas sel. Yang berubah bukan
+detailnya melainkan arahnya.
+
+| lengan | n | exp_r | WR | PF | wf | t lawan A |
+|---|---|---|---|---|---|---|
+| A produksi (rig, tanpa gerbang) | 8.624 | -0,0514 | 51,11% | 0,847 | 0/8 | - |
+| C body ratio 0,7 kedua kaki | 3.973 | -0,0303 | 48,18% | 0,918 | 1/8 | +1,13 |
+| F proximal_basis body | 6.946 | +0,0233 | 51,24% | 1,063 | 6/8 | +4,76 |
+| I impulse_atr 1,5 | 3.480 | +0,0007 | 49,17% | 1,002 | 5/8 | +2,70 |
+| **K gerbang 2,0 (PRODUKSI)** | **2.200** | **+0,0532** | 44,82% | **1,121** | 6/8 | +3,70 |
+| **L K + proximal body** | **2.631** | **+0,0638** | 41,77% | **1,131** | **8/8** | **+3,91** |
+| M K + impulse_atr 1,5 | 1.333 | +0,0285 | 44,71% | 1,067 | 4/8 | +2,32 |
+| N K + body ratio 0,7 | 1.108 | +0,0164 | 41,61% | 1,036 | 4/8 | +1,68 |
+
+Di 30m sendirian, L LEBIH BURUK dari K: +0,0496 lawan +0,1083. Di dua belas sel
+ia lebih baik di setiap sumbu dan satu satunya lengan di seluruh program ini yang
+mencapai walk-forward 8 dari 8. Membaca sapuan dua sel saja akan menolak satu
+satunya kandidat yang lolos fold-nya.
+
+### Dan ia tetap tidak layak dikirim
+
+> [!IMPORTANT]
+> Angka +3,91 milik lengan L diukur lawan lengan A, dan **lengan A bukan
+> produksi**. A menjalankan `departure_min_atr = 0.0`, populasi rig; produksi
+> mengirim 2,0, yaitu lengan K. Welch t lengan L lawan K adalah **+0,272**, jauh
+> di bawah ambang 3,0233 yang sama.
+>
+> Versi pertama `tools/sd_variants.py` mencetak verdict `"LEBIH BAIK dari
+> produksi"` untuk lengan L. Labelnya sekarang menyebut lengan A, karena sebuah
+> lengan yang mengalahkan baseline tanpa gerbang belum mengalahkan apa pun yang
+> dikirim.
+
+Per timeframe menjelaskan kenapa selisih gabungannya tipis: L menolong 15m
+banyak, MERUSAK 30m, dan mengurangi rugi di 4h dan 1d.
+
+| tf | K exp_r | L exp_r | K PF | L PF | K wf | L wf |
+|---|---|---|---|---|---|---|
+| 15m | +0,0672 | **+0,2081** | 1,121 | **1,377** | 6/8 | 5/8 |
+| 30m | +0,1083 | **+0,0496** | 1,224 | **1,089** | 5/8 | 5/8 |
+| 1h | +0,0596 | +0,0695 | 1,135 | 1,146 | 5/8 | 6/8 |
+| 4h | -0,0437 | -0,0054 | 0,857 | 0,984 | 3/8 | 3/8 |
+| 1d | -0,0977 | -0,0695 | 0,589 | 0,736 | 0/1 | 2/6 |
+
+Tidak satu timeframe pun mencapai 8 dari 8 untuk kedua lengan; angka 8 dari 8
+milik L adalah sifat agregatnya. Selisih bersihnya +0,0106 R.
+
+## Cermin Pine, dan cacat yang ia temukan di dirinya sendiri
+
+`Zonelab SD` ditulis di TradingView sebagai cermin `supply_demand.detect`,
+dengan tabel jejak filter di sudut chart. Pola yang sama dengan `Zonelab OB` di
+`docs/QA-OB-GATE.md`: yang dibandingkan PROPORSI penolakan, bukan koordinat box,
+karena `FX:XAUUSD` dan `mt5:XAUUSD` adalah dua instrumen berbeda.
+
+Run pertama cermin itu langsung menemukan cacat, dan cacatnya di cerminnya:
+Python melaporkan `rejected_base_drifted` sebagai 14,01 persen kandidat dan
+Pine-nya tidak punya bucket itu sama sekali. Aturan `|close[base_to] -
+open[base_from]| / height <= max_base_drift` terlewat saat membaca detector.
+Ditambahkan, dan DI URUTAN YANG SAMA - Python memeriksa drift sebelum departure,
+dan urutan itu menentukan setiap proporsi sesudahnya adalah proporsi DARI apa.
+
+Setelah diperbaiki, XAUUSD 30m:
+
+| bucket | Python (mt5, 9.236 kandidat) | Pine (FX, 4.942 kandidat) | selisih |
+|---|---|---|---|
+| base too tall | 9,38% | 12,04% | +2,66 pp |
+| base drifted | 14,01% | 11,31% | -2,70 pp |
+| weak departure | 55,46% | 56,74% | +1,28 pp |
+| drawn | 21,16% | 19,89% | -1,27 pp |
+
+Selisih absolut terbesar **2,70 poin persen**, di dua venue dengan panjang
+riwayat berbeda. Dua peringatan compiler juga ditolak alih alih diabaikan:
+`ta.highest` di dalam conditional tidak dievaluasi tiap bar, jadi ekstrem base
+dihitung dengan loop offset yang eksak.
+
+## Benchmark lawan indikator lain di chart yang sama
+
+`Supply and Demand Zones [BigBeluga]` ditambahkan ke chart yang sama, XAUUSD 30m.
+
+**Jumlah box tidak dibandingkan**, dan itu pelajaran dari `docs/QA-OB-GATE.md`
+di mana klaim "6 lawan 6440" ternyata membandingkan yang DITAMPILKAN dengan yang
+DIDETEKSI. Keduanya di sini adalah hitungan tampilan, dan milik kita di-cap 40.
+
+Yang dibandingkan tinggi box dan apakah kedua metode menunjuk harga yang sama:
+
+| | tinggi minimum | median | maksimum |
+|---|---|---|---|
+| BigBeluga | 23,72 | 26,89 | 27,30 |
+| Zonelab SD | 8,90 | 16,76 | 36,39 |
+
+Tinggi mereka praktis konstan, dan itu memang konstruksinya: satu tepi adalah
+wick extreme dan tepi lawannya `ATR(200) * 2`, jadi tingginya tidak membawa
+informasi apa pun tentang lilinnya. Tinggi kita adalah rentang base sungguhan.
+
+**7 dari 8 zona mereka beririsan dengan minimal satu zona kita.** Irisannya
+sangat tidak merata: 100 persen, 73 persen, 65 persen, 57 persen, lalu 22, 4 dan
+3,5 persen, dan satu tanpa irisan sama sekali. Jadi kedua metode menemukan
+wilayah harga yang sebagian besar sama dan menggambar batas yang berbeda, yang
+merupakan hasil yang diharapkan ketika satu pihak menurunkan tinggi dari ATR dan
+pihak lain dari base.
+
 ## Cara mengulang
 
 ```bash

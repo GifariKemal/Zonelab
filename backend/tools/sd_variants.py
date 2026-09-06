@@ -363,11 +363,19 @@ def main() -> int:
                 and r.get("wf_graded", 0) > 0
                 and r.get("wf_positive") == r.get("wf_graded")
             )
+            # LABELNYA MENYEBUT LENGAN A, BUKAN PRODUKSI, dan perbedaan itu
+            # bukan kerapian. Lengan A adalah populasi rig, yang menjalankan
+            # `departure_min_atr = 0.0`; produksi mengirim 2,0. Versi pertama
+            # baris ini berbunyi "LEBIH BAIK dari produksi" dan pada 6 September
+            # 2026 ia mencetak itu untuk lengan L, yang Welch t-nya lawan
+            # produksi sebenarnya +0,272 - jauh di bawah ambang yang sama.
+            # Sebuah lengan yang mengalahkan baseline tanpa gerbang belum
+            # mengalahkan apa pun yang dikirim.
             r["verdict"] = (
-                "LEBIH BAIK dari produksi" if better and
+                "lebih baik dari lengan A, BUKAN dari produksi" if better and
                 abs(r["welch_t_vs_baseline"]) >= T_THRESHOLD
-                else "lebih baik tapi tidak signifikan" if better
-                else "tidak lebih baik"
+                else "lebih baik dari A tapi tidak signifikan" if better
+                else "tidak lebih baik dari A"
             )
         else:
             r["verdict"] = "tidak terukur, n di bawah MIN_GROUP"
@@ -382,6 +390,12 @@ def main() -> int:
         ),
         "t_threshold_bonferroni": round(T_THRESHOLD, 4),
         "min_group": MIN_GROUP,
+        "baseline_is_not_production": (
+            "Lengan A menjalankan `departure_min_atr = 0.0`, populasi rig. "
+            "Produksi mengirim 2,0, yaitu lengan K. Setiap `welch_t_vs_baseline` "
+            "di bawah ini diukur lawan A; untuk pertanyaan pengiriman, "
+            "bandingkan lawan K."
+        ),
         "baseline": base,
         "variants": results[1:],
     }, sys.stdout, indent=1, ensure_ascii=False)
