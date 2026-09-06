@@ -57,6 +57,7 @@ import sys
 import numpy as np
 
 from app.detect import DETECTORS
+from app.detect import imbalance
 from app.detect.imbalance import _arrays, _finish, _present, detect_order_block
 from app.detect.structure import breaks
 from app.indicators import wilder_atr
@@ -66,11 +67,25 @@ from tools.detectors_costed import FOLDS, one_sample_t, welch
 from tools.gate_sweep import CELL_SETS
 from tools.gate_sweep import cell_rows as _cell_rows
 
+
+@contextlib.contextmanager
+def _floor(value: float):
+    """Menyetel lantai tinggi kotak produksi untuk sebentar.
+
+    SATU PROSES, SATU THREAD. Ia menukar konstanta modul, jadi dua pengukuran
+    paralel di proses yang sama akan saling merusak - pola yang sama dengan
+    penukaran `DETECTORS[nama]` di tools lain di direktori ini.
+    """
+    before = imbalance.MIN_OB_BOX_RANGE
+    imbalance.MIN_OB_BOX_RANGE = value
+    try:
+        yield
+    finally:
+        imbalance.MIN_OB_BOX_RANGE = before
+
 CELLS = CELL_SETS["30m"]
 MIN_FOLD = 20
 MIN_GROUP = 30
-#: Lantai tinggi kotak untuk varian E, dalam ATR.
-MIN_BOX_ATR = 0.05
 CACHE = (
     pathlib.Path(__file__).resolve().parents[2] / "docs" / "brk_variants_rows_cache.json"
 )
@@ -97,7 +112,7 @@ def _invert_variant(
     *,
     sweep: str = "any",        # any | required | forbidden
     impulse_at_break: bool = False,
-    min_box_atr: float = 0.0,
+    unfloor: bool = False,
 ) -> tuple[list[Zone], dict[str, float]]:
     """`detect/inversion.py:_invert` untuk BRK, dengan lengan-lengan sapuan.
 
@@ -111,10 +126,16 @@ def _invert_variant(
         "rejected_too_small": 0, "rejected_sweep_arm": 0,
         "rejected_state_filter": 0,
     }
-    parents, _ = detect_order_block(
-        candles,
-        params.model_copy(update={"show_broken": True, "max_zones_per_side": 0}),
-    )
+    # LANTAI TINGGI KOTAK ADA DI PRODUKSI, di `detect_order_block`, dan kotak
+    # BRK menyalin `zone.top, zone.bottom` dari parent-nya. Jadi satu satunya
+    # cara mengukur biayanya di BRK adalah MENCABUTNYA, bukan menambahkannya:
+    # sebuah lengan yang memasang lantai di atas baseline yang sudah berlantai
+    # akan mengukur nol, dan `_selftest` di bawah menangkap versi itu.
+    with _floor(0.0 if unfloor else imbalance.MIN_OB_BOX_RANGE):
+        parents, _ = detect_order_block(
+            candles,
+            params.model_copy(update={"show_broken": True, "max_zones_per_side": 0}),
+        )
     if not parents:
         return _present([], params, stats, int(candles[-1].time) if candles else 0)
 
@@ -161,16 +182,6 @@ def _invert_variant(
                 departure = float(after.max() - float(close[broke])) / scale
 
         top, bottom = zone.top, zone.bottom
-        if min_box_atr > 0.0:
-            # DIMEKARKAN SIMETRIS supaya titik tengahnya tidak bergeser: sebuah
-            # lantai yang cuma menaikkan `top` akan memindahkan entry demand dan
-            # mengubah dua hal sekaligus.
-            floor = min_box_atr * float(atr[max(0, broke - 1)])
-            short = floor - (top - bottom)
-            if short > 0:
-                top += short / 2.0
-                bottom -= short / 2.0
-
         inverted = _finish(
             ZoneKind.BRK,
             ZoneSide.SUPPLY if zone.side is ZoneSide.DEMAND else ZoneSide.DEMAND,
@@ -188,11 +199,16 @@ def _invert_variant(
 
 
 VARIANTS: list[dict] = [
-    {"name": "A baseline (dikirim hari ini)", "kw": {}},
+    # MELACAK PRODUKSI, dan namanya harus mengatakan itu. Kunci cache memuat
+    # set sel dan nama lengan, tidak memuat kodenya, jadi baris yang ditulis
+    # sebelum `detect_order_block` berubah akan disajikan lagi setelahnya tanpa
+    # satu pesan pun. Jebakan yang sama sudah menggigit di `tools/ob_variants.py`
+    # pada 6 September 2026.
+    {"name": "A produksi saat ini", "kw": {}},
     {"name": "B sweep WAJIB", "kw": {"sweep": "required"}},
     {"name": "C sweep DILARANG", "kw": {"sweep": "forbidden"}},
     {"name": "D impuls diukur di break", "kw": {"impulse_at_break": True}},
-    {"name": "E lantai kotak 0,05 ATR", "kw": {"min_box_atr": MIN_BOX_ATR}},
+    {"name": "E TANPA lantai kotak", "kw": {"unfloor": True}},
     {"name": "F B+D bersama", "kw": {"sweep": "required", "impulse_at_break": True}},
 ]
 T_THRESHOLD = _critical_t(len(VARIANTS) - 1)
@@ -331,11 +347,13 @@ def _selftest() -> None:
     forb, _ = _invert_variant(c, p, sweep="forbidden")
     assert len(req) + len(forb) == len(base), (len(req), len(forb), len(base))
     assert 0 < len(req) < len(base), len(req)
-    floored, _ = _invert_variant(c, p, min_box_atr=MIN_BOX_ATR)
-    assert len(floored) == len(base)
-    assert min(z.top - z.bottom for z in floored) > min(
-        z.top - z.bottom for z in base
-    ), "lantai kotak tidak memekarkan apa pun"
+    # Arahnya DICABUT, bukan ditambahkan: lantainya sudah ada di produksi.
+    # Versi pertama lengan ini menambahkannya di atas baseline yang sudah
+    # berlantai, dan assert ini gagal - itulah yang mengungkapkannya.
+    bare, _ = _invert_variant(c, p, unfloor=True)
+    assert min(z.top - z.bottom for z in base) > min(
+        z.top - z.bottom for z in bare
+    ), "lantai produksi tidak memekarkan apa pun di BRK"
 
 
 if __name__ == "__main__":

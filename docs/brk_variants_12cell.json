@@ -1,0 +1,93 @@
+{
+ "question": "aturan breaker mana yang mengubah outcome",
+ "cell_set": "all",
+ "cells": [
+  "XAUUSD 15m",
+  "BTCUSD 15m",
+  "XAUUSD 30m",
+  "BTCUSD 30m",
+  "XAUUSD 1h",
+  "BTCUSD 1h",
+  "XAUUSD 4h",
+  "BTCUSD 4h",
+  "XAUUSD 1d",
+  "BTCUSD 1d",
+  "XAUUSD 1w",
+  "BTCUSD 1w"
+ ],
+ "t_threshold_bonferroni": 2.5758,
+ "min_group": 30,
+ "not_swept": "break lewat sumbu alih alih close: hidup di replay_lifecycle supply_demand.py, menyalinnya ke sini lebih mahal dari jawabannya",
+ "baseline": {
+  "variant": "A produksi saat ini",
+  "n": 7480,
+  "exp_r": 0.2631,
+  "t_vs_zero": 13.011,
+  "win_rate": 0.467,
+  "profit_factor": 1.566,
+  "wf_positive": 8,
+  "wf_graded": 8
+ },
+ "variants": [
+  {
+   "variant": "B sweep WAJIB",
+   "n": 1142,
+   "exp_r": 0.2895,
+   "t_vs_zero": 3.833,
+   "win_rate": 0.3345,
+   "profit_factor": 1.475,
+   "wf_positive": 8,
+   "wf_graded": 8,
+   "welch_t_vs_baseline": 0.338,
+   "verdict": "lebih baik tapi tidak signifikan"
+  },
+  {
+   "variant": "C sweep DILARANG",
+   "n": 6169,
+   "exp_r": 0.2367,
+   "t_vs_zero": 10.466,
+   "win_rate": 0.4523,
+   "profit_factor": 1.493,
+   "wf_positive": 8,
+   "wf_graded": 8,
+   "welch_t_vs_baseline": -0.87,
+   "verdict": "tidak lebih baik"
+  },
+  {
+   "variant": "D impuls diukur di break",
+   "n": 7480,
+   "exp_r": 0.2631,
+   "t_vs_zero": 13.011,
+   "win_rate": 0.467,
+   "profit_factor": 1.566,
+   "wf_positive": 8,
+   "wf_graded": 8,
+   "welch_t_vs_baseline": 0.0,
+   "verdict": "tidak lebih baik"
+  },
+  {
+   "variant": "E TANPA lantai kotak",
+   "n": 7411,
+   "exp_r": 0.2613,
+   "t_vs_zero": 12.576,
+   "win_rate": 0.4626,
+   "profit_factor": 1.556,
+   "wf_positive": 8,
+   "wf_graded": 8,
+   "welch_t_vs_baseline": -0.062,
+   "verdict": "tidak lebih baik"
+  },
+  {
+   "variant": "F B+D bersama",
+   "n": 1142,
+   "exp_r": 0.2895,
+   "t_vs_zero": 3.833,
+   "win_rate": 0.3345,
+   "profit_factor": 1.475,
+   "wf_positive": 8,
+   "wf_graded": 8,
+   "welch_t_vs_baseline": 0.338,
+   "verdict": "lebih baik tapi tidak signifikan"
+  }
+ ]
+}

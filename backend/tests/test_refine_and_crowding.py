@@ -430,6 +430,48 @@ def test_an_order_block_is_the_last_opposite_candle_before_the_move():
     assert blocks[0].bottom > 98.6
 
 
+def test_a_hairline_order_block_body_is_floored_at_a_share_of_its_range():
+    """Lantai tinggi kotak, dan kenapa acuannya rentang lilin dan bukan ATR.
+
+    Kotak badan menghasilkan ekor sangat tipis. Sensus XAUUSD 1h: yang
+    tertipis 0,0008 ATR, dan 63 kotak di bawah 0,05 ATR - sub-pixel di layar
+    mana pun, jadi ia tergambar sebagai GARIS, bukan zona. Lantai 0,15 dari
+    rentang lilin menaikkan yang tertipis ke 0,0364 ATR dan menyisakan 5.
+
+    Acuannya harus per-bar. Versi ATR ditulis lebih dulu dan
+    `tests/test_no_repaint.py` menolaknya: 4 dari 424 kotak bergeser saat
+    jendelanya tumbuh ke kiri, karena `wilder_atr` disemai dari bar pertama.
+
+    Dua arm, karena arm pertama sendirian juga lolos pada lantai yang cuma
+    menaikkan `top` - dan lantai seperti itu memindahkan entry demand.
+    """
+    rows = calm(20)
+    t = T0 + 20 * STEP
+    # Badan nyaris nol (100,00 -> 99,95) di dalam rentang lebar: high 100,3,
+    # low 98,6, jadi rentangnya 1,7 dan lantainya 0,255 - jauh di atas badan.
+    rows.append(bar(t, 100.0, 99.95, 0.3, 1.35))
+    price = 99.95
+    for i in range(1, 6):
+        rows.append(bar(t + i * STEP, price, price + 3.0, 0.0, 0.0))
+        price += 3.0
+    rows += [bar(t + (6 + i) * STEP, price, price, 0.5, 0.5) for i in range(10)]
+
+    zones, _ = detect_order_block(rows, imb())
+    blocks = [z for z in zones if z.side is ZoneSide.DEMAND and z.time_from == t]
+    assert len(blocks) == 1
+    box = blocks[0]
+
+    height = box.top - box.bottom
+    assert height == pytest.approx(1.7 * 0.15), (
+        "badan 0,05 harus dimekarkan ke 0,255; tanpa lantai ia tetap 0,05 dan "
+        "tergambar sebagai garis"
+    )
+    # ARM KEDUA: dimekarkan SIMETRIS. Titik tengah kotak harus tetap di titik
+    # tengah badan, karena entry demand duduk di proximal dan lantai yang cuma
+    # menaikkan `top` akan menggesernya.
+    assert (box.top + box.bottom) / 2.0 == pytest.approx((100.0 + 99.95) / 2.0)
+
+
 def test_a_wick_alone_does_not_qualify_an_order_block():
     """Impuls diukur ke CLOSE ekstrem, bukan ke sumbu, sejak 6 September 2026.
 

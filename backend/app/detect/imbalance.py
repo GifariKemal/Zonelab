@@ -20,9 +20,14 @@ the definition will produce identical output.
 disagree about (a) whether the move must break structure, (b) whether the box is
 the candle's whole range or only its body, and (c) how strong "strong" is. There
 is no primary source that settles any of the three. So the choices are stated:
-the box is the WHOLE RANGE of the last opposite-coloured candle, the move must
-clear `impulse_atr` ATR, and no structure break is required. A structure-break
-variant is a different detector and would need its own measurement.
+the box is the BODY of the last opposite-coloured candle, the impulse is
+measured to the extreme CLOSE of the bars that follow it and must clear
+`impulse_atr` ATR, and no structure break is required. A structure-break variant
+is a different detector and would need its own measurement.
+
+The first two of those changed on 6 September 2026 and both were measured
+before they were written: profit factor 0.984 to 1.320 over twelve cells,
+docs/QA-OB-GATE.md. This paragraph said WHOLE RANGE until then.
 
 WHY THEY REUSE `Zone`
 Both are boxes with a near edge, a far edge and a lifecycle, which is what
@@ -71,10 +76,18 @@ two of them were settled by measurement instead of opinion.
                           Not added as a separate field, because a second name
                           for one number is how two fields drift apart.
 
-  order block box         Whole high-to-low range. The most common convention,
-                          and the WIDEST of three - which mechanically raises
-                          the touch rate against a body-only detector, so
-                          cross-study comparison is invalid.
+  order block box         THE BODY, since 6 September 2026. It was the whole
+                          high-to-low range until then, which is the most common
+                          convention and the WIDEST of three - so cross-study
+                          comparison was invalid in one direction and is now
+                          invalid in the other. The change is not cosmetic: the
+                          stop sits beyond the distal, so risk per unit IS box
+                          height, and the whole range hands that to wick length,
+                          a quantity with no relationship to the signal. Measured
+                          over twelve cells: profit factor 0.984 to 1.247 on this
+                          alone, 1.320 together with the close-measured impulse.
+                          Read it as GEOMETRY: the win rate FELL, 53.7% to 43.1%,
+                          and what rose is R per win.
 
   no structure break      NOW OFFERED, still off by default. Contested rule:
                           required by some codifications, "recommended not
@@ -176,6 +189,13 @@ from ..models import (
 from .structure import breaks
 from ..profit_zone import mark_profit_zones
 from .supply_demand import cap_per_side, replay_lifecycle
+
+# Tinggi minimum kotak order block, sebagai pecahan dari RENTANG LILIN ITU
+# SENDIRI. Acuannya per-bar dan bukan ATR karena ATR adalah rata rata berjalan,
+# jadi lantai berbasis ATR membuat geometri kotak bergantung jendela dan
+# `tests/test_no_repaint.py` menolaknya. Alasan angka 0,15 dan bukti bahwa ia
+# tidak berbiaya ada di titik pakainya, di `detect_order_block`.
+MIN_OB_BOX_RANGE = 0.15
 
 
 def _arrays(candles: list[Candle]):
@@ -557,6 +577,51 @@ def detect_order_block(
         # Jadi yang membeli perbaikan itu stop yang menyempit.
         body_top = float(max(open_[i], close[i]))
         body_bottom = float(min(open_[i], close[i]))
+
+        # LANTAI TINGGI KOTAK, karena badan lilin bisa nyaris nol. Sensus di
+        # XAUUSD 1h: kotak tertipis 0,0008 ATR, dan 63 kotak di bawah 0,05 ATR,
+        # yaitu sub-pixel di layar mana pun - garis, bukan zona. Dimekarkan
+        # SIMETRIS supaya titik tengahnya tidak bergeser; lantai yang cuma
+        # menaikkan `top` akan memindahkan entry demand sekaligus.
+        #
+        # ACUANNYA RENTANG LILIN ITU SENDIRI, BUKAN ATR, dan itu bukan pilihan
+        # gaya. Versi ATR ditulis lebih dulu dan `tests/test_no_repaint.py`
+        # menolaknya: `wilder_atr` rata rata berjalan yang disemai dari bar
+        # pertama, jadi ATR di bar absolut yang sama BERBEDA antar jendela, dan
+        # 4 dari 424 kotak bergeser ~1e-5 saat jendelanya tumbuh ke kiri. Satu
+        # rentang lilin dihitung dari satu bar, jadi ia sama di jendela mana pun.
+        #
+        # 0,15 dari sensus, bukan selera: ia menaikkan kotak tertipis ke 0,0364
+        # ATR dan menyisakan 5 dari 63, sambil mengikat 17,0 persen kotak. 0,20
+        # menyisakan 1 tapi mengikat 22,9 persen.
+        #
+        # Diukur karena ia menyentuh geometri stop - risk per unit ADALAH tinggi
+        # kotak. Dua belas sel, `docs/QA-OB-GATE.md`: PF 1,320 ke 1,330, exp_r
+        # +0,1600 ke +0,1633, walk-forward 8 dari 8 di keduanya. Selisih 0,0033 R
+        # di 7853 sampel adalah nol dalam noise, dan itu memang klaimnya: lantai
+        # ini perbaikan GAMBAR yang dibuktikan tidak berbiaya, bukan edge baru.
+        #
+        # DIGESER KEMBALI KE DALAM LILINNYA, bukan dikecilkan. Pemekaran simetris
+        # sendirian mendorong kotak KELUAR rentang kalau badannya menempel di
+        # high atau low: sensus XAUUSD 1h, 178 dari 5.412 lilin yang lantainya
+        # mengikat (3,3 persen), terjauh 7,12 persen rentang di luar lilin. Kotak
+        # yang tergambar di luar lilin asalnya tidak bisa dipertahankan, dan ia
+        # juga akan mematahkan parity containment lawan Pine.
+        #
+        # Digeser dan bukan dikecilkan karena tingginya harus tetap sama dengan
+        # yang diukur; dan pergeseran selalu muat, sebab lantainya 0,15 rentang.
+        floor = (float(high[i]) - float(low[i])) * MIN_OB_BOX_RANGE
+        short = floor - (body_top - body_bottom)
+        if short > 0.0:
+            body_top += short / 2.0
+            body_bottom -= short / 2.0
+            if body_top > high[i]:
+                body_bottom -= body_top - float(high[i])
+                body_top = float(high[i])
+            elif body_bottom < low[i]:
+                body_top += float(low[i]) - body_bottom
+                body_bottom = float(low[i])
+
         zone = _finish(
             ZoneKind.OB, side, body_top, body_bottom, i,
             born,

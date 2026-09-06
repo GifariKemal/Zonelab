@@ -173,6 +173,36 @@ adalah hal yang DIWARISI.
 | E lantai kotak 0,05 ATR | 3.129 | +0,3446 | 46,60% | 1,695 | 8/8 | -0,13 | tidak lebih baik |
 | F B+D | 499 | +0,4075 | 32,46% | 1,640 | 8/8 | +0,40 | tidak signifikan |
 
+### Diulang di 12 sel, 6 September 2026, dan lengan E dibalik arahnya
+
+Detector order block berubah hari itu, dan kotak BRK menyalin `zone.top,
+zone.bottom` dari parent-nya, jadi seluruh tabel di atas diukur pada populasi
+yang sudah tidak ada. Diulang di 12 sel. Lengan A sekarang bernama "produksi
+saat ini" karena ia memang menunjuk ke `detect_order_block` yang HIDUP; kunci
+cache tidak memuat kode, jadi nama lama akan menyajikan angka detector lama
+untuk detector baru tanpa satu pesan pun.
+
+| lengan | n | exp_r | win rate | PF | wf | t | verdict |
+|---|---|---|---|---|---|---|---|
+| **A produksi saat ini** | **7.480** | **+0,2631** | 46,70% | **1,566** | 8/8 | - | - |
+| B sweep **wajib** | 1.142 | +0,2895 | **33,45%** | 1,475 | 8/8 | +0,34 | tidak signifikan |
+| C sweep **dilarang** | 6.169 | +0,2367 | 45,23% | 1,493 | 8/8 | -0,87 | tidak lebih baik |
+| D impuls diukur di break | 7.480 | +0,2631 | 46,70% | 1,566 | 8/8 | **0,0** | rancangan salah |
+| E **TANPA** lantai kotak | 7.411 | +0,2613 | 46,26% | 1,556 | 8/8 | -0,06 | tidak lebih baik |
+| F B+D | 1.142 | +0,2895 | 33,45% | 1,475 | 8/8 | +0,34 | tidak signifikan |
+
+Kesimpulan tabel 30m bertahan di populasi enam kali lebih besar. Sweep wajib
+tetap membuang 85 persen (7.480 ke 1.142) dan tetap menjatuhkan win rate, 46,70
+ke 33,45 persen, untuk t=+0,34 lawan ambang 2,5758. Sweep dilarang tetap
+positif. Cabang Keluarga 2 mati untuk kedua kalinya.
+
+**Lengan E dibalik arahnya, dan itu koreksi.** Versi pertamanya MENAMBAH lantai
+kotak di atas baseline, dan setelah lantainya dikirim ke `detect_order_block`
+baseline sudah berlantai, jadi lengan itu mengukur nol - cacat yang sama persis
+dengan lengan D. Yang menangkapnya `_selftest()` di `tools/brk_variants.py`,
+bukan pembacaan angkanya. Sekarang ia MENCABUT lantainya lewat context manager
+`_floor(0.0)`, jadi t=-0,06 berarti "membuang lantai tidak memperbaiki apa pun".
+
 ### Cabang Keluarga 2 mati di data ini
 
 Sweep yang sumber-sumber Keluarga 2 sebut **konstitutif** membuang 84 persen
@@ -198,36 +228,59 @@ seharusnya terlihat sebelum dijalankan.
 
 ### Lantai tinggi kotak, satu-satunya yang membeli sesuatu
 
-Kotak badan yang diwarisi dari order block membawa ekor sangat tipis, dan
-sebagian di bawah satu pixel di layar. Lantai 0,05 ATR yang dimekarkan simetris
-memperbaikinya:
+Kotak badan yang diwarisi dari order block membawa ekor sangat tipis, sebagian
+di bawah satu pixel di layar. Lantai 0,15 dari RENTANG LILIN, dimekarkan
+simetris lalu digeser kembali ke dalam lilinnya, memperbaikinya:
 
-| tf | terkecil sebelum | terkecil sesudah | jumlah di bawah 0,05 ATR |
-|---|---|---|---|
-| 30m | 0,0011 ATR | **0,0317** | 58 ke 27 |
-| 4h | 0,0005 | **0,0205** | 54 ke 40 |
-| 1d | 0,0002 | **0,0204** | 44 ke 28 |
+| tf | n | terkecil sebelum | terkecil sesudah | jumlah di bawah 0,05 ATR |
+|---|---|---|---|---|
+| 30m | 7.967 | 0,0003 ATR | **0,0116** | 550 ke **113** |
+| 4h | 1.152 | 0,0007 | **0,0234** | 104 ke **25** |
+| 1d | 387 | 0,0002 | **0,0068** | 43 ke **20** |
 
-Kasus terburuk membaik seratus kali lipat, dengan biaya exp_r -0,007 dan PF
--0,014, keduanya jauh dari signifikan.
+Kasus terburuk membaik tiga puluh sampai tiga puluh empat kali lipat, dengan
+biaya exp_r +0,0018 dan PF +0,010 - keduanya jauh dari signifikan, dan tandanya
+justru positif.
 
 > [!NOTE]
-> Sisa kotak di bawah 0,05 ATR bukan lantai yang gagal. Lantainya memakai ATR
-> LOKAL di bar break, sementara tabel ini mengukur terhadap ATR MEDIAN seluruh
-> deret, jadi periode yang volatilitasnya di bawah median tetap menghasilkan
-> rasio kecil. Yang terbaiknya menunjukkan efeknya adalah kolom terkecil.
+> Sisa kotak di bawah 0,05 ATR bukan lantai yang gagal. Lantainya relatif
+> terhadap RENTANG LILIN ITU SENDIRI, sementara tabel ini mengukur terhadap ATR
+> MEDIAN seluruh deret, jadi lilin kecil di periode tenang tetap menghasilkan
+> rasio kecil. Yang menunjukkan efeknya adalah kolom terkecil.
+
+> [!IMPORTANT]
+> Versi pertama lantai ini memakai ATR dan DITOLAK `tests/test_no_repaint.py`:
+> `wilder_atr` rata rata berjalan yang disemai dari bar pertama, jadi ATR di bar
+> absolut yang sama berbeda antar jendela dan geometri kotaknya ikut bergeser.
+> Empat dari 424 kotak bergeser ~1e-5, dan HANYA saat jendelanya tumbuh ke kiri.
+> Angka 0,05 ATR di tabel lengan 30m di atas mengukur besaran yang tidak pernah
+> dikirim. Rinciannya di `docs/QA-OB-GATE.md`.
 
 ### Jawabannya, untuk pertanyaan yang menyebabkan sapuan ini
 
-**Profit factor breaker tidak bisa dinaikkan.** Tidak satu lengan pun
-mengalahkan baseline secara signifikan. Yang bisa diperbaiki gambarnya, dan
-itu praktis gratis.
+**Profit factor breaker tidak bisa dinaikkan lewat lengan mana pun di sini.**
+Diuji dua kali, 30m dan 12 sel, dan tidak satu lengan pun mengalahkan baseline
+secara signifikan. Yang bisa diperbaiki gambarnya, dan itu terukur gratis.
+
+Angka yang naik justru datang dari tempat lain: PF 1,566 di 12 sel lawan 1,557
+sebelumnya bukan hasil sapuan ini sama sekali, melainkan warisan dari perbaikan
+detector order block pada 6 September 2026. BRK menyalin kotak parent-nya, jadi
+memperbaiki OB memperbaiki BRK tanpa satu baris di `inversion.py` berubah. Itu
+juga peringatan: setiap kali OB berubah, tabel di halaman ini kedaluwarsa.
 
 ## Cara mengulang
 
 ```bash
 cd backend && PYTHONPATH=. .venv/Scripts/python.exe -m tools.gate_sweep --detector breaker
+cd backend && PYTHONPATH=. .venv/Scripts/python.exe -m tools.brk_variants --cells all
 ```
+
+> [!WARNING]
+> Tulis hasilnya ke file sementara dan pindahkan hanya kalau exit 0. Redirect
+> langsung ke `docs/brk_variants_12cell.json` memotong file itu jadi 0 byte
+> SEBELUM perintahnya jalan, dan sapuan 12 sel bisa mati di menit ke-20 karena
+> otorisasi MT5 berkedip. Itu terjadi pada 6 September 2026, ke dua file
+> sekaligus.
 
 ---
 

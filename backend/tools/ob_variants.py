@@ -88,7 +88,7 @@ def detect_body_box(
 def _run(
     candles: list[Candle], params: ImbalanceParams, *,
     body_box: bool, close_impulse: bool, one_per_impulse: bool,
-    body_midpoint: bool = False, min_box_atr: float = 0.0,
+    body_midpoint: bool = False, min_box_range: float = 0.0,
 ) -> tuple[list[Zone], dict[str, float]]:
     """`detect_order_block`, tetapi kotaknya dari BADAN lilin block.
 
@@ -179,22 +179,34 @@ def _run(
             stats["rejected_zero_body"] += 1
             continue
 
-        if min_box_atr > 0.0:
+        if min_box_range > 0.0:
             # LANTAI TINGGI KOTAK, DIMEKARKAN SIMETRIS supaya titik tengahnya
             # tidak bergeser: sebuah lantai yang cuma menaikkan `top` akan
             # memindahkan entry demand dan mengubah dua hal sekaligus.
             #
-            # Ini pertanyaan GAMBAR yang harus diukur karena ia menyentuh
-            # geometri stop. Kotak badan menghasilkan ekor sangat tipis - 8
-            # sampai 12 persen di bawah 0,05 ATR, dan yang terkecil 0,0002 ATR,
-            # yaitu sub-pixel di layar mana pun. Diukur di BRK lebih dulu
-            # (`docs/QA-BRK-GATE.md`): kasus terburuk membaik seratus kali
-            # lipat dengan exp_r -0,007 dan t=-0,13.
-            floor = min_box_atr * scale
+            # Acuannya RENTANG LILIN ITU SENDIRI, bukan ATR. Versi ATR ditulis
+            # lebih dulu dan `tests/test_no_repaint.py` menolaknya: `wilder_atr`
+            # adalah rata rata berjalan yang disemai dari bar pertama, jadi ATR
+            # di bar absolut yang sama BERBEDA antar jendela, dan 4 dari 424
+            # kotak bergeser ~1e-5 saat jendelanya tumbuh ke kiri. Rentang
+            # lilin dihitung dari satu bar itu saja, jadi ia sama di jendela
+            # mana pun.
+            #
+            # Ini pertanyaan GAMBAR yang tetap harus diukur karena ia menyentuh
+            # geometri stop: risk per unit ADALAH tinggi kotak.
+            # Digeser kembali ke dalam lilinnya, bukan dikecilkan; alasan dan
+            # sensusnya di `app/detect/imbalance.py` pada titik pasangnya.
+            floor = (float(high[i]) - float(low[i])) * min_box_range
             short = floor - (top - bottom)
             if short > 0:
                 top += short / 2.0
                 bottom -= short / 2.0
+                if top > high[i]:
+                    bottom -= top - float(high[i])
+                    top = float(high[i])
+                elif bottom < low[i]:
+                    top += float(low[i]) - bottom
+                    bottom = float(low[i])
 
         impulse = 1 if bearish else -1
         born = i + params.displacement_bars
@@ -285,6 +297,25 @@ def detect_one_per_impulse(
                 one_per_impulse=True)
 
 
+def detect_legacy(
+    candles: list[Candle], params: ImbalanceParams
+) -> tuple[list[Zone], dict[str, float]]:
+    """Aturan SEBELUM 6 September 2026: rentang penuh, impuls dari sumbu.
+
+    Ada sebagai lengan eksplisit karena lengan A melacak `detect_order_block`
+    yang HIDUP. Selama produksi masih memakai aturan lama keduanya sama dan
+    lengan ini terasa mubazir; begitu produksi berubah, ia satu satunya cara
+    membaca kembali angka sebelumnya tanpa checkout commit lama.
+
+    Ketiga pilihan disebut EKSPLISIT karena `_run` sengaja tidak memberi mereka
+    default: sebuah lengan yang lupa menyebut salah satunya harus gagal keras,
+    bukan diam diam mengukur aturan yang berbeda dari namanya. Versi pertama
+    lengan ini memanggil `_run(candles, params)` dan langsung TypeError.
+    """
+    return _run(candles, params, body_box=False, close_impulse=False,
+                one_per_impulse=False)
+
+
 def detect_all_three(
     candles: list[Candle], params: ImbalanceParams
 ) -> tuple[list[Zone], dict[str, float]]:
@@ -296,9 +327,15 @@ def detect_all_three(
 def detect_floored(
     candles: list[Candle], params: ImbalanceParams
 ) -> tuple[list[Zone], dict[str, float]]:
-    """Aturan yang dikirim hari ini, plus lantai tinggi kotak 0,05 ATR."""
+    """Aturan yang dikirim hari ini, plus lantai tinggi kotak 0,15 rentang lilin.
+
+    Angka 0,15 dipilih dari sensus, bukan dari selera: pada XAUUSD 1h ia
+    menaikkan kotak tertipis dari 0,0008 ATR ke 0,0364 ATR dan menyisakan 5
+    kotak di bawah 0,05 ATR (dari 63), sambil mengikat hanya 17,0 persen
+    kotak. Share 0,20 menyisakan 1 tapi mengikat 22,9 persen.
+    """
     return _run(candles, params, body_box=True, close_impulse=True,
-                one_per_impulse=False, min_box_atr=0.05)
+                one_per_impulse=False, min_box_range=0.15)
 
 
 def detect_midpoint_and_close(
@@ -340,7 +377,13 @@ def detect_body_and_close(
 #:
 #: `None` sebagai detector berarti `detect_order_block` yang asli.
 VARIANTS: list[dict] = [
-    {"name": "A baseline (dikirim hari ini)", "fn": None, "p": {}},
+        # LENGAN A MELACAK PRODUKSI, dan itu jebakan di cache. Kunci cache memuat
+    # set sel dan nama lengan, TIDAK memuat kodenya, jadi baris A yang ditulis
+    # sebelum detector-nya diganti akan disajikan lagi setelahnya tanpa satu
+    # pesan pun - pada 6 September 2026 ia menyajikan PF 0,984 untuk kode yang
+    # sudah 1,329. Namanya sekarang mengatakan apa yang ia lacak, dan aturan
+    # lamanya dipatok di lengan L supaya ia tidak hilang.
+    {"name": "A produksi saat ini", "fn": None, "p": {}},
     {"name": "B1 displacement_atr 1.0", "fn": None, "p": {"displacement_atr": 1.0}},
     {"name": "B2 displacement_atr 2.0", "fn": None, "p": {"displacement_atr": 2.0}},
     {"name": "B3 displacement_atr 2.5", "fn": None, "p": {"displacement_atr": 2.5}},
@@ -357,7 +400,8 @@ VARIANTS: list[dict] = [
     {"name": "H  E+F+G bersama", "fn": detect_all_three, "p": {}},
     {"name": "I  E+F (tanpa dedupe)", "fn": detect_body_and_close, "p": {}},
     {"name": "J  midpoint entry + F", "fn": detect_midpoint_and_close, "p": {}},
-    {"name": "K  I + lantai kotak 0,05 ATR", "fn": detect_floored, "p": {}},
+    {"name": "K  I + lantai kotak 0,15 rentang", "fn": detect_floored, "p": {}},
+    {"name": "L  aturan sebelum 6 Sep 2026", "fn": detect_legacy, "p": {}},
 ]
 #: Bonferroni atas jumlah varian yang dibandingkan dengan baseline.
 T_THRESHOLD = _critical_t(len(VARIANTS) - 1)

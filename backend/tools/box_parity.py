@@ -100,6 +100,14 @@ OB_THEIRS = [
 ]
 
 #: 40 kotak terbaru milik kita di sel yang sama, dari `Zonelab OB`.
+#:
+#: FOTO, BUKAN NILAI HIDUP. Diambil 6 September 2026 pada aturan kotak-badan
+#: TANPA lantai tinggi kotak; lantai 0,15 rentang dikirim setelahnya dan
+#: memekarkan 17 persen kotak, jadi angka di bawah tidak lagi sama persis dengan
+#: yang detector keluarkan hari ini. Yang diuji tetap sah karena ia containment
+#: dan bukan kesamaan, dan sejak lantainya di-clamp ke rentang lilin containment
+#: itu jadi jaminan STRUKTURAL: pembanding memakai rentang penuh lilin, kotak
+#: kita tidak bisa keluar dari rentang lilin yang sama.
 OB_OURS = [
     (4610.66, 4607.57), (4605.02, 4603.89), (4605.02, 4552.04),
     (4583.93, 4573.32), (4576.74, 4552.04), (4493.19, 4446.47),

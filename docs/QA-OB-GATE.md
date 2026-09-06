@@ -410,6 +410,72 @@ mencapainya sendirian, sementara gabungannya 8 dari 8 di t=+8,10.
 
 Varian I dikirim ke `app/detect/imbalance.py` pada 6 September 2026.
 
+Dengan lantai kotak menyusul di hari yang sama, per timeframe jadi:
+
+| tf | n | PF | wf |
+|---|---|---|---|
+| 15m | 1.330 | 1,308 | **8/8** |
+| 30m | 3.265 | **1,413** | **8/8** |
+| 1h | 1.613 | 1,347 | **8/8** |
+| 4h | 1.131 | 1,156 | 6/8 |
+| 1d | 500 | **1,001** | 4/8 |
+| 1w | 14 | tak terukur, n di bawah MIN_GROUP | - |
+
+15m ikut naik ke 8 dari 8, dan 1d melewati PF 1 untuk pertama kalinya. Keduanya
+bergerak sedikit dan tidak boleh dibaca sebagai temuan terpisah: lantai kotak
+terukur t=0 lawan varian I di angka gabungan.
+
+### Seluruh tabel diukur ULANG lawan baseline yang terpasang
+
+Setelah detector-nya berubah, sapuan diulang dengan lengan A menunjuk ke
+produksi yang HIDUP, jadi tanda t sekarang berarti "lebih baik dari yang
+dikirim", bukan "lebih baik dari aturan lama". Bonferroni untuk 16 lengan
+pembanding: 2,9552.
+
+| lengan | n | exp_r | win rate | PF | wf | t lawan produksi |
+|---|---|---|---|---|---|---|
+| **A produksi saat ini** | **7.853** | **+0,1633** | **43,55%** | **1,330** | **8/8** | - |
+| C2 displacement_bars 8 | 10.658 | +0,1790 | 45,88% | **1,381** | 8/8 | +0,66 |
+| E+D body-box + structure | 3.038 | +0,1760 | 32,19% | 1,278 | 8/8 | +0,28 |
+| D require_structure_break | 2.704 | +0,1678 | 31,99% | 1,264 | 8/8 | +0,10 |
+| C1 displacement_bars 3 | 4.833 | +0,1672 | 40,45% | 1,320 | 8/8 | +0,12 |
+| K I + lantai 0,15 rentang | 7.853 | +0,1633 | 43,55% | 1,330 | 8/8 | **0,0** |
+| B2 displacement_atr 2.0 | 4.600 | +0,1611 | 38,11% | 1,291 | 8/8 | -0,07 |
+| I E+F tanpa lantai | 7.777 | +0,1600 | 43,14% | 1,320 | 8/8 | -0,13 |
+| B3 displacement_atr 2.5 | 2.824 | +0,1361 | 35,34% | 1,233 | 8/8 | -0,65 |
+| J midpoint entry + F | 8.071 | +0,1247 | 40,97% | 1,236 | 8/8 | -1,52 |
+| B1 displacement_atr 1.0 | 12.832 | +0,1200 | 48,22% | 1,274 | 8/8 | -1,95 |
+| E body-box sendirian | 11.261 | +0,1131 | 46,33% | 1,246 | 8/8 | -2,19 |
+| B4 displacement_atr 3.0 | 1.769 | +0,1013 | 32,56% | 1,164 | 6/8 | -1,17 |
+| H E+F+G bersama | 4.992 | +0,0832 | 38,88% | 1,155 | 7/8 | -2,65 |
+| F impuls dari close sendirian | 9.106 | +0,0550 | 53,05% | 1,154 | 8/8 | -5,07 |
+| G satu block per impuls | 7.177 | **-0,1220** | 44,09% | **0,718** | **0/8** | -13,14 |
+| **L aturan sebelum 6 Sep** | 13.298 | **-0,0051** | 53,67% | **0,985** | 4/8 | **-8,42** |
+
+**Tidak satu lengan pun mengalahkan yang terpasang.** C2 paling dekat, PF 1,381
+lawan 1,330 dengan 2.805 trade LEBIH banyak, tapi t=+0,66 lawan ambang 2,9552.
+Itu bukan penolakan terhadap C2; itu artinya rig ini belum bisa membedakannya
+dari noise, dan mengirimnya berarti menebak.
+
+Arah sebaliknya yang mengikat: lengan L, aturan sebelum 6 September, terukur
+t=-8,42. Perubahan hari itu memisahkan.
+
+> [!NOTE]
+> Lengan K memberi t=0,0 PERSIS, dan kali ini itu benar, bukan cacat rancangan.
+> K adalah produksi: kotak badan, impuls dari close, plus lantai kotak, jadi ia
+> populasi yang sama dengan lengan A sampai digit terakhir. Bandingkan dengan
+> lengan D di `docs/QA-BRK-GATE.md`, yang juga memberi t=0,0 tapi karena ia
+> mengukur ulang besaran yang tidak masuk ke trade sama sekali. Angka yang sama,
+> dua sebab yang berlawanan, dan satu satunya cara membedakannya adalah membaca
+> apa yang lengan itu ubah.
+
+> [!WARNING]
+> Lengan L terukur -0,0051 dan n 13.298, sementara baris "A baseline" di tabel
+> sebelumnya -0,0053 dan n 13.299. Selisihnya SATU trade, dan ia bukan angka
+> yang mengambang: baris lama datang dari `detect_order_block` yang lama, baris
+> L dari salinannya di `tools/ob_variants.py`. Dua implementasi aturan yang sama
+> berbeda satu trade, dan itu batas ketelitian pembandingan lintas file di sini.
+
 ### Dan gerbangnya berhenti bekerja setelah itu
 
 Gerbang departure diukur ULANG pada populasi detector yang baru, dan ia tidak
@@ -437,6 +503,83 @@ memisahkan lagi:
 > begitu keduanya dipasang. Gerbang diukur pada detector lama; detector diganti;
 > gerbangnya harus diukur ulang. Melewatkan langkah terakhir itu akan
 > meninggalkan penyaring yang terlihat terukur dan sebenarnya sudah merugikan.
+
+### Lantai tinggi kotak, dan satu jebakan repaint yang hampir lolos
+
+Kotak badan membawa ekor sangat tipis. Sensus XAUUSD 1h: yang tertipis 0,0008
+ATR, dan 63 kotak di bawah 0,05 ATR. Itu di bawah satu pixel di layar mana pun,
+jadi ia tergambar sebagai GARIS, bukan zona.
+
+Versi pertama lantainya memakai ATR, dan `tests/test_no_repaint.py` menolaknya.
+Bukan kegagalan yang samar: 3 test merah, dan semuanya HANYA di mode "grew
+left". Sebabnya diperiksa langsung, bukan ditebak.
+
+| jendela | id yang sama | yang geometrinya bergeser |
+|---|---|---|
+| tumbuh ke kanan | 424 | 0 |
+| tumbuh ke kiri | 424 | **4** |
+
+Contoh `OB-1781042400`: `(4256,79651293, 4256,02648707)` lawan
+`(4256,79652135, 4256,02647865)`. `wilder_atr` adalah rata rata BERJALAN yang
+disemai dari bar pertama, jadi ATR di bar absolut yang sama berbeda antar
+jendela, dan lantai berbasis ATR mewariskan ketergantungan itu ke geometri
+kotak. Jendela yang tumbuh ke KANAN tidak pernah mengungkapkannya, karena bar
+pertamanya sama.
+
+Perbaikannya acuan yang dihitung dari satu bar saja: rentang lilin itu sendiri.
+
+| share | ATR terkecil | sisa di bawah 0,05 ATR | mengikat pada |
+|---|---|---|---|
+| 0,00 (sebelumnya) | 0,0008 | 63 | 0% |
+| 0,10 | 0,0243 | 26 | 11,6% |
+| **0,15 (dikirim)** | **0,0364** | **5** | **17,0%** |
+| 0,20 | 0,0485 | 1 | 22,9% |
+
+Share 0,15 lebih baik untuk keterlihatan daripada lantai ATR yang ditolak itu
+(0,0364 lawan 0,0281 ATR terkecil, sisa 5 lawan 42), dan ia tidak bergantung
+jendela.
+
+Biayanya diukur, karena lantai ini menyentuh geometri stop dan risk per unit
+ADALAH tinggi kotak. Dua belas sel:
+
+| arm | n | exp_r | win rate | PF | wf | t lawan baseline |
+|---|---|---|---|---|---|---|
+| A baseline lama | 13.299 | -0,0053 | 53,66% | 0,984 | 4/8 | - |
+| I dikirim pagi | 7.777 | +0,1600 | 43,14% | 1,320 | 8/8 | +8,101 |
+| **K = I + lantai 0,15** | **7.853** | **+0,1633** | **43,55%** | **1,330** | **8/8** | **+8,435** |
+
+Selisih K lawan I adalah 0,0033 R di 7.853 sampel, yaitu nol dalam noise. Itu
+memang klaimnya: lantai ini perbaikan GAMBAR yang dibuktikan tidak berbiaya,
+bukan edge baru. Jumlah trade naik 76 karena kotak yang lebih tebal bisa
+tersentuh di tempat kotak setipis rambut tidak pernah tersentuh.
+
+### Kotak yang keluar dari lilinnya sendiri
+
+Pemekaran simetris sendirian punya cacat yang cuma muncul kalau badan lilin
+menempel di high atau low: kotaknya didorong KELUAR rentang lilin asalnya.
+Disensus di XAUUSD 1h sebelum diperbaiki, bukan dibayangkan:
+
+| lilin yang lantainya mengikat | yang kotaknya keluar rentang | pelanggaran terjauh |
+|---|---|---|
+| 5.412 | **178 (3,3%)** | 7,12% dari rentang lilin |
+
+Kotaknya DIGESER kembali ke dalam, bukan dikecilkan, supaya tingginya tetap
+sama dengan yang diukur; pergeseran selalu muat karena lantainya cuma 0,15
+rentang. Setelah itu 0 dari 4.704 kotak keluar dari lilinnya.
+
+Perbaikan ini juga membuat parity containment lawan Pine jadi jaminan
+STRUKTURAL dan bukan pengamatan: pembanding memakai rentang penuh lilin, dan
+kotak kita tidak bisa keluar dari rentang lilin yang sama. Biayanya diukur di
+tabel yang sama, dan tandanya justru positif tipis: PF 1,329 tanpa clamp,
+1,330 dengan clamp.
+
+Yang menjaganya sekarang:
+`tests/test_refine_and_crowding.py::test_a_hairline_order_block_body_is_floored_at_a_share_of_its_range`,
+dan ia dibuktikan tidak kosong lewat dua suntikan. Lantainya dicabut, tinggi
+kotak jatuh ke 0,05 dan test merah. Lantainya dibuat tidak simetris (cuma
+menaikkan `top`), titik tengah bergeser ke 100,0775 dari 99,975 dan test merah
+lagi. Arm kedua itu ada karena lantai yang cuma menaikkan `top` akan memindahkan
+entry demand sambil terlihat benar di arm pertama.
 
 ## Cara mengulang
 
