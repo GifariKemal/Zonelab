@@ -169,10 +169,18 @@ sementara bottom-nya tidak.
 > menampilkan 40 dari 6.440 yang ia deteksi, jadi selisih tampilan sebesar itu
 > memang lumrah.
 >
-> Yang tetap berdiri: definisinya berbeda, dan itu dinyatakan bukan
-> disimpulkan. LuxAlgo memakai order block berbasis swing; kita memakai
-> definisi ICT yang diperdebatkan apa adanya, yaitu rentang lilin penuh plus
-> ambang `impulse_atr` tanpa syarat struktur, dan
+> Yang tetap berdiri: definisinya berbeda. **Tetapi versi pertama dokumen ini
+> salah menyebut BAGAIMANA ia berbeda**, dan itu dikoreksi di sini. Saya
+> menulis bahwa LuxAlgo memakai order block berbasis swing. Ia tidak.
+> `Order Block Detector [LuxAlgo]` memakai **volume pivot**, yaitu `ta.pivot`
+> pada seri volume, tanpa syarat struktur dan tanpa syarat impuls sama sekali,
+> dan box-nya digambar dari low ke median price, bukan rentang lilin. Yang
+> benar benar swing-anchored adalah script LuxAlgo yang BERBEDA,
+> `Smart Money Concepts (SMC)`, yang di dalamnya order block hanya bisa lahir
+> di dalam blok BOS atau CHoCH.
+>
+> Yang kita pakai adalah definisi ICT yang diperdebatkan apa adanya: rentang
+> lilin penuh plus ambang `impulse_atr`, tanpa syarat struktur, dan
 > `app/detect/imbalance.py` sudah menyebut sendiri bahwa ia mewarisi definisi
 > itu wholesale.
 >
@@ -218,6 +226,69 @@ tidak terbaca sebagai kelalaian. Daemon saat ini berjalan di `15m,30m`, jadi
 kedua timeframe rugi itu tidak tersentuh oleh konfigurasi yang sedang jalan -
 tetapi tidak ada apa pun di kode yang menahannya kalau konfigurasinya berubah.
 
+## PF 0,985 bukan cacat kita sendirian
+
+Dua pengukuran publik yang metodologinya bisa diperiksa mengukur konstruk yang
+sama dan sampai di tempat yang sama. Dicatat di sini karena keduanya mengubah
+arti angka kita: kalau seluruh keluarga ini datar, "tuning detector" punya
+plafon yang harus diketahui sebelum waktu dihabiskan untuknya.
+
+| sumber | sampel | hasil |
+|---|---|---|
+| StatOasis, 648 backtest SPY/QQQ/DIA/IWM | aturan OB-nya **nyaris identik dengan kita**: down-close bar dikonfirmasi impuls M x ATR20 dalam K bar, rentang bar jadi zona | OB adalah keluarga ICT terkuat di sana, mengalahkan random di 81,5 persen varian SPY, tetapi **t = +1,22** dan **0 dari 648 backtest** mengalahkan buy-and-hold |
+| IndicatorEdge, EURUSD 2019-2025 | **2.553.973 bar 1 menit**, 54 varian sweep plus structure shift plus gap | win rate terbaik 56,3 persen, tetapi setelah biaya 0,5 pip **0 dari 54 varian profitable**, profit factor **0,42 sampai 0,89** |
+
+Sumber: `statoasis.com/overfit/research/ict-backtest-what-survives`,
+`indicatoredge.io/smart-money-research`.
+
+Dua hal yang layak dibaca dari situ. Pertama, PF 0,985 kita **konsisten** dengan
+satu satunya pengukuran publik yang transparan, jadi ia bukan bug implementasi.
+Kedua, PF kita setelah gerbang, 1,166, ada di ATAS seluruh rentang 54 varian
+IndicatorEdge. Itu bukan alasan untuk berpuas diri, karena instrumen dan
+biayanya berbeda, tetapi ia menempatkan angka kita.
+
+> [!NOTE]
+> Yang TIDAK dipakai: klaim 2.600 trade dengan win rate 61 persen dan PF 2,17
+> yang beredar di halaman agregator, angka "5 sampai 50 persen ROI", dan
+> "62 persen win rate dengan confluence". Tidak satu pun mempublikasi kode
+> maupun data. Sebuah klaim tanpa cara memeriksanya bukan pembanding.
+
+## Dua cacat presisi, diukur pada 4.041 order block
+
+Audit kode menyusun keduanya sebagai konstruksi; keduanya lalu diukur pada
+20.000 bar XAUUSD 30m sebelum ditulis di sini.
+
+**Impuls yang lolos hanya karena sumbu: 1.236 dari 4.041, yaitu 30,6 persen.**
+Ambangnya dibaca dari `high[window].max()`, jadi satu wick di mana pun dalam
+lima bar sudah cukup dan close tidak pernah harus bertahan di sana. Diuji ulang
+dengan `close[window].max()`: 30,6 persen populasinya gugur.
+
+Dan berkas itu sudah tidak konsisten dengan dirinya sendiri soal ini. Jalur
+`require_structure_break` MEMBUANG event `SWEEP` dengan alasan tertulis bahwa
+sumbu yang menembus level lalu ditutup kembali di dalam adalah peristiwa yang
+BERLAWANAN dengan struktur yang jebol. Jalur impuls default menerima bentuk
+yang persis sama sebagai bukti displacement.
+
+**Satu impuls dilaporkan sebagai beberapa kotak: 1.196 pasangan, 29,6 persen,
+dan 853 di antaranya, 21,1 persen, box-nya tumpang tindih.** Tes "LAST" hanya
+memeriksa lilin BERIKUTNYA, jadi satu lilin penyela memutus jaminannya:
+bearish, bearish, satu bullish kecil, bearish, lalu rally, dan kedua bearish
+pertama lolos sendiri sendiri. `_present` tidak menjalankan pemeriksaan overlap
+sesama family untuk detector ini.
+
+> [!IMPORTANT]
+> Konsekuensinya pada angka di dokumen ini: **n=13.309 bukan 13.309 peristiwa
+> independen.** Sekitar seperlima di antaranya berbagi displacement dengan
+> tetangga sesisi, jadi outcome-nya berkorelasi dan setiap interval kepercayaan
+> di atas lebih sempit dari yang seharusnya. Tandanya tidak berubah; presisinya
+> yang dilebih-lebihkan.
+
+**Look-ahead: dicari dan TIDAK ditemukan.** `born = i + displacement_bars`
+adalah persis bar terakhir yang `move` bergantung padanya, `scale = atr[i-1]`
+kausal, dan `_finish` memulai `replay_lifecycle` di `born + 1`. Dicatat karena
+riset luar menyebut ini cacat paling umum di seluruh kategori indikator SMC,
+jadi ketiadaannya di sini adalah temuan, bukan kekosongan.
+
 ## Cacat yang ditemukan saat memeriksa panel
 
 `TradePlan.departure_held_rate` tampil di UI sebagai "Departure cohort". Untuk
@@ -258,6 +329,102 @@ yaitu kode yang tiga jam sebelumnya hijau. Handler `requestfailed` sekarang
 mengecualikan `net::ERR_ABORTED` saja, dengan alasannya ditulis di tempat.
 Dibuktikan tetap mengikat dengan menyuntikkan `RuntimeError` ke `/api/draw`:
 harness menangkapnya sebagai `net::ERR_FAILED` dan gagal.
+
+## Sapuan aturan deteksi, 6 September 2026
+
+Gerbang menaikkan profit factor dari 0,985 ke 1,166, jadi detector-nya sendiri
+tidak menghasilkan edge dan penyaringnya yang menghasilkan. Pertanyaan
+berikutnya karena itu bukan "ambang mana" melainkan **aturan deteksinya yang
+mana yang salah**, dan itu belum pernah disapu satu kali pun.
+
+`tools/ob_variants.py`, dua sel 30m yang sama dengan `tools/fvg_filter_compare.py`.
+Dipatok di 30m karena tabel di atas menunjukkan hanya di situ baseline OB ada di
+atas PF 1; menyapu varian di timeframe yang baselinenya rugi berarti mengukur
+mana yang paling sedikit rugi.
+
+Aturan lulus ditulis sebelum angkanya dilihat: exp_r lebih tinggi dari baseline
+DAN walk-forward 8 dari 8 DAN `|t|` Welch melewati Bonferroni 2,8653.
+
+| varian | n | exp_r | win rate | PF | wf | t | verdict |
+|---|---|---|---|---|---|---|---|
+| A baseline | 5.468 | +0,0437 | 57,81% | 1,128 | 7/8 | - | - |
+| B1 `displacement_atr` 1,0 | 8.326 | -0,0370 | 55,56% | **0,889** | 1/8 | -4,96 | merusak |
+| B2 `displacement_atr` 2,0 | 3.504 | +0,0887 | 54,91% | 1,232 | 8/8 | +1,94 | tidak signifikan |
+| B3 `displacement_atr` 2,5 | 2.199 | +0,1033 | 50,34% | 1,235 | 8/8 | +1,94 | tidak signifikan |
+| B4 `displacement_atr` 3,0 | 1.422 | +0,1306 | 47,33% | 1,273 | 6/8 | +2,12 | gagal wf |
+| C1 `displacement_bars` 3 | 3.931 | +0,0317 | 55,00% | 1,084 | 6/8 | -0,56 | tidak lebih baik |
+| C2 `displacement_bars` 8 | 6.778 | +0,0405 | 57,49% | 1,121 | 6/8 | -0,18 | tidak lebih baik |
+| D `require_structure_break` | 1.531 | +0,0039 | 39,39% | **1,007** | 4/8 | -0,99 | tidak lebih baik |
+| E body-box | 4.644 | +0,1678 | 48,00% | 1,351 | 8/8 | **+4,66** | **LOLOS** |
+| E+D body-box + structure | 1.263 | +0,2394 | 30,72% | 1,354 | 8/8 | +2,72 | tidak signifikan |
+| F impuls dari close | 3.769 | +0,1115 | 57,12% | 1,306 | 8/8 | **+3,04** | **LOLOS** |
+| G satu block per impuls | 2.972 | -0,0843 | 47,14% | **0,813** | 1/8 | -5,43 | **merusak** |
+| H E+F+G | 2.087 | +0,0996 | 39,29% | 1,174 | 7/8 | +1,37 | gagal |
+| **I E+F** | **3.228** | **+0,2057** | 44,21% | **1,392** | **8/8** | **+4,85** | **LOLOS, terbaik** |
+| J midpoint entry + F | 3.382 | +0,1522 | 40,39% | 1,266 | 8/8 | - | kalah dari I |
+
+### Dugaan yang gugur, dan itu bagian paling berharga
+
+**G merusak, padahal ia dibangun DI ATAS cacat terukur.** 21,1 persen box
+tumpang tindih dengan tetangga sesisi dari impuls yang sama, jadi menyimpan
+satu saja terdengar jelas benar. Terukur: PF 0,813, walk-forward 1 dari 8,
+t=-5,43. Sebabnya bisa dinamai. "Lilin berlawanan TERAKHIR" adalah yang paling
+dekat ke impuls, jadi entry-nya paling dangkal; block yang lebih awal punya
+harga masuk yang lebih baik. **Aturan doktrin itu, diterapkan ketat, membuang
+kotak yang lebih baik**, dan perilaku longgar engine ini tidak sengaja
+menyimpan yang benar.
+
+Dan H gagal KARENA membawa G, bukan karena E+F buruk. Sapuan pertama tidak
+pernah menguji E+F berpasangan - hanya E+F+G - jadi selnya hilang. Itu cacat di
+rancangan sapuan, dan I ditambahkan untuk menutupnya.
+
+**`require_structure_break` diukur lawan outcome untuk pertama kalinya, dan ia
+tidak membeli apa-apa.** PF 1,007, walk-forward 4 dari 8, win rate ambruk ke
+39,39 persen. Ditambahkan ke body-box ia menaikkan PF dari 1,351 ke 1,354
+sambil memangkas populasi 73 persen. Ini aturan yang paling banyak
+diperdebatkan di literatur ICT dan satu satunya yang LuxAlgo SMC jadikan wajib
+secara struktural.
+
+**Menurunkan ambang masuk merusak.** `displacement_atr` 1,0 memberi PF 0,889
+dengan walk-forward 1 dari 8, jadi 1,5 yang sekarang bukan angka sembarangan.
+
+**Jendela impuls tidak mengikat.** 3 dan 8 bar memberi PF 1,084 dan 1,121 lawan
+baseline 1,128, keduanya gagal walk-forward.
+
+### E dan F membaik lewat mekanisme yang BERBEDA
+
+Ini yang menentukan cara membacanya, dan angkanya memisahkan keduanya dengan
+bersih:
+
+| | win rate | PF |
+|---|---|---|
+| baseline | 57,81% | 1,128 |
+| F impuls dari close | **57,12%** | 1,306 |
+| E body-box | **48,00%** | 1,351 |
+
+**F hampir tidak menggerakkan win rate sambil menaikkan PF.** Itu tanda tangan
+filter yang sungguhan: ia membuang trade yang memang rugi tanpa merusak hit
+rate. F adalah temuan yang lebih bermakna dari keduanya.
+
+**E menaikkan PF lewat win rate yang TURUN 9,8 poin.** Box lebih pendek berarti
+stop lebih rapat, jadi harga lebih sering menyentuhnya sementara tiap
+kemenangan bernilai R jauh lebih besar. Mekanisme yang sama persis dengan
+gerbang plafon FVG dan IFVG. Ini perbaikan geometri risiko, bukan prediksi yang
+lebih benar.
+
+**Dan J memisahkan keduanya lebih jauh.** Entry di tengah badan dengan stop
+tetap di luar sumbu memberi PF 1,266, di bawah I. Jadi keuntungan body-box
+datang dari STOP yang menyempit, bukan dari entry yang lebih dalam. Riset luar
+menyebut perbandingan geometri box ini tidak pernah diukur satu sumber pun; ini
+angkanya.
+
+### Yang belum diputuskan
+
+Varian I belum diterapkan. Ia diukur di dua sel 30m, sementara gerbang di
+dokumen ini diukur di dua belas. Run 12 sel untuk A, E, F dan I sedang berjalan
+supaya keduanya sebanding dan supaya terlihat apakah body-box menyelamatkan 4h
+dan 1d yang PF-nya 0,813 dan 0,720. Tidak ada kode detector yang berubah sampai
+angka itu masuk.
 
 ## Cara mengulang
 
