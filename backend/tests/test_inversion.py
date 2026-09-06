@@ -219,10 +219,15 @@ def test_a_breaker_is_the_order_block_read_from_underneath():
     box = boxes[0]
     assert box.kind is ZoneKind.BRK
     assert box.side is ZoneSide.SUPPLY          # was a demand block
-    assert box.top == pytest.approx(100.3)      # the parent's whole range
-    assert box.bottom == pytest.approx(98.6)
-    assert box.proximal == pytest.approx(98.6)  # was the block's distal
-    assert box.distal == pytest.approx(100.3)
+    # THE PARENT'S BODY, since 6 September 2026. The order block box became the
+    # candle body rather than its whole range, and a breaker inherits the parent
+    # rectangle unchanged - so this fixture moves with it, which is exactly the
+    # inheritance it exists to protect. The bar is open 100.0, close 99.0,
+    # high 100.3, low 98.6, so body and range are distinguishable here.
+    assert box.top == pytest.approx(100.0)
+    assert box.bottom == pytest.approx(99.0)
+    assert box.proximal == pytest.approx(99.0)  # was the block's distal
+    assert box.distal == pytest.approx(100.0)
     assert box.inverted_at == B_BREAK
     assert box.first_test_time == B_TOUCH
     # The supply block the rally's last candle leaves behind never breaks, so it

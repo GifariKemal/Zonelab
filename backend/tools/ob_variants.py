@@ -398,6 +398,15 @@ def run(variant: dict) -> dict:
     if out.get("n", 0) >= MIN_GROUP:
         wf = walk_forward(rows)
         out["wf_positive"], out["wf_graded"] = wf["positive"], wf["graded"]
+    # SEL IKUT DISIMPAN, bukan cuma R-nya. Versi pertama hanya menyimpan
+    # daftar R, jadi run 12 sel menghasilkan angka gabungan dan pertanyaan yang
+    # justru menyebabkan run itu dijalankan - apakah varian ini menyelamatkan
+    # 4h dan 1d yang PF-nya 0,813 dan 0,720 - tidak bisa dijawab tanpa
+    # mengulangnya. Empat field, dan tiga di antaranya sudah ada di baris itu.
+    out["_rows"] = [
+        {"cell": x["cell"], "r": x["r"], "pos": x["pos"], "exit_pos": x["exit_pos"]}
+        for x in rows
+    ]
     out["_r"] = [x["r"] for x in rows]
     return out
 
@@ -435,6 +444,21 @@ def main() -> int:
         print(f"    n={r.get('n')} exp_r={r.get('exp_r')} WR={r.get('win_rate')} "
               f"PF={r.get('profit_factor')} wf={r.get('wf_positive')}/"
               f"{r.get('wf_graded')}", file=sys.stderr)
+
+    # PER TIMEFRAME, karena sebuah varian yang menyelamatkan 30m dan
+    # memperburuk 4h akan terbaca sehat di angka gabungan.
+    for r in results:
+        rows = r.get("_rows") or []
+        per_tf: dict[str, dict] = {}
+        for tf in sorted({x["cell"].split()[-1] for x in rows}):
+            sub = [x for x in rows if x["cell"].endswith(f" {tf}")]
+            per_tf[tf] = rates(sub)
+            if len(sub) >= MIN_GROUP:
+                wf = walk_forward(sub)
+                per_tf[tf]["wf_positive"] = wf["positive"]
+                per_tf[tf]["wf_graded"] = wf["graded"]
+        r["per_timeframe"] = per_tf
+        r.pop("_rows", None)
 
     base = results[0]
     base_r = np.array(base.pop("_r"))

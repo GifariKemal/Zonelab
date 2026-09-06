@@ -411,10 +411,76 @@ def test_an_order_block_is_the_last_opposite_candle_before_the_move():
     blocks = [z for z in zones if z.side is ZoneSide.DEMAND and z.time_from == t]
 
     assert len(blocks) == 1
-    # The WHOLE range of that candle, which is the choice this module states
-    # rather than a convention it inherited.
-    assert blocks[0].top == pytest.approx(100.3)
-    assert blocks[0].bottom == pytest.approx(98.6)
+    # THE BODY OF THAT CANDLE, not its whole range, since 6 September 2026.
+    # The bar is open 100.0, close 99.0, high 100.3, low 98.6, so the body and
+    # the range are two clearly different boxes and this fixture can tell them
+    # apart.
+    #
+    # Why it changed: the stop sits beyond the distal plus a 0.25 ATR buffer, so
+    # risk per unit IS the box height plus a constant. With the whole range that
+    # height is set by wick length, which has no relationship to the signal being
+    # tested. Measured over twelve cells in docs/QA-OB-GATE.md, profit factor
+    # went 0.984 to 1.247 on this change alone.
+    assert blocks[0].top == pytest.approx(100.0)
+    assert blocks[0].bottom == pytest.approx(99.0)
+    # And the wick is deliberately OUTSIDE the box. Asserted separately because
+    # the two assertions above would also pass on a box that merely happened to
+    # be smaller.
+    assert blocks[0].top < 100.3
+    assert blocks[0].bottom > 98.6
+
+
+def test_a_wick_alone_does_not_qualify_an_order_block():
+    """Impuls diukur ke CLOSE ekstrem, bukan ke sumbu, sejak 6 September 2026.
+
+    CACAT INI PERNAH HIDUP TANPA SATU TEST PUN MENJAGANYA. Perubahan impuls
+    dikirim lebih dulu, lalu disuntik kembali ke `high[window].max()`, dan
+    seluruh suite tetap hijau. Berkas ini menutup lubang itu.
+
+    Yang diukur sebelum perubahannya ditulis: pada 20.000 bar XAUUSD 30m,
+    1.236 dari 4.041 order block yang lolos ambang - 30,6 persen - lolos HANYA
+    karena sebuah sumbu, tanpa satu close pun di jendela yang mengonfirmasi.
+
+    Fixture di bawah adalah bentuk itu, dibuat sekecil mungkin: satu lilin
+    bearish, lalu sebuah bar yang sumbunya terbang jauh ke atas dan ditutup
+    kembali hampir di tempatnya semula. Aturan sumbu meluluskannya; aturan
+    close menolaknya.
+    """
+    rows = calm(20)
+    t = T0 + 20 * STEP
+    # Lilin block: bearish, badan 100.0 -> 99.0.
+    rows.append(bar(t, 100.0, 99.0, 0.1, 0.1))
+    # Bar berikutnya HARUS ditutup naik, kalau tidak tes "terakhir" yang
+    # menolaknya dan fixture ini mengukur hal lain.
+    # Sumbunya terbang ke 106.0; close-nya cuma 99.2.
+    rows.append(bar(t + STEP, 99.0, 99.2, 6.8, 0.1))
+    rows.append(bar(t + 2 * STEP, 99.2, 99.1, 0.1, 0.1))
+    rows.append(bar(t + 3 * STEP, 99.1, 99.2, 0.1, 0.1))
+    rows += [bar(t + (4 + i) * STEP, 99.2, 99.2, 0.2, 0.2) for i in range(10)]
+
+    zones, _stats = detect_order_block(rows, imb())
+    blocks = [z for z in zones if z.side is ZoneSide.DEMAND and z.time_from == t]
+    assert blocks == [], (
+        "sebuah sumbu yang close-nya tidak pernah bertahan di sana bukan "
+        "displacement; ini bentuk yang jalur `require_structure_break` di "
+        "modul yang sama justru buang sebagai event SWEEP"
+    )
+
+    # SISI LAIN GERBANGNYA, dan tanpa ini test di atas bisa lolos hanya karena
+    # fixture-nya tidak pernah menghasilkan block apa pun. Bar yang sama,
+    # tetapi close-nya IKUT naik ke tempat sumbunya pergi.
+    rows2 = calm(20)
+    rows2.append(bar(t, 100.0, 99.0, 0.1, 0.1))
+    rows2.append(bar(t + STEP, 99.0, 106.0, 0.1, 0.1))
+    rows2.append(bar(t + 2 * STEP, 106.0, 106.1, 0.1, 0.1))
+    rows2.append(bar(t + 3 * STEP, 106.1, 106.2, 0.1, 0.1))
+    rows2 += [bar(t + (4 + i) * STEP, 106.2, 106.2, 0.2, 0.2) for i in range(10)]
+
+    confirmed = [
+        z for z in detect_order_block(rows2, imb())[0]
+        if z.side is ZoneSide.DEMAND and z.time_from == t
+    ]
+    assert len(confirmed) == 1, "close yang mengonfirmasi harus tetap lolos"
 
 
 def test_a_run_of_down_candles_before_one_rally_is_one_block_not_three():

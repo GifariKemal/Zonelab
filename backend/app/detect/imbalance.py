@@ -450,11 +450,28 @@ def detect_order_block(
         # A bearish candle before an up move is a bullish block, and the
         # reverse. Both directions are checked on every bar rather than one
         # being inferred from the other, because a doji satisfies neither.
+        # IMPULSNYA DIUKUR KE CLOSE EKSTREM, BUKAN KE SUMBU, sejak 6 September
+        # 2026. Yang lama membaca `high[window].max()`, jadi satu wick di mana
+        # pun dalam jendela sudah cukup dan close tidak pernah harus bertahan di
+        # sana. Diukur pada 20.000 bar XAUUSD 30m: 1.236 dari 4.041 order block
+        # yang lolos ambang - 30,6 persen - lolos HANYA karena sumbu.
+        #
+        # Dan berkas ini sudah tidak konsisten dengan dirinya sendiri soal itu.
+        # Jalur `require_structure_break` di bawah MEMBUANG event `SWEEP` dengan
+        # alasan tertulis bahwa sumbu yang menembus level lalu ditutup kembali
+        # di dalam adalah peristiwa yang BERLAWANAN dengan struktur yang jebol.
+        # Jalur ini menerima bentuk yang persis sama sebagai bukti displacement.
+        #
+        # Diukur di `docs/QA-OB-GATE.md`, dua belas sel, n=13.299 lawan 9.104:
+        # profit factor 0,984 menjadi 1,153 dengan win rate yang nyaris tidak
+        # bergerak, 53,66 ke 53,03 persen. Win rate yang diam sementara PF naik
+        # adalah tanda tangan filter yang membuang trade rugi, bukan yang
+        # memperketat stop.
         if bearish:
-            move = (float(high[window].max()) - float(close[i])) / scale
+            move = (float(close[window].max()) - float(close[i])) / scale
             side = ZoneSide.DEMAND
         elif close[i] > open_[i]:
-            move = (float(close[i]) - float(low[window].min())) / scale
+            move = (float(close[i]) - float(close[window].min())) / scale
             side = ZoneSide.SUPPLY
         else:
             continue
@@ -515,8 +532,33 @@ def detect_order_block(
             # starts after the box exists and one that starts before.
             break_time, born = hit.time, max(born, hit.index)
 
+        # KOTAKNYA DARI BADAN LILIN, BUKAN RENTANG PENUH, sejak 6 September
+        # 2026, dan ini perubahan yang paling banyak menggerakkan angka.
+        #
+        # Stop duduk di luar distal plus buffer 0,25 ATR dan target di zona
+        # lawan terdekat, jadi risk per unit ADALAH tinggi kotak plus konstanta.
+        # Dengan rentang penuh, risk itu ditentukan panjang sumbu - besaran yang
+        # tidak punya hubungan apa pun dengan kualitas sinyal yang diuji. Sebuah
+        # lilin sweep dengan sumbu panjang dan badan kecil lolos gerbang yang
+        # sama persis dengan lilin berbadan besar, lalu membawa stop dua kali
+        # lebih jauh untuk impuls yang identik.
+        #
+        # Diukur di `docs/QA-OB-GATE.md`, dua belas sel: profit factor 0,984
+        # menjadi 1,247 sendirian, dan 1,320 bersama impuls-dari-close di atas.
+        # Empat dari enam timeframe melewati PF 1, termasuk 4h yang 0,761 dengan
+        # walk-forward 0 dari 8 dan kini 1,168.
+        #
+        # BACA MEKANISMENYA, JANGAN CUMA ANGKANYA: win rate TURUN, 53,66 ke
+        # 43,14 persen. Kotak yang lebih pendek adalah stop yang lebih rapat,
+        # jadi harga lebih SERING menyentuhnya sementara tiap kemenangan bernilai
+        # R jauh lebih besar. Ini perbaikan geometri risiko, bukan tebakan arah
+        # yang lebih benar. Diuji juga arm yang cuma memperdalam ENTRY sambil
+        # membiarkan stop di luar sumbu, dan ia kalah: PF 1,266 lawan 1,320.
+        # Jadi yang membeli perbaikan itu stop yang menyempit.
+        body_top = float(max(open_[i], close[i]))
+        body_bottom = float(min(open_[i], close[i]))
         zone = _finish(
-            ZoneKind.OB, side, float(high[i]), float(low[i]), i,
+            ZoneKind.OB, side, body_top, body_bottom, i,
             born,
             time, high, low, close, atr, params, move,
             leg=Displacement(

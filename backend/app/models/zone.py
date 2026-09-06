@@ -68,26 +68,40 @@ DEPARTURE_GATE_ATR_CEILING = 0.25
 #: `docs/QA-QUANT.md` bagian 6, selisih ekspektasi +0,124 R dengan Welch
 #: t=+4,82.
 #:
-#: ORDER BLOCK NAIK KE 2,5 pada 6 September 2026. `docs/QA-OB-GATE.md` menyapu
-#: tujuh ambang di 12 sel, n=13.309, dan 2,0 memberi walk-forward 7 dari 8 -
-#: gagal menurut aturan praregistrasi repo ini sendiri, yang menuntut 8 dari 8.
-#: Hanya 2,5 yang selamat: exp_r +0,0551 lawan +0,0281, PF 1,166 lawan 1,086,
-#: Welch t=+6,06. Dan 2,5 BUKAN argmax - 3,0 memberi exp_r lebih tinggi lalu
-#: gagal walk-forward 6 dari 8, 6,0 lebih tinggi lagi dengan t di bawah ambang.
+#: ORDER BLOCK SEMPAT 2,5 SELAMA SATU HARI, LALU KEMBALI KE 2,0, dan urutan
+#: kejadiannya adalah isi catatan ini.
 #:
-#: BRK MENGIKUT ORDER BLOCK, dan itu bukan pengukuran melainkan konsistensi. Ia
-#: mewarisi `departure_atr` dari order block induknya, jadi ambang yang berlaku
-#: untuk angka itu adalah ambang order block. Membiarkannya di 2,0 akan membuat
-#: ia dinilai dengan angka yang tidak dimiliki siapa pun. Ia tetap terdaftar di
-#: `GATE_UNMEASURED_KINDS`, karena tidak ada satu pun sel yang mengukur populasi
-#: breaker itu sendiri.
+#: Pagi 6 September 2026 `docs/QA-OB-GATE.md` menyapu tujuh ambang di 12 sel,
+#: n=13.309, dan menemukan 2,0 gagal walk-forward 7 dari 8 sementara 2,5 lolos
+#: 8 dari 8 dengan exp_r +0,0551 lawan +0,0281. Jadi lantai OB dinaikkan.
+#:
+#: Sore harinya detector-nya sendiri diperbaiki - kotak dari badan lilin, impuls
+#: diukur ke close - dan gerbangnya DIUKUR ULANG pada populasi baru itu. Ia
+#: tidak memisahkan lagi:
+#:
+#:     tanpa gerbang   n=7.777  exp_r +0,1600  PF 1,320
+#:     lantai 2,0      n=4.582  exp_r +0,1705  PF 1,333   tidak memisahkan
+#:     lantai 2,5      n=2.829  exp_r +0,1451  PF 1,275   tidak memisahkan
+#:     lantai 3,0      n=1.784  exp_r +0,1307  PF 1,241   tidak memisahkan
+#:
+#: 2,5 MERUGIKAN sekarang, PF 1,275 lawan baseline 1,320. Sebabnya bisa
+#: dinamai: filter impuls-dari-close sudah membuang populasi impuls lemah yang
+#: dulu ditangkap gerbang departure, jadi keduanya menyaring hal yang sama dan
+#: yang tersisa cuma memotong trade bagus. Tidak ada satu ambang pun yang lolos
+#: praregistrasi pada detector baru.
+#:
+#: Dikembalikan ke 2,0, yang terukur PF 1,333 lawan 1,320 - selisih yang tidak
+#: signifikan, jadi ia tidak merugikan. Dan dengan itu OB berhenti jadi kasus
+#: khusus: divergensi per-kind yang diperkenalkan pagi itu tidak punya dasar
+#: lagi. Peta ini dipertahankan karena BENTUKNYA yang mengikat - ia memaksa
+#: kind baru menyatakan lantainya alih alih mewarisi diam diam.
 FLOOR_GATE_ATR: dict[ZoneKind, float] = {
     ZoneKind.RBR: DEPARTURE_GATE_ATR,
     ZoneKind.DBR: DEPARTURE_GATE_ATR,
     ZoneKind.DBD: DEPARTURE_GATE_ATR,
     ZoneKind.RBD: DEPARTURE_GATE_ATR,
-    ZoneKind.OB: 2.5,
-    ZoneKind.BRK: 2.5,
+    ZoneKind.OB: DEPARTURE_GATE_ATR,
+    ZoneKind.BRK: DEPARTURE_GATE_ATR,
 }
 #: Kind yang gerbangnya plafon, bukan lantai.
 #:

@@ -418,13 +418,63 @@ datang dari STOP yang menyempit, bukan dari entry yang lebih dalam. Riset luar
 menyebut perbandingan geometri box ini tidak pernah diukur satu sumber pun; ini
 angkanya.
 
-### Yang belum diputuskan
+### Dikonfirmasi di 12 sel, lalu dikirim
 
-Varian I belum diterapkan. Ia diukur di dua sel 30m, sementara gerbang di
-dokumen ini diukur di dua belas. Run 12 sel untuk A, E, F dan I sedang berjalan
-supaya keduanya sebanding dan supaya terlihat apakah body-box menyelamatkan 4h
-dan 1d yang PF-nya 0,813 dan 0,720. Tidak ada kode detector yang berubah sampai
-angka itu masuk.
+Varian I diulang di rig 12 sel yang sama dengan gerbang di dokumen ini.
+Hasilnya bertahan, dan urutan variannya sama dengan sapuan 30m.
+
+| | n | exp_r | win rate | PF | wf |
+|---|---|---|---|---|---|
+| A baseline | 13.299 | -0,0053 | 53,66% | **0,984** | 4/8 |
+| F impuls dari close | 9.104 | +0,0545 | 53,03% | 1,153 | 8/8 |
+| E body-box | 11.267 | +0,1133 | 46,33% | 1,247 | 8/8 |
+| **I E+F** | **7.777** | **+0,1600** | 43,14% | **1,320** | **8/8**, t=+8,10 |
+
+Dan per timeframe, yang menjawab pertanyaan yang menyebabkan run ini dijalankan:
+
+| tf | A baseline | I |
+|---|---|---|
+| 15m | PF **0,941**, wf 3/8 | PF **1,294**, wf 7/8 |
+| 30m | PF 1,128, wf 7/8 | PF **1,392**, wf 8/8 |
+| 1h | PF **0,995**, wf 5/8 | PF **1,356**, wf 8/8 |
+| 4h | PF **0,761**, wf 0/8 | PF **1,168**, wf 6/8 |
+| 1d | PF **0,564**, wf 1/8 | PF 0,975, wf 4/8 |
+| 1w | n=34, tak terukur | n=14, tak terukur |
+
+**Empat dari enam timeframe melewati PF 1**, termasuk 4h yang tadinya 0,761
+dengan walk-forward 0 dari 8. 1d naik dari 0,564 ke 0,975 dan tetap di bawah 1.
+Walk-forward per timeframe tidak seragam 8 dari 8; hanya 30m dan 1h yang
+mencapainya sendirian, sementara gabungannya 8 dari 8 di t=+8,10.
+
+Varian I dikirim ke `app/detect/imbalance.py` pada 6 September 2026.
+
+### Dan gerbangnya berhenti bekerja setelah itu
+
+Gerbang departure diukur ULANG pada populasi detector yang baru, dan ia tidak
+memisahkan lagi:
+
+| lantai | n | exp_r | win rate | PF | wf | verdict |
+|---|---|---|---|---|---|---|
+| tanpa gerbang | 7.777 | +0,1600 | 43,14% | **1,320** | - | - |
+| 2,0 | 4.582 | +0,1705 | 42,14% | 1,333 | 8/8 | tidak memisahkan |
+| 2,5 | 2.829 | +0,1451 | 41,00% | **1,275** | 8/8 | tidak memisahkan |
+| 3,0 | 1.784 | +0,1307 | 39,85% | 1,241 | 7/8 | tidak memisahkan |
+
+> [!IMPORTANT]
+> **Lantai 2,5 yang dinaikkan pagi itu MERUGIKAN sore harinya**, PF 1,275 lawan
+> baseline 1,320, dan tidak ada satu ambang pun yang lolos praregistrasi pada
+> detector baru. Sebabnya bisa dinamai: filter impuls-dari-close sudah membuang
+> populasi impuls lemah yang dulu ditangkap gerbang departure, jadi keduanya
+> menyaring hal yang sama dan yang tersisa cuma memotong trade bagus.
+>
+> `FLOOR_GATE_ATR[OB]` dikembalikan ke 2,0, yang terukur PF 1,333 lawan 1,320 -
+> selisih yang tidak signifikan, jadi ia tidak merugikan. Dengan itu OB berhenti
+> jadi kasus khusus dan keenam kind lantai kembali ke satu angka.
+>
+> Ini contoh dua pengukuran yang benar sendiri sendiri lalu saling meniadakan
+> begitu keduanya dipasang. Gerbang diukur pada detector lama; detector diganti;
+> gerbangnya harus diukur ulang. Melewatkan langkah terakhir itu akan
+> meninggalkan penyaring yang terlihat terukur dan sebenarnya sudah merugikan.
 
 ## Cara mengulang
 

@@ -76,8 +76,8 @@ EXPECTED_GATE_ATR = {
     ZoneKind.DBR: 2.0,
     ZoneKind.DBD: 2.0,
     ZoneKind.RBD: 2.0,
-    ZoneKind.OB: 2.5,    # DIUKUR, docs/QA-OB-GATE.md, dinaikkan 6 Sep 2026
-    ZoneKind.BRK: 2.5,   # mengikut induknya OB; belum diukur untuk BRK sendiri
+    ZoneKind.OB: 2.0,    # sempat 2,5 sehari, lihat catatan di bawah
+    ZoneKind.BRK: 2.0,   # mengikut induknya OB; belum diukur untuk BRK sendiri
     ZoneKind.FVG: 0.25,   # DIUKUR, docs/QA-FVG-RECALIBRATION.md
     ZoneKind.IFVG: 0.25,  # DIUKUR, docs/QA-IFVG-GATE.md
 }
@@ -156,15 +156,24 @@ def test_the_floor_kinds_clear_by_being_large():
         assert not _zone(kind, 0.10).gate_cleared, kind
 
 
-def test_order_block_sits_above_supply_demand_and_brk_follows_it():
-    """Selisih 0,5 ATR yang dibawa `docs/QA-OB-GATE.md`, dipatok ke angka.
+def test_every_floor_kind_declares_its_own_threshold():
+    """Bentuk peta yang mengikat, bukan nilainya.
 
-    Kalau seseorang menyeragamkan kembali kedua lantai ini jadi satu
-    konstanta, populasi order block yang diorder berubah 3.188 trade tanpa
-    satu angka pun berubah di layar.
+    Keenam lantai kebetulan 2,0 hari ini, dan itu KEBETULAN yang layak
+    dicatat: OB sempat 2,5 selama satu hari pada 6 September 2026, lalu
+    dikembalikan setelah detector-nya diperbaiki dan gerbangnya diukur ulang
+    pada populasi baru - di situ 2,5 justru menurunkan PF dari 1,320 ke 1,275.
+
+    Yang dijaga test ini adalah bahwa setiap kind lantai MENYATAKAN ambangnya.
+    Sebuah kind baru yang lupa didaftarkan akan meledak di `gate_atr` alih alih
+    mewarisi 2,0 diam diam, dan itu bentuk kegagalan yang jauh lebih mudah
+    dilihat.
     """
-    assert FLOOR_GATE_ATR[ZoneKind.OB] == 2.5
-    assert FLOOR_GATE_ATR[ZoneKind.DBR] == 2.0
+    floors = {k for k in ZoneKind if k not in CEILING_KINDS}
+    assert set(FLOOR_GATE_ATR) == floors, (
+        "kind lantai tanpa ambang yang dinyatakan: "
+        f"{floors ^ set(FLOOR_GATE_ATR)}"
+    )
     assert FLOOR_GATE_ATR[ZoneKind.BRK] == FLOOR_GATE_ATR[ZoneKind.OB], (
         "BRK mewarisi departure_atr dari order block induknya, jadi ambang "
         "yang berlaku untuk angka itu adalah ambang order block"

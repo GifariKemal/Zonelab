@@ -1,0 +1,183 @@
+{
+ "question": "aturan deteksi order block mana yang mengubah outcome",
+ "cell_set": "all",
+ "cells": [
+  "XAUUSD 15m",
+  "BTCUSD 15m",
+  "XAUUSD 30m",
+  "BTCUSD 30m",
+  "XAUUSD 1h",
+  "BTCUSD 1h",
+  "XAUUSD 4h",
+  "BTCUSD 4h",
+  "XAUUSD 1d",
+  "BTCUSD 1d",
+  "XAUUSD 1w",
+  "BTCUSD 1w"
+ ],
+ "why_30m_only": "docs/QA-OB-GATE.md: hanya 30m yang PF di atas 1 dengan walk-forward 8 dari 8; 15m 0,999, 4h 0,813, 1d 0,720",
+ "t_threshold_bonferroni": 2.9137,
+ "min_group": 30,
+ "baseline": {
+  "variant": "A baseline (dikirim hari ini)",
+  "n": 13299,
+  "exp_r": -0.0053,
+  "t_vs_zero": -0.679,
+  "win_rate": 0.5366,
+  "profit_factor": 0.984,
+  "mean_win_r": 0.6136,
+  "mean_loss_r": -0.722,
+  "wf_positive": 4,
+  "wf_graded": 8,
+  "per_timeframe": {
+   "15m": {
+    "n": 2174,
+    "exp_r": -0.0213,
+    "t_vs_zero": -1.034,
+    "win_rate": 0.5566,
+    "profit_factor": 0.941,
+    "mean_win_r": 0.6159,
+    "mean_loss_r": -0.8211,
+    "wf_positive": 3,
+    "wf_graded": 8
+   },
+   "1d": {
+    "n": 873,
+    "exp_r": -0.1095,
+    "t_vs_zero": -5.657,
+    "win_rate": 0.3528,
+    "profit_factor": 0.564,
+    "mean_win_r": 0.4013,
+    "mean_loss_r": -0.3879,
+    "wf_positive": 1,
+    "wf_graded": 8
+   },
+   "1h": {
+    "n": 2714,
+    "exp_r": -0.0016,
+    "t_vs_zero": -0.091,
+    "win_rate": 0.5413,
+    "profit_factor": 0.995,
+    "mean_win_r": 0.6472,
+    "mean_loss_r": -0.7672,
+    "wf_positive": 5,
+    "wf_graded": 8
+   },
+   "1w": {
+    "n": 34,
+    "exp_r": -0.5612,
+    "t_vs_zero": -11.788,
+    "win_rate": 0.0,
+    "profit_factor": 0.0,
+    "mean_win_r": null,
+    "mean_loss_r": -0.5612,
+    "wf_positive": 0,
+    "wf_graded": 0
+   },
+   "30m": {
+    "n": 5468,
+    "exp_r": 0.0437,
+    "t_vs_zero": 3.315,
+    "win_rate": 0.5781,
+    "profit_factor": 1.128,
+    "mean_win_r": 0.664,
+    "mean_loss_r": -0.8063,
+    "wf_positive": 7,
+    "wf_graded": 8
+   },
+   "4h": {
+    "n": 2036,
+    "exp_r": -0.0709,
+    "t_vs_zero": -4.572,
+    "win_rate": 0.4853,
+    "profit_factor": 0.761,
+    "mean_win_r": 0.4657,
+    "mean_loss_r": -0.5768,
+    "wf_positive": 0,
+    "wf_graded": 8
+   }
+  }
+ },
+ "variants": [
+  {
+   "variant": "I  E+F (tanpa dedupe)",
+   "n": 7777,
+   "exp_r": 0.16,
+   "t_vs_zero": 8.491,
+   "win_rate": 0.4314,
+   "profit_factor": 1.32,
+   "mean_win_r": 1.5295,
+   "mean_loss_r": -0.879,
+   "wf_positive": 8,
+   "wf_graded": 8,
+   "per_timeframe": {
+    "15m": {
+     "n": 1314,
+     "exp_r": 0.1634,
+     "t_vs_zero": 3.173,
+     "win_rate": 0.4216,
+     "profit_factor": 1.294,
+     "mean_win_r": 1.7043,
+     "mean_loss_r": -0.9599,
+     "wf_positive": 7,
+     "wf_graded": 8
+    },
+    "1d": {
+     "n": 493,
+     "exp_r": -0.0076,
+     "t_vs_zero": -0.161,
+     "win_rate": 0.3671,
+     "profit_factor": 0.975,
+     "mean_win_r": 0.8008,
+     "mean_loss_r": -0.4765,
+     "wf_positive": 4,
+     "wf_graded": 8
+    },
+    "1h": {
+     "n": 1600,
+     "exp_r": 0.1853,
+     "t_vs_zero": 4.35,
+     "win_rate": 0.4275,
+     "profit_factor": 1.356,
+     "mean_win_r": 1.6517,
+     "mean_loss_r": -0.9097,
+     "wf_positive": 8,
+     "wf_graded": 8
+    },
+    "1w": {
+     "n": 14,
+     "exp_r": -0.4944,
+     "t_vs_zero": -5.572,
+     "win_rate": 0.0,
+     "profit_factor": 0.0,
+     "mean_win_r": null,
+     "mean_loss_r": -0.4944
+    },
+    "30m": {
+     "n": 3228,
+     "exp_r": 0.2057,
+     "t_vs_zero": 6.693,
+     "win_rate": 0.4421,
+     "profit_factor": 1.392,
+     "mean_win_r": 1.6528,
+     "mean_loss_r": -0.9408,
+     "wf_positive": 8,
+     "wf_graded": 8
+    },
+    "4h": {
+     "n": 1128,
+     "exp_r": 0.0708,
+     "t_vs_zero": 1.858,
+     "win_rate": 0.4512,
+     "profit_factor": 1.168,
+     "mean_win_r": 1.0886,
+     "mean_loss_r": -0.7661,
+     "wf_positive": 6,
+     "wf_graded": 8
+    }
+   },
+   "welch_t_vs_baseline": 8.101,
+   "verdict": "LEBIH BAIK dari baseline"
+  }
+ ]
+}
