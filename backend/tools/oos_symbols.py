@@ -45,12 +45,33 @@ from tools.calibrate import POPULATION
 from tools.detectors_costed import FOLDS, one_sample_t
 from tools.gate_sweep import cell_rows as _cell_rows
 
-OOS = ("EURUSD", "GBPJPY", "USDJPY", "XAGUSD", "ETHUSD", "US30")
+#: ETHUSD DIBUANG, DAN BUKAN KARENA HASILNYA TIDAK DISUKAI. Ia tidak ada di
+#: `BROKERS["exness_raw"]`, jadi `schedule()` jatuh ke default generik ala bursa
+#: kripto: `commission_bp` 20,0 dan `slippage_bp` 2,0, lawan 0,15 sampai 1,31 dan
+#: 0,5 di ketujuh instrumen lain. Dua puluh dua kali lipat BTCUSD.
+#:
+#: Yang mengungkapkannya: ETHUSD adalah instrumen paling negatif untuk KEEMPAT
+#: detector sekaligus (-0,3942 ifvg, -0,3834 order_block, -0,3113 breaker,
+#: -0,2903 S&D lengan L). Empat metode yang berbeda tidak gagal dengan pola yang
+#: sama karena alasan yang sama kecuali penyebabnya bukan metodenya.
+#:
+#: Terminal MEMBAWA simbolnya - `history.load("mt5:ETHUSD", ...)` menjawab
+#: 99.998 bar - jadi ini celah di tabel biaya, bukan instrumen yang tidak ada.
+#: Sampai barisnya diturunkan dari terminal, ETHUSD tidak bisa diukur di sini.
+OOS = ("EURUSD", "GBPJPY", "USDJPY", "XAGUSD", "US30")
 ARMS = {
     "K produksi": {"departure_min_atr": 2.0},
     "L K + proximal body": {"departure_min_atr": 2.0, "proximal_basis": "body"},
 }
+#: Detector lain diuji APA ADANYA. `_cell_rows` memanggil `_params(name)` untuk
+#: mereka, yang berarti default `ImbalanceParams` penuh, yang berarti produksi.
+#: Tidak ada penukaran DETECTORS yang perlu dilakukan, dan itu sebabnya angka
+#: mereka bisa langsung dibandingkan dengan `docs/QA-*-GATE.md`.
+OTHERS = ("ifvg", "breaker", "order_block")
 MIN_FOLD = 20
+#: Timeframe yang diuji. 15m karena itu yang dipertanyakan, dan karena ia satu
+#: satunya yang riwayat 1m-nya cukup untuk mengadili keenam instrumen.
+TF = "15m"
 
 
 def rates(rows: list[dict]) -> dict:
@@ -90,7 +111,7 @@ def main() -> int:
             for sym in OOS:
                 try:
                     with contextlib.redirect_stdout(sys.stderr):
-                        rows, _span = _cell_rows("supply_demand", sym, "15m")
+                        rows, _span = _cell_rows("supply_demand", sym, TF)
                 except Exception as exc:  # noqa: BLE001
                     print(f"  {name:22} {sym:8} GAGAL {exc}", file=sys.stderr)
                     continue
@@ -101,6 +122,23 @@ def main() -> int:
                 out[name].extend(rows)
         finally:
             DETECTORS["supply_demand"] = original
+
+    # DETECTOR LAIN, pertanyaan yang sama. Kalau mereka juga jatuh di luar
+    # sampel maka yang optimis adalah RIG-nya, bukan supply and demand.
+    for name in OTHERS:
+        acc: list[dict] = []
+        for sym in OOS:
+            try:
+                with contextlib.redirect_stdout(sys.stderr):
+                    rows, _span = _cell_rows(name, sym, TF)
+            except Exception as exc:  # noqa: BLE001
+                print(f"  {name:22} {sym:8} GAGAL {exc}", file=sys.stderr)
+                continue
+            acc.extend(rows)
+            r = rates(rows)
+            print(f"  {name:22} {sym:8} n={r.get('n'):>5} exp_r={r.get('exp_r')} "
+                  f"PF={r.get('pf')} t={r.get('t')}", file=sys.stderr, flush=True)
+        out[name] = acc
 
     print()
     print("Instrumen ini tidak ikut memilih apa pun. Bandingkan dengan angka")
