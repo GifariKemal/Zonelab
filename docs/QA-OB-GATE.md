@@ -155,12 +155,32 @@ jalur keputusan, bukan cuma koordinat kotak:
 Tiga filter, dua feed, selisih di bawah 0,3 poin persen. Cerminnya setia.
 
 **Lawan script komunitas, dan di sini hasilnya berbeda dari IFVG.** Pada
-FX:XAUUSD 30m yang sama, `Order Block Detector [LuxAlgo]` menggambar **6**
-kotak sementara kita menggambar **6.440**. Itu bukan selisih toleransi, itu
-definisi yang berbeda: LuxAlgo memakai order block berbasis swing, kita memakai
-definisi ICT yang diperdebatkan itu apa adanya, yaitu rentang lilin penuh plus
-ambang `impulse_atr` tanpa syarat struktur. Satu zona beririsan di jendela
-harga kita, 4472,63, dan top-nya cocok persis sementara bottom-nya tidak.
+FX:XAUUSD 30m yang sama, `Order Block Detector [LuxAlgo]` memegang **6** kotak
+sementara detector kita menemukan **6.440** sepanjang riwayat yang dimuat. Satu
+zona beririsan di jendela harga kita, 4472,63, dan top-nya cocok persis
+sementara bottom-nya tidak.
+
+> [!WARNING]
+> **KEDUA ANGKA ITU BUKAN BESARAN YANG SAMA, dan versi pertama dokumen ini
+> menyajikannya seolah begitu.** 6.440 adalah jumlah yang detector kita
+> DETEKSI; 6 adalah jumlah yang LuxAlgo TAMPILKAN. Script-nya protected,
+> input-nya terenkripsi, dan ia tidak mengekspos tabel maupun label, jadi
+> populasi yang ia deteksi tidak bisa dibaca dari luar. Pine kita sendiri
+> menampilkan 40 dari 6.440 yang ia deteksi, jadi selisih tampilan sebesar itu
+> memang lumrah.
+>
+> Yang tetap berdiri: definisinya berbeda, dan itu dinyatakan bukan
+> disimpulkan. LuxAlgo memakai order block berbasis swing; kita memakai
+> definisi ICT yang diperdebatkan apa adanya, yaitu rentang lilin penuh plus
+> ambang `impulse_atr` tanpa syarat struktur, dan
+> `app/detect/imbalance.py` sudah menyebut sendiri bahwa ia mewarisi definisi
+> itu wholesale.
+>
+> Yang TIDAK bisa dijawab dari sini: mana yang lebih baik. Outcome LuxAlgo
+> belum pernah diukur di rig ini, dan membandingkan PF yang ada dengan PF yang
+> tidak ada bukan perbandingan. Untuk menjawabnya, definisi swing-based itu
+> harus ditulis ulang di Python dan dijalankan lewat `tools/gate_sweep.py`
+> seperti detector lain.
 
 `Order Blocks Finder [TradingFinder]` tidak menggambar box yang bisa dibaca,
 sama seperti versi IFVG-nya.
