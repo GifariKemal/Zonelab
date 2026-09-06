@@ -76,6 +76,17 @@ FINER_EXT = {**FINER, "1d": "1h", "1w": "4h"}
 SYMBOLS = ("XAUUSD", "BTCUSD")
 TIMEFRAMES = ("15m", "30m", "1h", "4h", "1d", "1w")
 CELLS = [(s, tf) for tf in TIMEFRAMES for s in SYMBOLS]
+
+#: Dua set sel, DINYATAKAN DI SINI karena di sinilah definisi sel hidup.
+#: `30m` adalah sapuan penjelajahan, dua sel yang sama dengan
+#: `tools/fvg_filter_compare.py`; `all` adalah rig 12 sel yang dipakai setiap
+#: `docs/QA-*-GATE.md`. Berkas studi lain MENGIMPOR ini alih alih menyalinnya:
+#: dua daftar sel yang melenceng akan membuat dua angka terlihat sebanding
+#: padahal populasinya berbeda, tanpa satu pesan pun.
+CELL_SETS = {
+    "30m": [("XAUUSD", "30m"), ("BTCUSD", "30m")],
+    "all": CELLS,
+}
 #: Ambang yang diuji. Memuat 0,25 (plafon yang sedang terpasang untuk IFVG,
 #: tanpa pengukuran) dan 2,0 (lantai yang dipakai semua kind lain), jadi kedua
 #: posisi yang mungkin diambil kode saat ini ikut dinilai.

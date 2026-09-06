@@ -69,15 +69,9 @@ from tools.conditioned import _critical_t
 # meledak dengan `KeyError: '1d'`. `gate_sweep` sudah memegang peta yang
 # diperluas beserta alasan kenapa 1m dan 5m tidak bisa ditambahkan.
 from tools.detectors_costed import FOLDS, one_sample_t, welch
+from tools.gate_sweep import CELL_SETS
 from tools.gate_sweep import cell_rows as _cell_rows
 
-#: Dua set sel. `30m` adalah sapuan penjelajahan; `all` adalah rig yang sama
-#: dengan `docs/QA-OB-GATE.md`, jadi hasilnya bisa diletakkan bersebelahan.
-CELL_SETS = {
-    "30m": [("XAUUSD", "30m"), ("BTCUSD", "30m")],
-    "all": [(s, tf) for tf in ("15m", "30m", "1h", "4h", "1d", "1w")
-            for s in ("XAUUSD", "BTCUSD")],
-}
 CELLS = CELL_SETS["30m"]
 MIN_FOLD = 20
 MIN_GROUP = 30
@@ -94,7 +88,7 @@ def detect_body_box(
 def _run(
     candles: list[Candle], params: ImbalanceParams, *,
     body_box: bool, close_impulse: bool, one_per_impulse: bool,
-    body_midpoint: bool = False,
+    body_midpoint: bool = False, min_box_atr: float = 0.0,
 ) -> tuple[list[Zone], dict[str, float]]:
     """`detect_order_block`, tetapi kotaknya dari BADAN lilin block.
 
@@ -184,6 +178,23 @@ def _run(
         if top - bottom <= EPS:
             stats["rejected_zero_body"] += 1
             continue
+
+        if min_box_atr > 0.0:
+            # LANTAI TINGGI KOTAK, DIMEKARKAN SIMETRIS supaya titik tengahnya
+            # tidak bergeser: sebuah lantai yang cuma menaikkan `top` akan
+            # memindahkan entry demand dan mengubah dua hal sekaligus.
+            #
+            # Ini pertanyaan GAMBAR yang harus diukur karena ia menyentuh
+            # geometri stop. Kotak badan menghasilkan ekor sangat tipis - 8
+            # sampai 12 persen di bawah 0,05 ATR, dan yang terkecil 0,0002 ATR,
+            # yaitu sub-pixel di layar mana pun. Diukur di BRK lebih dulu
+            # (`docs/QA-BRK-GATE.md`): kasus terburuk membaik seratus kali
+            # lipat dengan exp_r -0,007 dan t=-0,13.
+            floor = min_box_atr * scale
+            short = floor - (top - bottom)
+            if short > 0:
+                top += short / 2.0
+                bottom -= short / 2.0
 
         impulse = 1 if bearish else -1
         born = i + params.displacement_bars
@@ -282,6 +293,14 @@ def detect_all_three(
                 one_per_impulse=True)
 
 
+def detect_floored(
+    candles: list[Candle], params: ImbalanceParams
+) -> tuple[list[Zone], dict[str, float]]:
+    """Aturan yang dikirim hari ini, plus lantai tinggi kotak 0,05 ATR."""
+    return _run(candles, params, body_box=True, close_impulse=True,
+                one_per_impulse=False, min_box_atr=0.05)
+
+
 def detect_midpoint_and_close(
     candles: list[Candle], params: ImbalanceParams
 ) -> tuple[list[Zone], dict[str, float]]:
@@ -338,6 +357,7 @@ VARIANTS: list[dict] = [
     {"name": "H  E+F+G bersama", "fn": detect_all_three, "p": {}},
     {"name": "I  E+F (tanpa dedupe)", "fn": detect_body_and_close, "p": {}},
     {"name": "J  midpoint entry + F", "fn": detect_midpoint_and_close, "p": {}},
+    {"name": "K  I + lantai kotak 0,05 ATR", "fn": detect_floored, "p": {}},
 ]
 #: Bonferroni atas jumlah varian yang dibandingkan dengan baseline.
 T_THRESHOLD = _critical_t(len(VARIANTS) - 1)

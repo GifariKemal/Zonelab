@@ -1,0 +1,83 @@
+{
+ "question": "aturan breaker mana yang mengubah outcome",
+ "cell_set": "30m",
+ "cells": [
+  "XAUUSD 30m",
+  "BTCUSD 30m"
+ ],
+ "t_threshold_bonferroni": 2.5758,
+ "min_group": 30,
+ "not_swept": "break lewat sumbu alih alih close: hidup di replay_lifecycle supply_demand.py, menyalinnya ke sini lebih mahal dari jawabannya",
+ "baseline": {
+  "variant": "A baseline (dikirim hari ini)",
+  "n": 3122,
+  "exp_r": 0.3515,
+  "t_vs_zero": 9.63,
+  "win_rate": 0.4657,
+  "profit_factor": 1.709,
+  "wf_positive": 8,
+  "wf_graded": 8
+ },
+ "variants": [
+  {
+   "variant": "B sweep WAJIB",
+   "n": 499,
+   "exp_r": 0.4075,
+   "t_vs_zero": 3.03,
+   "win_rate": 0.3246,
+   "profit_factor": 1.64,
+   "wf_positive": 8,
+   "wf_graded": 8,
+   "welch_t_vs_baseline": 0.401,
+   "verdict": "lebih baik tapi tidak signifikan"
+  },
+  {
+   "variant": "C sweep DILARANG",
+   "n": 2565,
+   "exp_r": 0.3172,
+   "t_vs_zero": 7.826,
+   "win_rate": 0.4483,
+   "profit_factor": 1.617,
+   "wf_positive": 8,
+   "wf_graded": 8,
+   "welch_t_vs_baseline": -0.629,
+   "verdict": "tidak lebih baik"
+  },
+  {
+   "variant": "D impuls diukur di break",
+   "n": 3122,
+   "exp_r": 0.3515,
+   "t_vs_zero": 9.63,
+   "win_rate": 0.4657,
+   "profit_factor": 1.709,
+   "wf_positive": 8,
+   "wf_graded": 8,
+   "welch_t_vs_baseline": 0.0,
+   "verdict": "tidak lebih baik"
+  },
+  {
+   "variant": "E lantai kotak 0,05 ATR",
+   "n": 3129,
+   "exp_r": 0.3446,
+   "t_vs_zero": 9.592,
+   "win_rate": 0.466,
+   "profit_factor": 1.695,
+   "wf_positive": 8,
+   "wf_graded": 8,
+   "welch_t_vs_baseline": -0.134,
+   "verdict": "tidak lebih baik"
+  },
+  {
+   "variant": "F B+D bersama",
+   "n": 499,
+   "exp_r": 0.4075,
+   "t_vs_zero": 3.03,
+   "win_rate": 0.3246,
+   "profit_factor": 1.64,
+   "wf_positive": 8,
+   "wf_graded": 8,
+   "welch_t_vs_baseline": 0.401,
+   "verdict": "lebih baik tapi tidak signifikan"
+  }
+ ]
+}
