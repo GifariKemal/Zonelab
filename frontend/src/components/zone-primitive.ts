@@ -12,6 +12,7 @@ import type {
 import type { Zone, ZoneKind, ZoneState } from "@/lib/types";
 import { LABEL_GUTTER, claimedLabels, labelFree } from "./structure-primitive";
 import { monoFont, plateInk, sideRgba } from "./ink";
+import type { BitmapPositionLength } from "./pixel";
 import { positionsBox, strokeLine } from "./pixel";
 
 /** Lifecycle as a SHARE of the ink budget rather than as an absolute alpha.
@@ -215,12 +216,52 @@ function rect(box: Box, kx: number, ky: number) {
   // device pixel dari tempat box sebelahnya membulatkan tepi yang SAMA, dan
   // dua zona yang berbagi harga meninggalkan celah atau bertumpuk.
   const h = positionsBox(box.left, box.right, kx);
-  const v = positionsBox(box.top, box.bottom, ky);
+  const v = floorHeight(positionsBox(box.top, box.bottom, ky), box, ky);
   return {
     x: h.position,
     y: v.position,
     w: Math.max(h.length, 2),
-    h: Math.max(v.length, 2),
+    h: v.length,
+  };
+}
+
+/** Tinggi minimum sebuah box DI LAYAR, dalam CSS pixel.
+ *
+ *  Sebuah box punya dua border. Di bawah tinggi ini keduanya bertumpuk dan
+ *  yang terbaca satu garis, bukan zona. Lantai lamanya `Math.max(length, 2)`
+ *  DEVICE pixel, yang pada dpr 1,25 cuma 1,6 CSS px, jadi ia tidak pernah
+ *  memisahkan kedua border itu.
+ *
+ *  Diukur di 500 bar terakhir XAUUSD, pane 564 px, layer breaker saja: sebelum
+ *  angka ini dinaikkan, 1w menggambar 12 dari 51 box lebih tipis dari satu
+ *  pixel, dan dua di antaranya terlihat di layar sebagai garis horizontal
+ *  polos di sekitar 2700 dan 2450. */
+const MIN_BOX_MEDIA_PX = 4;
+
+/** Menegakkan `MIN_BOX_MEDIA_PX`, memekar dari sisi DISTAL.
+ *
+ *  KENAPA DISTAL, dan kenapa itu KEBALIKAN dari lantai backend. `zone_min_atr`
+ *  di backend memekar dari sisi PROXIMAL supaya stop tidak pernah bergeser
+ *  masuk ke base - di sana kedua tepi adalah harga sungguhan dan yang harus
+ *  dilindungi stop-nya. Di sini tidak ada harga yang berubah; yang berubah cuma
+ *  gambar, dan yang tidak boleh berbohong adalah garis yang dibaca trader.
+ *  Proximal adalah satu satunya harga di dalam box yang trader tindak lanjuti,
+ *  dan ia di-stroke terpisah dari `box.proximalY`, jadi menahannya di tempat
+ *  membuat aturan terang itu tetap mendarat di border, persis seperti yang
+ *  didokumentasikan di bawah pada `KIND_DASH`.
+ *
+ *  Proximal ada di TOP untuk demand dan di BOTTOM untuk supply, by
+ *  construction. Diturunkan dari `box.proximalY` dan bukan dari `zone.side`,
+ *  supaya satu sumber saja yang menentukan dan keduanya tidak bisa melenceng. */
+function floorHeight(v: BitmapPositionLength, box: Box, ky: number) {
+  const min = Math.max(2, Math.round(MIN_BOX_MEDIA_PX * ky));
+  const short = min - v.length;
+  if (short <= 0) return v;
+  const proximalAtTop =
+    Math.abs(box.proximalY - box.top) <= Math.abs(box.proximalY - box.bottom);
+  return {
+    position: proximalAtTop ? v.position : v.position - short,
+    length: min,
   };
 }
 
@@ -753,5 +794,94 @@ export class ZoneSeriesPrimitive implements ISeriesPrimitive<Time> {
     }
 
     this.boxes = boxes;
+  }
+}
+
+// ==========================================================================
+// SELF-CHECK LANTAI TINGGI BOX, pola yang sama dengan `pixel.ts`.
+//
+// Dijalankan sekali saat modul dimuat. `console.error` supaya `e2e/sweep.mjs`,
+// yang menuntut nol console error, ikut merah kalau aritmetika di bawah rusak;
+// dan `window.__zoneBoxDemo` supaya `e2e/retina.mjs` bisa menegaskannya
+// langsung. Sebuah fungsi verifikasi yang tidak dipanggil siapa pun adalah
+// dokumentasi, dan dokumentasi tidak gagal saat seseorang menyederhanakan
+// `floorHeight`.
+//
+// TIDAK melempar, alasan yang sama seperti di `pixel.ts`: lantai yang salah
+// membuat box tergambar tipis, bukan membuat chart tidak bisa digambar.
+// ==========================================================================
+export function zoneBoxDemo(): string {
+  const eq = (got: unknown, want: unknown, what: string) => {
+    const a = JSON.stringify(got);
+    const b = JSON.stringify(want);
+    if (a !== b) throw new Error(`${what}: ${a} bukan ${b}`);
+  };
+  const at = (top: number, bottom: number, proximalY: number) =>
+    ({ top, bottom, proximalY }) as Box;
+
+  // Box setinggi nol pada demand: proximal ADA DI TOP, jadi ia memekar ke
+  // BAWAH dan `position` tidak bergerak. Itu yang menahan aturan proximal
+  // terang tetap mendarat di border.
+  eq(
+    floorHeight({ position: 100, length: 1 }, at(100, 100, 100), 1),
+    { position: 100, length: 4 },
+    "demand memekar ke bawah",
+  );
+
+  // Box setinggi nol pada supply: proximal ADA DI BOTTOM, jadi ia memekar ke
+  // ATAS. Ini arm yang gagal kalau seseorang memakai satu arah untuk keduanya.
+  eq(
+    floorHeight({ position: 100, length: 1 }, at(100, 100.001, 100.001), 1),
+    { position: 97, length: 4 },
+    "supply memekar ke atas",
+  );
+
+  // Skala 2: lantainya dalam CSS pixel, jadi ia jadi 8 device pixel.
+  eq(
+    floorHeight({ position: 200, length: 1 }, at(100, 100, 100), 2),
+    { position: 200, length: 8 },
+    "skala 2",
+  );
+
+  // Box yang sudah lebih tinggi dari lantai TIDAK BOLEH disentuh sama sekali.
+  eq(
+    floorHeight({ position: 100, length: 40 }, at(100, 140, 100), 1),
+    { position: 100, length: 40 },
+    "box tinggi utuh",
+  );
+
+  // Persis di lantai juga tidak disentuh, karena `short` nol bukan positif.
+  eq(
+    floorHeight({ position: 100, length: 4 }, at(100, 104, 100), 1),
+    { position: 100, length: 4 },
+    "tepat di lantai",
+  );
+
+  // Lantai lama 2 device pixel tetap dijaga sebagai batas bawah mutlak, supaya
+  // ky yang sangat kecil tidak menghasilkan box setinggi nol.
+  eq(
+    floorHeight({ position: 100, length: 1 }, at(100, 100, 100), 0.1),
+    { position: 100, length: 2 },
+    "ky kecil tetap 2 device pixel",
+  );
+
+  return "zone-primitive floorHeight demo OK";
+}
+
+if (typeof window !== "undefined") {
+  (window as unknown as { __zoneBoxDemo?: () => string }).__zoneBoxDemo = () => {
+    try {
+      return zoneBoxDemo();
+    } catch (e) {
+      return `GAGAL: ${e instanceof Error ? e.message : String(e)}`;
+    }
+  };
+  try {
+    zoneBoxDemo();
+  } catch (e) {
+    console.error(
+      "zone-primitive self-check gagal, box tipis akan tergambar sebagai garis:",
+      e,
+    );
   }
 }

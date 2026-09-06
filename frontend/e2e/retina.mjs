@@ -159,6 +159,21 @@ async function open(scale, { off = false } = {}) {
   check("self-check aritmetika pixel.ts lolos di browser",
         said?.includes("OK") === true,
         said ?? "window.__pixelDemo tidak ada, lihat bagian bawah pixel.ts");
+
+  // LANTAI TINGGI BOX, dijalankan di tempat yang sama dan karena alasan yang
+  // sama: ia TypeScript, tidak ada test frontend di repo ini, dan halamannya
+  // sudah memuat modulnya.
+  //
+  // Ini bukan pertanyaan grid device pixel, tapi ia tinggal di sini karena
+  // keduanya pertanyaan yang sama bentuknya - "apakah yang tergambar bisa
+  // dilihat" - dan karena harness inilah yang sudah membuka browser di dua
+  // skala. Sebuah box yang lebih tipis dari dua border-nya terbaca sebagai
+  // GARIS, dan pada 1w itu terjadi pada 12 dari 51 box breaker sebelum
+  // `MIN_BOX_MEDIA_PX` dinaikkan dari lantai lamanya 2 device pixel.
+  const box = await page.evaluate(() => window.__zoneBoxDemo?.() ?? null);
+  check("self-check lantai tinggi box lolos di browser",
+        box?.includes("OK") === true,
+        box ?? "window.__zoneBoxDemo tidak ada, lihat bagian bawah zone-primitive.ts");
   await browser.close();
 }
 
