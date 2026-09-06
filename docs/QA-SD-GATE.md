@@ -322,12 +322,83 @@ wilayah harga yang sebagian besar sama dan menggambar batas yang berbeda, yang
 merupakan hasil yang diharapkan ketika satu pihak menurunkan tinggi dari ATR dan
 pihak lain dari base.
 
+## Lengan L di 15m saja, dan kenapa jawabannya tidak
+
+PF 1,377 di 15m adalah angka tertinggi di seluruh program ini, jadi
+"pakai 15m saja" adalah pertanyaan yang wajar. Tiga pengukuran menutupnya, dan
+tidak satu pun berupa pendapat.
+
+**Satu, angkanya sebagian besar milik satu instrumen.**
+
+| sel | n | exp_r | WR | PF | t | wf |
+|---|---|---|---|---|---|---|
+| **BTCUSD 15m** | 230 | **+0,3044** | 44,78% | **1,578** | 2,533 | 7/8 |
+| **XAUUSD 15m** | 224 | +0,1092 | 38,39% | 1,189 | **0,973** | 4/8 |
+| 15m gabungan | 454 | +0,2081 | 41,63% | 1,377 | 2,527 | **5/8** |
+
+Di gold ia tidak signifikan, dan gabungannya gagal walk-forward. Angka 8 dari 8
+milik lengan L adalah sifat agregat dua belas sel, bukan sifat 15m.
+
+**Dua, kontrol pemilihan mengukur berapa banyak dari 1,377 itu milik prosedurnya.**
+Mengambil PF timeframe TERBAIK untuk setiap lengan yang sudah diukur di 12 sel:
+
+| lengan | PF gabungan | PF terbaik-dari-6 | tf |
+|---|---|---|---|
+| A produksi (rugi) | 0,847 | 0,891 | 30m |
+| C body ratio 0,7 | 0,918 | 1,055 | 30m |
+| F proximal body | 1,063 | 1,164 | 15m |
+| I impulse_atr 1,5 | 1,002 | 1,091 | 30m |
+| K produksi | 1,121 | 1,224 | 30m |
+| **L K + proximal body** | 1,131 | **1,377** | 15m |
+| M K + impulse_atr 1,5 | 1,067 | 1,193 | 30m |
+| N K + body ratio 0,7 | 1,036 | 1,195 | 30m |
+
+Median terbaik-dari-6 adalah 1,178, dan lengan L punya KENAIKAN TERBESAR dari
+delapan lengan, +0,246. Jadi 1,377 adalah angka paling ter-inflasi-seleksi di
+tabel, bukan yang paling kuat. Kalibrasi yang menenangkan: lengan A yang terukur
+rugi tetap berhenti di 0,891, jadi prosedur ini tidak mengarang PF di atas 1 dari
+lengan yang merugi - ia menaikkan sekitar 0,06 sampai 0,25.
+
+**Tiga, dan ini yang menutupnya: enam instrumen yang tidak ikut memilih 15m.**
+`tools/oos_symbols.py`, semuanya punya riwayat 15m dan 1m di venue yang sama:
+
+| lengan | instrumen | n | exp_r | PF | t | wf |
+|---|---|---|---|---|---|---|
+| L | EURUSD | 212 | -0,1734 | 0,722 | -1,968 | 4/8 |
+| L | GBPJPY | 195 | +0,2052 | 1,378 | +1,506 | 6/7 |
+| L | USDJPY | 143 | -0,0269 | 0,958 | -0,186 | 1/3 |
+| L | XAGUSD | 207 | +0,0206 | 1,033 | +0,185 | 3/8 |
+| L | **ETHUSD** | 222 | **-0,2903** | 0,527 | **-4,235** | 0/7 |
+| L | US30 | 232 | +0,0361 | 1,059 | +0,305 | 4/8 |
+
+| lengan | n | exp_r | WR | PF | t | wf |
+|---|---|---|---|---|---|---|
+| **K produksi** | 979 | **-0,0830** | 37,90% | 0,855 | -1,899 | 1/8 |
+| **L K + proximal body** | 1.211 | **-0,0433** | 35,43% | 0,929 | -0,954 | 3/8 |
+
+**Keduanya rugi di luar sampel.** Edge 15m tidak berpindah sama sekali.
+
+> [!WARNING]
+> Angka PRODUKSI ikut jatuh, dan itu temuan tersendiri yang tidak dicari. Lengan
+> K di 15m adalah +0,0672 di rig dan **-0,0830** di enam instrumen ini. Rig 12
+> sel memakai dua instrumen; setiap angka di halaman ini adalah angka dua
+> instrumen itu, dan ini pengukuran pertama yang menanyakan apakah ia berpindah.
+>
+> Riwayat 1m di terminal ini kira kira 69 hari, jadi tiap sel di sini jauh lebih
+> pendek daripada sel rig dan n-nya 140 sampai 232 per instrumen. Cukup untuk
+> menolak sebuah klaim, tidak cukup untuk menegakkan yang baru.
+
+Satu hal yang bertahan lemah: lengan L KURANG rugi daripada K di luar sampel,
+-0,0433 lawan -0,0830, konsisten dengan temuan 12 sel bahwa ia mengurangi rugi
+di sel yang buruk. Itu bukan alasan mengirimnya.
+
 ## Cara mengulang
 
 ```bash
 cd backend && PYTHONPATH=. .venv/Scripts/python.exe -m tools.gate_sweep --detector supply_demand
 cd backend && PYTHONPATH=. .venv/Scripts/python.exe -m tools.sd_variants --cells 30m
 cd backend && PYTHONPATH=. .venv/Scripts/python.exe -m tools.sd_variants --cells all --only "A ,K "
+cd backend && PYTHONPATH=. .venv/Scripts/python.exe -m tools.oos_symbols
 ```
 
 > [!WARNING]
