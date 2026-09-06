@@ -49,5 +49,65 @@
    "comparable": false,
    "reason": "tidak menggambar box; menandai inversi dengan garis dan label"
   }
+ },
+ "order_block": {
+  "note": "Pembanding memakai RENTANG PENUH lilin dan kita memakai BADAN, jadi yang diuji containment, bukan kesamaan persis.",
+  "containment": [
+   {
+    "theirs": [
+     4427.47,
+     4418.95
+    ],
+    "ours_inside": [
+     [
+      4427.47,
+      4422.46
+     ],
+     [
+      4421.51,
+      4420.61
+     ]
+    ],
+    "count": 2,
+    "top_matches_exactly": true
+   },
+   {
+    "theirs": [
+     4330.97,
+     4321.64
+    ],
+    "ours_inside": [
+     [
+      4330.77,
+      4329.37
+     ],
+     [
+      4325.67,
+      4324.53
+     ]
+    ],
+    "count": 2,
+    "top_matches_exactly": false
+   }
+  ],
+  "all_contained": true,
+  "filter_trace": {
+   "weak": {
+    "python_pct": 82.15,
+    "pine_pct": 82.23,
+    "diff_pp": 0.09
+   },
+   "not_last": {
+    "python_pct": 4.2,
+    "pine_pct": 4.06,
+    "diff_pp": -0.15
+   },
+   "drawn": {
+    "python_pct": 13.65,
+    "pine_pct": 13.71,
+    "diff_pp": 0.06
+   }
+  },
+  "max_abs_diff_pp": 0.15
  }
 }

@@ -138,93 +138,55 @@ sebelum ada yang mengukurnya.
 Yang tetap harus dibaca: efeknya KECIL. exp_r +0,055 pada lantai 2,5 lawan
 +0,345 milik IFVG, dengan baseline yang negatif alih-alih positif.
 
-## Parity geometri
+## Parity geometri, diukur ulang pada aturan yang berlaku
 
 Dua perbandingan berbeda, dan keduanya perlu karena membuktikan hal berbeda.
+Keduanya DIUKUR ULANG setelah detector diubah ke body-box plus impuls dari
+close: angka parity yang pertama mencerminkan aturan yang sudah tidak ada.
 
 **Cermin Pine lawan Python kita.** `Zonelab OB` di Pine ditulis sebagai cermin
 `detect_order_block`, lalu jejak filternya dibandingkan. Ini menguji seluruh
 jalur keputusan, bukan cuma koordinat kotak:
 
-| filter | Python, MT5, 61.222 kandidat | Pine, FXCM, 31.635 kandidat |
+| filter | Python, MT5, 61.222 kandidat | Pine, FXCM, 31.635 kandidat | selisih |
+|---|---|---|---|
+| ditolak impuls lemah | 82,15% | 82,23% | +0,09 pp |
+| ditolak bukan yang terakhir | 4,20% | 4,06% | -0,15 pp |
+| digambar | 13,65% | 13,71% | +0,06 pp |
+
+Selisih terbesar 0,15 poin persen di dua feed yang berbeda. Cerminnya setia.
+
+> [!NOTE]
+> Angkanya bergeser besar dari aturan lama, 72,8 persen ditolak menjadi 82,15
+> persen, dan itu justru filter impuls-dari-close yang terlihat bekerja.
+
+**Lawan script komunitas, dan pembandingnya BERGANTI.**
+`Order Block Detector [LuxAlgo]` yang dipakai di putaran pertama ternyata
+memakai **volume pivot**, bukan definisi adjacency: `ta.pivot` pada seri volume,
+tanpa syarat struktur dan tanpa syarat impuls, dengan box low ke median. Ia
+mengukur objek yang berbeda, jadi membandingkan kotaknya dengan kotak kita
+bukan uji parity melainkan uji apakah dua definisi berbeda kebetulan bertemu.
+
+`Order Block Finder (Experimental)` memakai definisi yang **sama** dengan kita,
+lilin berlawanan terakhir sebelum sederet lilin searah. Ia menggambar garis,
+tiga per block, dan mid-nya persis rata-rata top dan bottom, jadi ia memakai
+RENTANG PENUH lilin.
+
+Kesamaan persis karena itu **mustahil secara konstruksi** sejak kita memakai
+badan. Yang benar diuji containment: kalau keduanya menandai lilin yang sama,
+badan kita harus duduk di dalam rentang mereka.
+
+| pembanding | box kita di dalamnya | top cocok persis |
 |---|---|---|
-| ditolak impuls lemah | 72,8% | 72,9% |
-| ditolak bukan yang terakhir | 7,0% | 6,7% |
-| digambar | 20,2% | 20,4% |
+| 4427,47 - 4418,95 | 2 | **ya**, 4427,47 |
+| 4330,97 - 4321,64 | 2 | tidak |
 
-Tiga filter, dua feed, selisih di bawah 0,3 poin persen. Cerminnya setia.
+**Containment 2 dari 2.** Dan satu selisih yang layak disebut alih alih
+disembunyikan: **dua kotak kita masuk ke dalam satu kotak mereka**, di kedua
+kasus. Detector kita lebih permisif, dan itu konsisten dengan 21,1 persen
+overlap sesisi yang diukur di bagian sebelumnya.
 
-**Lawan script komunitas, dan di sini hasilnya berbeda dari IFVG.** Pada
-FX:XAUUSD 30m yang sama, `Order Block Detector [LuxAlgo]` memegang **6** kotak
-sementara detector kita menemukan **6.440** sepanjang riwayat yang dimuat. Satu
-zona beririsan di jendela harga kita, 4472,63, dan top-nya cocok persis
-sementara bottom-nya tidak.
-
-> [!WARNING]
-> **KEDUA ANGKA ITU BUKAN BESARAN YANG SAMA, dan versi pertama dokumen ini
-> menyajikannya seolah begitu.** 6.440 adalah jumlah yang detector kita
-> DETEKSI; 6 adalah jumlah yang LuxAlgo TAMPILKAN. Script-nya protected,
-> input-nya terenkripsi, dan ia tidak mengekspos tabel maupun label, jadi
-> populasi yang ia deteksi tidak bisa dibaca dari luar. Pine kita sendiri
-> menampilkan 40 dari 6.440 yang ia deteksi, jadi selisih tampilan sebesar itu
-> memang lumrah.
->
-> Yang tetap berdiri: definisinya berbeda. **Tetapi versi pertama dokumen ini
-> salah menyebut BAGAIMANA ia berbeda**, dan itu dikoreksi di sini. Saya
-> menulis bahwa LuxAlgo memakai order block berbasis swing. Ia tidak.
-> `Order Block Detector [LuxAlgo]` memakai **volume pivot**, yaitu `ta.pivot`
-> pada seri volume, tanpa syarat struktur dan tanpa syarat impuls sama sekali,
-> dan box-nya digambar dari low ke median price, bukan rentang lilin. Yang
-> benar benar swing-anchored adalah script LuxAlgo yang BERBEDA,
-> `Smart Money Concepts (SMC)`, yang di dalamnya order block hanya bisa lahir
-> di dalam blok BOS atau CHoCH.
->
-> Yang kita pakai adalah definisi ICT yang diperdebatkan apa adanya: rentang
-> lilin penuh plus ambang `impulse_atr`, tanpa syarat struktur, dan
-> `app/detect/imbalance.py` sudah menyebut sendiri bahwa ia mewarisi definisi
-> itu wholesale.
->
-> Yang TIDAK bisa dijawab dari sini: mana yang lebih baik. Outcome LuxAlgo
-> belum pernah diukur di rig ini, dan membandingkan PF yang ada dengan PF yang
-> tidak ada bukan perbandingan. Untuk menjawabnya, definisi swing-based itu
-> harus ditulis ulang di Python dan dijalankan lewat `tools/gate_sweep.py`
-> seperti detector lain.
-
-`Order Blocks Finder [TradingFinder]` tidak menggambar box yang bisa dibaca,
-sama seperti versi IFVG-nya.
-
-> [!NOTE]
-> Bandingkan dengan IFVG, yang cocok 5 dari 5 persis dengan LuxAlgo. Gap adalah
-> objek yang definisinya tidak punya kebebasan; order block punya, dan
-> `app/detect/imbalance.py` sudah menyebut sendiri bahwa ia mewarisi definisi
-> yang diperdebatkan itu wholesale. Jadi ketidakcocokan ini bukan cacat yang
-> ditemukan, ia perbedaan yang sudah dinyatakan dan sekarang terukur besarnya.
-
-## Apa yang diterapkan, dan apa yang sengaja tidak
-
-**Lantai order block naik dari 2,0 ke 2,5.** `FLOOR_GATE_ATR` di
-`app/models/zone.py` sekarang per kind: keempat formasi supply/demand tetap di
-2,0 karena itu angka yang diukur untuk mereka, OB naik ke 2,5, dan BRK
-mengikuti OB karena ia mewarisi `departure_atr` dari order block induknya -
-membiarkannya di 2,0 akan menilainya dengan angka yang bukan milik siapa pun.
-
-Jalur order ikut berubah, dan itu memang inti perubahannya. `tools/execute.py`
-menghitung ambangnya sendiri dari dua konstanta modul sampai hari ini, jadi
-lantai per kind tidak akan pernah sampai ke sana. Ia sekarang membaca
-`zone.gate_cleared`, yang sudah menyandi arah dan ambang per kind.
-
-> [!NOTE]
-> Efeknya pada populasi: sebuah order block di 2,2 ATR dulu diterima dan
-> sekarang ditolak. Dari 13.309 zona terukur, kohort yang bisa diorder menyusut
-> dari 8.499 ke 5.311, yaitu 3.188 zona.
-
-**Batas timeframe TIDAK dipasang.** `order_block` tetap tanpa
-`measured_intervals`, jadi executor masih menerimanya di timeframe mana pun,
-termasuk 4h dan 1d yang tabel di atas ukur PF 0,813 dan 0,720. Ini keputusan
-pemiliknya, diambil setelah angkanya disodorkan, dan dicatat di sini supaya
-tidak terbaca sebagai kelalaian. Daemon saat ini berjalan di `15m,30m`, jadi
-kedua timeframe rugi itu tidak tersentuh oleh konfigurasi yang sedang jalan -
-tetapi tidak ada apa pun di kode yang menahannya kalau konfigurasinya berubah.
+Dihitung di `tools/box_parity.py`.
 
 ## PF 0,985 bukan cacat kita sendirian
 

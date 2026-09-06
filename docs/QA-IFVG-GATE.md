@@ -192,7 +192,7 @@ feed yang **sama** dengan pembandingnya di FX:XAUUSD 30m. Feed-nya harus sama:
 Zonelab membaca terminal MT5 dan TradingView membaca FXCM, jadi perbandingan
 lintas feed tidak bisa membedakan "aturan berbeda" dari "data berbeda".
 
-Toleransi satu sen, dihitung di `tools/ifvg_parity.py`, hanya di dalam jendela
+Toleransi satu sen, dihitung di `tools/box_parity.py`, hanya di dalam jendela
 harga kotak kita:
 
 | pembanding | cocok persis | catatan |
