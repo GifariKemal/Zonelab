@@ -50,7 +50,9 @@ max_pending   = input.int(80,    "max pending zones",  group="Trade")
 // Berapa zona lawan yang diingat untuk dicari dindingnya. `profit_zone_at`
 // memindai SELURUH daftar; di sini dibatasi karena pemindaian per kelahiran
 // membuatnya kuadratik. Dinding terdekat hampir selalu zona yang baru, jadi
-// batas ini pendekatan - dan ia DINYATAKAN, bukan disembunyikan.
+// batas ini pendekatan - dan ia DINYATAKAN, bukan disembunyikan. Terukur 7
+// September 2026: 30 memberi PF 1,079, 300 memberi 1,091, dan 1000 memberi
+// angka yang IDENTIK dengan 300, jadi batas ini sudah jenuh.
 wall_memory   = input.int(300, "zona lawan yang diingat", group="Trade", minval=20)
 cost_pct      = input.float(0.0113, "biaya % per sisi", group="Trade", step=0.001,
      tooltip = "XAU 0,0113 - BTC 0,01329, dari app/costs.py. TIDAK lewat commission_value karena Pine menuntut const di sana, dan TIDAK lewat dialog Strategy Properties karena dialog itu kembali ke nol setiap TradingView di-restart - run tanpa biaya lalu terbaca persis seperti run dengan biaya. Angka di tabel sudah bersih biaya; Strategy Tester bawaan tidak.")
@@ -119,6 +121,14 @@ if array.size(w_prox) > 0
 // lahir selama penantian itu NYATA bagi pedagang yang baru terisi sekarang.
 // Menghitungnya di kelahiran membuang dinding-dinding itu dan memberi target
 // yang lebih jauh dari yang produksi pakai.
+//
+// TIDAK ADA REPAINT DI JALUR INI, dan itu diuji setelah target dipindah ke
+// sini, bukan sebelumnya. Riwayat dipotong Bar Replay di 2025-06-02 lalu
+// dimajukan sekitar dua hari bar: `gross_profit` tetap 868.416,778 sampai sen,
+// `winning_trades` tetap 849, `largest_win` dan `largest_loss` tetap - yang
+// berubah hanya satu trade baru yang tutup sebagai pecundang senilai 998,40.
+// Kalau pemilihan target di sini mengintip masa depan, seluruh riwayat akan
+// terhitung ulang.
 if array.size(p_prox) > 0
     for k = array.size(p_prox) - 1 to 0
         dir  = array.get(p_dir,  k)
@@ -158,6 +168,9 @@ if array.size(p_prox) > 0
             c_cancel += 1
             drop(k)
 
+// Terukur DATAR dan knob ini tidak pernah mengikat: 20 bar memberi PF 1,088,
+// 80 memberi 1,091, dan 300 juga 1,091. Trade selesai di stop atau target jauh
+// sebelum 20 bar, jadi horizon di sini jaring pengaman, bukan parameter.
 if strategy.opentrades > 0
     for t = strategy.opentrades - 1 to 0
         if bar_index - strategy.opentrades.entry_bar_index(t) >= horizon
@@ -216,6 +229,13 @@ if (bull or bear) and not na(scale) and scale > 0 and not (filter_mother and mot
             array.remove(w_dist, 0)
             array.remove(w_dir,  0)
 
+        // AMBANG INI DIPERIKSA ULANG 7 September 2026 dan ia BERTAHAN, tapi
+        // bukan di sel yang mungkin diduga. Di XAUUSD 4 jam mematikan gerbang
+        // justru lebih baik (1,111 pada 4.156 trade lawan 1,091 pada 1.709), dan
+        // kurvanya tidak monoton di sana - 0,10 memberi 1,013 lalu 0,15
+        // melompat ke 1,169. Di 1 jam dan harian ia jelas membayar: 0,902 lawan
+        // 1,006 dan 1,027 lawan 1,112. Dua dari tiga timeframe, jadi 4 jam yang
+        // pengecualian.
         if h >= min_gap_atr * scale and (gate_ceiling <= 0 or h / scale < gate_ceiling)
             c_gate += 1
             stop = bull ? dist - stop_buf_atr * scale : dist + stop_buf_atr * scale
@@ -224,7 +244,9 @@ if (bull or bear) and not na(scale) and scale > 0 and not (filter_mother and mot
             // saat order dipasang. Produksi memakai ATR di bar SENTUHAN
             // (`scale_at="touch"`), yang belum ada saat limit ini dipasang,
             // jadi harness ini setara `scale_at="birth"` - bandingkan ke sana,
-            // bukan ke default produksi.
+            // bukan ke default produksi. Sumbu itu diukur terpisah dan hampir
+            // tidak bergerak: XAU 30m 1,126 lawan 1,138, BTC 1h 1,207 lawan
+            // 1,256.
             if risk > 0
                 qty = risk_usd / risk
                 id  = "z" + str.tostring(bar_index)
@@ -246,13 +268,25 @@ if (bull or bear) and not na(scale) and scale > 0 and not (filter_mother and mot
 var int first_t = na
 if barstate.isfirst
     first_t := time
-// `barstate.islast` SALAH di sini dan compiler mengatakannya di setiap
+// `barstate.islast` SENDIRIAN SALAH di sini dan compiler mengatakannya di setiap
 // kompilasi: dengan `calc_on_every_tick = false` script hanya jalan di bar yang
 // sudah tutup, jadi di bar realtime yang belum tutup `islast` tidak pernah
 // menyala dan tabelnya TIDAK ADA - sampai 30 menit sekali di 30m. Terbaca
-// seperti script yang rusak, padahal cuma menunggu lilin. Yang benar bar
-// riwayat terakhir yang terkonfirmasi.
-if barstate.islastconfirmedhistory
+// seperti script yang rusak, padahal cuma menunggu lilin.
+//
+// TAPI `islastconfirmedhistory` SENDIRIAN MEMBEKUKAN TABEL DI BAR REPLAY, dan
+// itu terukur: dipotong di 2025-06-02 lalu dimajukan tiga bar, `bars` tetap
+// 20.698 dan `span` tetap berakhir 2025-05-30. Replay menambah bar sebagai
+// realtime, bukan sebagai riwayat terkonfirmasi, jadi predikat itu menyala
+// sekali di titik potong dan tidak pernah lagi. Angka yang identik sesudah
+// melangkah lalu terbaca sebagai "tidak ada repaint" padahal tabelnya cuma
+// tidak menghitung ulang - test yang hampa dan terlihat seperti test yang lolos.
+//
+// Keduanya digabung dengan `or`, yang hanya bisa MENAMBAH bar tempat tabel
+// digambar dan tidak pernah mengurangi, jadi ia tidak bisa menghidupkan lagi
+// cacat pertama. Diverifikasi: dipotong di 2025-06-02 lalu dimajukan, `bars`
+// bergerak 20.698 ke 20.705 dan `span` ikut maju - sebelumnya keduanya beku.
+if barstate.islastconfirmedhistory or barstate.islast
     var table t = table.new(position.top_right, 2, 13, border_width=1)
     table.cell(t, 0, 0, "cfg",   bgcolor=color.new(color.gray, 80), text_size=size.small)
     table.cell(t, 1, 0, syminfo.ticker + " " + timeframe.period +

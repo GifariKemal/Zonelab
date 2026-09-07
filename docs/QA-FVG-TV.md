@@ -1501,7 +1501,60 @@ trade, 13,7 tahun, walk-forward berpurging 6 dari 8.** Aturan proyek 8 dari 8,
 jadi `fvg.orderable` tetap mati - dan sekarang itu keputusan yang berdiri di
 atas sapuan lengkap, bukan di atas satu sel yang belum diperiksa.
 
-## 24. Yang belum dikerjakan
+## 25. Replay diverifikasi ulang di script yang sekarang, 7 September 2026
+
+Bagian 12 mencatat verifikasi Bar Replay dan menyimpulkan tidak ada lookahead.
+Verifikasi itu dijalankan di harness LAMA - target R tetap, dipilih saat zona
+lahir. Sejak itu target pindah ke waktu order TERISI dan dipilih dari daftar
+dinding yang dimutasi tiap bar, dan justru perubahan seperti itu yang paling
+bisa memperkenalkan repaint. Jadi ia diuji lagi, bukan diasumsikan menurun.
+
+### Hasilnya, dan ia lebih bersih dari yang lama
+
+Riwayat XAUUSD 4 jam dipotong di 2025-06-02, lalu dimajukan sekitar dua hari bar.
+Dibaca dari Strategy Tester, bukan dari tabel script:
+
+| | di titik potong | sesudah dimajukan |
+|---|---|---|
+| gross_profit | 868.416,778 | **868.416,778** |
+| gross_loss | 724.162,152 | 725.160,552 |
+| winning_trades | 849 | **849** |
+| losing_trades | 812 | 813 |
+| largest_win | 7.913,484 | **7.913,484** |
+| largest_loss | 4.686,526 | **4.686,526** |
+| max_drawdown | 33.220,624 | **33.220,624** |
+
+Tepat SATU trade baru tutup, seorang pecundang senilai 998,400 - dan
+`gross_loss` bertambah persis sebesar itu. Kontribusi setiap trade riwayat
+identik sampai sen. Kalau pemilihan target saat terisi mengintip masa depan,
+seluruh riwayat akan terhitung ulang dan `gross_profit` ikut bergerak.
+
+### Test pertamanya HAMPA, dan itu perlu ditulis
+
+Percobaan pertama membaca tabel script, bukan Strategy Tester, dan tabelnya
+memberi angka yang identik sampai digit terakhir setelah melangkah tiga bar.
+Itu terbaca persis seperti "tidak ada repaint" - dan salah.
+
+Yang membocorkannya kolom `bars`: ia tetap 20.698 sesudah tiga langkah, dan
+`span` tetap berakhir 2025-05-30. Tabelnya tidak menghitung ulang sama sekali.
+`barstate.islastconfirmedhistory` - perbaikan yang benar untuk masalah tabel
+hilang di bar realtime, bagian 17.7 - menyala SEKALI di titik potong dan tidak
+pernah lagi, karena Replay menambah bar sebagai realtime dan bukan sebagai
+riwayat terkonfirmasi.
+
+Jadi satu perbaikan yang benar membuat instrumen lain hampa, dan kehampaannya
+berwujud sebagai test yang lolos. Sekarang predikatnya
+`islastconfirmedhistory or islast`: `or` hanya bisa MENAMBAH bar tempat tabel
+digambar, jadi ia tidak bisa menghidupkan lagi cacat yang pertama. Diverifikasi
+- `bars` bergerak 20.698 ke 20.705 dan `span` ikut maju, dan PF tetap 1,094
+sementara n naik 1.660 ke 1.663.
+
+> [!NOTE]
+> Angka di bagian 12 (n=1.604, win 53,43, PF 1,088) milik harness R tetap dan
+> DIBIARKAN di sana sebagai catatan sejarah. Yang berlaku untuk script sekarang
+> tabel di atas.
+
+## 26. Yang belum dikerjakan
 
 Daftar ini dipangkas 7 September 2026. Yang dicoret sudah dikerjakan di bagian
 23: walk-forward berpurging untuk XAUUSD 4 jam, sapuan gerbang di 1 jam dan
