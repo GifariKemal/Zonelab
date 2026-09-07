@@ -1,5 +1,5 @@
 //@version=6
-// Zonelab FVG Strategy - cermin `app/detect/imbalance.py:detect_fvg` plus
+// Zonelab Imbalance Strategy - cermin `app/detect/imbalance.py` plus
 // geometri trade `app/plan.py:build`. Urutan lifecycle sudah benar di kedua
 // sisi: SENTUH DICATAT SEBELUM PECAH.
 //
@@ -19,7 +19,7 @@
 // use_bar_magnifier WAJIB. Tanpa itu Strategy Tester menyelesaikan setiap bar
 // yang memuat stop DAN target sebagai kalah. Terukur XAUUSD 30m tanpa gerbang:
 // PF 0,9396 tanpa lawan 0,9568 dengan, pada 6.409 lawan 6.408 trade.
-strategy("Zonelab FVG Strategy", overlay=true,
+strategy("Zonelab Imbalance Strategy", overlay=true,
      pyramiding = 500,
      initial_capital = 10000000,
      default_qty_type = strategy.fixed,
@@ -30,11 +30,37 @@ strategy("Zonelab FVG Strategy", overlay=true,
      use_bar_magnifier = true,
      calc_on_every_tick = false)
 
+// SATU SCRIPT, DUA DETEKTOR, dan itu keputusan yang dibuat untuk benchmark.
+// Order block diukur lewat kode bracket yang IDENTIK dengan fair value gap -
+// dinding, biaya, horizon, tabel, semuanya satu jalur - jadi selisih angka
+// keduanya milik detektornya. Dua file akan membiarkan bracketnya hanyut, dan
+// perbandingan dua bracket yang berbeda tidak mengukur detektor apa pun.
+//
+// ARAH GERBANGNYA BERLAWANAN dan itu bukan detail. FVG digerbangi PLAFON pada
+// tinggi gap; OB digerbangi LANTAI pada kekuatan impuls. Satu pembaca yang cuma
+// melihat angka gerbangnya tidak bisa tahu mana yang berlaku.
+detector      = input.int(0, "detektor 0=FVG 1=OB", group="Detector",
+     minval=0, maxval=1)
 atr_len       = input.int(14,    "atr_period",         group="Detector")
 min_gap_atr   = input.float(0.0, "min_gap_atr",        group="Detector", step=0.05)
 gate_ceiling  = input.float(0.25,"gate ceiling (ATR)", group="Detector", step=0.05)
 filter_mother = input.bool(true, "filter_mother",      group="Detector")
 min_body      = input.float(0.3, "min_body_ratio",     group="Detector", step=0.05)
+
+// KNOB ORDER BLOCK. Default sama dengan `ImbalanceParams`: impuls minimum 1,5
+// ATR diukur atas 5 bar, lalu gerbangnya lantai 2,0 ATR pada besaran yang SAMA.
+// Dua ambang pada satu kuantitas, dan itu memang begitu di produksi:
+// `displacement_atr` menyaring saat deteksi, `DEPARTURE_GATE_ATR` menyaring
+// baris hasil.
+disp_atr      = input.float(1.5, "displacement_atr",   group="Order block", step=0.1)
+disp_bars     = input.int(5,     "displacement_bars",  group="Order block", minval=1)
+gate_floor    = input.float(2.0, "gate floor (ATR)",   group="Order block", step=0.1)
+// Lantai tinggi kotak sebagai fraksi RENTANG LILIN, bukan ATR - cermin
+// `MIN_OB_BOX_RANGE`. Acuan rentang lilin dipilih di produksi karena satu
+// rentang lilin dihitung dari satu bar, jadi ia sama di jendela mana pun,
+// sementara Wilder ATR bergeser saat jendelanya tumbuh ke kiri.
+ob_box_floor  = input.float(0.15,"lantai tinggi kotak (rentang lilin)",
+     group="Order block", step=0.01)
 
 // 1 = zona lawan (cermin produksi, default), 0 = R tetap (harness lama).
 target_mode   = input.int(1, "target 1=zona lawan 0=R tetap", group="Trade",
@@ -190,18 +216,79 @@ if strategy.closedtrades > seen
             sum_loss += -r
     seen := strategy.closedtrades
 
-scale = atr_v[3]
-bull  = high[2] < low[0]
-bear  = low[2]  > high[0]
+// ---- KANDIDAT FAIR VALUE GAP ----
+f_scale  = atr_v[3]
+f_bull   = high[2] < low[0]
+f_bear   = low[2]  > high[0]
+f_mother = high[1] >= high[2] and high[1] >= high[0] and low[1] <= low[2] and low[1] <= low[0]
+f_rng    = high[1] - low[1]
+f_body   = math.abs(close[1] - open[1])
+f_doji   = min_body > 0 and f_rng > 0 and f_body / f_rng < min_body
+f_top0   = f_bull ? low[0]  : low[2]
+f_bot0   = f_bull ? high[2] : high[0]
+f_ok     = (f_bull or f_bear) and not na(f_scale) and f_scale > 0 and
+             not (filter_mother and f_mother) and not f_doji
 
-mother = high[1] >= high[2] and high[1] >= high[0] and low[1] <= low[2] and low[1] <= low[0]
-mid_rng  = high[1] - low[1]
-mid_body = math.abs(close[1] - open[1])
-doji = min_body > 0 and mid_rng > 0 and mid_body / mid_rng < min_body
+// ---- KANDIDAT ORDER BLOCK ----
+//
+// LANJUTAN BARIS DI PINE TIDAK BOLEH DIINDENT KELIPATAN 4. Indent seperti itu
+// dibaca sebagai blok baru, dan pesan compilernya menunjuk kolom terakhir baris
+// pertama ("expecting set ':'") alih-alih menyebut indentasinya. Tiga ternary di
+// bawah pernah kena; sekarang ditulis satu baris supaya tidak bisa terulang.
+//
+// LILIN BLOCK ADALAH `disp_bars` BAR YANG LALU, bukan bar ini. Kotaknya baru
+// bisa diketahui setelah jendela impuls selesai tercetak - `born = i +
+// displacement_bars` di `detect_order_block` - jadi bar ini adalah bar tempat
+// order boleh dipasang, dan lilinnya diintip ke belakang.
+//
+// `ta.highest`/`ta.lowest` DI TOP LEVEL, bukan di dalam cabang. Compiler
+// memperingatkan bahwa keduanya harus dipanggil di setiap kalkulasi supaya
+// konsisten, dan peringatan itu sudah dua kali muncul di riwayat script ini.
+// Jendelanya indeks 0 sampai disp_bars-1, yaitu bar i+1 sampai i+disp_bars -
+// persis `close[window]` di produksi.
+o_hi_close = ta.highest(close, disp_bars)
+o_lo_close = ta.lowest(close, disp_bars)
+o_scale    = atr_v[disp_bars + 1]
+o_bear     = close[disp_bars] < open[disp_bars]
+o_bullc    = close[disp_bars] > open[disp_bars]
+// "TERAKHIR" ditegakkan tanpa diskresi: lilin BERIKUTNYA harus tutup ke arah
+// lain, karena lilin itu adalah impulsnya yang mulai. Doji jadi bukan keduanya
+// dan ditolak, sama seperti di produksi.
+o_turned   = o_bear ? close[disp_bars - 1] > open[disp_bars - 1] : close[disp_bars - 1] < open[disp_bars - 1]
+// IMPULS KE CLOSE EKSTREM, BUKAN KE SUMBU. Terukur di produksi: 30,6 persen
+// block lolos ambang HANYA karena sebuah wick yang tidak pernah dikonfirmasi
+// satu close pun.
+o_move     = o_bear ? (o_hi_close - close[disp_bars]) / o_scale : (close[disp_bars] - o_lo_close) / o_scale
+// KOTAKNYA BADAN LILIN, bukan rentang penuh: stop duduk di luar distal, jadi
+// risk per unit ADALAH tinggi kotak, dan rentang penuh menyerahkan besaran itu
+// ke panjang sumbu - kuantitas yang tak berhubungan dengan sinyalnya.
+o_bt0      = math.max(open[disp_bars], close[disp_bars])
+o_bb0      = math.min(open[disp_bars], close[disp_bars])
+// Lantai tinggi kotak, dimekarkan SIMETRIS supaya titik tengahnya tidak
+// bergeser, lalu DIGESER KEMBALI KE DALAM lilinnya kalau badannya menempel di
+// high atau low. Digeser dan bukan dikecilkan, karena tingginya harus tetap
+// sama dengan yang diukur.
+o_need     = (high[disp_bars] - low[disp_bars]) * ob_box_floor - (o_bt0 - o_bb0)
+o_bt1      = o_need > 0 ? o_bt0 + o_need / 2.0 : o_bt0
+o_bb1      = o_need > 0 ? o_bb0 - o_need / 2.0 : o_bb0
+o_bt2      = o_bt1 > high[disp_bars] ? high[disp_bars] : o_bt1
+o_bb2      = o_bt1 > high[disp_bars] ? o_bb1 - (o_bt1 - high[disp_bars]) : o_bb1
+o_bb       = o_bb2 < low[disp_bars] ? low[disp_bars] : o_bb2
+o_bt       = o_bb2 < low[disp_bars] ? o_bt2 + (low[disp_bars] - o_bb2) : o_bt2
+o_ok       = (o_bear or o_bullc) and o_turned and not na(o_scale) and o_scale > 0 and
+               o_move >= disp_atr
 
-if (bull or bear) and not na(scale) and scale > 0 and not (filter_mother and mother) and not doji and in_win
-    top0 = bull ? low[0]  : low[2]
-    bot0 = bull ? high[2] : high[0]
+// ---- YANG DIPAKAI, satu jalur setelah ini ----
+isOB  = detector == 1
+scale = isOB ? o_scale : f_scale
+// Lilin BEARISH sebelum gerakan NAIK adalah block DEMAND, jadi sisi long di
+// sini datang dari lilin turun - kebalikan dari intuisi warna lilinnya.
+bull  = isOB ? o_bear : f_bull
+top0  = isOB ? o_bt   : f_top0
+bot0  = isOB ? o_bb   : f_bot0
+ok    = isOB ? o_ok   : f_ok
+
+if ok and in_win
     h    = top0 - bot0
     if h > 0
         c_cand += 1
@@ -217,10 +304,10 @@ if (bull or bear) and not na(scale) and scale > 0 and not (filter_mother and mot
 
         // SETIAP zona jadi calon dinding, LOLOS GERBANG ATAU TIDAK. Produksi
         // memanggil `profit_zone_at(zone, zones, ...)` dengan `zones` = seluruh
-        // keluaran detektor; gerbang keberangkatan baru menyaring BARIS HASIL,
-        // jauh setelah target dipilih. Mendaftarkan hanya zona yang lolos
-        // gerbang membuang dinding terdekat dan memberi target yang terlalu
-        // jauh - persis arah kesalahan yang terukur (RR rata-rata 4,39).
+        // keluaran detektor; gerbang baru menyaring BARIS HASIL, jauh setelah
+        // target dipilih. Mendaftarkan hanya zona yang lolos gerbang membuang
+        // dinding terdekat dan memberi target yang terlalu jauh - persis arah
+        // kesalahan yang terukur di FVG (RR rata-rata 4,39).
         array.push(w_prox, prox)
         array.push(w_dist, dist)
         array.push(w_dir,  bull ? 1 : -1)
@@ -229,14 +316,14 @@ if (bull or bear) and not na(scale) and scale > 0 and not (filter_mother and mot
             array.remove(w_dist, 0)
             array.remove(w_dir,  0)
 
-        // AMBANG INI DIPERIKSA ULANG 7 September 2026 dan ia BERTAHAN, tapi
-        // bukan di sel yang mungkin diduga. Di XAUUSD 4 jam mematikan gerbang
-        // justru lebih baik (1,111 pada 4.156 trade lawan 1,091 pada 1.709), dan
-        // kurvanya tidak monoton di sana - 0,10 memberi 1,013 lalu 0,15
-        // melompat ke 1,169. Di 1 jam dan harian ia jelas membayar: 0,902 lawan
-        // 1,006 dan 1,027 lawan 1,112. Dua dari tiga timeframe, jadi 4 jam yang
-        // pengecualian.
-        if h >= min_gap_atr * scale and (gate_ceiling <= 0 or h / scale < gate_ceiling)
+        // GERBANGNYA BERLAWANAN ARAH ANTAR DETEKTOR. FVG: plafon pada tinggi
+        // gap dalam ATR, lolos berarti DI BAWAH. OB: lantai pada kekuatan
+        // impuls, lolos berarti DI ATAS. Diperiksa ulang 7 September 2026 untuk
+        // FVG di tiga timeframe dan ia bertahan; lantai OB 2,0 dikalibrasi lewat
+        // lifecycle yang urutannya rusak dan belum pernah diperiksa sejak.
+        fvgPass  = h >= min_gap_atr * scale and (gate_ceiling <= 0 or h / scale < gate_ceiling)
+        gatePass = isOB ? o_move >= gate_floor : fvgPass
+        if gatePass
             c_gate += 1
             stop = bull ? dist - stop_buf_atr * scale : dist + stop_buf_atr * scale
             risk = math.abs(prox - stop)
@@ -289,11 +376,19 @@ if barstate.isfirst
 if barstate.islastconfirmedhistory or barstate.islast
     var table t = table.new(position.top_right, 2, 13, border_width=1)
     table.cell(t, 0, 0, "cfg",   bgcolor=color.new(color.gray, 80), text_size=size.small)
+    // DETEKTOR DAN ARAH GERBANGNYA DIECHO, kalau tidak dua run dengan detektor
+    // berbeda terbaca kembar di baris ini - dan angka gerbangnya sendiri tidak
+    // bisa membedakannya, karena yang satu plafon dan yang lain lantai.
     table.cell(t, 1, 0, syminfo.ticker + " " + timeframe.period +
-         " a" + str.tostring(atr_len) + " g" + str.tostring(gate_ceiling) +
+         (isOB ? " OB flr" + str.tostring(gate_floor) +
+                 " d" + str.tostring(disp_atr) + "/" + str.tostring(disp_bars) +
+                 " bf" + str.tostring(ob_box_floor)
+               : " FVG ceil" + str.tostring(gate_ceiling) +
+                 (filter_mother ? " M" : "") +
+                 (min_body > 0 ? " B" + str.tostring(min_body) : "")) +
+         " a" + str.tostring(atr_len) +
          (target_mode == 1 ? " Twall" : " R" + str.tostring(reward_r)) +
          " s" + str.tostring(stop_buf_atr) +
-         (filter_mother ? " M" : "") + (min_body > 0 ? " B" + str.tostring(min_body) : "") +
          " p" + str.tostring(placebo_atr) + " c" + str.tostring(cost_pct), text_size=size.small)
     table.cell(t, 0, 1, "span",  bgcolor=color.new(color.gray, 80), text_size=size.small)
     table.cell(t, 1, 1, str.format_time(first_t, "yyyy-MM-dd", "UTC") + " " +

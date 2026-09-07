@@ -2,7 +2,7 @@
 
 6 September 2026. Lingkup: detektor `fvg`, dua instrumen (XAUUSD dan BTCUSD),
 lima timeframe, diukur di TradingView Strategy Tester lewat
-`mql5/pine/ZonelabFVGStrategy.pine`.
+`mql5/pine/ZonelabImbalanceStrategy.pine`.
 
 > [!IMPORTANT]
 > Semua angka ekspektasi FVG yang lebih tua dari tanggal ini diukur dengan
