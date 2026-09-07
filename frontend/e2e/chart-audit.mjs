@@ -278,6 +278,20 @@ const shapes = {
     // terjadi di audit order_block 7 September 2026.
     pixel_units: "every height_px value and the 15px threshold are CSS pixels; this screenshot is deviceScaleFactor 2, so a box measured in the IMAGE is twice its height_px",
     z_order: "box fills are painted BENEATH the candles, captions above them",
+    // STROKE DALAM DINYATAKAN, karena tanpa itu auditor melaporkannya sebagai
+    // kotak keempat yang tidak ada di daftar - dan itu benar tentang legenda,
+    // bukan tentang gambarnya. Setiap zona IFVG dan BRK punya `inverted_at`,
+    // jadi SETIAP kotak di kedua layer itu adalah kotak di dalam kotak. Untuk
+    // fvg dan order_block hal ini tidak pernah muncul karena tak satu pun
+    // zonanya terbalik. Terjadi di audit ifvg 7 September 2026.
+    inverted_inner_stroke: "a zone with inverted_at (every IFVG and every BRK) is drawn with a SECOND border set a few pixels inside the first - a box inside a box. That is the cue that the band changed role, it is not an extra zone, and it will not appear as a separate entry in the list",
+    // CAPTION BISA BERGESER KE LUAR KOTAKNYA, dan itu pilihan yang disengaja di
+    // `zone-primitive.ts`: plate-nya didorong ke KIRI supaya muat, bukan
+    // teksnya yang dipotong, karena caption yang terpotong terbaca seperti
+    // salah tulis. Konsekuensinya di kotak yang tepi kanannya di ujung pane,
+    // plate bisa duduk di kiri border kotaknya sendiri - dan auditor benar
+    // menyebutnya risiko salah atribusi.
+    caption_placement: "a caption plate is pushed LEFT to fit inside the pane rather than truncated, so on a box whose right edge is at the pane edge the plate can sit left of that box's own left border, possibly over a neighbouring box",
   },
   // CERMIN CAPTION, dan ia sudah dua kali tertinggal dari yang digambar.
   // Ia tidak pernah memuat " flipped", dan pada 7 September 2026 penanda

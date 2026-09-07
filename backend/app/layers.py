@@ -348,6 +348,17 @@ LAYERS: tuple[Layer, ...] = (
         # 5 September 2026 supaya registry tidak diam soal gerbang yang panel
         # PLAN dan ADVISOR sudah pakai.
         gate="ceiling",
+        # SALAH DI KEDUA UJUNG sejak 7 September 2026, dan dibiarkan dengan
+        # alasan. Daftar ini diisi 5 September dari pengukuran pra-perbaikan
+        # lifecycle. Diukur ulang di harness yang sudah disamakan, 1 jam ADA
+        # di daftar dan memberi 0,781 sementara HARIAN tidak ada dan memberi
+        # 1,067 - sel terbaik layer ini.
+        #
+        # Tidak diperbaiki di sini karena `orderable` mati, jadi
+        # `MEASURED_INTERVALS` di `execute.py` tidak menggerbangi satu order
+        # pun hari ini. Tapi ia AKAN menggerbangi begitu layer ini dinyalakan,
+        # jadi memperbaikinya adalah bagian dari menyalakannya - bukan
+        # sesudahnya.
         measured_intervals=("15m", "30m", "1h", "4h"),
         role="Zona",
         family="ICT",

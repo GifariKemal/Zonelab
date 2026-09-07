@@ -361,6 +361,104 @@ matinya sekarang "aturan 8 dari 8 belum diuji", bukan "tidak ada edge".
 - **30 menit**, satu-satunya sel positif IFVG di rig produksi (1,081). Chart mati.
 - **Plafon sendiri lawan plafon bersama**: keputusan desain, bukan pengukuran.
 
+## Autodrawing IFVG, diperiksa 7 September 2026
+
+### Pipanya hidup
+
+`/api/draw` XAUUSD harian, 1.500 bar: **283 zona IFVG, 98 lolos gerbang**,
+`gate_measured` benar untuk 283 dari 283, dan **`inverted_at` terisi untuk 283
+dari 283** - setiap zona di layer ini memang hasil inversi, bukan sebagian.
+Lifecycle terisi (9 fresh, 5 tested, 20 mitigated, 249 broken).
+
+### Masalah legibilitas FVG BERLAKU di sini, dan terukur
+
+Gerbang IFVG plafon - sama dengan FVG - jadi kohort yang lolos adalah kotak
+terkecil. Diukur di 283 zona XAUUSD harian:
+
+| kohort | tinggi USD |
+|---|---|
+| LOLOS gerbang | median **3,18**, maksimum 21,94 |
+| gagal gerbang | median **17,49**, minimum 4,88 |
+
+**Yang lolos 5,5 kali lebih kecil di median.** Terlihat langsung di jendela
+audit: dua zona yang GAGAL (86 dan 63 USD) memajang caption penuh
+`IFVG ○ flipped`, sementara satu zona yang LOLOS (20,6 USD, 11,8 CSS px)
+kehilangan namanya dan cuma memajang titik. Sama seperti FVG, dan berbeda dari
+OB yang gerbangnya lantai sehingga tidak punya bias itu.
+
+### Geometrinya akurat di tempat yang bisa diukur, tapi harness piksel MERAH
+
+`e2e/pixel-truth.mjs` diarahkan ke `ifvg`, 10 zona:
+
+| pemeriksaan | hasil |
+|---|---|
+| zona ditemukan di canvas | 10 dari 10 |
+| tepi ATAS di tempat skala harga menaruhnya | terburuk **0,5px** |
+| tepi BAWAH di tempat skala harga menaruhnya | terburuk **0,4px** |
+| **cukup tepi terbaca untuk diukur** | **GAGAL: atas 4 dari 7, bawah 5 dari 7** |
+
+6 dari 7 lolos. Ambangnya menuntut 80 persen tepi atas terbaca dan IFVG memberi
+57 persen.
+
+**Itu merah pertama di harness piksel sepanjang sesi ini, dan ia TIDAK
+dilonggarkan.** Bacaannya: tepi yang DITEMUKAN akurat sampai setengah piksel,
+jadi yang gagal bukan geometrinya melainkan keterbacaannya - kotak IFVG
+berdesakan. Sebabnya struktural: setiap kotak terbalik duduk tepat di tempat
+induknya baru pecah, dan induk berkerumun, jadi tepi-tepinya saling menimbun.
+Auditor visual melihat hal yang sama tanpa diberi tahu: "this stacks the outer
+border, the inner inverted border, and the proximal rule of both boxes into a
+narrow vertical span".
+
+`pixel-truth` sudah punya dua pengecualian khusus untuk layer ini - satu untuk
+stroke dalam, satu untuk tepi kiri ("an inverted box starts ON the candle that
+broke its parent") - jadi kerumunan ini yang ketiga dan yang pertama tidak
+tertutup.
+
+### Dua cacat legenda lagi, keduanya membuat auditor melapor palsu
+
+**Stroke dalam tidak dinyatakan.** Setiap zona dengan `inverted_at` digambar
+dengan border KEDUA beberapa piksel di dalam yang pertama - kotak di dalam
+kotak, satu-satunya isyarat yang selamat di kotak tiga piksel. Auditor
+melihatnya dan melaporkannya sebagai "an extra rectangle the list does not
+account for" - benar tentang legendanya, bukan tentang gambarnya. Untuk `fvg`
+dan `order_block` ini tidak pernah muncul karena tak satu pun zonanya terbalik;
+untuk `ifvg` dan `breaker` SETIAP kotak begitu.
+
+**Penempatan caption tidak dinyatakan.** Plate-nya didorong ke KIRI supaya muat
+di pane, bukan teksnya yang dipotong - pilihan yang disengaja karena caption
+terpotong terbaca seperti salah tulis. Konsekuensinya di kotak yang tepi
+kanannya di ujung pane, plate bisa duduk di kiri border kotaknya sendiri, di
+atas kotak tetangga. Auditor menyebutnya risiko salah atribusi, dan itu adil.
+
+Sesudah keduanya masuk legenda, auditnya bersih di sisi geometri: "three
+rectangles are drawn; no extra or missing boxes" dan "both supply boxes show the
+inner second border, as expected for IFVG zones".
+
+### Yang tersisa di sisi gambar
+
+- **Kerumunan tepi**, yang membuat `pixel-truth` merah. Ini yang paling layak
+  dikerjakan dan ia bukan cacat satu baris: ia konsekuensi dari zona terbalik
+  yang berdesakan di tempat induknya pecah.
+- **Dua caption identik.** Dua zona supply sama-sama `IFVG ○ flipped` dengan
+  titik kosong yang sama, jadi dari gambar saja tidak bisa dibedakan mana yang
+  mana - dan salah satunya tergeser ke wilayah yang lain.
+- **Lifecycle tidak terbaca dari opacity border.** Keluhan yang sama untuk
+  keempat kalinya di sesi ini. Terukur 1,33 sampai 1,82 banding satu antar state
+  bersebelahan, jadi sinyalnya ada dan di bawah ambang mata. Keputusan desain.
+
+### Dan satu hal yang ter-ship dan sekarang salah
+
+`layers.py` memberi `ifvg` `measured_intervals=("15m", "30m", "1h", "4h")`.
+`tools/execute.py` menurunkan `MEASURED_INTERVALS` dari situ, jadi baris itu
+menyatakan timeframe mana yang punya pengukuran.
+
+Pengukuran hari ini membalik dua ujungnya: **1 jam ada di daftar dan memberi
+0,781**, sementara **harian TIDAK ada di daftar dan memberi 1,067** - sel terbaik
+IFVG. Daftar itu diisi 5 September dari pengukuran pra-perbaikan lifecycle, dan
+ia sekarang salah di kedua arah. Tidak diubah di sini karena `ifvg.orderable`
+mati sehingga baris itu tidak menggerbangi order apa pun, tapi ia tetap salah dan
+akan menggerbangi begitu layer ini dinyalakan.
+
 ## Cara mengulang
 
 ```bash
