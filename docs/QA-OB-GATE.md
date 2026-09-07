@@ -869,6 +869,137 @@ lifecycle, jadi ia juga menunggu pengukuran ulang.
   dari feed MT5 lawan kotak LuxAlgo dari feed FXCM. Instrumen dan timeframe sama,
   ordenya jauh lebih besar dari selisih feed, tapi ia tetap bukan bar yang sama.
 
+## OB diukur ulang dengan ATR benar, plus IFVG dan BRK, 7 September 2026
+
+Bagian di atas melaporkan sapuan lantai, kontrol placebo dan hold-out OB yang
+diukur dengan keluarga ATR yang salah. Semuanya diulang di sini, dan dua detektor
+turunan ikut diukur di harness yang sama.
+
+### Sapuan lantai OB, ATR Wilder, XAUUSD 4 jam
+
+| lantai | n | win% | PF |
+|---|---|---|---|
+| mati | 3.048 | 43,54 | 0,946 |
+| 2,0 (ter-ship) | 1.757 | 39,33 | 0,926 |
+| 2,5 | 1.013 | 36,33 | 0,924 |
+| 3,0 | 597 | 35,85 | **1,002** |
+| 4,0 | 209 | 31,10 | 0,850 |
+
+Terbaik 1,002 pada n=597, yaitu titik impas persis. Dengan ATR salah puncaknya
+1,068 dan bentuknya naik-lalu-turun yang saya sebut "masuk akal, bukan lompatan
+derau" - penilaian itu juga artefak.
+
+### Kontrol placebo OB: KONTROLNYA MENANG
+
+| | n | win% | PF |
+|---|---|---|---|
+| kotak asli, lantai 2,0 | 1.757 | 39,33 | 0,926 |
+| kotak digeser 1 ATR | 1.751 | **41,06** | **0,940** |
+
+Placebo menang di PF DAN di win rate. Jadi klaim sebelumnya - "OB menyortir
+ukuran bayaran, bukan hit rate" - juga milik ATR yang salah. Dengan ATR benar,
+letak kotak OB tidak membawa informasi di sel ini.
+
+Hold-out lantai 2,0: paruh pertama 0,893, paruh kedua 0,965. Dua-duanya di bawah
+satu dan tidak bersilangan - OB cuma rugi secara konsisten.
+
+### IFVG dan BRK masuk harness yang sama
+
+Ditambahkan sebagai mode detektor 2 dan 3, bukan file baru. Keduanya turunan:
+`_invert` menolak induk yang belum BROKEN, memakai kotak yang SAMA dengan sisi
+dibalik, dan MEMBAWA `departure_atr` induk apa adanya. Di Pine itu jadi daftar
+pengawas induk terpisah - induk tidak dapat order, cuma ditunggu pecah - dan
+ordernya didaftarkan di akhir bar pecah, jadi loop pending memeriksa fill di bar
+berikutnya. Itu mencerminkan `broke + 1` di produksi tanpa kode tambahan.
+
+> [!WARNING]
+> Gerbang BRK adalah lantai 2,0 yang DIPINJAM dari order block dan belum pernah
+> dikalibrasi untuk BRK. `GATE_UNMEASURED_KINDS` menyatakan itu dan
+> `gate_measured` mengembalikan False untuknya. Setiap angka BRK di bawah
+> mengukur gerbang pinjaman.
+
+### Rig produksi, dan BRK terlihat kuat di sini
+
+| lengan / sel | n | exp_r | t | PF | win% | rentang | wf |
+|---|---|---|---|---|---|---|---|
+| IFVG XAU 4h | 460 | -0,0811 | -2,40 | 0,747 | 45,4 | 2022-06..2026-08 | 2/8 |
+| IFVG XAU 1h | 636 | -0,0717 | -1,80 | 0,839 | 45,4 | 2025-04..2026-09 | 3/8 |
+| IFVG XAU 30m | 1.433 | +0,0340 | +1,16 | 1,081 | 51,3 | 2025-04..2026-09 | 4/8 |
+| IFVG BTC 1h | 699 | -0,0194 | -0,52 | 0,952 | 51,2 | 2025-09..2026-09 | 3/8 |
+| BRK XAU 4h | 410 | +0,0361 | +0,97 | 1,143 | 49,8 | 2022-06..2026-08 | 5/8 |
+| **BRK XAU 1h** | 552 | **+0,2163** | **+4,74** | **1,697** | 60,3 | 2025-04..2026-09 | **7/8** |
+| BRK XAU 30m | 1.146 | +0,0837 | +2,60 | 1,216 | 54,5 | 2025-04..2026-09 | 6/8 |
+| BRK BTC 1h | 647 | +0,0444 | +1,14 | 1,122 | 52,2 | 2025-09..2026-09 | 6/8 |
+
+BRK positif di keempat sel dan XAU 1 jam memberi t=+4,74 dengan walk-forward 7
+dari 8. Itu angka terkuat yang muncul di sesi ini untuk detektor mana pun.
+
+### Dan ia tidak bertahan di jendela panjang
+
+| BRK XAUUSD 1 jam | n | win% | PF |
+|---|---|---|---|
+| TradingView, penuh 3,7 tahun | 1.709 | 52,84 | **0,939** |
+| TradingView, dipotong ke jendela produksi | 620 | 55,16 | **1,128** |
+| Python, jendela produksi 1,4 tahun | 552 | 60,3 | **1,697** |
+
+n-nya cocok (620 lawan 552), jadi perbandingannya sah. **Jendela sendirian
+memindahkan 0,939 ke 1,128**; sisanya feed plus resolusi intrabar (magnifier 1
+menit lawan 5 menit). Jadi t=+4,74 itu artefak jendela 1,4 tahun ditambah
+resolusi kasar - pola yang sama persis dengan BTC 1 jam di FVG, dan sekarang
+terbukti dua kali.
+
+### Harness TradingView, jendela penuh, dengan kontrolnya
+
+| sel | rentang | n | win% | PF | placebo PF | placebo win% |
+|---|---|---|---|---|---|---|
+| IFVG XAU 4h | 13,7 th | 1.613 | 53,69 | 0,965 | **0,811** | 45,20 |
+| BRK XAU 4h | 13,7 th | 1.652 | 54,48 | 0,958 | **1,010** | 52,06 |
+| BRK XAU 1h | 3,7 th | 1.709 | 52,84 | 0,939 | 0,888 | 50,99 |
+
+**IFVG menyortir**: +0,154 PF dan +8,49 poin win rate atas kontrolnya di 4 jam -
+margin terbesar dari keempat detektor di sel itu. Tapi PF-nya 0,965, di bawah
+satu, jadi yang disortirnya tidak cukup membayar biaya.
+
+**BRK di 4 jam KALAH dari kontrolnya** (0,958 lawan 1,010). Di 1 jam ia menang
+tipis (0,939 lawan 0,888) dan tetap di bawah satu.
+
+### Benchmark empat detektor, bracket identik, XAUUSD 4 jam 13,7 tahun
+
+| detektor | n | win% | PF | placebo PF | margin |
+|---|---|---|---|---|---|
+| **FVG** | 1.709 | 50,56 | **1,091** | 1,014 | +0,077 |
+| IFVG | 1.613 | 53,69 | 0,965 | 0,811 | **+0,154** |
+| BRK | 1.652 | 54,48 | 0,958 | 1,010 | -0,052 |
+| OB | 1.757 | 39,33 | 0,926 | 0,940 | -0,014 |
+
+Satu-satunya yang di atas satu tetap FVG. Yang paling banyak menyortir justru
+IFVG, dan itu pemisahan yang berguna: menyortir dan menguntungkan bukan hal yang
+sama, dan tabel ini menunjukkan keduanya bisa berpisah.
+
+### Putusan keempatnya
+
+`fvg`, `order_block`, `ifvg` dan `breaker` semuanya `orderable=False`, dan
+sekarang keempatnya punya alasan yang diukur di bracket yang sama:
+
+- FVG satu-satunya di atas satu (1,091 di XAU 4 jam), gagal di 6 dari 8
+- IFVG menyortir paling tajam tapi 0,965
+- BRK kalah dari kontrolnya di sel terpanjang, dan angka kuatnya di 1 jam artefak jendela
+- OB kalah dari kontrolnya, tanpa nilai lantai yang stabil
+
+### Yang belum, dan satu di antaranya soal disiplin catatan
+
+- **30 menit dan 15 menit** tidak terukur di harness untuk keempat detektor -
+  chart TradingView Desktop mati setiap kali salah satu dipilih. Ini menyakitkan
+  khusus untuk IFVG, yang satu-satunya sel positifnya di rig produksi justru 30
+  menit (1,081).
+- **File Pine lokal punya lebih banyak komentar daripada yang tersimpan di
+  TradingView.** Kode yang dieksekusi sama - lokal dibangun dari patch atas
+  naskah yang dikirim - tapi itu belum pernah DIBUKTIKAN baris demi baris.
+  Sebelum memercayai file lokal sebagai rekaman apa yang jalan, ambil ulang
+  lewat `pine_get_source` dan tulis ke disk.
+- **Kontrol placebo IFVG dan BRK di luar XAU 4 jam**, dan sapuan lantai BRK yang
+  gerbangnya sendiri - bukan pinjaman dari OB.
+
 ## Cara mengulang
 
 ```bash

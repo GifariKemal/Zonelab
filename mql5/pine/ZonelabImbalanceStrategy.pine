@@ -39,8 +39,8 @@ strategy("Zonelab Imbalance Strategy", overlay=true,
 // ARAH GERBANGNYA BERLAWANAN dan itu bukan detail. FVG digerbangi PLAFON pada
 // tinggi gap; OB digerbangi LANTAI pada kekuatan impuls. Satu pembaca yang cuma
 // melihat angka gerbangnya tidak bisa tahu mana yang berlaku.
-detector      = input.int(0, "detektor 0=FVG 1=OB", group="Detector",
-     minval=0, maxval=1)
+detector      = input.int(0, "detektor 0=FVG 1=OB 2=IFVG 3=BRK", group="Detector",
+     minval=0, maxval=3)
 atr_len       = input.int(14,    "atr_period",         group="Detector")
 min_gap_atr   = input.float(0.0, "min_gap_atr",        group="Detector", step=0.05)
 gate_ceiling  = input.float(0.25,"gate ceiling (ATR)", group="Detector", step=0.05)
@@ -124,6 +124,23 @@ var array<float> w_prox = array.new_float()
 var array<float> w_dist = array.new_float()
 var array<int>   w_dir  = array.new_int()
 
+// INDUK YANG DITUNGGU PECAH, hanya dipakai mode IFVG dan BRK.
+//
+// `_invert` di `app/detect/inversion.py` menolak setiap induk yang `state`-nya
+// bukan BROKEN, lalu memakai kotak yang SAMA dengan sisi DIBALIK: untuk induk
+// demand (proximal=top) inversinya supply, jadi proximal barunya BOTTOM induk
+// dan distalnya TOP induk. Harga baru saja tutup di bawah bottom itu, jadi zona
+// supply barunya duduk di ATAS harga dan limit jualnya menunggu harga kembali.
+//
+// `v_gate` MEMBAWA nilai gerbang induk, tidak menghitungnya ulang - `_invert`
+// meneruskan `zone.departure_atr` dengan alasan tertulis bahwa angka itu
+// menggambarkan KOTAKNYA, dan kotaknya milik induk.
+var array<float> v_top  = array.new_float()
+var array<float> v_bot  = array.new_float()
+var array<int>   v_dir  = array.new_int()
+var array<float> v_gate = array.new_float()
+var array<float> v_h    = array.new_float()
+
 var int c_cand = 0
 var int c_gate = 0
 var int c_fill = 0
@@ -137,6 +154,13 @@ var float sum_win = 0.0
 var float sum_loss = 0.0
 var float sum_rr = 0.0
 var float sum_fee = 0.0
+
+vdrop(int k) =>
+    array.remove(v_top,  k)
+    array.remove(v_bot,  k)
+    array.remove(v_dir,  k)
+    array.remove(v_gate, k)
+    array.remove(v_h,    k)
 
 drop(int k) =>
     array.remove(p_prox, k)
@@ -302,7 +326,11 @@ o_ok       = (o_bear or o_bullc) and o_turned and not na(o_scale) and o_scale > 
                o_move >= disp_atr
 
 // ---- YANG DIPAKAI, satu jalur setelah ini ----
-isOB  = detector == 1
+//
+// 0=FVG 1=OB 2=IFVG 3=BRK. IFVG induknya FVG dan BRK induknya OB, jadi jalur
+// deteksinya sama dan yang berbeda apa yang terjadi SESUDAH induknya pecah.
+isOB      = detector == 1 or detector == 3
+inverting = detector >= 2
 scale = isOB ? o_scale : f_scale
 // Lilin BEARISH sebelum gerakan NAIK adalah block DEMAND, jadi sisi long di
 // sini datang dari lilin turun - kebalikan dari intuisi warna lilinnya.
@@ -339,24 +367,41 @@ if ok and in_win
             array.remove(w_dist, 0)
             array.remove(w_dir,  0)
 
-        // GERBANGNYA BERLAWANAN ARAH ANTAR DETEKTOR. FVG: plafon pada tinggi
-        // gap dalam ATR, lolos berarti DI BAWAH. OB: lantai pada kekuatan
-        // impuls, lolos berarti DI ATAS. Diperiksa ulang 7 September 2026 untuk
-        // FVG di tiga timeframe dan ia bertahan; lantai OB 2,0 dikalibrasi lewat
-        // lifecycle yang urutannya rusak dan belum pernah diperiksa sejak.
-        fvgPass  = h >= min_gap_atr * scale and (gate_ceiling <= 0 or h / scale < gate_ceiling)
-        gatePass = isOB ? o_move >= gate_floor : fvgPass
-        if gatePass
+        // GERBANGNYA BERLAWANAN ARAH ANTAR DETEKTOR. FVG dan IFVG: plafon
+        // pada tinggi gap dalam ATR, lolos berarti DI BAWAH. OB dan BRK: lantai
+        // pada kekuatan impuls, lolos berarti DI ATAS.
+        //
+        // BRK GERBANGNYA BELUM PERNAH DIUKUR UNTUK DIRINYA SENDIRI. Ia mewarisi
+        // departure induknya lalu dinilai dengan lantai 2,0 yang dikalibrasi
+        // untuk order block - GATE_UNMEASURED_KINDS di models/zone.py menyatakan
+        // itu, dan gate_measured mengembalikan False untuk BRK justru supaya
+        // permukaan yang menampilkan verdict bisa menahan diri. Angka BRK di
+        // bawah karena itu mengukur gerbang PINJAMAN.
+        gateVal  = isOB ? o_move : h / scale
+        fvgPass  = h >= min_gap_atr * scale and (gate_ceiling <= 0 or gateVal < gate_ceiling)
+        gatePass = isOB ? gateVal >= gate_floor : fvgPass
+
+        if inverting
+            // TIDAK ADA ORDER DI INDUK. Induk cuma ditunggu pecah, dan
+            // gerbangnya diuji nanti pada nilai yang dibawa - sama seperti
+            // _invert yang meneruskan departure_atr induk apa adanya.
+            array.push(v_top,  top)
+            array.push(v_bot,  bot)
+            array.push(v_dir,  bull ? 1 : -1)
+            array.push(v_gate, gateVal)
+            array.push(v_h,    h)
+            if array.size(v_top) > wall_memory
+                vdrop(0)
+        else if gatePass
             c_gate += 1
             stop = bull ? dist - stop_buf_atr * scale : dist + stop_buf_atr * scale
             risk = math.abs(prox - stop)
-            // Stop DAN qty dikunci di sini karena `strategy.entry` mengunci qty
+            // Stop DAN qty dikunci di sini karena strategy.entry mengunci qty
             // saat order dipasang. Produksi memakai ATR di bar SENTUHAN
-            // (`scale_at="touch"`), yang belum ada saat limit ini dipasang,
-            // jadi harness ini setara `scale_at="birth"` - bandingkan ke sana,
-            // bukan ke default produksi. Sumbu itu diukur terpisah dan hampir
-            // tidak bergerak: XAU 30m 1,126 lawan 1,138, BTC 1h 1,207 lawan
-            // 1,256.
+            // (scale_at touch), yang belum ada saat limit ini dipasang, jadi
+            // harness ini setara scale_at birth - bandingkan ke sana, bukan ke
+            // default produksi. Sumbu itu diukur terpisah dan hampir tidak
+            // bergerak: XAU 30m 1,126 lawan 1,138, BTC 1h 1,207 lawan 1,256.
             if risk > 0
                 qty = risk_usd / risk
                 id  = "z" + str.tostring(bar_index)
@@ -374,6 +419,61 @@ if ok and in_win
                     strategy.cancel(array.get(p_id, 0))
                     c_evict += 1
                     drop(0)
+
+// INDUK YANG PECAH JADI ZONA TERBALIK, dan blok ini yang membuat mode 2 dan 3
+// ada. Dijalankan SESUDAH blok kelahiran supaya induk yang lahir di bar ini
+// tidak bisa langsung terbalik di bar yang sama.
+//
+// _invert memulai lifecycle inversi di broke+1, bukan di bar pecahnya: lilin
+// yang membunuh kotak lama tidak boleh dihitung sebagai sentuhan pertama kotak
+// baru. Di sini itu otomatis - ordernya didaftarkan di akhir bar pecah, dan
+// loop pending memeriksa fill di bar BERIKUTNYA.
+if inverting and array.size(v_top) > 0
+    for k = array.size(v_top) - 1 to 0
+        pdir = array.get(v_dir, k)
+        ptop = array.get(v_top, k)
+        pbot = array.get(v_bot, k)
+        // Induk pecah kalau close melewati DISTAL-nya: bawah bottom untuk induk
+        // demand, atas top untuk induk supply.
+        if (pdir == 1 ? close < pbot : close > ptop)
+            c_cand += 1
+            gv = array.get(v_gate, k)
+            ph = array.get(v_h,    k)
+            // SISI DIBALIK, kotaknya sama. Induk demand jadi inversi supply,
+            // jadi proximal barunya bottom induk dan distalnya top induk.
+            ibull = pdir != 1
+            iprox = ibull ? ptop : pbot
+            idist = ibull ? pbot : ptop
+            ipass = isOB ? gv >= gate_floor : (gate_ceiling <= 0 or gv < gate_ceiling)
+            // Zona terbalik jadi calon dinding bagi zona terbalik lain, karena
+            // profit_zone_at dipanggil dengan daftar keluaran detektor INI.
+            array.push(w_prox, iprox)
+            array.push(w_dist, idist)
+            array.push(w_dir,  ibull ? 1 : -1)
+            if array.size(w_prox) > wall_memory
+                array.remove(w_prox, 0)
+                array.remove(w_dist, 0)
+                array.remove(w_dir,  0)
+            if ipass
+                c_gate += 1
+                istop = ibull ? idist - stop_buf_atr * scale : idist + stop_buf_atr * scale
+                irisk = math.abs(iprox - istop)
+                if irisk > 0 and not na(scale) and scale > 0
+                    iqty = risk_usd / irisk
+                    iid  = "v" + str.tostring(bar_index) + "_" + str.tostring(k)
+                    strategy.entry(iid, ibull ? strategy.long : strategy.short, qty = iqty, limit = iprox)
+                    strategy.exit("x" + iid, from_entry = iid, stop = istop)
+                    array.push(p_prox, iprox)
+                    array.push(p_dist, idist)
+                    array.push(p_dir,  ibull ? 1 : -1)
+                    array.push(p_id,   iid)
+                    array.push(p_h,    ph)
+                    array.push(p_stop, istop)
+                    if array.size(p_prox) > max_pending
+                        strategy.cancel(array.get(p_id, 0))
+                        c_evict += 1
+                        drop(0)
+            vdrop(k)
 
 var int first_t = na
 if barstate.isfirst
@@ -403,10 +503,11 @@ if barstate.islastconfirmedhistory or barstate.islast
     // berbeda terbaca kembar di baris ini - dan angka gerbangnya sendiri tidak
     // bisa membedakannya, karena yang satu plafon dan yang lain lantai.
     table.cell(t, 1, 0, syminfo.ticker + " " + timeframe.period +
-         (isOB ? " OB flr" + str.tostring(gate_floor) +
+         " " + (detector == 0 ? "FVG" : detector == 1 ? "OB" : detector == 2 ? "IFVG" : "BRK") +
+         (isOB ? " flr" + str.tostring(gate_floor) +
                  " d" + str.tostring(disp_atr) + "/" + str.tostring(disp_bars) +
                  " bf" + str.tostring(ob_box_floor) + " W"
-               : " FVG ceil" + str.tostring(gate_ceiling) +
+               : " ceil" + str.tostring(gate_ceiling) +
                  (filter_mother ? " M" : "") +
                  (min_body > 0 ? " B" + str.tostring(min_body) : "")) +
          " a" + str.tostring(atr_len) +
