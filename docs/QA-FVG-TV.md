@@ -1190,7 +1190,13 @@ derau melainkan satu rezim yang panjangnya hampir tiga tahun.
 |---|---|---|---|---|
 | XAU 4h | 13,7 th | 1.709 | 50,56 | **1,091** |
 | BTC 1h | 2,7 th | 2.193 | 46,79 | 0,995 |
-| XAU 30m | 2,7 th | 2.586 | 38,71 | 0,956 |
+| XAU 30m | 2,7 th | 2.964 | 45,07 | 0,906 |
+
+Baris XAU 30 menit DIKOREKSI 7 September 2026. Angka pertama yang tercatat
+di sini, 0,956 pada n=2.586, diukur di build SEBELUM dinding dipindah ke
+waktu terisi - study di chart masih snapshot lama, persis jebakan yang
+ditulis di bagian 17.7 dan tetap terinjak. Diukur ulang di build yang benar
+ia 0,906 pada n=2.964.
 | XAU 30m | 1,4 th | 1.599 | 45,53 | 0,934 |
 | BTC 4h | 9,7 th | 1.539 | 47,95 | 0,900 |
 
@@ -1249,7 +1255,7 @@ stop 1,0 ATR, magnifier 1 menit, biaya broker dipotong di dalam script.
 | 1d | 56 th | 597 | 51,42 | 1,112 | 0,0150 | 1,068 | 43,27 | +8,15 |
 | **4h** | 13,7 th | 1.709 | **50,56** | **1,091** | 0,0417 | 1,014 | 38,72 | **+11,84** |
 | 1h | 3,7 th | 1.847 | 48,29 | 1,006 | 0,0746 | 0,881 | 36,36 | **+11,93** |
-| 30m | 2,7 th | 2.586 | 38,71 | 0,956 | 0,0978 | - | - | - |
+| 30m | 2,7 th | 2.964 | 45,07 | 0,906 | 0,1010 | 0,818 | 36,35 | +8,72 |
 | 15m | - | tidak terukur | | | | | | |
 
 ### BTCUSD, biaya 0,01329 persen per sisi
@@ -1362,47 +1368,170 @@ diubah, hal yang sama harus diulang di XAU 1 jam dan harian, dan idealnya dengan
 walk-forward berpurging, bukan hold-out dua paruh. Sampai itu ada, 0,25
 dipertahankan - bukan karena ia terbukti, tapi karena menggantinya juga belum.
 
-## 22. Yang belum dikerjakan
+## 23. Sisa daftar dituntaskan, 7 September 2026
 
-- Walk-forward delapan potong seperti standar rig Python. Yang di sini hold-out
-  dua paruh, yang lebih lemah.
-- Uji ulang `supply_demand`, `order_block`, `ifvg` dan `breaker`. Keempatnya
-  memakai `replay_lifecycle` yang sama, jadi setiap angka gerbangnya bergerak
-  dengan arah yang sama.
-- BTCUSD tidak punya konfigurasi FVG yang bekerja di satu pun timeframe yang
-  diuji, dan tuning yang menolong XAU justru memperburuknya. Kalau BTC harus
-  ikut diperdagangkan lewat layer ini, ia butuh sweep-nya sendiri dengan
-  paruh-pertamanya sendiri - bukan konfigurasi XAU yang dipinjam.
-- Walk-forward delapan potong, bukan hold-out dua paruh. Yang dilaporkan di
-  sini lebih lemah dari standar rig Python.
-- `tools/calibrate.py:431` `first_touch` untuk lengan placebo TIDAK punya
-  pemeriksaan pecah, dan tidak perlu punya - tapi sebelum perbaikan ini artinya
-  lengan drawn dan lengan placebo dinilai dengan dua aturan entry berbeda.
-  Setiap perbandingan placebo yang lebih tua dari 6 September 2026 harus dibaca
-  dengan itu di kepala.
-- Walk-forward delapan potong DENGAN purging untuk XAUUSD 4 jam. Yang ada di
-  bagian 17.4 delapan periode berurutan tanpa purging, jadi trade yang menyeberang
-  batas periode dihitung di kedua sisi.
-- Kenapa aturan target zona lawan menolong XAU dan merugikan BTC di 4 jam. Sudah
-  dua kali terukur, belum sekali pun dijelaskan.
-- Rezim 2016 sampai 2019 di XAUUSD 4 jam, satu-satunya yang menahannya dari 8
-  dari 8. Apa yang berbeda di sana belum diperiksa sama sekali.
+Bagian 21 menyimpulkan gerbang tidak membayar dirinya, tapi itu diukur di SATU
+sel. Di sini sisa daftarnya dikerjakan, dan hasil pertamanya membalik kesimpulan
+bagian 21.
 
-- XAUUSD 15 menit dan BTCUSD 15 menit di harness yang sudah disamakan. Chart
-  TradingView Desktop mati setiap kali timeframe itu dipilih, jadi ia belum
-  pernah diukur sama sekali di aturan target yang benar.
-- Kontrol placebo untuk XAUUSD 30 menit dan seluruh sel BTCUSD selain harian.
-  Yang harian sudah membuktikan kontrol itu bisa MENANG, jadi sel mana pun
-  tanpa kontrol belum boleh disebut temuan.
+### 23.1 Gerbang membayar di 1 jam dan harian, TIDAK di 4 jam
 
-- Sapuan gerbang bagian 21 diulang di XAUUSD 1 jam dan harian. Kalau gerbang
-  mati menang di sana juga, `DEPARTURE_GATE_ATR_CEILING` harus dicabut, dan itu
-  mengubah apa yang DIGAMBAR, bukan cuma apa yang diorder.
-- Sapuan yang sama untuk `atr_period`, `min_gap_atr`, `horizon`, `filter_mother`
-  dan `min_body_ratio` di harness yang sudah disamakan. Dua yang terakhir
-  dipertahankan atas dasar definisi, bukan atas dasar angka, dan itu keputusan
-  dari sebelum harness benar.
-- Sensitivitas `wall_memory`. Batas 300 itu pendekatan yang dinyatakan tapi
-  belum pernah diuji; produksi memindai seluruh daftar.
+| TF XAUUSD | gerbang mati | gerbang 0,25 |
+|---|---|---|
+| 1d | 1,027 (n 1.483) | **1,112** (n 597) |
+| 4h | **1,111** (n 4.156) | 1,091 (n 1.709) |
+| 1h | 0,902 (n 4.135) | **1,006** (n 1.847) |
+
+Antrean pending diperiksa di kedua lengan (`max_pending` 80 dinaikkan ke 500 di
+1 jam dan 4 jam) dan angkanya tidak bergerak satu digit pun.
+
+**Dua dari tiga timeframe bilang gerbangnya membayar, jadi 4 jam yang
+pengecualian - bukan aturannya.** `DEPARTURE_GATE_ATR_CEILING = 0.25`
+DIPERTAHANKAN, dan sekarang atas dasar tiga sel, bukan atas dasar kalibrasi lama
+yang dasarnya sudah tidak berlaku.
+
+Bagian 21 tetap berdiri sebagai catatan bahwa di 4 jam gerbang itu membuang 59
+persen populasi tanpa menaikkan PF. Yang berubah kesimpulan cabutnya, bukan
+pengukurannya.
+
+### 23.2 Sisa parameter: SEMUANYA datar
+
+XAUUSD 4 jam, sampel penuh, satu knob digerakkan satu kali:
+
+| knob | nilai | PF |
+|---|---|---|
+| `horizon` | 20 / **80** / 300 | 1,088 / **1,091** / 1,091 |
+| `atr_period` | 7 / **14** / 50 | 1,080 / **1,091** / 1,097 |
+| `filter_mother` | mati / **nyala** | 1,061 / **1,091** |
+| `min_body_ratio` | 0,0 / **0,3** | 1,085 / **1,091** |
+| `min_gap_atr` | **0,0** / 0,10 | **1,091** / 1,075 (n separuh) |
+| `wall_memory` | 30 / **300** / 1000 | 1,079 / **1,091** / 1,091 |
+
+`horizon` datar karena trade-nya selesai di stop atau target jauh sebelum 20 bar
+- knob itu tidak pernah mengikat. `wall_memory` sudah JENUH di 300: naik ke 1000
+memberi angka yang identik digit demi digit, jadi pendekatan yang dinyatakan di
+header Pine tidak menggigit.
+
+`filter_mother` dan `min_body_ratio` dulu dipertahankan atas dasar definisi dan
+dinyatakan BUKAN sebagai edge. Sekarang keduanya punya angka: yang pertama
++0,030 PF, yang kedua +0,006 pada 142 trade lebih sedikit. Dasar definisinya
+tetap yang berlaku; angkanya tidak membantah dan tidak mendukung.
+
+**Yang menggerakkan hasil cuma dua: ambang gerbang dan lebar stop.** Keduanya
+sudah disapu. Tidak ada knob ketiga yang tersisa.
+
+### 23.3 Walk-forward BERPURGING, dan ia tetap 6 dari 8
+
+Bagian 17.4 memakai delapan periode berurutan tanpa purging dan dilabeli begitu.
+Di sini tiap periode dipendekkan 80 bar (13,3 hari di 4 jam) di ujungnya, jadi
+zona yang lahir di jendela itu tidak bisa keluar di periode berikutnya.
+
+| periode | n | win% | PF berpurging | PF tanpa purging |
+|---|---|---|---|---|
+| 2013-01 .. 2014-09 | 167 | 44,91 | 1,039 | 1,040 |
+| 2014-09 .. 2016-05 | 193 | 51,30 | 1,150 | 1,160 |
+| 2016-06 .. 2018-02 | 246 | 47,56 | **0,802** | 0,793 |
+| 2018-02 .. 2019-10 | 225 | 46,67 | **0,908** | 0,921 |
+| 2019-11 .. 2021-07 | 182 | 53,85 | 1,349 | 1,317 |
+| 2021-07 .. 2023-03 | 216 | 53,24 | 1,092 | 1,030 |
+| 2023-04 .. 2024-12 | 221 | 54,30 | 1,149 | 1,143 |
+| 2024-12 .. 2026-08 | 225 | 52,89 | 1,085 | 1,111 |
+
+Tetap **6 dari 8**, dan dua yang gagal tetap yang sama. Purging tidak menolong
+dan tidak melukai; aturan 8 dari 8 memang tidak terpenuhi.
+
+### 23.4 Rezim 2016-2019 BUKAN kegagalan detektor
+
+Dua periode yang gagal digabung (2016-06 sampai 2019-11) dan diberi kontrolnya:
+
+| | n | win% | PF |
+|---|---|---|---|
+| kotak asli | 482 | **46,89** | 0,875 |
+| kotak digeser 1 ATR | 470 | **34,47** | 0,811 |
+
+Marginnya **+12,4 poin win rate**, sama besar dengan margin di sampel penuh
+(+11,8). Detektornya menyortir persis sebaik biasanya sepanjang tiga tahun itu;
+yang terjadi seluruh populasinya rugi, asli maupun digeser.
+
+Itu mengubah cara 6 dari 8 harus dibaca. Bukan "detektornya rusak dua kali",
+melainkan "perilaku emas 4 jam tidak menguntungkan selama tiga tahun dan tidak
+ada letak kotak yang bisa menyelamatkannya".
+
+### 23.5 Kontrol placebo untuk sel BTCUSD
+
+| sel | asli PF | asli win% | placebo PF | placebo win% | putusan |
+|---|---|---|---|---|---|
+| BTC 1h | **0,995** | 46,79 | 0,890 | 37,04 | menyortir, tapi impas |
+| BTC 4h | 0,900 | 47,95 | **0,948** | 36,42 | KONTROL MENANG |
+| BTC 1d | 1,402 | 46,24 | **1,468** | 42,86 | KONTROL MENANG |
+
+BTC 4 jam layak dilihat dua kali: kotak aslinya menang **11,5 poin win rate** dan
+tetap KALAH di PF. Hit rate naik sementara ukuran menang-kalahnya memburuk lebih
+cepat. Satu-satunya sel BTC yang menyortir sampai ke garis bawah adalah 1 jam,
+dan di sana biaya menahannya persis di titik impas.
+
+### 23.6 XAU 30 menit, dan satu angka basi yang ikut ketahuan
+
+| | n | win% | PF |
+|---|---|---|---|
+| kotak asli | 2.964 | **45,07** | 0,906 |
+| kotak digeser 1 ATR | 2.930 | **36,35** | 0,818 |
+
+Menyortir +8,72 poin win rate dan tetap rugi - biayanya 0,1010 R per trade, yang
+tertinggi dari seluruh sel yang diukur.
+
+Angka asli 0,906 ini juga MENGOREKSI yang tercatat sebelumnya. Bagian 17.5 dan
+19 sempat memuat 0,956 pada n=2.586, dan itu diukur di build sebelum dinding
+dipindah ke waktu terisi: study di chart masih snapshot lama sesudah restart.
+Jebakan itu ditulis sendiri di bagian 17.7 dan tetap terinjak. Setiap angka lain
+di bagian 17, 19 dan 21 sudah diperiksa terhadap `no wall` dan `fill` di
+tabelnya masing-masing dan semuanya dari build yang benar.
+
+### 23.7 Keadaan akhir
+
+Seluruh knob sudah disapu, seluruh sel yang bisa diukur sudah punya kontrolnya,
+walk-forward sudah berpurging, dan rezim yang menahan sel terbaik sudah
+dijelaskan. Yang tersisa satu lubang alat, bukan lubang analisis: timeframe 15
+menit tidak bisa diukur karena TradingView Desktop mati setiap kali TF itu
+dipilih.
+
+Maksimum yang terukur untuk FVG di repo ini: **XAUUSD 4 jam, PF 1,091, 1.709
+trade, 13,7 tahun, walk-forward berpurging 6 dari 8.** Aturan proyek 8 dari 8,
+jadi `fvg.orderable` tetap mati - dan sekarang itu keputusan yang berdiri di
+atas sapuan lengkap, bukan di atas satu sel yang belum diperiksa.
+
+## 24. Yang belum dikerjakan
+
+Daftar ini dipangkas 7 September 2026. Yang dicoret sudah dikerjakan di bagian
+23: walk-forward berpurging untuk XAUUSD 4 jam, sapuan gerbang di 1 jam dan
+harian, sapuan `atr_period` / `min_gap_atr` / `horizon` / `filter_mother` /
+`min_body_ratio`, sensitivitas `wall_memory`, kontrol placebo untuk XAUUSD 30
+menit dan seluruh sel BTCUSD, dan penjelasan rezim 2016-2019.
+
+Yang benar-benar tersisa:
+
+- **15 menit, dua instrumen.** Nol pengukuran di aturan target yang benar. Chart
+  TradingView Desktop mati setiap kali timeframe itu dipilih - "This symbol
+  doesn't exist" sementara header tetap menampilkan harga hidup - di FX:XAUUSD
+  maupun BITSTAMP:BTCUSD, empat kali dicoba termasuk langsung sesudah restart
+  bersih. Ini lubang ALAT, bukan lubang analisis, dan ia tidak bisa ditutup dari
+  sisi Zonelab.
+- **`supply_demand`, `order_block`, `ifvg` dan `breaker` belum diukur ulang.**
+  Keempatnya memakai `replay_lifecycle` yang sama yang urutannya baru diperbaiki,
+  jadi setiap angka gerbangnya bergerak dengan arah yang sama - dan ketiga
+  selisih harness di bagian 17 juga berlaku untuk mereka.
+- **Kenapa target zona lawan menolong XAU dan merugikan BTC di 4 jam.** Sudah
+  tiga kali terukur (bagian 14, 17.5, dan kontrol placebo di 23.5 yang
+  menunjukkan kotak BTC 4 jam menang 11,5 poin win rate lalu kalah di PF), belum
+  sekali pun dijelaskan. Dugaan yang belum diuji: distribusi ukuran menang-kalah
+  BTC berekor jauh lebih berat, jadi target dekat memotong ekor yang membayar.
+- **BTCUSD butuh sapuan sendiri kalau ia harus diperdagangkan lewat layer ini.**
+  Konfigurasi XAU yang dipinjam tidak bekerja di satu pun timeframe, dan
+  paruh-pertamanya sendiri belum pernah dipakai untuk memilih apa pun.
+- **`tools/calibrate.py:431`**, `first_touch` untuk lengan placebo tidak punya
+  pemeriksaan pecah. Ia tidak perlu punya, tapi sebelum perbaikan 6 September
+  2026 artinya lengan drawn dan lengan placebo dinilai dengan dua aturan entry
+  berbeda. Setiap perbandingan placebo yang lebih tua dari tanggal itu harus
+  dibaca dengan ini di kepala.
 
 Copyright 2026 PT Surya Inovasi Prioritas (SURIOTA).

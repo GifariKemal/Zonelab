@@ -76,9 +76,14 @@ DEPARTURE_GATE_ATR = 2.0
 # 1.709 - dan di bawah disiplin pilih-di-paruh-pertama gerbang mati juga yang
 # menang (1,052 lawan 1,007), dengan luar-sampel 1,158 pada 2.053 trade.
 # Kurvanya tidak monoton (0,10 -> 1,013, 0,15 -> 1,169, 0,25 -> 1,091), bentuk
-# yang menandai derau bukan ambang. Ia DIPERTAHANKAN di sini karena baru satu
-# sel dan satu belahan yang diuji, jadi menggantinya sama belum terbuktinya
-# dengan mempertahankannya - bukan karena angkanya terbukti.
+# yang menandai derau bukan ambang.
+#
+# LALU DIPERIKSA DI DUA SEL LAGI dan hasilnya BERBALIK, bagian 23.1. Di XAUUSD
+# 1 jam gerbang mati memberi 0,902 lawan 1,006 bergerbang, dan di harian 1,027
+# lawan 1,112. Dua dari tiga timeframe bilang gerbangnya membayar, jadi 4 jam
+# yang pengecualian. Ambangnya BERTAHAN, dan sekarang atas dasar tiga sel yang
+# diukur di harness yang benar - bukan atas dasar kalibrasi lama yang dasarnya
+# sudah tidak berlaku.
 DEPARTURE_GATE_ATR_CEILING = 0.25
 
 #: Lantai PER KIND, karena 2,0 tidak selamat di setiap detector yang memakainya.
