@@ -171,13 +171,18 @@ if (!view || view.to < candles[0].time || view.from > candles.at(-1).time) {
 //
 // `series.priceToCoordinate` adalah konversi yang dipakai `zone-primitive.ts`
 // sendiri, dan `e2e/pixel-truth.mjs` sudah memakainya untuk hal yang sama.
-const heights = await page.evaluate((pairs) => {
-  const { series } = window.__zonelabChart;
-  return pairs.map(([top, bottom]) => {
-    const a = series.priceToCoordinate(top);
-    const b = series.priceToCoordinate(bottom);
-    return a === null || b === null ? null : Math.abs(b - a);
-  });
+const geom = await page.evaluate((pairs) => {
+  const { series, chart } = window.__zonelabChart;
+  const paneHeight = chart.paneSize ? chart.paneSize().height : chart.options().height;
+  return {
+    paneHeight,
+    rows: pairs.map(([top, bottom]) => {
+      const a = series.priceToCoordinate(top);
+      const b = series.priceToCoordinate(bottom);
+      if (a === null || b === null) return null;
+      return { yTop: Math.min(a, b), yBottom: Math.max(a, b), h: Math.abs(b - a) };
+    }),
+  };
 }, drawing.zones.map((z) => [z.top, z.bottom]));
 
 const shot = `${OUT}/chart-audit-${INTERVAL}-${DETECTOR}.png`;
@@ -187,12 +192,43 @@ await browser.close();
 // Only the zones whose box actually reaches the screen. Listing the rest would
 // make the model report every off-screen zone as a drawing that went missing,
 // which is a true statement about a payload nobody should have sent.
+// PENYARINGNYA HARGA JUGA, BUKAN CUMA WAKTU, sejak 7 September 2026.
+//
+// Sebelum ini `onScreen` hanya memeriksa `time_to`/`time_from`, jadi sebuah zona
+// yang jendelanya benar tapi harganya di LUAR skala vertikal tetap masuk daftar
+// sebagai zona yang digambar. Auditor lalu melihat gambar, tidak menemukannya,
+// dan melaporkan kotak yang HILANG - laporan yang benar tentang daftar yang
+// salah. Terukur di order_block XAUUSD 4h: 9 zona didaftarkan, 6 yang tergambar,
+// dan tiga yang tidak duduk di 4.009 sampai 4.078 sementara dasar chart 4.180.
+//
+// `priceToCoordinate` tetap mengembalikan koordinat untuk harga di luar pane -
+// itu sebabnya `height_px` sendirian tidak bisa menyaringnya - jadi yang diuji
+// perpotongan vertikalnya dengan tinggi pane.
 const onScreen = drawing.zones
-  .map((z, i) => ({ ...z, height_px: heights[i] }))
-  .filter((z) => z.time_to >= view.from && z.time_from <= view.to);
+  .map((z, i) => ({ ...z, geom: geom.rows[i] }))
+  .filter((z) => {
+    if (z.time_to < view.from || z.time_from > view.to) return false;
+    if (!z.geom) return false;
+    return z.geom.yBottom >= 0 && z.geom.yTop <= geom.paneHeight;
+  })
+  .map((z) => ({ ...z, height_px: z.geom.h }));
 if (!onScreen.length) {
   console.error(`harness failure: none of the ${drawing.zones.length} zones are in view`);
   process.exit(2);
+}
+// DISUARAKAN, karena penyaring yang membuang diam-diam adalah penyaring yang
+// tidak bisa diperiksa. Kalau angka kedua jauh lebih kecil dari yang pertama,
+// jendela chartnya yang salah dan bukan gambarnya.
+{
+  const inTime = drawing.zones.filter(
+    (z) => z.time_to >= view.from && z.time_from <= view.to,
+  ).length;
+  if (inTime !== onScreen.length) {
+    console.log(
+      `  ${inTime} zona lolos jendela WAKTU, ${onScreen.length} juga masuk ` +
+        `rentang HARGA pane (${inTime - onScreen.length} di luar skala vertikal)`,
+    );
+  }
 }
 
 // What the model is told, and the only numbers it is permitted to repeat. Only
@@ -232,7 +268,15 @@ const shapes = {
     // dan kotak di bawah 15px sengaja memajang titiknya tanpa nama, karena
     // nama itu sama untuk setiap kotak di layer yang sama sementara
     // verdictnya tidak. `height_px` ada di tiap baris supaya ini bisa dicek.
-    thin_boxes: "a box under 15px tall shows ONLY its gate dot, with no formation name; that is intended and is not a missing caption",
+    thin_boxes: "a box under 15 CSS px tall shows ONLY its gate dot, with no formation name; that is intended and is not a missing caption",
+    // UNITNYA DINYATAKAN, karena auditor mengukur GAMBAR dan daftar ini
+    // melaporkan CSS. `priceToCoordinate` mengembalikan piksel CSS dan
+    // `LABEL_MIN_HEIGHT` dibandingkan di ruang yang sama, sementara screenshot
+    // diambil di `deviceScaleFactor: 2`. Tanpa baris ini auditor mengukur tinggi
+    // kotak di gambar, menemukannya dua kali `height_px`, dan melaporkan
+    // ketidakcocokan yang benar tentang dua satuan yang berbeda - persis yang
+    // terjadi di audit order_block 7 September 2026.
+    pixel_units: "every height_px value and the 15px threshold are CSS pixels; this screenshot is deviceScaleFactor 2, so a box measured in the IMAGE is twice its height_px",
     z_order: "box fills are painted BENEATH the candles, captions above them",
   },
   // CERMIN CAPTION, dan ia sudah dua kali tertinggal dari yang digambar.

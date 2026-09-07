@@ -1078,6 +1078,85 @@ sapuan yang PERNAH DILAKUKAN dan gagal, bukan atas dasar belum pernah dicoba.
 - **Kontrol placebo IFVG di luar XAU 4 jam**, khususnya 30 menit yang jadi
   satu-satunya sel positifnya di rig produksi.
 
+## Autodrawing OB, diperiksa 7 September 2026
+
+Sisi produk OB belum pernah dilihat di sesi ini. Diperiksa sekarang, dan
+pemeriksaannya menemukan dua cacat di INSTRUMENnya, bukan di gambarnya.
+
+### Pipanya hidup
+
+`/api/draw` XAUUSD 4 jam, 1.500 bar: **218 zona OB, 131 lolos gerbang** (60
+persen), `gate_measured` benar untuk 218 dari 218 - berbeda dari BRK yang False -
+dan lifecycle terisi (18 fresh, 3 tested, 12 mitigated, 185 broken). Tinggi kotak
+median 13,47 USD, minimum 0,892 dan maksimum 339,74.
+
+### Geometrinya terbukti
+
+`e2e/pixel-truth.mjs` diarahkan ke layer `order_block`, 9 zona di jendela:
+
+| pemeriksaan | hasil |
+|---|---|
+| setiap zona ditemukan di canvas | 9 dari 9 |
+| tepi ATAS di tempat skala harga menaruhnya | terburuk **0,3px** |
+| tepi BAWAH di tempat skala harga menaruhnya | terburuk **0,4px** |
+| kotak menutupi bar asalnya | 0,00 bar di luar kotak |
+| tepi kiri terbaca, tidak terkubur lilinnya | 9 dari 9 |
+
+7 dari 7 lolos.
+
+### PERBEDAAN PENTING DARI FVG: masalah legibilitasnya TIDAK ada di sini
+
+Gerbang FVG adalah PLAFON pada tinggi gap, jadi kohort yang lolos selalu kotak
+TERKECIL - dan itu yang membuat kotak tervalidasinya jadi garis rambut tak
+bercaption. Gerbang OB LANTAI pada kekuatan impuls, dan impuls tidak berkorelasi
+dengan tinggi badan lilinnya. Terukur di jendela audit:
+
+| tinggi CSS px | caption |
+|---|---|
+| 29,2 | OB ● |
+| 31,9 | OB ● |
+| 21,5 | OB ● |
+| 6,5 | ● |
+| 14,2 | OB ○ |
+| 16,7 | OB ○ |
+
+Yang lolos gerbang tersebar dari 6,5 sampai 31,9 piksel dan yang gagal ada di
+14,2 dan 16,7 - **tidak ada bias sistematis**. Jadi peredupan fill untuk kohort
+yang gagal gerbang bekerja seperti yang dimaksudkan di OB, dan penekanan chartnya
+tidak terbalik seperti di FVG.
+
+### Dua cacat instrumen yang ditemukan, keduanya membuat auditor melapor palsu
+
+**Penyaring `onScreen` cuma memeriksa WAKTU, bukan harga.** Sebuah zona yang
+jendela waktunya benar tapi harganya di luar skala vertikal tetap didaftarkan
+sebagai zona yang digambar. Auditor melihat gambar, tidak menemukannya, dan
+melaporkan kotak HILANG - laporan yang benar tentang daftar yang salah. Terukur:
+9 zona didaftarkan, 6 tergambar, dan tiga yang tidak duduk di 4.009 sampai 4.078
+sementara dasar chart 4.180. `priceToCoordinate` tetap mengembalikan koordinat
+untuk harga di luar pane, jadi `height_px` sendirian tidak bisa menyaringnya;
+yang diuji sekarang perpotongan vertikalnya dengan tinggi pane, dan berapa yang
+dibuang DICETAK.
+
+**Satuan pikselnya tidak dinyatakan.** `priceToCoordinate` memberi piksel CSS dan
+`LABEL_MIN_HEIGHT` dibandingkan di ruang yang sama, tapi screenshot diambil di
+`deviceScaleFactor: 2`. Auditor mengukur GAMBAR, menemukan tinggi dua kali
+`height_px`, dan melaporkan ketidakcocokan yang benar tentang dua satuan berbeda.
+Legenda sekarang menyatakannya, dan auditor berikutnya menutupnya sendiri:
+"measured image heights are consistent with the stated height_px values doubled
+for deviceScaleFactor 2".
+
+Sesudah keduanya diperbaiki, audit visualnya bersih: "nothing is drawn that is
+not in the list, and nothing in the list is missing" dan "I found no case where
+an edge sits somewhere other than where the list says."
+
+### Yang tersisa di sisi gambar, dan ini keluhan lama
+
+Auditor tetap tidak bisa membaca lifecycle dari opacity border - keluhan yang
+sama sudah muncul tiga kali untuk FVG. Terukur 1,33 sampai 1,82 banding satu
+antar state bersebelahan, jadi sinyalnya ada; ia cuma di bawah ambang yang bisa
+dibaca mata di render ini. Itu keputusan desain yang belum diambil, bukan cacat
+yang belum diperbaiki.
+
 ## Cara mengulang
 
 ```bash
