@@ -38,10 +38,32 @@
  * as "is this reply any good".
  */
 import { spawnSync } from "node:child_process";
-import { mkdirSync, writeFileSync } from "node:fs";
+import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { chromium } from "playwright";
+
+// DIBACA DARI SUMBERNYA, bukan ditulis ulang di sini. Sebuah salinan angka 15
+// di file ini akan hanyut dari `zone-primitive.ts` tanpa satu pun test merah,
+// dan cermin caption yang hanyut sudah tiga kali membuat auditor melaporkan
+// chart yang benar sebagai salah.
+const PRIMITIVE = resolve(
+  dirname(fileURLToPath(import.meta.url)),
+  "../src/components/zone-primitive.ts",
+);
+const LABEL_MIN_HEIGHT = (() => {
+  const m = readFileSync(PRIMITIVE, "utf8").match(
+    /const\s+LABEL_MIN_HEIGHT\s*=\s*(\d+(?:\.\d+)?)/,
+  );
+  if (!m) {
+    console.error(
+      "harness failure: LABEL_MIN_HEIGHT is gone from zone-primitive.ts, so the " +
+        "caption mirror cannot know when a box is too thin for its name",
+    );
+    process.exit(2);
+  }
+  return Number(m[1]);
+})();
 
 // RESOLVED TO AN ABSOLUTE PATH, because it crosses a process boundary into a
 // DIFFERENT working directory. The screenshot is written relative to this
@@ -139,6 +161,25 @@ if (!view || view.to < candles[0].time || view.from > candles.at(-1).time) {
   await die(`the chart is not showing the ${INTERVAL} series that was fetched`, browser);
 }
 
+// TINGGI PIKSEL, dibaca dari chart yang sama sebelum browsernya ditutup.
+// Tanpa ini cermin caption di bawah tidak bisa menerapkan aturan `thin`, dan
+// pada 7 September 2026 itu persis yang terjadi: shape list melaporkan
+// "FVG ●" untuk dua kotak yang di layar cuma titik, auditor membandingkan
+// keduanya, dan melaporkan caption yang HILANG sebagai cacat gambar. Cermin
+// yang tertinggal membuat chart yang benar terbaca salah - peringatan itu
+// sudah tertulis lima baris di atas cermin yang melanggarnya.
+//
+// `series.priceToCoordinate` adalah konversi yang dipakai `zone-primitive.ts`
+// sendiri, dan `e2e/pixel-truth.mjs` sudah memakainya untuk hal yang sama.
+const heights = await page.evaluate((pairs) => {
+  const { series } = window.__zonelabChart;
+  return pairs.map(([top, bottom]) => {
+    const a = series.priceToCoordinate(top);
+    const b = series.priceToCoordinate(bottom);
+    return a === null || b === null ? null : Math.abs(b - a);
+  });
+}, drawing.zones.map((z) => [z.top, z.bottom]));
+
 const shot = `${OUT}/chart-audit-${INTERVAL}-${DETECTOR}.png`;
 await page.locator("main").screenshot({ path: shot });
 await browser.close();
@@ -146,7 +187,9 @@ await browser.close();
 // Only the zones whose box actually reaches the screen. Listing the rest would
 // make the model report every off-screen zone as a drawing that went missing,
 // which is a true statement about a payload nobody should have sent.
-const onScreen = drawing.zones.filter((z) => z.time_to >= view.from && z.time_from <= view.to);
+const onScreen = drawing.zones
+  .map((z, i) => ({ ...z, height_px: heights[i] }))
+  .filter((z) => z.time_to >= view.from && z.time_from <= view.to);
 if (!onScreen.length) {
   console.error(`harness failure: none of the ${drawing.zones.length} zones are in view`);
   process.exit(2);
@@ -184,6 +227,12 @@ const shapes = {
     // it report a missing line on five correct charts.
     proximal_line: "the edge price meets first, drawn as a brighter rule ON that border - the TOP of a demand box and the BOTTOM of a supply box - and its dash pattern names the detector",
     caption: "the formation name at the box's left edge, on a dark plate, followed by a filled dot when the zone cleared its departure gate and a hollow dot when it did not",
+    // DIKATAKAN, bukan dibiarkan ditemukan sebagai cacat. Gerbang fvg adalah
+    // plafon pada tinggi gap, jadi kohort yang LOLOS selalu kotak terkecil -
+    // dan kotak di bawah 15px sengaja memajang titiknya tanpa nama, karena
+    // nama itu sama untuk setiap kotak di layer yang sama sementara
+    // verdictnya tidak. `height_px` ada di tiap baris supaya ini bisa dicek.
+    thin_boxes: "a box under 15px tall shows ONLY its gate dot, with no formation name; that is intended and is not a missing caption",
     z_order: "box fills are painted BENEATH the candles, captions above them",
   },
   // CERMIN CAPTION, dan ia sudah dua kali tertinggal dari yang digambar.
@@ -199,9 +248,13 @@ const shapes = {
       // kecil - dan kotak kecil persis yang `LABEL_MIN_HEIGHT` di
       // `zone-primitive.ts` bungkam. Cermin ini harus ikut aturannya, kalau
       // tidak ia melaporkan setiap kotak tipis sebagai caption yang hilang.
-      // Ambangnya piksel dan file ini bekerja di harga, jadi yang dicerminkan
-      // di sini cuma BENTUKNYA; tingginya diperiksa `e2e/pixel-truth.mjs`.
+      // Ambangnya piksel, dan sejak 7 September 2026 file ini PUNYA pikselnya:
+      // `height_px` dibaca dari `series.priceToCoordinate` di chart yang sama.
+      // Sebelum itu cermin ini selalu memancarkan nama formasinya dan auditor
+      // melaporkan kotak tipis sebagai caption yang hilang.
       const gate = z.gate_measured ? (z.gate_cleared ? "●" : "○") : "";
+      const thin = z.height_px !== null && z.height_px < LABEL_MIN_HEIGHT;
+      if (thin) return gate;
       return (
         z.kind +
         (gate ? " " + gate : "") +
@@ -211,6 +264,7 @@ const shapes = {
     })(),
     side: z.side,
     state: z.state,
+    height_px: z.height_px === null ? null : Number(z.height_px.toFixed(1)),
     top: px(z.top),
     bottom: px(z.bottom),
     proximal: px(z.proximal),

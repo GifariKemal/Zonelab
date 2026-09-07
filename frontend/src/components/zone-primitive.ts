@@ -316,8 +316,47 @@ class ZoneFillRenderer implements IPrimitivePaneRenderer {
         // fill is the whole treatment: dimmer than its neighbours, still
         // clickable, still carrying its evidence in the inspector.
         const crowded = zone.crowded_at !== null;
+        // KOHORT YANG GAGAL GERBANG DIREDUPKAN, sejak 7 September 2026, dan ini
+        // idiom `crowded` di atas yang dipakai ulang - bukan kosakata baru.
+        //
+        // Sebabnya penekanan chart-nya TERBALIK dari buktinya. Gerbang fvg
+        // adalah PLAFON pada tinggi gap, jadi kohort yang lolos selalu kotak
+        // TERKECIL. Terukur di audit XAUUSD 4h: delapan zona di jendela, dua
+        // yang lolos tingginya 2,5px dan 9px sementara enam yang gagal 22
+        // sampai 62 satuan harga - jadi setiap kotak yang tergambar besar dan
+        // bercaption lengkap adalah kotak yang backtest TIDAK validasi.
+        //
+        // Yang diukur bukan "sebuah FVG ada di sini" melainkan kohortnya: di
+        // XAUUSD 4h, 13,7 tahun dengan biaya, yang lolos memberi PF 1,091 dan
+        // win 50,56 persen, dan kotak yang digeser acak memberi 1,014 di 38,72
+        // persen. Zona yang gagal gerbang tidak punya angka itu.
+        //
+        // MENGUATKAN yang lolos ditolak, dan alasannya bisa dinamai: `lineWidth`
+        // sudah membawa tiga arti (selected 2,5 - projected 2 - biasa 1) dan
+        // arti keempat di kanal yang sama persis kesalahan yang dilarang di
+        // komentar border di bawah. Meredupkan yang gagal tidak menambah kanal
+        // apa pun. Geometrinya TIDAK disentuh: kotak setipis dua piksel tetap
+        // digambar setipis dua piksel, karena menggembungkannya berarti
+        // berbohong soal rentang harga.
+        //
+        // DI FILL SAJA, BUKAN DI BORDER, dan versi pertama perubahan ini salah
+        // soal itu. Border membawa lifecycle - 1,33 sampai 1,82 banding satu
+        // antar state bersebelahan - jadi mengalikannya dengan faktor gerbang
+        // membuat fresh yang gagal (0,9 x 0,5 = 0,45) tergambar kembar dengan
+        // mitigated yang lolos (0,40). Fill tidak punya masalah itu: terukur
+        // 1,03 sampai 1,10 antar state, artinya lifecycle memang TIDAK terbaca
+        // di sana, jadi langkah 0,45 di kanal ini tidak menimpa sinyal apa pun
+        // dan besarnya sekitar dua kali - jauh di atas yang bisa dibaca mata.
+        //
+        // DIAM DI KIND YANG AMBANGNYA TIDAK PERNAH DIUKUR - `gate_measured`
+        // yang membawa perbedaan antara "tidak lolos" dan "tidak ada yang
+        // mengukur". Hari ini yang diam cuma BRK.
+        const gateFailed = zone.gate_measured && !zone.gate_cleared;
         const alpha =
-          (box.near || box.lit ? near : far) * LIFECYCLE[zone.state] * (crowded ? 0.45 : 1);
+          (box.near || box.lit ? near : far) *
+          LIFECYCLE[zone.state] *
+          (crowded ? 0.45 : 1) *
+          (gateFailed ? 0.45 : 1);
         // `--zone-fill-far` ships at 0, so this is the far tier costing nothing
         // at all rather than costing a transparent fillRect per box per frame.
         if (alpha <= 0) continue;
@@ -409,6 +448,14 @@ class ZoneEdgeRenderer implements IPrimitivePaneRenderer {
           // degree of the same thing. Detector identity did NOT take this over -
           // it is on the proximal rule below, see KIND_DASH.
           ctx.save();
+          // GERBANG TIDAK MEREDUPKAN BORDER, dan itu dicoba lalu dicabut pada
+          // hari yang sama. Border membawa LIFECYCLE - terukur 1,33 sampai 1,82
+          // banding satu antar state bersebelahan, lawan 1,03 sampai 1,10 di
+          // fill - jadi mengalikannya dengan faktor gerbang menaruh dua klaim di
+          // satu kanal. Aritmetikanya langsung menunjukkannya: fresh yang gagal
+          // gerbang jadi 0,9 x 0,5 = 0,45 dan mitigated yang lolos 0,40, dua
+          // hal berbeda yang tergambar kembar. Peredupan gerbang tinggal di
+          // fill, tempat lifecycle memang tidak terbaca.
           ctx.strokeStyle = rgba(zone.side, edge * (crowded ? 0.5 : 1));
           // OFFSET-NYA SETENGAH LEBAR STROKE, bukan tetap 0,5. Keduanya sama
           // saat lebarnya 1, yang berlaku pada skala 1; pada skala 2 lebarnya
