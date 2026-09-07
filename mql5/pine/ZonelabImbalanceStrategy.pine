@@ -388,7 +388,19 @@ if ok and in_win
 // yang membunuh kotak lama tidak boleh dihitung sebagai sentuhan pertama kotak
 // baru. Di sini itu otomatis - ordernya didaftarkan di akhir bar pecah, dan
 // loop pending memeriksa fill di bar BERIKUTNYA.
-if inverting and array.size(v_top) > 0
+//
+// `in_win` DIPERIKSA DI SINI JUGA, dan tanpa itu jendela tidak mengikat apa pun.
+// Blok kelahiran di atas digerbangi `in_win`, tapi blok INI yang memasang order
+// untuk IFVG dan BRK - jadi sampai 7 September 2026 induk didaftarkan hanya di
+// dalam jendela sementara inversinya menembak kapan saja SESUDAHNYA, termasuk
+// belasan tahun di luar `win_to`. Terlihat begitu satu fold diminta: 1990-1994
+// memberi n=968 sementara sampel penuh 56 tahun cuma 1.311, dan satu fold 4,6
+// tahun tidak bisa memuat 74 persen trade.
+//
+// Setiap angka BERJENDELA untuk IFVG dan BRK yang lebih tua dari baris ini
+// salah - hold-out, isolasi jendela, sapuan per periode. Angka jendela-penuh
+// tidak terpengaruh, karena di sana `win_from`/`win_to` memuat seluruh deret.
+if inverting and in_win and array.size(v_top) > 0
     for k = array.size(v_top) - 1 to 0
         pdir = array.get(v_dir, k)
         ptop = array.get(v_top, k)
@@ -453,7 +465,7 @@ if barstate.isfirst
 // digambar dan tidak pernah mengurangi, jadi ia tidak bisa menghidupkan lagi
 // cacat pertama.
 if barstate.islastconfirmedhistory or barstate.islast
-    var table t = table.new(position.top_right, 2, 13, border_width=1)
+    var table t = table.new(position.top_right, 2, 14, border_width=1)
     table.cell(t, 0, 0, "cfg",   bgcolor=color.new(color.gray, 80), text_size=size.small)
     // DETEKTOR DAN ARAH GERBANGNYA DIECHO, kalau tidak dua run dengan detektor
     // berbeda terbaca kembar di baris ini - dan angka gerbangnya sendiri tidak
@@ -470,30 +482,43 @@ if barstate.islastconfirmedhistory or barstate.islast
          (target_mode == 1 ? " Twall" : " R" + str.tostring(reward_r)) +
          " s" + str.tostring(stop_buf_atr) +
          " p" + str.tostring(placebo_atr) + " c" + str.tostring(cost_pct), text_size=size.small)
-    table.cell(t, 0, 1, "span",  bgcolor=color.new(color.gray, 80), text_size=size.small)
+    // "data" DAN BUKAN "span", karena baris ini SELALU rentang deret dan bukan
+    // jendela yang aktif - dan membacanya sebagai jendela sudah salah dua kali.
+    // Di XAUUSD harian ia mencetak 1970 karena TradingView memberi satu bar tua
+    // di sana, lalu tabel yang sama dipakai menyebut sampelnya "56 tahun"
+    // padahal `win_from` default 2000-01-01 memotongnya jadi 26.
+    table.cell(t, 0, 1, "data",  bgcolor=color.new(color.gray, 80), text_size=size.small)
     table.cell(t, 1, 1, str.format_time(first_t, "yyyy-MM-dd", "UTC") + " " +
          str.format_time(time, "yyyy-MM-dd", "UTC"), text_size=size.small)
-    table.cell(t, 0, 2, "bars",  bgcolor=color.new(color.gray, 80), text_size=size.small)
-    table.cell(t, 1, 2, str.tostring(bar_index + 1), text_size=size.small)
-    table.cell(t, 0, 3, "cand",  bgcolor=color.new(color.gray, 80), text_size=size.small)
-    table.cell(t, 1, 3, str.tostring(c_cand), text_size=size.small)
-    table.cell(t, 0, 4, "gate",  bgcolor=color.new(color.gray, 80), text_size=size.small)
-    table.cell(t, 1, 4, str.tostring(c_gate), text_size=size.small)
-    table.cell(t, 0, 5, "no wall", bgcolor=color.new(color.gray, 80), text_size=size.small)
-    table.cell(t, 1, 5, str.tostring(c_nowall), text_size=size.small)
-    table.cell(t, 0, 6, "fill",  bgcolor=color.new(color.gray, 80), text_size=size.small)
-    table.cell(t, 1, 6, str.tostring(c_fill), text_size=size.small)
-    table.cell(t, 0, 7, "canc/ev", bgcolor=color.new(color.gray, 80), text_size=size.small)
-    table.cell(t, 1, 7, str.tostring(c_cancel) + "/" + str.tostring(c_evict), text_size=size.small)
-    table.cell(t, 0, 8, "n",     bgcolor=color.new(color.gray, 80), text_size=size.small)
-    table.cell(t, 1, 8, str.tostring(n_tr), text_size=size.small)
-    table.cell(t, 0, 9, "win%",  bgcolor=color.new(color.gray, 80), text_size=size.small)
-    table.cell(t, 1, 9, str.tostring(100.0 * n_win / math.max(n_tr, 1), "#.##"), text_size=size.small)
-    table.cell(t, 0, 10, "PF",   bgcolor=color.new(color.gray, 80), text_size=size.small)
-    table.cell(t, 1, 10, str.tostring(sum_win / math.max(sum_loss, 0.000001), "#.###"), text_size=size.small)
-    table.cell(t, 0, 11, "biaya (R)", bgcolor=color.new(color.gray, 80), text_size=size.small)
-    table.cell(t, 1, 11, str.tostring(sum_fee / risk_usd / math.max(n_tr, 1), "#.####") +
+    // JENDELANYA DIECHO. Tanpa baris ini tabel BASI sesudah `win_from` diubah
+    // tidak bisa dibedakan dari tabel yang sudah dihitung ulang, dan itu terjadi:
+    // [1970,2038] terbaca n=1.311 sementara sub-jendelanya [1970,2000] memberi
+    // n=5.585 - mustahil, dan yang basi bacaan pertamanya. Setiap knob lain sudah
+    // ada di baris cfg justru untuk alasan ini; jendelanya yang tertinggal.
+    table.cell(t, 0, 2, "win",   bgcolor=color.new(color.gray, 80), text_size=size.small)
+    table.cell(t, 1, 2, str.format_time(win_from, "yyyy-MM-dd", "UTC") + " " +
+         str.format_time(win_to, "yyyy-MM-dd", "UTC"), text_size=size.small)
+    table.cell(t, 0, 3, "bars",  bgcolor=color.new(color.gray, 80), text_size=size.small)
+    table.cell(t, 1, 3, str.tostring(bar_index + 1), text_size=size.small)
+    table.cell(t, 0, 4, "cand",  bgcolor=color.new(color.gray, 80), text_size=size.small)
+    table.cell(t, 1, 4, str.tostring(c_cand), text_size=size.small)
+    table.cell(t, 0, 5, "gate",  bgcolor=color.new(color.gray, 80), text_size=size.small)
+    table.cell(t, 1, 5, str.tostring(c_gate), text_size=size.small)
+    table.cell(t, 0, 6, "no wall", bgcolor=color.new(color.gray, 80), text_size=size.small)
+    table.cell(t, 1, 6, str.tostring(c_nowall), text_size=size.small)
+    table.cell(t, 0, 7, "fill",  bgcolor=color.new(color.gray, 80), text_size=size.small)
+    table.cell(t, 1, 7, str.tostring(c_fill), text_size=size.small)
+    table.cell(t, 0, 8, "canc/ev", bgcolor=color.new(color.gray, 80), text_size=size.small)
+    table.cell(t, 1, 8, str.tostring(c_cancel) + "/" + str.tostring(c_evict), text_size=size.small)
+    table.cell(t, 0, 9, "n",     bgcolor=color.new(color.gray, 80), text_size=size.small)
+    table.cell(t, 1, 9, str.tostring(n_tr), text_size=size.small)
+    table.cell(t, 0, 10, "win%", bgcolor=color.new(color.gray, 80), text_size=size.small)
+    table.cell(t, 1, 10, str.tostring(100.0 * n_win / math.max(n_tr, 1), "#.##"), text_size=size.small)
+    table.cell(t, 0, 11, "PF",   bgcolor=color.new(color.gray, 80), text_size=size.small)
+    table.cell(t, 1, 11, str.tostring(sum_win / math.max(sum_loss, 0.000001), "#.###"), text_size=size.small)
+    table.cell(t, 0, 12, "biaya (R)", bgcolor=color.new(color.gray, 80), text_size=size.small)
+    table.cell(t, 1, 12, str.tostring(sum_fee / risk_usd / math.max(n_tr, 1), "#.####") +
          " x" + str.tostring(n_tr), text_size=size.small)
-    table.cell(t, 0, 12, "exp_r / RR", bgcolor=color.new(color.gray, 80), text_size=size.small)
-    table.cell(t, 1, 12, str.tostring((sum_win - sum_loss) / math.max(n_tr, 1), "#.####") +
+    table.cell(t, 0, 13, "exp_r / RR", bgcolor=color.new(color.gray, 80), text_size=size.small)
+    table.cell(t, 1, 13, str.tostring((sum_win - sum_loss) / math.max(n_tr, 1), "#.####") +
          " / " + str.tostring(sum_rr / math.max(c_gate - c_nowall, 1), "#.##"), text_size=size.small)

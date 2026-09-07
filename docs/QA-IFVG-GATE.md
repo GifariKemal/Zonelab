@@ -222,6 +222,145 @@ persis sama dengan IFVG, jadi ia membawa bentuk keraguan yang sama. Tidak
 diukur di sesi ini supaya lingkupnya tetap satu pertanyaan, dan dicatat di
 sini supaya tidak dilupakan.
 
+## IFVG diukur, dan dua cacat jendela ditemukan lebih dulu
+
+Diminta 7 September 2026 sesudah OB. Yang ditemukan pertama bukan hasil IFVG-nya
+melainkan dua cacat di harness, dan keduanya membatalkan angka yang sudah
+dilaporkan. Ditulis lebih dulu karena itu.
+
+### Cacat 1: jendela tidak mengikat mode inversi
+
+Blok kelahiran digerbangi `in_win`, tapi blok yang memasang order untuk IFVG dan
+BRK **tidak**. Jadi induk didaftarkan hanya di dalam jendela sementara inversinya
+menembak kapan saja SESUDAHNYA - termasuk belasan tahun di luar `win_to`.
+
+Terlihat begitu satu fold diminta: jendela 1990-1994 memberi n=968 sementara
+sampel penuh 56 tahun cuma 1.311, dan satu fold 4,6 tahun tidak bisa memuat 74
+persen trade.
+
+**DIBATALKAN karena ini:** hold-out IFVG (1,001 lalu 1,101 bergerbang; 1,237 lalu
+1,123 tanpa gerbang) dan hold-out BRK (1,412 lalu 0,861). Angka jendela-penuh
+TIDAK terpengaruh, karena di sana `win_from`/`win_to` memuat seluruh deret.
+
+Isolasi jendela BRK **selamat** dan sudah diperiksa: jendelanya berakhir 2038,
+jadi inversinya memang di dalam. Diukur ulang, n=620 dan PF 1,128 identik.
+
+### Cacat 2: jendelanya tidak ada di cfg echo, jadi tabel BASI tak terdeteksi
+
+Ini yang lebih halus dan lebih berbahaya. Setiap knob lain ada di baris `cfg`
+justru supaya run yang salah setelan bisa dikenali - jendelanya tertinggal.
+
+Terbukti: `[1970, 2038]` terbaca n=1.311, lalu sub-jendelanya `[1970, 2000]`
+memberi n=5.585. Sub-jendela tidak bisa lebih besar dari induknya, jadi bacaan
+pertamanya basi - dan tanpa jendela di echo, tabel basi tidak bisa dibedakan dari
+tabel yang sudah dihitung ulang.
+
+Tabel sekarang punya baris `win`, dan baris lama `span` diganti nama jadi `data`
+karena ia SELALU rentang deret dan bukan jendela aktif.
+
+### Dan itu memperbaiki satu label yang salah di seluruh dokumen ini
+
+`win_from` default 2000-01-01. Di XAUUSD harian TradingView memberi satu bar tua
+di 1970, jadi baris `span` mencetak "1970-02-26" dan setiap tabel harian di sesi
+ini dilabeli **"56 tahun"**. Jendelanya sebenarnya **2000-2026, 26 tahun**.
+Angkanya sah; labelnya salah, dan itu berlaku untuk baris harian FVG (1,112), OB
+(0,972) dan IFVG di bawah.
+
+Data pra-2000 memang ada dan kaya - 1970-2000 memberi cand 9.259 dan n=5.585 -
+tapi biayanya 0,1084 R per trade lawan 0,0134 di 2000-2026, delapan kali, karena
+emas diperdagangkan di 35 sampai 400 dolar. Itu bukan instrumen yang sama dan
+tidak dipakai.
+
+### Hasil IFVG, jendela terverifikasi
+
+| sel | jendela | n | win% | PF | placebo PF |
+|---|---|---|---|---|---|
+| **XAU 1d** | 2000-2026 | 547 | 57,59 | **1,067** | 0,859 |
+| XAU 4h | 2013-2026 | 1.613 | 53,69 | 0,965 | 0,811 |
+| XAU 1h | 2023-2026 | 1.724 | 47,33 | 0,781 | - |
+| **BTC 1d** | 2011-2026 | 406 | 46,55 | **1,117** | 0,812 |
+| BTC 4h | 2017-2026 | 1.466 | 50,07 | 0,910 | - |
+| BTC 1h | 2024-2026 | 2.115 | 49,17 | 0,850 | - |
+
+**Dua sel di atas satu, dan kontrolnya kalah di ketiga sel yang punya kontrol.**
+Margin: +0,208 PF di XAU harian (+10,1 poin win rate), +0,154 di XAU 4 jam
+(+8,5 poin), +0,305 di BTC harian (+7,8 poin).
+
+**BTC harian adalah satu-satunya sel tempat kontrol IFVG kalah sementara kontrol
+FVG dan OB MENANG.** Di sana FVG memberi 1,402 lawan placebo 1,468 dan OB 1,200
+lawan 2,010 - keduanya kalah dari kotak yang digeser. IFVG 1,117 lawan 0,812.
+
+> [!NOTE]
+> Kontrol placebo untuk mode inversi lebih lemah daripada untuk FVG dan OB, dan
+> itu harus dikatakan. Geseran 1 ATR memindahkan kotaknya SEBELUM gerbang, jadi
+> untuk induk yang harus PECAH ia menggeser ambang pecahnya juga - bukan cuma
+> harga limitnya. Jadi lengan geser IFVG memakai peristiwa inversi yang berbeda,
+> bukan kotak yang sama di harga yang salah. n-nya tetap cocok (400 lawan 406 di
+> BTC harian), tapi mekanismenya bukan satu perubahan melainkan dua.
+
+### Plafonnya disapu, dan gerbangnya MERUGIKAN di harian
+
+XAUUSD harian, 2000-2026:
+
+| plafon | n | win% | PF |
+|---|---|---|---|
+| 0,1 | 248 | 56,05 | 1,089 |
+| 0,25 (ter-ship) | 547 | 57,59 | 1,067 |
+| 0,5 | 900 | 57,44 | 1,067 |
+| **mati** | 1.311 | 59,34 | **1,158** |
+
+Dan di sel lain, plafon mati lawan 0,25:
+
+| sel | plafon 0,25 | plafon mati |
+|---|---|---|
+| XAU 1d | 1,067 | **1,158** |
+| XAU 4h | **0,965** | 0,916 |
+| BTC 1d | 1,117 | **1,190** (placebo 0,994) |
+
+Dua dari tiga bilang gerbang-mati lebih baik - **kebalikan dari FVG**, tempat dua
+dari tiga bilang gerbangnya membayar.
+
+### Hold-out yang benar, dan gerbang-mati bertahan
+
+XAUUSD harian, jendela 2000-2026 dibelah di 2013, jendela DIVERIFIKASI di baris
+`win` tiap run:
+
+| lengan | IS 2000-2013 | OOS 2013-2026 | n OOS |
+|---|---|---|---|
+| plafon 0,25 | 1,001 (n=266) | 1,103 | 268 |
+| **plafon mati** | **1,165** (n=625) | **1,034** | **656** |
+
+Pilih di paruh pertama dan yang menang gerbang-mati (1,165 lawan 1,001), lalu
+luar-sampelnya 1,034 di 2,4 kali sampel. **Kedua lengan di atas satu luar
+sampel** - satu-satunya konfigurasi di sesi ini yang bisa dikatakan begitu.
+
+### Putusan IFVG
+
+Ia detektor terkuat dari empat di harness ini, dan itu bukan yang diperkirakan:
+
+- **dua sel di atas satu** (XAU 1d 1,067, BTC 1d 1,117), sementara FVG punya satu
+  dan OB serta BRK nol
+- **kontrolnya kalah di ketiga sel yang diuji**, dengan margin terbesar +0,305
+- **hold-out tidak roboh** - kedua lengan di atas satu luar sampel
+- dan ia satu-satunya yang **selamat dari perangkap drift BTC harian**
+
+Yang menahannya: gerbangnya sendiri merugikan di harian, jadi konfigurasi terbaik
+bukan yang ter-ship. Dan `DEPARTURE_GATE_ATR_CEILING` SATU konstanta untuk FVG
+dan IFVG - `docs/QA-IFVG-GATE.md` menyebut itu sebagai alasan ketiga
+mempertahankan 0,25 - jadi memberi IFVG plafon sendiri berarti memisahkan dua
+angka yang selama ini sengaja disatukan. Itu keputusan yang belum diambil.
+
+`ifvg.orderable` tetap mati. Tapi ia satu-satunya dari empat yang alasan
+matinya sekarang "aturan 8 dari 8 belum diuji", bukan "tidak ada edge".
+
+### Yang belum untuk IFVG
+
+- **Stabilitas delapan periode** di XAU harian. Sekarang bisa dijalankan dengan
+  benar karena jendelanya sudah mengikat, dan itu aturan yang menggerbangi
+  `orderable`.
+- **30 menit**, satu-satunya sel positif IFVG di rig produksi (1,081). Chart mati.
+- **Plafon sendiri lawan plafon bersama**: keputusan desain, bukan pengukuran.
+
 ## Cara mengulang
 
 ```bash
