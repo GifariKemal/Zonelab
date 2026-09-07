@@ -459,6 +459,94 @@ ia sekarang salah di kedua arah. Tidak diubah di sini karena `ifvg.orderable`
 mati sehingga baris itu tidak menggerbangi order apa pun, tapi ia tetap salah dan
 akan menggerbangi begitu layer ini dinyalakan.
 
+## Benchmark empat detektor, dua sel, dan banding publik
+
+Diminta 7 September 2026. Benchmark sebelumnya cuma di XAUUSD 4 jam, sementara
+sel terbaik IFVG dan BRK justru harian - jadi ia membandingkan keempatnya di
+tempat yang bukan tempat terbaik dua di antaranya.
+
+Semuanya lewat kode bracket yang IDENTIK di satu script Pine, jadi selisihnya
+milik detektornya.
+
+### XAUUSD 4 jam, jendela 2013-2026
+
+| detektor | n | win% | PF | placebo | margin PF |
+|---|---|---|---|---|---|
+| **FVG** | 1.709 | 50,56 | **1,091** | 1,014 | +0,077 |
+| IFVG | 1.613 | 53,69 | 0,965 | 0,811 | **+0,154** |
+| BRK | 1.652 | 54,48 | 0,958 | 1,010 | **-0,052** |
+| OB | 1.757 | 39,33 | 0,926 | 0,940 | -0,014 |
+
+### XAUUSD harian, jendela 2000-2026
+
+| detektor | n | win% | PF | placebo | margin PF |
+|---|---|---|---|---|---|
+| **BRK** | 511 | 58,51 | **1,181** | 0,989 | +0,192 |
+| FVG | 597 | 51,42 | 1,112 | 1,068 | +0,044 |
+| IFVG | 547 | 57,59 | 1,067 | 0,859 | **+0,208** |
+| OB | 560 | 41,79 | 0,972 | 0,928 | +0,044 |
+
+**Peringkatnya BERBEDA antar sel, dan itu temuannya.** FVG teratas di 4 jam dan
+ketiga di harian; BRK terbawah dari tiga yang di atas nol margin di 4 jam dan
+TERATAS di harian; OB terbawah di keduanya. Satu tabel di satu timeframe akan
+memberi urutan yang salah untuk dua dari empat.
+
+Tiga dari empat di atas satu di harian, satu dari empat di 4 jam.
+
+### Hold-out di harian memisahkan dua yang teratas
+
+Jendela 2000-2026 dibelah di 2013, jendela diverifikasi di baris `win` tiap run:
+
+| lengan | IS 2000-2013 | OOS 2013-2026 |
+|---|---|---|
+| **IFVG plafon mati** | **1,165** | **1,034** |
+| IFVG plafon 0,25 | 1,001 | 1,103 |
+| BRK | **0,957** | **1,357** |
+
+**BRK harian adalah fenomena paruh KEDUA.** Pilih di paruh pertama dan ia
+DITOLAK di 0,957; luar sampelnya 1,357. PF 1,181 di sampel penuh seluruhnya
+datang dari paruh kedua, jadi angka tertinggi di tabel harian adalah angka yang
+disiplin seleksi tidak akan pernah memilih.
+
+**IFVG satu-satunya yang di atas satu di KEDUA paruh** - di kedua setelan
+plafonnya. Itu, bukan PF tertingginya, alasan menyebutnya terkuat.
+
+### Banding lawan Pine publik
+
+Untuk IFVG ini SUDAH ADA dan lebih kuat dari yang dibuat untuk OB. Bagian
+"Parity geometri lawan tiga script komunitas" di atas, 5 September:
+
+| pembanding | cocok persis |
+|---|---|
+| Inversion Fair Value Gaps [LuxAlgo] | **5/5, 100%** |
+| Inversion Fair Value Gaps [ChartPrime] | 2/7, 28,6% |
+| Inversion Fair Value Gaps [TradingFinder] | tidak bisa dibandingkan, ia garis bukan box |
+
+Toleransi satu sen, dihitung `tools/box_parity.py`, **feed yang SAMA** untuk
+keduanya. Perbaikan urutan lifecycle tidak menyentuhnya: ia mengubah apakah
+sentuhan dicatat sebelum pecah, bukan apakah pecahnya terjadi, jadi himpunan
+induk BROKEN dan koordinat kotaknya tidak bergerak.
+
+**Dan itu menunjukkan banding OB yang saya buat lebih lemah dari yang repo ini
+sudah punya alatnya.** Untuk OB saya menambahkan `Order Block Detector [LuxAlgo]`
+ke chart, membaca kotaknya lewat `data_get_pine_boxes`, lalu membandingkan
+distribusi tingginya terhadap kotak kita dari feed MT5 - lintas feed, dan lewat
+statistik ringkasan alih-alih kotak per kotak. `tools/box_parity.py` sudah ada
+dan mengerjakan versi yang benar. Perbandingan OB itu tetap berlaku sebagai
+pernyataan orde besaran (kotak terkecil mereka di persentil 90 kita) tapi ia
+bukan parity, dan seharusnya memakai alat yang sudah ada.
+
+### Yang belum
+
+- **Parity `box_parity.py` untuk OB** lawan LuxAlgo di feed yang sama, menggantikan
+  perbandingan tinggi lintas feed di `docs/QA-OB-GATE.md`.
+- **BTC harian untuk BRK**, satu-satunya sel di grid empat detektor yang belum
+  punya angka BRK. BTC harian juga sel tempat kontrol FVG dan OB MENANG, jadi
+  ia pemeriksaan drift dan bukan cuma pelengkap tabel.
+- **Stabilitas delapan periode** untuk IFVG plafon-mati di harian. Sekarang bisa
+  dijalankan karena jendelanya sudah mengikat, dan itu aturan yang menggerbangi
+  `orderable`.
+
 ## Cara mengulang
 
 ```bash

@@ -429,7 +429,19 @@ LAYERS: tuple[Layer, ...] = (
             "third reason 0.25 was kept, so giving ifvg its own ceiling means "
             "splitting two numbers that were deliberately joined. That is a "
             "design decision, and the 8-of-8 stability run - now possible since "
-            "the window binds - has not been done."
+            "the window binds - has not been done. "
+            "BENCHMARKED AT ITS OWN BEST CELL TOO, not only at 4h where the "
+            "first comparison ran. XAUUSD daily, window 2000-2026, identical "
+            "bracket: breaker 1.181, fvg 1.112, this 1.067, order block "
+            "0.972 - so the RANKING DIFFERS BY CELL and a single-timeframe "
+            "table would order two of the four wrongly. Three of four clear "
+            "one at daily against one of four at 4h. "
+            "The hold-out separates the top two: breaker's daily 1.181 is a "
+            "SECOND-HALF phenomenon - 0.957 in sample, 1.357 out - so the "
+            "highest number in that table is one a selection discipline would "
+            "have rejected. This layer is above one in BOTH halves at both "
+            "ceiling settings, and that rather than the higher PF is why it is "
+            "called the strongest."
         ),
     ),
     Layer(
