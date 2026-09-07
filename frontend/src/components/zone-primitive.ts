@@ -558,7 +558,33 @@ class ZoneLabelRenderer implements IPrimitivePaneRenderer {
       for (const box of captioned) {
         const { zone } = box;
         const h = box.bottom - box.top;
-        if (h < LABEL_MIN_HEIGHT || box.right - box.left < 34) continue;
+        // VERDICT GERBANG DI CHART, bukan cuma di panel. Sampai 7 September
+        // 2026 kotak yang lolos gerbang dan yang tidak tergambar IDENTIK, dan
+        // verdictnya hanya muncul kalau pembaca mengklik zonanya - yang
+        // menyembunyikan satu-satunya hal yang backtest buktikan. Diukur di
+        // XAUUSD 4h, 13,7 tahun dengan biaya: kohort yang lolos menang 54,56
+        // persen di target 1R lawan 41,94 persen untuk kotak yang digeser acak.
+        //
+        // Kosakatanya sama dengan panel, dan ia DIAM di kind yang ambangnya
+        // tidak pernah diukur - `gate_cleared` selalu menjawab karena ia
+        // aritmetika, `gate_measured` yang membawa perbedaan antara "tidak
+        // lolos" dan "tidak pernah ada yang mengukur".
+        const gateMark = zone.gate_measured
+          ? zone.gate_cleared
+            ? "●"
+            : "○"
+          : "";
+        // KOTAK TIPIS TETAP DAPAT TITIKNYA, dan tanpa baris ini penandanya tak
+        // terlihat justru di tempat ia paling berarti. Gerbang fvg adalah
+        // PLAFON pada tinggi gap, jadi kohort yang lolos SELALU kotak kecil -
+        // dan kotak kecil persis yang `LABEL_MIN_HEIGHT` bungkam. Terlihat di
+        // screenshot audit 4h: delapan zona, dua lolos gerbang, dan tidak satu
+        // pun dari yang dua itu memajang penandanya. Nama formasinya yang
+        // dibuang di ruang sempit, bukan verdictnya: nama itu sama untuk setiap
+        // kotak di layer yang sama, verdictnya tidak.
+        const thin = h < LABEL_MIN_HEIGHT;
+        if (box.right - box.left < 34) continue;
+        if (thin && !gateMark) continue;
 
         // Formation name only. The caption used to carry the composite score,
         // which reads as a quality rating on a chart; calibration showed it
@@ -600,10 +626,31 @@ class ZoneLabelRenderer implements IPrimitivePaneRenderer {
         // does not say the flip makes the box stronger or points anywhere, and it
         // must not, because H8 measured a post-inversion touch as significantly
         // WORSE than a control with no box at all.
-        const text =
-          (box.projected ? `${zone.timeframe} ${zone.kind}` : zone.kind) +
-          (zone.inverted_at !== null ? " flipped" : "") +
-          (zone.confirmed && !zone.settled ? " unsettled" : "");
+        // VERDICT GERBANG DI CHART, bukan cuma di panel, sejak 7 September 2026.
+        // Sampai hari itu kotak yang lolos gerbang dan yang tidak tergambar
+        // IDENTIK, dan verdictnya hanya muncul kalau pembaca mengklik zonanya.
+        // Itu menyembunyikan satu-satunya hal yang dibuktikan backtest: yang
+        // diukur bukan "sebuah FVG ada di sini", melainkan kohort yang lolos
+        // gerbangnya. Di XAUUSD 4h, 13,7 tahun dengan biaya, kohort itu menang
+        // 54,56 persen di target 1R lawan 41,94 persen untuk kotak yang digeser
+        // acak - selisih 12,6 poin yang seluruhnya milik LETAK kotaknya.
+        //
+        // SATU TITIK, BUKAN GAYA GARIS BARU. Kosakata yang sama dengan panel
+        // (`●` lolos, `○` tidak), dan alasan tidak memakai garis putus-putus
+        // ada di komentar di atas: dashed sudah berarti "kotaknya bisa bergeser"
+        // dan satu kosakata visual tidak bisa membawa dua klaim berbeda.
+        //
+        // DIAM DI KIND YANG AMBANGNYA TIDAK PERNAH DIUKUR. `gate_cleared` selalu
+        // menjawab karena ia aritmetika; `gate_measured` yang membawa perbedaan
+        // antara "tidak lolos" dan "tidak pernah ada yang mengukur". Hari ini
+        // yang diam cuma BRK.
+        const text = thin
+          ? gateMark
+          : (box.projected ? `${zone.timeframe} ${zone.kind}` : zone.kind) +
+            " " +
+            gateMark +
+            (zone.inverted_at !== null ? " flipped" : "") +
+            (zone.confirmed && !zone.settled ? " unsettled" : "");
         // CLAMPED AT BOTH EDGES, and the right one was missing.
         //
         // A zone whose origin is scrolled off the left needs the first clamp to

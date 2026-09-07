@@ -946,7 +946,17 @@ function Inspector({
         </div>
       ) : null}
 
-      {zone.displacement ? (
+      {/* TIDAK UNTUK FVG, dan itu bukan selera tata letak. Untuk sebuah fair
+          value gap ketiga baris di bawah hanya bisa satu nilai: `Size` adalah
+          angka yang SAMA PERSIS dengan baris `Departure` di atas - komentar di
+          `imbalance.py` menyatakan `atr` mengulang `departure_atr` dengan
+          sengaja - `Left a gap` selalu "yes" karena celahnya ADALAH definisi
+          kotaknya, dan `Broke structure` selalu "not tested" karena tidak ada
+          struktur yang dihitung untuk gap sama sekali. Legnya pun tiga bar yang
+          sama dengan kelahiran kotak. Empat baris yang tidak membedakan satu
+          kotak dari kotak lain mengajari pembaca bahwa panel ini boleh dilewati.
+          Untuk order block keempatnya membawa isi, jadi bloknya tetap ada. */}
+      {zone.displacement && zone.kind !== "FVG" ? (
         <div className="border-t border-line px-3 py-2">
           <h4 className="mb-1 text-[10px] font-semibold uppercase tracking-[0.16em] text-text-faint">
             Displacement

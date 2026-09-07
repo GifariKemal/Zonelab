@@ -21,7 +21,7 @@ import json
 from app import agent
 from app.grounding import check
 
-from test_agent import good_config
+from tests.test_agent import good_config
 
 BRIEF = """# Brief Zonelab: mt5:BTCUSD
 

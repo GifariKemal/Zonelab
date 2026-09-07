@@ -73,26 +73,35 @@ def test_step_scales_the_window_not_the_bar_count():
     assert recent_in_band(100.0, 110.0, [ev(105.0, stale)], NOW, STEP * 2)
 
 
-def test_the_orderable_list_holds_exactly_the_measured_three():
-    """PENJAGA DAFTAR, dan ia sudah sekali berubah dalam satu hari.
+def test_the_orderable_list_holds_exactly_the_measured_one():
+    """PENJAGA DAFTAR, dan ia sudah berubah tiga kali.
 
-    Versi pertama test ini menuntut `"fvg" not in ORDERABLE_LAYERS`, dan itu
-    BENAR saat ditulis: di rig berbiaya 1 jam dan 4 jam gerbang departure
-    terbalik untuk fvg, selisih -0,1005 R dengan Welch t = -4,48 dan cuma 3 dari
-    17 sel positif. Yang berubah bukan pendiriannya, tapi pertanyaannya. Yang
-    tidak ditanyakan saat itu: sisi BAWAH gerbang sendiri berapa, dan
-    `fvg_inverted` menjawab +0,2188 R di n=3.799 dengan t lawan nol +8,53 dan
-    walk-forward 8 dari 8, bertahan positif di kontrol resolusi 1 menit.
+    Mula-mula ia menuntut `"fvg" not in ORDERABLE_LAYERS`. Lalu `fvg` masuk
+    pada 2 September 2026 atas +0,2188 R dengan walk-forward 8 dari 8 dari
+    `fvg_inverted`. Pada 7 September 2026 ia keluar lagi, dan kali ini bukan
+    karena pertanyaannya berubah melainkan karena angkanya rontok: angka 8 dari
+    8 itu diukur lewat `replay_lifecycle` yang memeriksa pecah SEBELUM sentuh,
+    jadi ia menghitung populasi yang jalur order tidak akan pernah dapat.
+    Setelah urutannya diperbaiki, rig yang sama membaca +0,0919 R dengan
+    t=+1,88 - di bawah ambang Bonferroni 3,241 yang dipakai sweep itu sendiri.
+    Diukur ulang di bracket produksi pada 1 jam dan 4 jam, XAU dan BTC
+    digabung, tidak satu pun dari enam varian lolos: baseline PF 0,954 di
+    -0,0271 R, konfigurasi ter-ship 0,969 di -0,0181 R, terbaik 1,032 di
+    +0,0183 R dengan walk-forward 3 dari 8. `docs/QA-FVG-TV.md`.
 
-    Jadi yang dikunci di sini bukan "fvg boleh" atau "fvg tidak boleh", tapi
-    bahwa daftarnya berisi TEPAT tiga layer yang punya angka, dan layer keempat
-    tidak bisa masuk tanpa test ini berubah warna. `ifvg` dan `breaker` belum
-    pernah lewat rig berbiaya sama sekali.
+    `order_block` menyusul keluar di hari yang sama dan alasannya lebih keras
+    daripada fvg: ia bukan "belum terbukti", ia terukur RUGI. Bracket produksi,
+    XAUUSD 4h, PF 0,495 dan exp_r -0,2897 R pada t = -5,07 - satu-satunya |t| di
+    atas 2 di seluruh sapuan tiga layer kali tiga sel, dan arahnya salah.
+
+    Yang dikunci di sini tetap sama: daftarnya berisi TEPAT layer yang punya
+    angka, dan yang berikutnya tidak bisa masuk tanpa test ini berubah warna.
+    Tersisa satu, dan satu itu pun cuma positif di satu dari tiga sel.
     """
     from tools.execute import ORDERABLE_LAYERS
-    assert set(ORDERABLE_LAYERS) == {"supply_demand", "order_block", "fvg"}
-    assert "ifvg" not in ORDERABLE_LAYERS
-    assert "breaker" not in ORDERABLE_LAYERS
+    assert set(ORDERABLE_LAYERS) == {"supply_demand"}
+    for absent in ("fvg", "order_block", "ifvg", "breaker"):
+        assert absent not in ORDERABLE_LAYERS
 
 
 def test_an_unmeasured_layer_is_refused_loudly():
@@ -106,49 +115,52 @@ def test_an_unmeasured_layer_is_refused_loudly():
         candidates("mt5:XAUUSD", "30m", 10, layer="ifvg")
 
 
-def test_fvg_is_orderable_now_but_only_where_it_was_measured():
-    """PEMBALIKAN, dan ia punya angkanya sendiri.
+def test_a_layer_that_cannot_be_ordered_keeps_its_gate_direction():
+    """MEMATIKAN `orderable` TIDAK BOLEH MEMBALIK KALIMAT GERBANGNYA.
 
-    `fvg` keluar dari `ORDERABLE_LAYERS` pagi 2 September 2026 karena gerbang
-    departure TERBALIK untuknya di rig berbiaya 1 jam dan 4 jam: selisih
-    -0,1005 R dengan Welch t = -4,48. Yang tidak ditanyakan saat itu: sisi
-    bawahnya sendiri berapa. `docs/detectors_costed.json` mencatat +0,0938 R di
-    n=16.200, satu-satunya angka positif di file itu, tidak pernah diuji lawan
-    nol.
+    `GATE_DIRECTION` diturunkan dari `layer.orderable` sampai 7 September 2026,
+    dan `grounds()` membacanya dengan fallback "floor". Jadi sebuah layer
+    ber-plafon yang dimatikan menghilang dari peta itu dan kalimatnya berbalik:
+    zona yang lolos karena berada DI BAWAH plafon dilaporkan "clears" gerbangnya
+    - persis cacat yang dibawa enam order hidup pada 3 September 2026.
 
-    `tools/fvg_inverted.py` menanyakannya di 30 menit: sisi BAWAH +0,2188 R di
-    n=3.799, t lawan nol +8,53 lawan kritis 2,24, walk-forward 8 DARI 8. Kontrol
-    resolusi 1 menit (rasio 30 lawan 6) menyusutkannya ke +0,1354 dan +0,1235
-    dan TANDANYA BERTAHAN, sementara supply_demand di kontrol yang sama jadi
-    +0,0549 dan +0,0359.
+    `ifvg` sudah `orderable=False` dengan `gate="ceiling"` sebelum itu, jadi
+    lubangnya sudah menganga untuknya dan tidak ada yang mengujinya; mematikan
+    `fvg` akan menambah yang kedua. Petanya sekarang diturunkan dari
+    `layer.gate`, dan test ini yang menjaga pemisahan itu: satu peta menjawab
+    "bagaimana membaca gerbang zona ini", satu lagi "bolehkah diorder".
     """
     from tools.execute import GATE_DIRECTION, MEASURED_INTERVALS, ORDERABLE_LAYERS
-    assert "fvg" in ORDERABLE_LAYERS
-    # Dan gerbangnya harus menghadap ke arah yang diukur, bukan ke default.
+
+    assert "fvg" not in ORDERABLE_LAYERS
+    assert "ifvg" not in ORDERABLE_LAYERS
+    # Tapi keduanya TETAP punya arah gerbang, dan arahnya plafon.
     assert GATE_DIRECTION["fvg"] == "ceiling"
+    assert GATE_DIRECTION["ifvg"] == "ceiling"
     assert GATE_DIRECTION["supply_demand"] == "floor"
     assert GATE_DIRECTION["order_block"] == "floor"
-    # 30 menit saja, karena itu satu-satunya timeframe yang diukur.
-    assert MEASURED_INTERVALS["fvg"] == ("30m",)
-    # Dan layer ber-`floor` tidak boleh punya batas interval yang salah pasang.
+    # `measured_intervals` bertahan sebagai catatan asal angkanya, bukan sebagai
+    # gerbang - yang menolak sekarang `ORDERABLE_LAYERS`, satu langkah lebih awal.
+    assert MEASURED_INTERVALS["fvg"] == ("1h", "4h")
     assert "supply_demand" not in MEASURED_INTERVALS
     assert "order_block" not in MEASURED_INTERVALS
 
 
-def test_an_unmeasured_interval_is_refused_and_the_error_says_why():
-    """1 jam harus DITOLAK untuk fvg, bukan dijalankan dengan angka 30 menit.
+def test_fvg_is_refused_at_every_interval_and_the_error_says_why():
+    """ARAH PENOLAKANNYA BERBALIK DUA KALI, dan sekarang ia menolak semuanya.
 
-    Sisi bawah fvg di 1 jam +0,0938 R belum pernah diuji lawan nol dan tidak
-    punya walk-forward, dan di 15 menit tidak ada angka sama sekali karena
-    riwayat 1 menit cuma 103 hari XAUUSD dan 69 hari BTCUSD. Menjalankannya di
-    sana akan memasang order pada populasi yang belum diukur sambil mengutip
-    angka 30 menit.
+    Test ini dulu menolak 1 jam dan menerima 30 menit, lalu kebalikannya, dan
+    sejak 7 September 2026 `fvg` tidak bisa diorder di interval mana pun. Yang
+    berubah bukan interval yang benar melainkan bahwa tidak ada yang benar:
+    lihat `test_the_orderable_list_holds_exactly_the_measured_two`.
+
+    Pesannya harus menyebut `ORDERABLE_LAYERS`, bukan interval, supaya pembaca
+    yang mencoba tidak menyimpulkan ia cuma perlu pindah timeframe.
     """
     from tools.execute import candidates
-    with pytest.raises(ValueError, match="cuma terukur di"):
-        candidates("mt5:XAUUSD", "1h", 10, layer="fvg")
-    with pytest.raises(ValueError, match="cuma terukur di"):
-        candidates("mt5:XAUUSD", "15m", 10, layer="fvg")
+    for interval in ("15m", "30m", "1h", "4h"):
+        with pytest.raises(ValueError, match="ORDERABLE_LAYERS"):
+            candidates("mt5:XAUUSD", interval, 10, layer="fvg")
 
 
 def test_the_ceiling_keeps_the_measured_side_and_drops_the_other():

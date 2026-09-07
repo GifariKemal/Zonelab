@@ -365,7 +365,6 @@ export interface ImbalanceParams {
   structure_n: number;
   filter_mother: boolean;
   min_body_ratio: number;
-  body_gap: boolean;
   show_broken: boolean;
   show_mitigated: boolean;
   max_zones_per_side: number;
@@ -1745,9 +1744,15 @@ export const DEFAULT_LAYER_PARAMS: LayerParams = {
     require_structure_break: false,
     structure_break_bars: 5,
     structure_n: 5,
-    filter_mother: false,
-    min_body_ratio: 0.0,
-    body_gap: false,
+    // Dua-duanya MENYALA sejak 6 September 2026, dan keduanya diukur sebelum
+    // diubah: di XAUUSD 4h paruh 2013-2019, `filter_mother` memindahkan
+    // ekspektasi +0,0419 ke +0,0661 R dan `min_body_ratio` 0,3 memindahkannya
+    // lagi ke +0,0954, sementara margin atas kotak yang digeser naik dari
+    // +0,065 ke +0,121 R. Populasinya nyaris tidak berkurang, 1.050 jadi 933.
+    // Keduanya membuang pola yang memang bukan displacement: gap dari inside
+    // bar, dan gap yang ditinggalkan doji. docs/QA-FVG-TV.md.
+    filter_mother: true,
+    min_body_ratio: 0.3,
     show_broken: false,
     show_mitigated: true,
     max_zones_per_side: 6,

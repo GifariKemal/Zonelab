@@ -11,11 +11,17 @@
 #include "SupplyDemandDetector.mqh"
 
 // Parameter FVG (ImbalanceParams), default shipped.
+// filter_mother dan min_body_ratio DITAMBAHKAN 6 September 2026. Keduanya
+// sudah ada di `detect_fvg` sejak lama tapi tidak pernah diport, dan port ini
+// cocok hanya karena keduanya mati secara default. Begitu default menyala,
+// EA akan menggambar lebih banyak zona daripada engine tanpa satu pun pesan.
 struct FVGParams
   {
-   int    atr_period;   // 14
-   double min_gap_atr;  // 0.1
-   double mitigation_pct; // 0.5
+   int    atr_period;      // 14
+   double min_gap_atr;     // 0.0
+   double mitigation_pct;  // 0.5
+   bool   filter_mother;   // true
+   double min_body_ratio;  // 0.3
   };
 
 //+------------------------------------------------------------------+
@@ -48,6 +54,23 @@ int DetectFVG(const double &open_[],const double &high[],const double &low[],
          continue;
 
       bool up=(direction==1);
+
+      // Bar tengah yang menelan kedua tetangganya bukan displacement, ia
+      // inside bar. Urutan filternya sama dengan Python: mother dulu, lalu
+      // body ratio, lalu lantai ukuran.
+      if(p.filter_mother
+         && high[i]>=high[first] && high[i]>=high[third]
+         && low[i]<=low[first]   && low[i]<=low[third])
+         continue;
+
+      if(p.min_body_ratio>0.0)
+        {
+         double rng=high[i]-low[i];
+         double body=MathAbs(close[i]-open_[i]);
+         if(rng>SD_EPS && body/rng<p.min_body_ratio)
+            continue;
+        }
+
       double top,bottom;
       if(up)
         {

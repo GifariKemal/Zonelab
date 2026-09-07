@@ -115,7 +115,17 @@ SHIPPED = {
         "InpRiskPercent": 1.0, "InpBars": 3000, "InpMagic": 20260901,
     },
     "ZonelabFVG": {
-        "InpAtrPeriod": 14, "InpMinGapAtr": 0.1, "InpMitigationPct": 0.5,
+        # InpMinGapAtr TURUN 0,1 KE 0,0 pada 6 September 2026, menyamakan
+        # `.set` dengan `ImbalanceParams.min_gap_atr` yang sudah 0,0 - EA
+        # yang ter-ship menjalankan lantai yang berbeda dari engine, dan
+        # `ea_parity_fvg` tidak menangkapnya karena ia membaca parameter
+        # dari Python. Juga diukur: min_gap 0,1 menaikkan lengan asli tapi
+        # menaikkan placebo lebih banyak lagi, docs/QA-FVG-TV.md bagian 8.
+        # InpFilterMother dan InpMinBodyRatio baru ada di EA sejak tanggal
+        # yang sama; tanpa baris ini `.set` diam dan MT5 memakai default
+        # kompilasi, yaitu setelan yang tidak seorang pun tuliskan.
+        "InpAtrPeriod": 14, "InpMinGapAtr": 0.0, "InpMitigationPct": 0.5,
+        "InpFilterMother": True, "InpMinBodyRatio": 0.3,
         "InpStopBufferAtr": 0.25, "InpStopAtrMode": 0,
         "InpTargetMode": 0, "InpRewardR": 2.0,
         "InpTargetAtr": 2.0, "InpRiskPercent": 1.0, "InpBars": 3000,
@@ -135,7 +145,17 @@ SHIPPED = {
         "InpRiskPercent": 1.0, "InpBars": 3000, "InpMagic": 20260903,
     },
     "ZonelabIFVG": {
-        "InpAtrPeriod": 14, "InpMinGapAtr": 0.1, "InpMitigationPct": 0.5,
+        # InpMinGapAtr TURUN 0,1 KE 0,0 pada 6 September 2026, menyamakan
+        # `.set` dengan `ImbalanceParams.min_gap_atr` yang sudah 0,0 - EA
+        # yang ter-ship menjalankan lantai yang berbeda dari engine, dan
+        # `ea_parity_fvg` tidak menangkapnya karena ia membaca parameter
+        # dari Python. Juga diukur: min_gap 0,1 menaikkan lengan asli tapi
+        # menaikkan placebo lebih banyak lagi, docs/QA-FVG-TV.md bagian 8.
+        # InpFilterMother dan InpMinBodyRatio baru ada di EA sejak tanggal
+        # yang sama; tanpa baris ini `.set` diam dan MT5 memakai default
+        # kompilasi, yaitu setelan yang tidak seorang pun tuliskan.
+        "InpAtrPeriod": 14, "InpMinGapAtr": 0.0, "InpMitigationPct": 0.5,
+        "InpFilterMother": True, "InpMinBodyRatio": 0.3,
         "InpStopBufferAtr": 0.25, "InpStopAtrMode": 0,
         "InpTargetMode": 0, "InpRewardR": 2.0,
         "InpTargetAtr": 2.0, "InpRiskPercent": 1.0, "InpBars": 3000,

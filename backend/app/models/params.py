@@ -41,6 +41,13 @@ class ParamBlock(BaseModel):
 class SupplyDemandParams(ParamBlock):
     """Every knob the UI exposes. Defaults are the ones the test fixtures pin."""
 
+    # 14 DIUKUR, BUKAN DIWARISI, sejak 6 September 2026. Ia menskalakan gerbang
+    # DAN stop sekaligus, jadi ia disapu pada margin atas kontrol placebo dan
+    # bukan pada PF mentah. XAUUSD 4h, paruh 2013-2019, dengan biaya: margin
+    # +0,1223 di periode 7, +0,1213 di 14, +0,1135 di 28. Rentang empat kali
+    # lipat menggeser jawabannya 0,009 R, yaitu nol di dalam noise. Knob ini
+    # tidak menggigit; nilainya dipertahankan karena mengubahnya juga tidak
+    # membeli apa-apa.
     atr_period: int = Field(default=14, ge=2, le=200)
 
     # A candle is "exciting" (part of a leg) when its body dominates its range
@@ -169,6 +176,26 @@ class SupplyDemandParams(ParamBlock):
     merge_overlap_pct: float = Field(default=0.6, ge=0.0, le=1.0)
 
 
+#: Knob di `ImbalanceParams` yang HANYA dibaca `detect_order_block`. Blok ini
+#: dipakai bersama oleh empat detektor, jadi mengirim salah satu dari lima ini
+#: dengan hanya `fvg` atau `ifvg` menyala adalah 200 tanpa efek apa pun - bentuk
+#: yang persis sama dengan insiden `source` yang membuat `ParamBlock` di atas
+#: menolak field tak dikenal. Bedanya field-field ini DIKENAL, cuma tidak dibaca,
+#: jadi `extra="forbid"` tidak menangkapnya.
+#:
+#: Daftarnya konstanta dan bukan turunan AST saat runtime, karena yang menjaga
+#: kebenarannya adalah test: `tests/test_shared_param_block.py` menurunkan
+#: himpunan yang sama dari kode dan menyamakannya dengan baris ini. Runtime tetap
+#: bodoh dan cepat; drift ketahuan di gate, bukan di produksi.
+ORDER_BLOCK_ONLY = (
+    "displacement_atr",
+    "displacement_bars",
+    "require_structure_break",
+    "structure_break_bars",
+    "structure_n",
+)
+
+
 class ImbalanceParams(ParamBlock):
     """Knobs for the four detectors that read imbalance: fvg, order_block,
     ifvg and breaker.
@@ -196,22 +223,44 @@ class ImbalanceParams(ParamBlock):
             "population is dominated by noise."
         ),
     )
+    # KEDUA FILTER DI BAWAH MENYALA ATAS ARGUMEN DEFINISI, BUKAN ATAS EDGE, dan
+    # baris ini dikoreksi pada hari yang sama ia ditulis. Sore itu ia berbunyi
+    # bahwa keduanya "diukur sebelum diubah" - benar, tapi di SATU bracket.
+    # Diukur ulang di bracket produksi (stop 0,25 ATR, target zona lawan,
+    # XAU+BTC digabung) hasilnya bergantung bracket dan berada di dalam noise:
+    #
+    #   1h+4h   A 0,954 PF  ->  B mother 0,950  ->  E mother+body 0,969
+    #   30m     A 1,008 PF  ->  B mother 0,998  ->  E mother+body 0,990
+    #   TV 4h   margin atas placebo +0,065 -> +0,080 -> +0,121
+    #
+    # Dua dari tiga bilang pasangan ini lebih baik dari baseline, satu bilang
+    # lebih buruk, dan ketiganya di dalam +/-0,03 R pada n dua sampai tiga ribu.
+    # Bacaan yang jujur: keduanya tidak menggerakkan hasil ke arah mana pun.
+    #
+    # Mereka tetap menyala karena alasan yang tidak bergantung P&L: pola yang
+    # mereka buang memang bukan displacement. Sebuah inside bar tidak
+    # menggambarkan harga terbang melewati pita, ia menggambarkan dua bar kecil
+    # di dalam satu bar besar; dan sebuah doji meninggalkan celahnya dengan
+    # sumbu, bukan dengan pengiriman. Itu klaim tentang APA YANG DIGAMBAR, dan
+    # pengukuran di atas menyatakannya tidak berbiaya. Jangan kutip keduanya
+    # sebagai edge.
     filter_mother: bool = Field(
-        default=False,
-        description="Skip FVG where middle bar engulfs both neighbors.",
-    )
-    min_body_ratio: float = Field(
-        default=0.0, ge=0.0, le=1.0,
+        default=True,
         description=(
-            "Middle bar body/range ratio floor. 0.0 = no filter, "
-            "0.3 = skip dojis whose body is <30% of the bar range."
+            "Skip FVG where the middle bar engulfs both neighbours. An inside "
+            "bar pair does not describe price flying through a band; it "
+            "describes two small bars inside one large one, and the gap it "
+            "leaves is an artefact of that geometry."
         ),
     )
-    body_gap: bool = Field(
-        default=False,
+    min_body_ratio: float = Field(
+        default=0.3, ge=0.0, le=1.0,
         description=(
-            "Use close/open boundaries instead of high/low for gap edges. "
-            "Stricter: only counts gaps between candle bodies, not wicks."
+            "Middle bar body/range ratio floor. 0.0 = no filter, "
+            "0.3 = skip dojis whose body is <30% of the bar range. A doji that "
+            "leaves a gap left it with wicks rather than with delivery, which "
+            "is the opposite of the displacement the pattern is supposed to "
+            "mark."
         ),
     )
 
@@ -238,6 +287,20 @@ class ImbalanceParams(ParamBlock):
 
     # Read by the shared lifecycle replay, which is why they are named exactly
     # as the supply/demand block names them.
+    #
+    # KEDUANYA DIUKUR 6 September 2026 dan keduanya TIDAK BISA menggerakkan apa
+    # yang tergambar untuk fvg, jadi jangan menyapunya lagi berharap edge.
+    #
+    # `mitigation_pct` disapu 0,1 sampai 0,9 di XAUUSD 4h: himpunan zona yang
+    # tergambar IDENTIK di kelimanya, 139 kotak dengan id yang sama persis, dan
+    # cacah `fresh` diam di 45. Yang bergerak hanya pembagian TESTED lawan
+    # MITIGATED (4/90 menjadi 43/51), dan default `show_mitigated` menerima
+    # keduanya - jadi ia mengubah label dan alpha isian, bukan populasi. Jalur
+    # order menyaring `fresh`, yang juga tidak bergerak.
+    #
+    # `arrival_bars` hanya masuk ke `arrival_atr`, dan field itu dicatat lalu
+    # dibiarkan tanpa skor - doktrinnya sendiri tidak sepakat apakah kedatangan
+    # cepat itu baik atau buruk. Ia tidak menyentuh `state`.
     mitigation_pct: float = Field(default=0.5, ge=0.0, le=1.0)
     arrival_bars: int = Field(default=6, ge=1, le=50)
 

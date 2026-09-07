@@ -10,7 +10,7 @@ import argparse
 import numpy as np
 
 from app.detect.imbalance import detect_fvg
-from app.indicators import wilder_atr
+from app.indicators import mean_true_range
 from app.models import ImbalanceParams, ZoneState
 from tools import history
 
@@ -65,6 +65,20 @@ def detect_fvg_ref(open_, high, low, close, time_, atr, p):
         if direction == 0:
             continue
         up = direction == 1
+        # DUA FILTER YANG PORT MQL5 TIDAK PUNYA SAMPAI 6 September 2026, dan
+        # yang cermin ini karena itu juga tidak punya. Selama keduanya mati
+        # secara default, ketiadaan mereka di sini terbaca sebagai parity;
+        # begitu defaultnya menyala, cermin yang tidak ikut akan MELAPORKAN
+        # SELISIH sebagai cacat EA. Urutannya sama dengan `detect_fvg`.
+        if p["filter_mother"] and (
+                high[i] >= high[first] and high[i] >= high[third]
+                and low[i] <= low[first] and low[i] <= low[third]):
+            continue
+        if p["min_body_ratio"] > 0:
+            rng = float(high[i] - low[i])
+            body = abs(float(close[i] - open_[i]))
+            if rng > EPS and body / rng < p["min_body_ratio"]:
+                continue
         top, bottom = (low[third], high[first]) if up else (low[first], high[third])
         scale = atr[max(0, first - 1)]
         if scale <= EPS or (top - bottom) < p["min_gap_atr"] * scale:
@@ -101,11 +115,15 @@ def main():
     params = ImbalanceParams(max_zones_per_side=0, show_broken=True)
     zones_np, _ = detect_fvg(candles, params)
 
-    atr = wilder_atr(high, low, close, params.atr_period)
+    # Cermin harus ikut menukar skalanya, kalau tidak ia melaporkan
+    # selisih skala sebagai cacat EA.
+    atr = mean_true_range(high, low, close, params.atr_period)
     p = dict(
         atr_period=params.atr_period,
         min_gap_atr=params.min_gap_atr,
         mitigation_pct=params.mitigation_pct,
+        filter_mother=params.filter_mother,
+        min_body_ratio=params.min_body_ratio,
     )
     zones_ref = detect_fvg_ref(open_, high, low, close, time_, atr, p)
 

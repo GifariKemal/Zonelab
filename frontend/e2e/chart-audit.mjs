@@ -183,11 +183,32 @@ const shapes = {
     // refinement moved it. Telling the auditor to look for an interior line made
     // it report a missing line on five correct charts.
     proximal_line: "the edge price meets first, drawn as a brighter rule ON that border - the TOP of a demand box and the BOTTOM of a supply box - and its dash pattern names the detector",
-    caption: "the formation name at the box's left edge, on a dark plate",
+    caption: "the formation name at the box's left edge, on a dark plate, followed by a filled dot when the zone cleared its departure gate and a hollow dot when it did not",
     z_order: "box fills are painted BENEATH the candles, captions above them",
   },
+  // CERMIN CAPTION, dan ia sudah dua kali tertinggal dari yang digambar.
+  // Ia tidak pernah memuat " flipped", dan pada 7 September 2026 penanda
+  // gerbang ditambahkan ke chart tanpa baris ini ikut - sebuah cermin yang
+  // tertinggal melaporkan chart yang BENAR sebagai salah, dan seorang auditor
+  // yang membaca laporan itu akan memperbaiki sisi yang keliru. Urutannya
+  // harus sama dengan `zone-primitive.ts`: kind, gerbang, flipped, unsettled.
   zones: onScreen.map((z) => ({
-    caption: z.kind + (z.confirmed && !z.settled ? " unsettled" : ""),
+    caption: (() => {
+      // KOTAK TIPIS MEMAJANG TITIKNYA SAJA, tanpa nama formasi. Gerbang fvg
+      // adalah plafon pada tinggi gap, jadi kohort yang lolos selalu kotak
+      // kecil - dan kotak kecil persis yang `LABEL_MIN_HEIGHT` di
+      // `zone-primitive.ts` bungkam. Cermin ini harus ikut aturannya, kalau
+      // tidak ia melaporkan setiap kotak tipis sebagai caption yang hilang.
+      // Ambangnya piksel dan file ini bekerja di harga, jadi yang dicerminkan
+      // di sini cuma BENTUKNYA; tingginya diperiksa `e2e/pixel-truth.mjs`.
+      const gate = z.gate_measured ? (z.gate_cleared ? "●" : "○") : "";
+      return (
+        z.kind +
+        (gate ? " " + gate : "") +
+        (z.inverted_at !== null ? " flipped" : "") +
+        (z.confirmed && !z.settled ? " unsettled" : "")
+      );
+    })(),
     side: z.side,
     state: z.state,
     top: px(z.top),

@@ -15,6 +15,20 @@ wicks on either side never met, so a band of prices was skipped. The box is that
 band. Nothing is chosen, nothing is fitted, and two implementations that read
 the definition will produce identical output.
 
+**A knob that was removed, and why it is written down here.** `body_gap` took
+the box edges from the candle bodies instead of the wicks. It shipped off and
+was deleted on 6 September 2026 because it could only ever be wrong: bodies sit
+INSIDE wicks, so a body band spans FURTHER than the wick band in both
+directions. Its own Field said "stricter: only counts gaps between candle
+bodies" and it filtered nothing at all - 2,018 boxes before and 2,018 after on
+XAUUSD 4h - while 2,017 of them got WIDER, median height doubling and one doji
+third bar producing a box 7,997 times its wick height. It was measured twice and
+lost twice: `docs/fvg_filter_compare.json` variant F is the worst of seven
+(exp_r 0.1399 against 0.4263, Welch t 0.67, and the only variant to fail
+walk-forward at 6 of 8), and re-measured on TradingView it cut the population
+from 848 to 100 because a ceiling gate reads the widened height. Reintroducing
+it needs a new measurement, not this paragraph.
+
 **Order block.** Contested, and the contest matters. The common statement is
 "the last opposite-coloured candle before a strong impulsive move". Sources
 disagree about (a) whether the move must break structure, (b) whether the box is
@@ -175,7 +189,7 @@ from __future__ import annotations
 
 import numpy as np
 
-from ..indicators import EPS, wilder_atr
+from ..indicators import EPS, mean_true_range, wilder_atr
 from ..models import (
     Anatomy,
     Candle,
@@ -328,7 +342,27 @@ def detect_fvg(
         return [], stats
 
     time, opn, high, low, close = _arrays(candles)
-    atr = wilder_atr(high, low, close, params.atr_period)
+    # `mean_true_range`, BUKAN `wilder_atr`, sejak 7 September 2026, dan hanya
+    # di sini - `detect_order_block` di bawah masih Wilder karena impulsnya
+    # dikalibrasi terhadap Wilder dan menukarnya butuh pengukurannya sendiri.
+    #
+    # Wilder adalah RMA yang disemai dari bar pertama, jadi nilainya di satu bar
+    # absolut bergantung berapa bar yang dimuat pemanggil. Itu masuk ke DUA
+    # tempat lewat `scale` di bawah: rasio `departure_atr` yang jadi gerbang, dan
+    # ATR yang dipakai penelepon untuk menaruh stop. Terukur di XAUUSD 4h lawan
+    # acuan 99.999 bar, Wilder memberi rasio berbeda untuk 46 dari 96 zona
+    # bersama di jendela 500 bar dan 45 dari 630 di 3.000; fungsi baru memberi
+    # 0 dari semuanya. `departure_atr` membulat tiga desimal dan menyembunyikan
+    # sebagian besar drift itu, tapi stopnya tidak membulat dan ekornya 8,57 USD.
+    #
+    # BESARAN DAN SATUANNYA SAMA, jadi ambangnya pindah: cocok-kuantil pada deret
+    # itu memindahkan plafon 0,2496 ke 0,2556, di dalam pembulatan konstanta yang
+    # ter-ship. Diukur berpasangan atas 497 trade bersama, penukarannya berbiaya
+    # -0,0534 R dengan t = -1,46, yang bukan selisih. Dua skala bebas-jendela lain
+    # diuji dan keduanya lebih mahal: tinggi Donchian 14 bar -0,0472 R (t=-0,74)
+    # dan rentang lilin tengah -0,1357 R (t=-1,75). Yang terakhir itu yang
+    # diminta saat perubahan ini dipesan, dan ia yang paling buruk dari tiga.
+    atr = mean_true_range(high, low, close, params.atr_period)
 
     found: list[Zone] = []
     for i in range(1, n - 1):
@@ -352,24 +386,10 @@ def detect_fvg(
                 stats["rejected_body_ratio"] += 1
                 continue
 
-        if params.body_gap:
-            # Zone edges dari body (close/open), bukan wick (high/low).
-            # Deteksi tetap wick-to-wick, tapi zona lebih ketat.
-            body_top_1 = float(max(opn[first], close[first]))
-            body_bot_3 = float(min(opn[third], close[third]))
-            body_bot_1 = float(min(opn[first], close[first]))
-            body_top_3 = float(max(opn[third], close[third]))
-            if up:
-                top, bottom = body_bot_3, body_top_1
-            else:
-                top, bottom = body_bot_1, body_top_3
-            if top <= bottom:
-                continue
-        else:
-            top, bottom = (
-                (float(low[third]), float(high[first])) if up
-                else (float(low[first]), float(high[third]))
-            )
+        top, bottom = (
+            (float(low[third]), float(high[first])) if up
+            else (float(low[first]), float(high[third]))
+        )
         scale = float(atr[max(0, first - 1)])
         if scale <= EPS or (top - bottom) < params.min_gap_atr * scale:
             stats["rejected_too_small"] += 1

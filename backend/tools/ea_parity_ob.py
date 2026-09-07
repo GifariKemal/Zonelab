@@ -62,11 +62,15 @@ def detect_order_block_ref(open_, high, low, close, time_, atr, p):
         if scale <= EPS:
             continue
         bearish = close[i] < open_[i]
+        # CLOSE EKSTREM, bukan wick ekstrem. Cermin ini memakai high/low
+        # sampai 6 September 2026, sama seperti port MQL5 yang ia periksa -
+        # jadi keduanya salah dengan cara yang sama dan gate-nya tetap merah
+        # tanpa memberi tahu mana yang harus diperbaiki.
         if bearish:
-            move = (max(high[i+1:i+1+p["displacement_bars"]]) - close[i]) / scale
+            move = (max(close[i+1:i+1+p["displacement_bars"]]) - close[i]) / scale
             side = "demand"
         elif close[i] > open_[i]:
-            move = (close[i] - min(low[i+1:i+1+p["displacement_bars"]])) / scale
+            move = (close[i] - min(close[i+1:i+1+p["displacement_bars"]])) / scale
             side = "supply"
         else:
             continue
@@ -77,7 +81,23 @@ def detect_order_block_ref(open_, high, low, close, time_, atr, p):
         if not turned:
             continue
         born = i + p["displacement_bars"]
-        top, bottom = high[i], low[i]
+        # Badan lilin, dimekarkan simetris ke lantai 0,15 rentang, lalu
+        # digeser kembali ke dalam lilinnya. Ditulis ulang di sini dan bukan
+        # diimpor: cermin yang memanggil kode yang ia periksa akan setuju
+        # dengan detektor yang salah sama mudahnya dengan yang benar.
+        top = float(max(open_[i], close[i]))
+        bottom = float(min(open_[i], close[i]))
+        floor = (float(high[i]) - float(low[i])) * 0.15
+        short = floor - (top - bottom)
+        if short > 0.0:
+            top += short / 2.0
+            bottom -= short / 2.0
+            if top > float(high[i]):
+                bottom -= top - float(high[i])
+                top = float(high[i])
+            elif bottom < float(low[i]):
+                top += float(low[i]) - bottom
+                bottom = float(low[i])
         if top - bottom <= EPS:
             continue
         is_demand = side == "demand"

@@ -47,6 +47,54 @@ def wilder_atr(
     return atr
 
 
+def mean_true_range(
+    high: np.ndarray, low: np.ndarray, close: np.ndarray, period: int
+) -> np.ndarray:
+    """True range averaged over the LAST `period` bars, and nothing older.
+
+    THE POINT IS WHAT IT DOES NOT DO. `wilder_atr` above is an RMA seeded from
+    the first bar, so its value at one absolute bar depends on how many bars the
+    caller happened to load. `tests/test_no_repaint.py` already rejected an
+    ATR-based floor for the order block box on exactly that ground. The two
+    OTHER uses of the same number went unexamined until 7 September 2026: the
+    fair value gap gate divides the gap by it, and the stop buffer is a multiple
+    of it.
+
+    Measured on XAUUSD 4h against a 99,999-bar reference: Wilder gives a
+    different ratio for 46 of 96 shared zones at a 500-bar window, 56 of 243 at
+    1,200 and 45 of 630 at 3,000. This function gives 0 of every one of them,
+    because a mean over exactly `period` terms is the same arithmetic wherever
+    the window starts. `departure_atr` rounds to three decimals and hid most of
+    that drift; the stop does not round, and its tail reached 8.57 USD.
+
+    SAME QUANTITY, SAME UNITS, so the thresholds calibrated against Wilder
+    transfer: quantile-matching the fair value gap ceiling on that series moves
+    0.2496 to 0.2556, and the stop buffer multiple 1.000 to 1.004. Measured
+    paired against Wilder over 497 shared trades the swap costs -0.0534 R at
+    t = -1.46, which is not a difference. Two other window-free scales were
+    tried and both cost more: a 14-bar Donchian height -0.0472 R at t = -0.74
+    and the middle candle's own range -0.1357 R at t = -1.75.
+
+    Warmup is backfilled with the first full average, same convention as
+    `wilder_atr`, for the same reason: a NaN would silently disable every
+    threshold that divides by it.
+    """
+    n = len(close)
+    out = np.empty(n, dtype=np.float64)
+    if n == 0:
+        return out
+    tr = true_range(high, low, close)
+    if n <= period:
+        out[:] = tr.mean()
+        return out
+    # Jumlah berjalan, bukan konvolusi: satu lintasan, dan tepinya eksplisit.
+    cs = np.concatenate(([0.0], np.cumsum(tr)))
+    out[:period] = (cs[period] - cs[0]) / period
+    for i in range(period, n):
+        out[i] = (cs[i + 1] - cs[i + 1 - period]) / period
+    return out
+
+
 def flat_atr(
     high: np.ndarray,
     low: np.ndarray,

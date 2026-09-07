@@ -60,6 +60,25 @@ from .psp import PSPModel
 #: yang ia pertahankan, dan siapa pun yang membacanya sebagai "setup yang lebih
 #: sering benar" membacanya terbalik. Berlaku sama untuk kedua kind.
 DEPARTURE_GATE_ATR = 2.0
+#: TIDAK BERGERAK saat `detect_fvg` menukar skalanya dari Wilder ke
+#: `mean_true_range` pada 7 September 2026, dan itu diperiksa bukan diasumsikan.
+#: Ambang yang menyamakan populasi dihitung terpisah di delapan sel - XAUUSD dan
+#: BTCUSD kali 30m, 1h, 4h, 1d - dan keluar 0,2434 sampai 0,2573. Semuanya di
+#: dalam pembulatan angka ini, jadi menukar skalanya adalah perubahan tanpa
+#: kalibrasi ulang. Bandingkan rentang lilin tengah, yang butuh 0,1945 sampai
+#: 0,2275: itu kalibrasi ulang sungguhan, dan salah satu dari tiga alasan ia
+#: tidak dipakai.
+# DIPERIKSA ULANG 7 September 2026 dan TIDAK LOLOS, docs/QA-FVG-TV.md bagian 21.
+# Angka ini dikalibrasi dua kali di atas dasar yang sudah tidak berlaku:
+# `replay_lifecycle` yang memeriksa pecah sebelum sentuh, dan bracket harness
+# yang bukan bracket produksi. Di harness yang sudah disamakan, XAUUSD 4 jam,
+# MEMATIKAN gerbang mengalahkannya - PF 1,111 pada 4.156 trade lawan 1,091 pada
+# 1.709 - dan di bawah disiplin pilih-di-paruh-pertama gerbang mati juga yang
+# menang (1,052 lawan 1,007), dengan luar-sampel 1,158 pada 2.053 trade.
+# Kurvanya tidak monoton (0,10 -> 1,013, 0,15 -> 1,169, 0,25 -> 1,091), bentuk
+# yang menandai derau bukan ambang. Ia DIPERTAHANKAN di sini karena baru satu
+# sel dan satu belahan yang diuji, jadi menggantinya sama belum terbuktinya
+# dengan mempertahankannya - bukan karena angkanya terbukti.
 DEPARTURE_GATE_ATR_CEILING = 0.25
 
 #: Lantai PER KIND, karena 2,0 tidak selamat di setiap detector yang memakainya.

@@ -44,7 +44,7 @@ from app.costs import cost_to_risk, schedule
 from app.detect import DETECTORS
 from app.indicators import wilder_atr
 from app.models import ZoneSide
-from app.plan import build
+from app.plan import DEFAULT_STOP_BUFFER_ATR, build
 from app.profit_zone import profit_zone_at
 from app.providers.base import INTERVALS
 from tools import history
@@ -88,7 +88,8 @@ def _venue(symbol: str, source: str) -> str:
 def resolved(symbol: str, interval: str, fine: str, bars: int = 99_999,
              flat: bool = True, entry_depth: float = 0.0,
              breakeven_at: float | None = None,
-             source: str = "mt5", scale_at: str = "touch") -> list[dict]:
+             source: str = "mt5", scale_at: str = "touch",
+             stop_buffer_atr: float = DEFAULT_STOP_BUFFER_ATR) -> list[dict]:
     """Trade yang sama, diselesaikan di bar `fine`.
 
     Zona, entry, stop, target dan biaya dihitung persis seperti `costed.trades`.
@@ -179,7 +180,17 @@ def resolved(symbol: str, interval: str, fine: str, bars: int = 99_999,
         spread = candles[touch].spread
         if spread is None and fees.get("spread_bp") is not None:
             spread = float(close[touch]) * fees["spread_bp"] / 10_000
-        plan = build(at_touch, scale, int(time[touch]), step, spread=spread)
+        # `stop_buffer_atr` DITERUSKAN, dan sampai 7 September 2026 rig ini
+        # tidak bisa menyentuhnya sama sekali - satu-satunya angka yang bisa
+        # disapu adalah yang punya parameter di sini, jadi lebar stop adalah
+        # satu-satunya sumbu geometri yang tidak pernah diukur di bracket
+        # produksi. Ia ternyata sumbu yang paling menggerakkan hasil: di harness
+        # TradingView, XAUUSD 4h berpindah dari PF 0,959 ke 1,116 hanya dengan
+        # melebarkannya dari 0,25 ke 1,0 ATR. Default-nya konstanta yang sama
+        # dengan `plan.build`, jadi setiap angka yang sudah tercatat tidak
+        # bergerak satu digit pun.
+        plan = build(at_touch, scale, int(time[touch]), step, spread=spread,
+                     stop_buffer_atr=stop_buffer_atr)
         if plan is None or plan.target is None:
             continue
 

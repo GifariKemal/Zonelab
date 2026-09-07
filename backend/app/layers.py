@@ -137,9 +137,27 @@ LAYERS: tuple[Layer, ...] = (
     ),
     Layer(
         id="fvg",
-        orderable=True,
+        # DIMATIKAN 7 September 2026, dan yang dicabut adalah klaimnya, bukan
+        # detektornya - ia tetap digambar, tetap punya gerbang, tetap punya
+        # angka. Yang tidak ia punya adalah satu pun interval, bracket, atau
+        # varian filter yang lolos aturan walk-forward 8 dari 8 yang jadi syarat
+        # proyek ini. Baris `evidence` di bawah memuat angkanya penuh; ringkasnya
+        # 30m yang dulu membenarkannya (+0,2188 R, 8/8) berasal dari lifecycle
+        # yang memeriksa pecah sebelum sentuh, dan setelah diperbaiki ia +0,0919 R
+        # dengan t=+1,88 - di bawah ambang Bonferroni sweep-nya sendiri.
+        #
+        # `measured_intervals` DIPERTAHANKAN meski tidak lagi menggerbangi apa
+        # pun, bentuk yang sama dengan `ifvg`: ia mencatat dari mana angkanya
+        # berasal. Yang menolak order sekarang `ORDERABLE_LAYERS`, satu langkah
+        # lebih awal.
+        orderable=False,
         gate="ceiling",
-        measured_intervals=("30m",),
+        # 30m DICABUT 6 September 2026 dan diganti 1h plus 4h, dan itu
+        # PENYEMPITAN, bukan perluasan. Angka 30m yang dulu membenarkannya
+        # diukur lewat `replay_lifecycle` yang memeriksa pecah sebelum sentuh;
+        # setelah urutannya benar, 30m mengukur PF 0,985 di TradingView dengan
+        # biaya, di bawah satu. Lihat `docs/QA-FVG-TV.md`.
+        measured_intervals=("1h", "4h"),
         role="Zona",
         family="ICT",
         label="Fair value gap",
@@ -147,23 +165,82 @@ LAYERS: tuple[Layer, ...] = (
         params="imbalance",
         note="The unfilled gap between the first and third of three candles.",
         evidence=(
-            "+10 to +25 points against placebo, and it passed walk-forward 8 of 8 "
-            "on two geometries. "
-            "THE CEILING SORTS BY STOP TIGHTNESS, NOT BY HIT RATE, and that was "
-            "only named once the same gate was measured on the inversion in "
-            "docs/QA-IFVG-GATE.md: `departure_atr` here is the GAP HEIGHT in "
-            "ATR, so a tighter ceiling keeps smaller gaps, and a smaller gap is "
-            "a tighter stop against a target set by the opposing zone. Measured "
-            "on the inverted population the win rate FALLS as the ceiling "
-            "tightens, 47.8% to 39.7%, while the mean win rises 1.43 R to "
-            "2.41 R. Expectancy and profit factor still improve because both "
-            "are risk-normalised, so the gate earns its place - but price hits "
-            "the stop MORE often in the cohort it keeps."
+            "RE-MEASURED 6 September 2026 after the lifecycle ordering defect, "
+            "docs/QA-FVG-TV.md. Every earlier figure on this line was taken "
+            "through `replay_lifecycle` checking the break BEFORE the touch, "
+            "which dropped every zone price sliced through in one bar - and a "
+            "resting limit at the proximal fills on exactly those bars. The "
+            "old '+10 to +25 points against placebo, walk-forward 8 of 8' "
+            "belongs to that population. Corrected, the same rig reads "
+            "+0.0919 R at t=+1.88, below the Bonferroni threshold its own "
+            "sweep used. "
+            "WHAT STANDS NOW is narrower and is stated as such: XAUUSD only, "
+            "1h and 4h only, tuned on 2013-2019 and reported on 2020-2026. "
+            "4h out-of-sample PF 1.348 and +0.1838 R against a displaced-box "
+            "control at +0.1337, so the detector's own share is +0.050 R and "
+            "the rest is the period. 1h holds both halves, 1.027 then 1.338. "
+            "IT DOES NOT TRANSFER TO BTCUSD: PF 0.938 there against a control "
+            "at 1.028, which is the control WINNING, and 15m and 30m stay "
+            "below one on both instruments because commission outruns the "
+            "edge. "
+            "THE CEILING SORTS BY STOP TIGHTNESS, NOT BY HIT RATE: "
+            "`departure_atr` here is the GAP HEIGHT in ATR, so a tighter "
+            "ceiling keeps smaller gaps and a smaller gap is a tighter stop. "
+            "READ THIS LAST PARAGRAPH BEFORE ORDERING ANYTHING HERE. The 1h "
+            "and 4h figures above come from a TradingView harness whose "
+            "bracket is NOT the one `execute.py` trades: stop 1.0 ATR against "
+            "production's 0.25, and a fixed 4R target against production's "
+            "opposing zone. Re-measured in the production bracket on the same "
+            "two intervals, pooled XAUUSD and BTCUSD, every arm sits at or "
+            "below break-even - baseline PF 0.954 at -0.0271 R, the shipped "
+            "filter pair 0.969 at -0.0181 R, and the best of six arms 1.032 "
+            "at +0.0183 R with walk-forward 3 of 8. NO INTERVAL AND NO ARM "
+            "PASSES THE 8-OF-8 RULE THIS PROJECT GATES ON, which is also true "
+            "of the 30m entry this line used to carry. Stop width alone moves "
+            "4h across 1.0 (0.959 at 0.25, 1.116 at 1.0), so the TradingView "
+            "result is the bracket's geometry as much as the detector's - the "
+            "exact reading `detect/__init__.py` says disqualifies a finding. "
+            "`orderable=True` therefore stands on nothing measured, and the "
+            "consistent action is to turn it off; it is left on because that "
+            "is a trading decision, not a detector one. "
+            "HARNESS ALIGNED 7 September 2026, docs/QA-FVG-TV.md section 17, "
+            "which retires the bracket objection in the paragraph above. The "
+            "TradingView harness now trades what `execute.py` trades: target "
+            "from the opposing zone, chosen at the TOUCH like "
+            "`profit_zone_at(zone, zones, time[touch])`, with EVERY detected "
+            "zone eligible as a wall rather than only gate-passers. The best "
+            "cell is XAUUSD 4h at PF 1.091 on 1,709 trades over 13.7 years, "
+            "win 50.56%, broker cost in, bar magnifier on; a box displaced 1 "
+            "ATR gives 1.014 at win 38.72%, so 11.8 points of win rate are "
+            "the box's location. It still fails the rule: 6 of 8 consecutive "
+            "periods above 1.0, with the two failures adjacent in 2016-2019. "
+            "AND THE PRODUCTION NUMBERS THIS LINE ONCE LEANED ON ARE SHORTER "
+            "THAN THEY LOOK: `intrabar.resolved` skips any zone touched "
+            "before the fine-bar history begins, and MT5 5m history here "
+            "starts 2025-09-24 for BTCUSD, so its PF 1.210 is a ONE-YEAR "
+            "figure on n=695, not a 2.7-year one. On the full window the same "
+            "bracket reads 0.995."
         ),
     ),
     Layer(
         id="order_block",
-        orderable=True,
+        # DIMATIKAN 7 September 2026, dan ia yang paling jelas dari tiga layer
+        # yang diperiksa hari itu. Diukur di bracket yang `execute.py` benar
+        # benar jalankan, bukan di harness: XAUUSD 4h memberi PF 0,495 dan
+        # exp_r -0,2897 R pada t = -5,07, dan itu SATU-SATUNYA |t| di atas 2 di
+        # seluruh sapuan tiga layer kali tiga sel - arahnya salah. Negatif juga
+        # di XAUUSD 1h (-0,1412 R) dan cuma +0,0099 R di BTCUSD 1h. Melebarkan
+        # stop ke 1,0 ATR mengurangi kerugiannya, tidak membalikkannya.
+        #
+        # `evidence` di bawah masih memuat PF 1,330 dengan walk-forward 8 dari 8
+        # dan angka itu TIDAK dicabut, karena ia benar untuk apa yang diukurnya:
+        # ia diukur lewat `replay_lifecycle` yang memeriksa pecah SEBELUM
+        # sentuh, yaitu populasi yang jalur order tidak akan pernah dapat.
+        # Membiarkannya berdampingan dengan paragraf ini adalah rekamannya.
+        #
+        # Sama seperti `fvg`: yang dicabut klaimnya, bukan detektornya. Ia tetap
+        # digambar, tetap punya gerbang lantai, tetap punya angka.
+        orderable=False,
         gate="floor",
         role="Zona",
         family="ICT",

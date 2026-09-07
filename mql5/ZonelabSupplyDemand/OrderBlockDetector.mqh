@@ -10,6 +10,11 @@
 
 #include "SupplyDemandDetector.mqh"
 
+// Cermin `imbalance.MIN_OB_BOX_RANGE`. Acuannya rentang lilin dan BUKAN ATR:
+// ATR adalah rata rata berjalan yang disemai dari bar pertama, jadi ia berbeda
+// antar jendela dan membuat geometri kotak bergantung berapa bar yang dimuat.
+#define SD_MIN_OB_BOX_RANGE 0.15
+
 // Parameter order block (ImbalanceParams), default shipped.
 struct OBParams
   {
@@ -40,22 +45,27 @@ int DetectOrderBlock(const double &open_[],const double &high[],const double &lo
       if(scale<=SD_EPS)
          continue;
 
+      // IMPULS DIUKUR KE CLOSE EKSTREM, BUKAN KE WICK EKSTREM. Port ini
+      // memakai high/low sampai 6 September 2026, empat hari setelah
+      // `detect_order_block` pindah ke close - 30,6 persen block lolos di sini
+      // lewat sumbu yang tidak pernah ada close-nya. `ea_parity_ob` melaporkan
+      // 1.504 dari 1.504 mismatch dan tidak ada yang membacanya.
       bool bearish=(close[i]<open_[i]);
       double move;
       ENUM_SD_SIDE side;
       if(bearish)
         {
-         double m=high[i+1];
+         double m=close[i+1];
          for(int j=i+2;j<=i+p.displacement_bars;j++)
-            if(high[j]>m) m=high[j];
+            if(close[j]>m) m=close[j];
          move=(m-close[i])/scale;
          side=SD_DEMAND;
         }
       else if(close[i]>open_[i])
         {
-         double m=low[i+1];
+         double m=close[i+1];
          for(int j=i+2;j<=i+p.displacement_bars;j++)
-            if(low[j]<m) m=low[j];
+            if(close[j]<m) m=close[j];
          move=(close[i]-m)/scale;
          side=SD_SUPPLY;
         }
@@ -74,8 +84,31 @@ int DetectOrderBlock(const double &open_[],const double &high[],const double &lo
          continue;   // bukan yang terakhir
 
       int born=i+p.displacement_bars;
-      double top=high[i];
-      double bottom=low[i];
+      // KOTAKNYA BADAN LILIN, DIMEKARKAN KE LANTAI 0,15 RENTANG, LALU DIGESER
+      // KEMBALI KE DALAM LILINNYA. Sama dengan `imbalance.py`; port ini memakai
+      // rentang penuh sampai 6 September 2026. Stop duduk di luar distal, jadi
+      // rentang penuh menyerahkan risk per unit ke panjang sumbu - besaran yang
+      // tak berhubungan dengan sinyalnya. Diukur di docs/QA-OB-GATE.md: PF
+      // 0,984 ke 1,320 bersama impuls-dari-close di atas.
+      double top=MathMax(open_[i],close[i]);
+      double bottom=MathMin(open_[i],close[i]);
+      double floor_h=(high[i]-low[i])*SD_MIN_OB_BOX_RANGE;
+      double short_h=floor_h-(top-bottom);
+      if(short_h>0.0)
+        {
+         top+=short_h/2.0;
+         bottom-=short_h/2.0;
+         if(top>high[i])
+           {
+            bottom-=top-high[i];
+            top=high[i];
+           }
+         else if(bottom<low[i])
+           {
+            top+=low[i]-bottom;
+            bottom=low[i];
+           }
+        }
       if(top-bottom<=SD_EPS)
          continue;
       bool is_demand=(side==SD_DEMAND);

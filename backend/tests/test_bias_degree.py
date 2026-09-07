@@ -26,7 +26,7 @@ import pytest
 from app.bias import DEGREES
 from app.ict import BIAS_DEGREES, Rules, evaluate
 
-from test_ict import stack, state, zone
+from tests.test_ict import stack, state, zone
 
 
 def _bias_clause(bias_degree: str, **over):

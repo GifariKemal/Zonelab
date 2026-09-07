@@ -302,8 +302,26 @@ def by_method_ranked(row: tuple) -> tuple:
 ORDERABLE_LAYERS: tuple[str, ...] = tuple(
     layer.id for layer in LAYERS if layer.orderable
 )
+#: ARAH GERBANG ADALAH SIFAT DETEKTOR, BUKAN SIFAT "BOLEH DIORDER", dan baris
+#: ini menyaring `layer.orderable` sampai 7 September 2026. Dua hal ikut salah
+#: karenanya.
+#:
+#: `grounds()` dan `cleared_gate` membaca peta ini dengan fallback "floor", jadi
+#: layer ber-`ceiling` yang tidak orderable menghilang dari peta dan kalimatnya
+#: berbalik: sebuah zona yang lolos karena berada DI BAWAH plafon dilaporkan
+#: "clears" gerbangnya. Itu persis cacat yang dibawa enam order hidup pada
+#: 3 September 2026 dan yang `tests/test_execute.py` kunci untuk fvg - tapi
+#: `ifvg` sudah `orderable=False` dengan `gate="ceiling"` sejak sebelum itu,
+#: jadi lubang yang sama sudah menganga untuknya, cuma tidak ada yang menguji.
+#: Dan begitu `fvg` ikut dimatikan, ia akan jatuh ke lubang yang sama.
+#:
+#: Sekarang diturunkan dari `layer.gate`: setiap layer yang MENYATAKAN arah
+#: gerbang punya entri, terlepas dari apakah ia boleh diorder. Yang membatasi
+#: order tetap `ORDERABLE_LAYERS` di atas, dan memisahkan keduanya adalah
+#: intinya - satu menjawab "bagaimana membaca gerbang zona ini", satu lagi
+#: menjawab "bolehkah memasang order untuknya".
 GATE_DIRECTION: dict[str, str] = {
-    layer.id: (layer.gate or "floor") for layer in LAYERS if layer.orderable
+    layer.id: layer.gate for layer in LAYERS if layer.gate
 }
 MEASURED_INTERVALS: dict[str, tuple[str, ...]] = {
     layer.id: layer.measured_intervals

@@ -37,7 +37,7 @@ from app.detect import DETECTORS
 from app.detect.imbalance import _present
 from app.models import Candle, ImbalanceParams, SupplyDemandParams, ZoneSide
 
-from test_refine_and_crowding import zone
+from tests.test_refine_and_crowding import zone
 
 NOW = 5_000
 

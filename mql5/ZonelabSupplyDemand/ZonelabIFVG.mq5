@@ -32,6 +32,12 @@
 input int    InpAtrPeriod        = 14;
 input double InpMinGapAtr        = 0.1;
 input double InpMitigationPct    = 0.5;
+// Ditambahkan 6 September 2026 bersama port-nya di FVGDetector.mqh.
+// Default MENYALA, sama dengan `ImbalanceParams`: sebuah EA yang
+// menggambar lebih banyak zona daripada engine adalah dua jawaban
+// berbeda untuk satu chart, dan tak satu pun pesan yang menyebutnya.
+input bool   InpFilterMother  = true;   // buang FVG dari inside bar
+input double InpMinBodyRatio  = 0.3;    // lantai body/range bar tengah
 //--- parameter trade ---
 input double InpStopBufferAtr    = 0.25;
 input int    InpStopAtrMode      = 0;    // 0 = ATR bar sebelum base zona, 1 = ATR bar terakhir
@@ -134,12 +140,17 @@ void DetectAndTrade()
      }
 
    double atr[];
-   SDWilderAtr(atr,high_,low_,close_,n,InpAtrPeriod);
+   // Skala DETEKSI fvg memakai rata rata TR bebas jendela sejak
+   // 7 September 2026, cermin `detect_fvg`. Sizing stop di bawah tetap
+   // membaca `atr_stop` dari SDWilderAtr, sama dengan `plan.build`.
+   SDMeanTrueRange(atr,high_,low_,close_,n,InpAtrPeriod);
 
    FVGParams p;
    p.atr_period    =InpAtrPeriod;
    p.min_gap_atr   =InpMinGapAtr;
    p.mitigation_pct=InpMitigationPct;
+   p.filter_mother =InpFilterMother;
+   p.min_body_ratio=InpMinBodyRatio;
 
    SDZone zones[];
    int zcount=DetectIFVG(open_,high_,low_,close_,time_,atr,n,p,zones);

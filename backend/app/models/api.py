@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from typing import Any
 
-from pydantic import BaseModel, ConfigDict, Field, field_validator
+from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
 from ..config import settings
 from ..layers import DEFAULT_LAYERS
@@ -12,6 +12,7 @@ from .primitives import Candle
 from .liquidity import DrawOnLiquidity, RangeLiquidityReport
 from .zone import Drawing
 from .params import (
+    ORDER_BLOCK_ONLY,
     DFRParams,
     CISDParams,
     ChartGapParams,
@@ -253,6 +254,38 @@ class DrawRequest(BaseModel):
         description="Wyckoff phase readings. One knob, the rolling range width.",
     )
 
+
+    @model_validator(mode="after")
+    def _no_inert_imbalance_knob(self) -> "DrawRequest":
+        """Refuse an order-block knob sent with no order-block layer on.
+
+        THE SAME DEFECT AS THE `source` INCIDENT, one level further in.
+        `extra="forbid"` catches a field this model does not KNOW; it cannot
+        catch a field it knows and no selected detector READS. `ImbalanceParams`
+        is shared by four detectors and five of its fourteen knobs belong to
+        `detect_order_block` alone, so `POST /api/draw` with
+        `layers:["fvg"]` and `imbalance.displacement_atr: 3.0` answered 200,
+        drew the default chart, and said nothing.
+
+        Only a knob moved OFF ITS DEFAULT is refused. A client that spreads the
+        whole block from `/api/config` - which is what the shipped frontend
+        does - keeps working, because every value it sends is the default.
+        """
+        if {"order_block", "breaker"} & set(self.layers):
+            return self
+        blank = ImbalanceParams()
+        sent = [
+            name for name in ORDER_BLOCK_ONLY
+            if getattr(self.imbalance, name) != getattr(blank, name)
+        ]
+        if sent:
+            raise ValueError(
+                f"imbalance.{', imbalance.'.join(sent)} hanya dibaca "
+                "`order_block` dan `breaker`, dan tak satu pun dari keduanya "
+                f"ada di layers={self.layers}. Menerimanya akan menggambar "
+                "chart default sambil terlihat seperti setelan yang berlaku."
+            )
+        return self
 
     @field_validator("broker")
     @classmethod

@@ -211,10 +211,25 @@ def replay_lifecycle(
     was_inside = False
 
     for i in range(start, len(close)):
-        if close[i] < distal if is_demand else close[i] > distal:
-            break_index = i
-            break
-
+        # SENTUHAN DICATAT SEBELUM PECAH, dan urutannya terbalik sampai
+        # 6 September 2026. Bar yang masuk zona lalu menutup di seberangnya
+        # keluar di `break` sebelum sempat mencatat apa pun, jadi ia melaporkan
+        # `touches=0` dan `first_test_time=None`. Itu bukan detail tampilan:
+        # tiga belas tool memakai `first_test_time` sebagai pemicu entry,
+        # sementara `broker.py` hanya bisa LIMIT dan limitnya duduk di
+        # proximal - yang bar penyayat itu tembus. JADI JALUR HIDUP MENGAMBIL
+        # TRADE YANG JALUR UKUR TIDAK PERNAH HITUNG, dan yang tidak dihitung
+        # itu hampir seluruhnya loser.
+        #
+        # Terukur pada XAUUSD 30m, fvg, gerbang 0,25, target 2R, resolusi 5m:
+        # urutan lama n=1045 PF 1,943, urutan ini n=1657 PF 1,115. Strategy
+        # Tester TradingView pada aturan yang sama melaporkan n=1664 - populasi
+        # urutan INI. `tests/test_sliced_zone_never_tested.py` menjaganya.
+        #
+        # `state` DAN `time_to` TIDAK BERUBAH: bar yang sama tetap
+        # `break_index`, jadi zona tersayat tetap tergambar BROKEN dan tetap
+        # berhenti di bar itu. Yang berubah hanya bahwa ia sekarang mengaku
+        # pernah disentuh, yang memang benar.
         inside = low[i] <= top and high[i] >= bottom
         if inside:
             # Consecutive bars sitting in the zone are one visit, not five.
@@ -235,6 +250,10 @@ def replay_lifecycle(
             depth = (top - low[i]) if is_demand else (high[i] - bottom)
             penetration = max(penetration, min(1.0, depth / height))
         was_inside = inside
+
+        if close[i] < distal if is_demand else close[i] > distal:
+            break_index = i
+            break
 
     if break_index is not None:
         state = ZoneState.BROKEN
