@@ -992,11 +992,19 @@ sekarang keempatnya punya alasan yang diukur di bracket yang sama:
   chart TradingView Desktop mati setiap kali salah satu dipilih. Ini menyakitkan
   khusus untuk IFVG, yang satu-satunya sel positifnya di rig produksi justru 30
   menit (1,081).
-- **File Pine lokal punya lebih banyak komentar daripada yang tersimpan di
-  TradingView.** Kode yang dieksekusi sama - lokal dibangun dari patch atas
-  naskah yang dikirim - tapi itu belum pernah DIBUKTIKAN baris demi baris.
-  Sebelum memercayai file lokal sebagai rekaman apa yang jalan, ambil ulang
-  lewat `pine_get_source` dan tulis ke disk.
+- ~~File Pine lokal punya lebih banyak komentar daripada yang tersimpan di
+  TradingView.~~ **DIBUKTIKAN 7 September 2026, dan klaimnya salah.** File
+  lokal diambil ulang lewat `pine_get_source` lalu ditimpa: 26.449 karakter
+  lawan 26.449 yang TradingView laporkan, 304 baris eksekusi di kedua sisi.
+  Tapi sebelum ditimpa keduanya TIDAK identik - tepat satu baris eksekusi
+  berbeda, dan bukan komentar melainkan STRING: tooltip `cost_pct` di lokal 362
+  karakter dan di TradingView 299, kehilangan klausa "run tanpa biaya lalu
+  terbaca persis seperti run dengan biaya" yang terpotong saat naskah 500 baris
+  dirakit. Cosmetik, tapi ia membatalkan asumsi "kode eksekusinya sama" yang
+  ditulis di sini sebelumnya. Pelajarannya bukan tentang tooltip: naskah yang
+  dirakit ulang dari ingatan BISA hilang isinya tanpa satu pun compile merah,
+  jadi setiap kali file lokal dibangun lewat paste, buktikan dengan mengambil
+  ulang - jangan diasumsikan.
 - **Kontrol placebo IFVG dan BRK di luar XAU 4 jam**, dan sapuan lantai BRK yang
   gerbangnya sendiri - bukan pinjaman dari OB.
 
