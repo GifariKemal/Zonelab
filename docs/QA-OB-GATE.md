@@ -686,8 +686,10 @@ luar-sampelnya 0,822. Yang ter-ship 2,0 justru terbalik: paruh pertama rugi, par
 kedua 1,131. Tidak ada satu nilai lantai yang stabil di kedua paruh, jadi tuning
 lantai bukan cuma tidak menolong - ia jalan yang sudah terbukti menyesatkan.
 
-Buffer stop datar di titik impas: 0,5 memberi 1,002, 1,0 memberi 1,019, 1,5
-memberi 1,003.
+Buffer stop DIULANG dengan ATR benar (angka 1,002 / 1,019 / 1,003 yang sempat
+tercatat di sini milik ATR salah): 0,5 memberi 0,923, 1,0 memberi 0,926, 1,5
+memberi 0,922. Datar di bawah satu, bukan datar di impas - dan datarnya tiga
+digit, jadi lebar stop tidak menggerakkan OB sama sekali.
 
 ### Benchmark lawan FVG, bracket identik
 
