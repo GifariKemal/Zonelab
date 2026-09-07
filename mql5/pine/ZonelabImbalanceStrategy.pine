@@ -86,10 +86,27 @@ placebo_atr   = input.float(0.0, "placebo shift ATR",  group="Control", step=0.5
 win_from      = input.time(timestamp("2000-01-01T00:00:00+0000"), "mulai",  group="Control")
 win_to        = input.time(timestamp("2038-01-01T00:00:00+0000"), "sampai", group="Control")
 
-// `ta.atr` adalah RMA Wilder, disemai dari bar pertama, jadi nilainya di satu
-// bar bergantung berapa bar yang dimuat. Rata rata TR atas tepat `atr_len` suku
-// sama di jendela mana pun. Cermin `app/indicators.py:mean_true_range`.
+// DUA KELUARGA ATR, KARENA PRODUKSI MEMAKAI DUA. Ini bukan pilihan gaya dan
+// bukan duplikasi yang bisa dibersihkan:
+//
+//   `detect_fvg`         -> `mean_true_range`, rata rata TR atas tepat N suku
+//   `detect_order_block` -> `wilder_atr`, RMA yang disemai dari bar pertama
+//
+// FVG dipindahkan ke rata rata TR 7 September 2026 karena Wilder membuat nilai
+// di satu bar bergantung berapa bar yang dimuat pemanggil. OB TIDAK dipindahkan,
+// karena ambang impulsnya dikalibrasi terhadap Wilder dan menukarnya butuh
+// pengukurannya sendiri - alasan itu tertulis di `imbalance.py` baris 345.
+//
+// Sampai pemeriksaan parity 7 September 2026 file ini memakai SATU deret untuk
+// keduanya, jadi setiap angka OB di harness ini diukur dengan keluarga ATR yang
+// SALAH. Impuls dan lantai gerbang dua-duanya rasio terhadap ATR, jadi yang
+// bergeser bukan cuma stopnya melainkan blok mana yang lolos sama sekali.
+//
+// `ta.atr` ADALAH RMA Wilder, jadi ia cermin yang tepat untuk sisi OB - termasuk
+// ketergantungan jendelanya, yang memang ada di produksi dan karena itu harus
+// ada di sini juga.
 atr_v = ta.sma(ta.tr(true), atr_len)
+atr_w = ta.atr(atr_len)
 in_win = time >= win_from and time <= win_to
 
 // Order yang masih menunggu terisi.
@@ -248,7 +265,7 @@ f_ok     = (f_bull or f_bear) and not na(f_scale) and f_scale > 0 and
 // persis `close[window]` di produksi.
 o_hi_close = ta.highest(close, disp_bars)
 o_lo_close = ta.lowest(close, disp_bars)
-o_scale    = atr_v[disp_bars + 1]
+o_scale    = atr_w[disp_bars + 1]
 o_bear     = close[disp_bars] < open[disp_bars]
 o_bullc    = close[disp_bars] > open[disp_bars]
 // "TERAKHIR" ditegakkan tanpa diskresi: lilin BERIKUTNYA harus tutup ke arah
@@ -258,7 +275,13 @@ o_turned   = o_bear ? close[disp_bars - 1] > open[disp_bars - 1] : close[disp_ba
 // IMPULS KE CLOSE EKSTREM, BUKAN KE SUMBU. Terukur di produksi: 30,6 persen
 // block lolos ambang HANYA karena sebuah wick yang tidak pernah dikonfirmasi
 // satu close pun.
-o_move     = o_bear ? (o_hi_close - close[disp_bars]) / o_scale : (close[disp_bars] - o_lo_close) / o_scale
+o_raw      = o_bear ? (o_hi_close - close[disp_bars]) / o_scale : (close[disp_bars] - o_lo_close) / o_scale
+// DIBULATKAN TIGA DESIMAL, karena `_finish` menyimpan
+// `departure_atr=round(displacement, 3)` dan GERBANGNYA membandingkan angka
+// yang sudah dibulatkan itu. Impuls 1,9996 lolos lantai 2,0 di produksi dan
+// tidak lolos di sini tanpa baris ini. Populasinya kecil, tapi ia selisih
+// yang nyata dan gratis untuk ditutup.
+o_move     = math.round(o_raw * 1000) / 1000
 // KOTAKNYA BADAN LILIN, bukan rentang penuh: stop duduk di luar distal, jadi
 // risk per unit ADALAH tinggi kotak, dan rentang penuh menyerahkan besaran itu
 // ke panjang sumbu - kuantitas yang tak berhubungan dengan sinyalnya.
@@ -382,7 +405,7 @@ if barstate.islastconfirmedhistory or barstate.islast
     table.cell(t, 1, 0, syminfo.ticker + " " + timeframe.period +
          (isOB ? " OB flr" + str.tostring(gate_floor) +
                  " d" + str.tostring(disp_atr) + "/" + str.tostring(disp_bars) +
-                 " bf" + str.tostring(ob_box_floor)
+                 " bf" + str.tostring(ob_box_floor) + " W"
                : " FVG ceil" + str.tostring(gate_ceiling) +
                  (filter_mother ? " M" : "") +
                  (min_body > 0 ? " B" + str.tostring(min_body) : "")) +

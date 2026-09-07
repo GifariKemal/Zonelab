@@ -733,6 +733,142 @@ cukup untuk melewati biaya dan bertahan lintas rezim.
 - **`ifvg` dan `breaker`** masih memakai `departure_atr` warisan dari OB induknya,
   jadi setiap angka gerbang keduanya bergerak bersama tabel di atas.
 
+## Parity Pine lawan produksi, dan angka OB di atas DIKOREKSI
+
+Bagian sebelumnya melaporkan XAUUSD 4 jam PF 1,019 di harness TradingView dan
+menyebut selisih tandanya dengan rig produksi (0,663) sebagai pertanyaan terbuka
+tentang rezim. Itu salah, dan sebabnya ada di harness ini sendiri.
+
+### Keluarga ATR-nya berbeda, dan tidak ada yang memeriksanya
+
+`app/detect/imbalance.py` memakai DUA deret ATR dan itu disengaja:
+
+| baris | detektor | ATR |
+|---|---|---|
+| 365 | `detect_fvg` | `mean_true_range`, rata rata TR atas tepat N suku |
+| 465 | `detect_order_block` | `wilder_atr`, RMA disemai dari bar pertama |
+
+FVG dipindah ke rata rata TR karena Wilder membuat nilainya bergantung berapa bar
+yang dimuat. OB TIDAK dipindah, karena ambang impulsnya dikalibrasi terhadap
+Wilder - alasan itu tertulis di `imbalance.py` baris 345.
+
+Pine memakai SATU deret, `ta.sma(ta.tr)`, untuk keduanya. Impuls DAN lantai
+gerbang dua-duanya rasio terhadap ATR, jadi yang bergeser bukan cuma lebar stop
+melainkan blok mana yang lolos sama sekali. `ta.atr` adalah RMA Wilder, jadi
+cerminnya ada dan cuma tidak dipakai.
+
+Ditambah satu selisih kecil yang ikut ditutup: `_finish` menyimpan
+`departure_atr=round(displacement, 3)` dan gerbang membandingkan angka yang sudah
+dibulatkan itu, jadi impuls 1,9996 lolos lantai 2,0 di produksi. Pine sekarang
+membulatkan sama.
+
+### Efeknya membalik tanda
+
+| sel | ATR salah (SMA-TR) | ATR benar (Wilder) |
+|---|---|---|
+| XAU 4h | 1,019 | **0,926** |
+| XAU 1d | 0,985 | 0,972 |
+| XAU 1h | 0,737 | 0,798 |
+| BTC 4h | 0,840 | 0,859 |
+| BTC 1h | 0,887 | 0,872 |
+| BTC 1d | 1,200 | **0,939** |
+
+Di XAU 4 jam PF turun dari 1,019 ke 0,926 dan exp_r dari +0,0149 ke -0,0579. Di
+BTC harian 1,200 jadi 0,939, jadi artefak drift di sel itu ikut hilang.
+
+**Dan pertanyaan terbuka itu tertutup.** Harness dan rig produksi sekarang
+sepakat di XAU 4 jam - keduanya negatif, 0,926 lawan 0,663. Tidak ada rezim yang
+perlu dijelaskan; yang ada cacat parity di harness saya sendiri.
+
+### Tabel OB yang berlaku
+
+Semua di bracket produksi, Bar Magnifier menyala, biaya dipotong di dalam script,
+`max_pending` 500, ATR Wilder di sisi OB:
+
+| sel | rentang | n | win% | PF |
+|---|---|---|---|---|
+| XAU 1d | 56 th | 560 | 41,79 | 0,972 |
+| XAU 4h | 13,7 th | 1.757 | 39,33 | 0,926 |
+| XAU 1h | 3,7 th | 1.837 | 38,27 | 0,798 |
+| BTC 1d | 15 th | 382 | 34,82 | 0,939 |
+| BTC 4h | 9,7 th | 1.647 | 37,77 | 0,859 |
+| BTC 1h | 2,7 th | 2.152 | 38,48 | 0,872 |
+
+**Tidak satu pun di atas satu.** Sapuan lantai, kontrol placebo dan hold-out di
+bagian sebelumnya semuanya diukur dengan ATR yang salah dan karena itu TIDAK
+berlaku; yang dipertahankan cuma bentuk temuannya, bukan angkanya.
+
+### Benchmark lawan FVG, bracket identik
+
+| sel | FVG | OB |
+|---|---|---|
+| XAU 1d | **1,112** | 0,972 |
+| XAU 4h | **1,091** | 0,926 |
+| XAU 1h | **1,006** | 0,798 |
+| BTC 1h | **0,995** | 0,872 |
+| BTC 4h | **0,900** | 0,859 |
+| BTC 1d | 1,402 (kontrol menang) | 0,939 |
+
+FVG menang di enam dari enam, dan sesudah koreksi ATR jaraknya lebih lebar.
+
+## Banding lawan Pine OB publik yang ter-ranking
+
+Diminta 7 September 2026, dan hasilnya bukan perbandingan PnL - karena
+perbandingan itu tidak tersedia, dan alasannya perlu ditulis.
+
+`indicator_search "order block"` memberi 25 hasil dan SEMUANYA indikator, bukan
+strategy. Sebuah indikator tidak punya bracket, jadi tidak punya PnL untuk
+dibandingkan. Membandingkan performa berarti menulis ulang aturan mereka ke dalam
+harness ini, dan hasilnya jadi BACAAN SAYA atas kode mereka, bukan kode mereka -
+sumbernya juga terproteksi. Jadi yang diukur geometrinya, dan itu dinyatakan
+sebagai geometri.
+
+`Order Block Detector [LuxAlgo]` ditambahkan ke XAUUSD 4 jam dan kotaknya dibaca
+lewat `data_get_pine_boxes`:
+
+| kotak LuxAlgo | tinggi USD |
+|---|---|
+| 4782,540 - 4739,735 | 42,81 |
+| 4630,700 - 4545,500 | 85,20 |
+| 4476,400 - 4421,010 | 55,39 |
+| 4380,990 - 4364,430 | 16,56 |
+| 4234,210 - 4203,230 | 30,98 |
+| 4069,645 - 4045,530 | 24,12 |
+
+Kotak Zonelab yang lolos gerbang di instrumen dan timeframe yang sama, 9.286 bar
+MT5, n=851:
+
+| | tinggi USD |
+|---|---|
+| median | **3,96** |
+| rata rata | 7,79 |
+| persentil 10 | 0,88 |
+| persentil 90 | 16,68 |
+
+**Kotak terkecil LuxAlgo (16,56) duduk di persentil 90 kita.** Besarnya 5 sampai
+10 kali. Ini bukan dua versi dari objek yang sama - ia objek yang berbeda.
+
+Dan konsekuensinya langsung ke tradenya, bukan cuma ke tampilan: stop duduk di
+luar distal, jadi **risk per unit ADALAH tinggi kotak**. Kotak 42 dolar di emas 4
+jam berarti stop sekitar 42 dolar jauhnya; kotak kita 4 sampai 8. Dua bracket
+yang berbeda satu orde besaran, jadi membandingkan PnL keduanya akan mengukur
+lebar stop sama banyak dengan mengukur letak zona.
+
+Yang TIDAK boleh disimpulkan dari sini: bahwa versi lebar itu lebih buruk. Yang
+bisa dikatakan cuma bahwa repo ini sudah mengukur pilihan geometri itu dan
+menolaknya - kotak rentang penuh memberi PF 0,984 lawan 1,247 untuk kotak badan,
+dua belas sel, di bagian atas dokumen ini. Angka itu sendiri pra-perbaikan
+lifecycle, jadi ia juga menunggu pengukuran ulang.
+
+### Yang masih belum untuk banding publik
+
+- Menulis ulang satu aturan OB publik ke dalam harness ini supaya ada
+  perbandingan PnL yang bracketnya sama. Bisa dilakukan, tapi hasilnya harus
+  dilabeli sebagai implementasi ulang, bukan sebagai script mereka.
+- Kotak Zonelab BELUM digambar di Pine, jadi perbandingan di atas memakai tinggi
+  dari feed MT5 lawan kotak LuxAlgo dari feed FXCM. Instrumen dan timeframe sama,
+  ordenya jauh lebih besar dari selisih feed, tapi ia tetap bukan bar yang sama.
+
 ## Cara mengulang
 
 ```bash
