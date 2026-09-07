@@ -1461,6 +1461,7 @@ ada letak kotak yang bisa menyelamatkannya".
 
 | sel | asli PF | asli win% | placebo PF | placebo win% | putusan |
 |---|---|---|---|---|---|
+| BTC 30m | 0,804 | 44,66 | 0,760 | 33,88 | menyortir, rugi dalam |
 | BTC 1h | **0,995** | 46,79 | 0,890 | 37,04 | menyortir, tapi impas |
 | BTC 4h | 0,900 | 47,95 | **0,948** | 36,42 | KONTROL MENANG |
 | BTC 1d | 1,402 | 46,24 | **1,468** | 42,86 | KONTROL MENANG |
