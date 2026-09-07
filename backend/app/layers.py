@@ -439,7 +439,21 @@ LAYERS: tuple[Layer, ...] = (
             "resolution. Same shape as fvg's BTC 1h, now proven twice. "
             "AND AT 4h ITS OWN CONTROL WINS: over 13.7 years it reads 0.958 "
             "while a box displaced 1 ATR reads 1.010. At 1h it beats its "
-            "control narrowly, 0.939 against 0.888, and stays below one."
+            "control narrowly, 0.939 against 0.888, and stays below one. "
+            "ITS OWN FLOOR WAS SWEPT the same day, so the unmeasured note "
+            "above now means TRIED AND FAILED rather than never attempted. "
+            "The sweep rises at every step - off 0.953, the borrowed 2.0 "
+            "0.958, then 0.994, 1.025, and 1.158 at a floor of 4.0 - which "
+            "makes the borrowed value the second WORST in its own range. At "
+            "4.0 the displaced-box control loses by 0.406 PF and 11.32 "
+            "points of win rate, the largest margin any of the four "
+            "detectors produced in any cell. AND IT DOES NOT HOLD: select "
+            "4.0 on the first half, which anyone would at 1.412, and out of "
+            "sample it returns 0.861 on n=88. Same shape as order block's "
+            "3.0 floor and fvg's 0.15 ceiling - a tidy monotone sweep whose "
+            "n collapses to the low hundreds at the tight end. The borrowed "
+            "2.0 therefore stays, not because it is good (its control wins "
+            "there) but because nothing else survived."
         ),
     ),
     Layer(

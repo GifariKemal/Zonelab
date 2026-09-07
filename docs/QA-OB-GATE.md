@@ -1008,6 +1008,74 @@ sekarang keempatnya punya alasan yang diukur di bracket yang sama:
 - **Kontrol placebo IFVG dan BRK di luar XAU 4 jam**, dan sapuan lantai BRK yang
   gerbangnya sendiri - bukan pinjaman dari OB.
 
+## Gerbang BRK disapu untuk dirinya sendiri, 7 September 2026
+
+Sampai hari ini BRK dinilai dengan lantai 2,0 ATR yang dikalibrasi untuk order
+block induknya. `GATE_UNMEASURED_KINDS` menyatakan itu dan `gate_measured`
+mengembalikan False untuknya justru supaya panel bisa menahan diri. Di sini
+lantainya disapu untuk BRK, di harness yang sama, XAUUSD 4 jam 13,7 tahun.
+
+### Sapuannya naik monoton
+
+| lantai | n | win% | PF |
+|---|---|---|---|
+| mati | 2.882 | 54,68 | 0,953 |
+| 2,0 (pinjaman) | 1.652 | 54,48 | 0,958 |
+| 2,5 | 953 | 53,62 | 0,994 |
+| 3,0 | 562 | 53,74 | 1,025 |
+| **4,0** | 198 | 52,53 | **1,158** |
+
+Naik di setiap langkah, bukan lompatan tunggal - bentuk yang biasanya menandakan
+mekanisme, bukan derau. Dan lantai pinjaman 2,0 ternyata nilai kedua TERBURUK di
+seluruh sapuan.
+
+### Kontrolnya memberi margin terbesar di seluruh sesi ini
+
+Lantai 4,0, XAUUSD 4 jam:
+
+| | n | win% | PF | exp_r |
+|---|---|---|---|---|
+| kotak asli | 198 | **52,53** | **1,158** | +0,0718 |
+| kotak digeser 1 ATR | 199 | **41,21** | 0,752 | -0,1418 |
+
+**+0,406 PF dan +11,32 poin win rate.** Untuk perbandingan, FVG di sel yang sama
+memberi +0,077 dan IFVG +0,154. Ini margin terbesar yang muncul di keempat
+detektor, di sel mana pun.
+
+### Dan ia roboh luar-sampel
+
+| lantai 4,0 | n | win% | PF |
+|---|---|---|---|
+| 2013-01 .. 2020-01 | 110 | 55,45 | **1,412** |
+| 2020-01 .. 2026-09 | 88 | 47,73 | **0,861** |
+
+Pilih 4,0 di paruh pertama - dan itu yang akan dipilih siapa pun, 1,412 lawan
+0,912-nya OB dan 0,958-nya lantai pinjaman - lalu luar-sampelnya 0,861.
+
+**Pola yang sama sudah tiga kali di sesi ini:** lantai 3,0 OB (1,312 lalu 0,822),
+plafon 0,15 FVG (0,991 lalu 1,354, arah lain tapi sama-sama tidak stabil), dan
+sekarang lantai 4,0 BRK. Sapuan yang naik rapi di sampel penuh, dengan n yang
+menyusut ke ratusan di ujung ketatnya, lalu tidak bertahan. n=198 di sampel penuh
+dan n=110 lawan 88 di dua paruh - itu bukan sampel yang bisa memutuskan apa pun.
+
+### Putusan BRK
+
+Lantai pinjaman 2,0 TETAP, dan bukan karena ia baik: di sana kontrolnya MENANG
+(1,010 lawan 0,958). Ia tetap karena tidak ada nilai lain yang terbukti - yang
+terlihat lebih baik (4,0) adalah yang paling tidak bertahan.
+
+Yang berubah dari hari ini: `gate_measured` untuk BRK sekarang False atas dasar
+sapuan yang PERNAH DILAKUKAN dan gagal, bukan atas dasar belum pernah dicoba.
+
+### Yang belum untuk keluarga OB
+
+- **30 menit dan 15 menit** di harness, keempat detektor. Chart mati.
+- **Sapuan `displacement_atr` dan `displacement_bars`** di harness TradingView.
+  Keduanya knob DETEKSI, bukan gerbang, dan sapuannya di `ob_variants.py`
+  pra-perbaikan lifecycle. Yang di dokumen ini bagian atas.
+- **Kontrol placebo IFVG di luar XAU 4 jam**, khususnya 30 menit yang jadi
+  satu-satunya sel positifnya di rig produksi.
+
 ## Cara mengulang
 
 ```bash
