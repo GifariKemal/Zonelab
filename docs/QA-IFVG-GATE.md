@@ -547,6 +547,87 @@ bukan parity, dan seharusnya memakai alat yang sudah ada.
   dijalankan karena jendelanya sudah mengikat, dan itu aturan yang menggerbangi
   `orderable`.
 
+## Grid ditutup, dan aturan 8 dari 8 dijalankan
+
+Dua item terakhir dari daftar dikerjakan, dan yang kedua mengubah cara membaca
+seluruh bagian di atas.
+
+### BTCUSD harian untuk BRK, sel terakhir grid
+
+| BRK BTC 1d | n | win% | PF |
+|---|---|---|---|
+| kotak asli | 332 | 46,39 | **0,969** |
+
+Di bawah satu, jadi BRK tidak menangkap drift BTC harian - dan grid empat
+detektor kali empat sel sekarang lengkap.
+
+Di BTC harian, tempat kontrol FVG dan OB MENANG:
+
+| detektor | PF | placebo | putusan |
+|---|---|---|---|
+| **IFVG** | **1,117** | 0,812 | satu-satunya di atas satu dengan kontrol kalah |
+| FVG | 1,402 | **1,468** | kontrol menang, drift |
+| BRK | 0,969 | - | di bawah satu |
+| OB | 0,939 | **2,010** | kontrol menang, drift |
+
+### Stabilitas delapan periode IFVG, dan ia 6 dari 8
+
+XAUUSD harian, plafon MATI (lengan yang menang di paruh pertama), jendela
+2000-2026 dibagi delapan, jendela diverifikasi di baris `win` tiap run:
+
+| periode | n | win% | PF |
+|---|---|---|---|
+| 2000-2003 | 141 | 49,65 | **0,811** |
+| 2003-2006 | 152 | 55,92 | 1,127 |
+| 2006-2010 | 172 | 66,86 | **1,978** |
+| 2010-2013 | 166 | 59,64 | 1,307 |
+| 2013-2016 | 164 | 62,80 | 1,238 |
+| 2016-2020 | 147 | 63,95 | 1,059 |
+| 2020-2023 | 173 | 57,80 | 1,023 |
+| **2023-2026** | 135 | 55,56 | **0,730** |
+
+**6 dari 8, sama dengan FVG di 4 jam.** n per periode 135 sampai 173, jadi tiap
+satu sampel yang layak.
+
+**Dan yang gagal termasuk periode SEKARANG.** 2023-2026 adalah PF terburuk dari
+delapan, 0,730. Puncaknya 2006-2010 di 1,978 lalu menurun hampir monoton: 1,307,
+1,238, 1,059, 1,023, 0,730. Itu bukan derau di sekitar rata-rata, itu bentuk
+peluruhan.
+
+### Itu mengubah putusan IFVG
+
+Yang tertulis di atas - "terkuat dari empat, satu-satunya di atas satu di kedua
+paruh" - tetap benar dan sekarang tidak cukup. Hold-out dua paruh menyembunyikan
+peluruhan itu: paruh kedua 1,034 adalah rata-rata dari 1,238 / 1,059 / 1,023 /
+0,730, dan yang terakhir sudah di bawah satu.
+
+Jadi ketiga pernyataan ini berlaku bersamaan, dan mengutip satu tanpa dua lainnya
+menyesatkan:
+
+1. IFVG detektor dengan bukti terbaik di repo ini - dua sel di atas satu,
+   kontrolnya kalah di keempat sel yang diuji, parity 5/5 lawan LuxAlgo
+2. ia 6 dari 8 di aturan yang menggerbangi `orderable`, jadi ia GAGAL aturan itu
+3. periode yang gagal adalah tiga tahun terakhir, dan itu periode yang paling
+   relevan untuk keputusan sekarang
+
+`ifvg.orderable` tetap mati, dan alasannya sekarang bukan lagi "8 dari 8 belum
+diuji" melainkan **"8 dari 8 diuji dan gagal, dengan kegagalan di periode
+sekarang"**.
+
+### Yang benar-benar tersisa
+
+- **Parity `box_parity.py` untuk OB** di feed yang sama, menggantikan
+  perbandingan tinggi lintas feed di `docs/QA-OB-GATE.md`.
+- **`pixel-truth` merah di layer ifvg**: tepi atas terbaca 4 dari 7 lawan ambang
+  80 persen. Bukan geometri - tepi yang ditemukan akurat 0,5px - melainkan
+  kotak terbalik yang berdesakan di tempat induknya pecah.
+- **30 menit dan 15 menit**, keempat detektor. Chart TradingView Desktop mati
+  setiap kali salah satu dipilih. Lubang alat.
+- **Stabilitas delapan periode untuk BRK dan OB**, yang belum dijalankan sama
+  sekali - meski keduanya sudah gagal saringan yang lebih ringan.
+- **`ifvg.measured_intervals`** salah di kedua ujung dan sengaja dibiarkan, karena
+  memperbaikinya bagian dari menyalakan layernya.
+
 ## Cara mengulang
 
 ```bash

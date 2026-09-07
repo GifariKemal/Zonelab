@@ -441,7 +441,22 @@ LAYERS: tuple[Layer, ...] = (
             "highest number in that table is one a selection discipline would "
             "have rejected. This layer is above one in BOTH halves at both "
             "ceiling settings, and that rather than the higher PF is why it is "
-            "called the strongest."
+            "called the strongest. "
+            "THEN THE 8-OF-8 RULE WAS ACTUALLY RUN, and it is 6 of 8 - the same "
+            "as fvg. XAU daily, ceiling off, 2000-2026 in eight periods: 0.811, "
+            "1.127, 1.978, 1.307, 1.238, 1.059, 1.023, 0.730, on n=135 to 173 "
+            "each. THE FAILING PERIOD IS THE CURRENT ONE: 2023-2026 is the "
+            "worst of the eight, and the sequence after the 2006-2010 peak "
+            "declines almost monotonically - 1.307, 1.238, 1.059, 1.023, 0.730. "
+            "That is a decay shape, not noise around a mean, and the two-half "
+            "hold-out hid it: the 1.034 second half averages four periods of "
+            "which the last is already below one. "
+            "So three statements hold at once and quoting one without the "
+            "others misleads: this is the best-evidenced detector here, it "
+            "FAILS the rule that gates ordering, and the period it fails in is "
+            "the last three years. The reason `orderable` is off is no longer "
+            "'8 of 8 untested' - it is tested and failed, with the failure in "
+            "the present."
         ),
     ),
     Layer(
