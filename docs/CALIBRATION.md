@@ -3332,7 +3332,30 @@ Geometrinya sendiri diperiksa di satu feed: pada 100 bar TradingView harian,
 dedupe tidak membuang apa pun di tol 0,25 / 0,5 / 1,0 (4 kandidat, 4 zona di
 0,5), jadi di jendela itu Zonelab dan Pine identik kotak per kotak.
 
-### Autodrawing: 7 dari 7, dan ini yang terbersih dari layer mana pun
+### Autodrawing: 3 dari 7, dan pembacaan pertamanya SALAH LAYER
+
+> [!CAUTION]
+> **Bagian di bawah ini dicabut.** Ia melaporkan 7 dari 7, dan run itu mengukur
+> `supply_demand`. `pixel-truth.mjs` menerima detektor di `argv[5]` dan OUT DIR
+> di `argv[2]`, jadi `pixel-truth.mjs liquidity_pool` membuat folder bernama
+> `liquidity_pool` lalu menilai layer default. Jebakan itu sudah tercatat di
+> repo ini dan saya tetap masuk ke dalamnya. Cara memastikannya: baca histogram
+> `kind` dari JSON-nya, bukan percaya konsol.
+>
+> Diukur benar (`kind` terbaca `{BSL: 2, SSL: 2}`): **3 dari 7**. Keempat kotak
+> LEBIH PENDEK DARI 14 PIKSEL, jadi tak satu pun bisa diukur dan empat
+> pemeriksaan gagal karena tidak ada yang tersisa untuk diukur - ditemukan 4
+> dari 4, tapi 0 dari 4 cukup tinggi, dan tepi yang dibaca balik meleset sampai
+> **29,68 persen** dari tinggi kotaknya sendiri. Yang lolos: semua kotak
+> ditemukan, menutupi bar asalnya, dan tepi kiri terbaca di 2 dari 4.
+>
+> Ini KONSEKUENSI DESAIN, bukan cacat, dan ia sisi lain dari benchmark di atas:
+> LuxAlgo menggambar pita dua kali lebih tinggi karena memakai TOLERANSI sebagai
+> tinggi; kita memakai sebaran pivot teramati, yang menjaga konstanta keluar
+> dari geometri dan membeli kotak yang terlalu tipis untuk dibaca. Jujur dan
+> terbaca sedang bertentangan di sini, dan layer ini memilih jujur.
+
+### Autodrawing, catatan lama yang dicabut
 
 `e2e/pixel-truth.mjs liquidity_pool`, 6 zona di 15 menit:
 
