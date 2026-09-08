@@ -400,32 +400,102 @@ const poolsPass = await pass("pools", (d) =>
   })),
 );
 
-// PSP TIDAK MENGGAMBAR APA PUN DENGAN SETELAN DEFAULT, dan itu bukan cacat
-// melainkan konfigurasi: `ssmt_symbols` dan `ssmt_degrees` kosong di
-// `DrawRequest`, jadi loop yang memancarkan PSP tidak pernah berjalan. Terukur
-// 8 September 2026 - `layers:["psp"]` sendirian mengembalikan NOL baris, dan
-// dengan keranjang partner diisi ia mengembalikan 11. Sampai pass ini ada,
-// akurasi gambar PSP tidak pernah dibaca balik satu piksel pun, sementara
-// `wiring.mjs` dan `ink-budget.mjs` melaporkan hijau karena keduanya menguji
-// pipa dan tinta, bukan geometri.
+// --------------------------------------------------- PASS PSP
 //
-// `psp` menumpang fetch SSMT di `app/main.py`, jadi kedua layer diminta
-// bersama - meminta psp sendirian akan menguji jalur yang tidak pernah
-// menggambar.
-const pspPass = await pass(
-  "psp",
-  (d) =>
-    (d.psp ?? []).map((e) => ({
+// PSP TIDAK BISA LEWAT `pass`, DAN VERSI PERTAMA PASS INI MEMBUKTIKANNYA
+// dengan gagal secara meyakinkan. `pass` memindai jendela di KANAN candle
+// terakhir dan tidak menyentuh setelan apa pun; PSP melanggar keduanya.
+//
+// 1. IA MENGGAMBAR NOL DENGAN SETELAN DEFAULT, dan itu DISENGAJA. `ssmt_symbols`
+//    dan `ssmt_degrees` kosong di `DrawRequest`, jadi loop yang memancarkan PSP
+//    tidak pernah berjalan, dan `app/main.py` mengirim alasannya sebagai
+//    `meta.ssmt.reason`. Terukur: `layers:["psp"]` sendirian mengembalikan NOL
+//    baris; dengan keranjang partner diisi ia mengembalikan 11. Jadi pass ini
+//    harus MENYALAKAN partnernya lewat kontrol yang sama yang dipakai pembaca.
+// 2. PSP HIDUP DI MASA LALU, seperti segmen struktur: level yang disapu
+//    membentang dari bar yang jadi open-nya sampai bar yang menyapunya, semua
+//    di kiri. Memindai di kanan candle terakhir menemukan nol.
+//
+// Versi pertama melakukan keduanya dengan salah dan melaporkan "kekuatan tinta
+// 0,048" untuk tiga baris. Angka itu BUKAN tinta PSP: `duty` di baris-baris itu
+// terbaca 1,000 - seluruh jendela ber-tinta seragam - yang adalah wash ambient
+// dari layer lain, bukan sebuah garis. Delapan baris sisanya terbaca `duty 0`
+// karena harganya di luar pane. Jadi yang diukur bukan gambar PSP sama sekali.
+const pspPass = async () => {
+  await (await layerSwitch("psp")).click();
+  await page.waitForTimeout(1200);
+
+  // Partner dan derajat dinyalakan lewat chip yang sama yang dipakai pembaca,
+  // bukan lewat jalan pintas: kalau kontrolnya rusak, pass ini harus ikut
+  // merah, dan jalan pintas akan menyembunyikannya.
+  const chip = async (name) => {
+    const el = page.getByRole("button", { name, exact: true }).first();
+    if (!(await el.count())) return false;
+    await el.click();
+    await page.waitForTimeout(400);
+    return true;
+  };
+  const partners = (await chip("XAGUSD")) && (await chip("XPTUSD"));
+  const degree = await chip("day");
+  await page.waitForTimeout(5000);
+
+  const drawn = await page.evaluate(
+    async ([api, interval, bars]) => {
+      const r = await fetch(`${api}/api/draw`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          symbol: "XAUUSD", interval, bars, layers: ["psp", "ssmt"],
+          checklist: {
+            ssmt_symbols: ["XAGUSD", "XPTUSD"], ssmt_degrees: ["day"],
+          },
+        }),
+      });
+      return r.json();
+    },
+    [API, INTERVAL, BARS],
+  );
+
+  const events = drawn.drawing?.psp ?? [];
+  const cs = drawn.candles ?? [];
+  const step = cs.length > 1 ? cs[1].time - cs[0].time : 3600;
+  const rows = [];
+  for (const e of events) {
+    // DIGULIR KE PERISTIWANYA, alasan yang sama dengan pass struktur.
+    await page.evaluate(
+      ([a, b]) => {
+        window.__zonelabChart.chart.timeScale().setVisibleRange({ from: a, to: b });
+      },
+      [e.ssmt_at - step * 25, e.at + step * 25],
+    );
+    await page.waitForTimeout(600);
+    const got = await page.evaluate(
+      ([price, t1, t2]) => {
+        const api = window.__zonelabChart;
+        window.__frame();
+        const y = api.series.priceToCoordinate(price);
+        const xb = api.chart.timeScale().timeToCoordinate(t2);
+        if (y === null || xb === null) return null;
+        // RUAS BERSIH DI KANAN TICK, bukan ruas yang dilintasi lilin. Versi
+        // pertama memindai antara bar SSMT dan bar sapuan, dan di situ yang ada
+        // memang lilin - primitive ini dicat di bawahnya. Yang diukur di sana
+        // bukan gambar PSP.
+        return window.__scanAt(y, xb + 3, xb + 26);
+      },
+      [e.level, e.ssmt_at, e.at],
+    );
+    rows.push({
+      layer: "psp",
       tag: `PSP ${e.direction}${e.triad_crack ? " crack" : ""}`,
       price: e.level,
       taken: false,
-      expect: "solid",
-    })),
-  {
-    checklist: { ssmt_symbols: ["XAGUSD", "XPTUSD"], ssmt_degrees: ["day"] },
-  },
-  ["psp", "ssmt"],
-);
+      expect: "dashed",
+      onScreen: got !== null,
+      ...(got ?? { dy: 0, y: 0, duty: 0, strength: 0 }),
+    });
+  }
+  return { rows, partners, degree, drawn: events.length };
+};
 
 const levelsPass = await pass("liquidity", (d) =>
   (d.levels ?? []).map((l) => ({
@@ -552,6 +622,7 @@ const structurePass = async () => {
   return { layer: "structure", events: events.length, mss: mss.length, rows };
 };
 
+const psp = await pspPass();
 const structure = await structurePass();
 const mssMeasured = structure.rows.filter((r) => r.price_err !== null);
 const mssShort = structure.rows.filter((r) => r.tooShort);
@@ -590,7 +661,7 @@ check(
       `atas ${mssMeasured.length} garis MSS`,
 );
 
-const all = [...poolsPass.rows, ...pspPass.rows, ...levelsPass.rows, ...gapsPass.rows];
+const all = [...poolsPass.rows, ...psp.rows, ...levelsPass.rows, ...gapsPass.rows];
 const inked = all.filter((r) => r.duty > 0.05);
 const fillOnly = inked.filter((r) => r.strength < STROKE_FLOOR);
 const found = inked.filter((r) => r.strength >= STROKE_FLOOR);

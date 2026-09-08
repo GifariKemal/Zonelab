@@ -3726,3 +3726,60 @@ Pass PSP ditambahkan ke harness, dan hasil pertamanya:
 Jadi jawaban presisi PSP: penempatannya lolos, ketebalannya tidak. Dan yang
 lebih penting - sebelum hari ini tidak ada satu piksel pun dari layer ini yang
 pernah dibaca balik.
+
+### Tinta PSP 0,048 ditelusuri, dan ia bukan tinta PSP
+
+Diminta memperbaiki kekuatan tinta 0,048 yang dilaporkan `nonbox-truth`. Angka
+itu ternyata bukan properti gambar PSP sama sekali, dan menaikkan alpha tidak
+akan menyentuhnya.
+
+`strength = sum / hit / 765` membagi dengan jumlah piksel BER-TINTA, bukan
+dengan lebar jendela, jadi ray pendek tidak diencerkan olehnya. 0,048 kali 765
+sama dengan 37 - satu piksel dengan jarak 37 dari latar. Satu piksel fringe
+antialias, bukan sebuah garis.
+
+**Sebabnya: ray PSP hidup seluruhnya di balik lilin yang ia lintasi.** Level yang
+disapu membentang dari bar yang jadi open-nya sampai bar yang menyapunya - tiga
+bar - dan `psp-primitive` dicat DI BAWAH lilin. Jadi jendela scan di rentang itu
+memang berisi lilin, dan yang terukur lilin. Seorang pembaca manusia menghadapi
+hal yang sama: ia melihat tick-nya dan hampir tidak melihat levelnya.
+
+Dan pass pertama saya memperburuknya dengan dua cara: ia memakai helper generik
+`pass` yang memindai di KANAN candle terakhir (PSP hidup di masa lalu), dan ia
+tidak menyalakan partner SSMT sehingga delapan dari sebelas baris terbaca
+`duty 0` karena memang tidak ada yang digambar.
+
+#### Yang diperbaiki
+
+1. **Ray diberi jangkauan 28 piksel ke kanan tick**, ke ruang yang biasanya
+   kosong. Ini perbaikan legibilitas lebih dulu: level yang seluruhnya terhalang
+   tidak bisa dibaca siapa pun.
+2. **Pelat label dipindah ke ujung jangkauan itu.** Sebelumnya ia duduk tepat di
+   `x`, menutupi ruas yang baru dibuat terbaca dengan sebuah FILL - dan fill di
+   atas stroke adalah persis yang harness laporkan sebagai "terselesaikan
+   sebagai fill".
+3. **Pass PSP ditulis ulang** mengikuti pola `structurePass`: menyalakan partner
+   lewat chip yang sama yang dipakai pembaca (bukan jalan pintas, supaya
+   kontrol yang rusak ikut merah), menggulung chart ke tiap peristiwa, dan
+   memindai ruas BERSIH di kanan tick.
+
+#### Hasil
+
+| | sebelum | sesudah |
+|---|---|---|
+| ray di layar | 0 terukur | 8 dari 11 |
+| di atas lantai stroke 0,15 | **0 dari 8** | **5 dari 8** |
+| sebaran kekuatan | semua 0,048 | 0,207 / 0,299 / 0,299 / 0,479 / 0,622 |
+
+Tiga ray yang masih 0,048: dua terbaca `duty 0,08` di dy -6, yaitu scan tidak
+menemukan apa pun di barisnya dan mengambil fringe enam piksel jauhnya; satu
+terbaca `duty 1,00` di dy 0, yaitu seluruh barisnya tertutup sesuatu yang lain.
+Ketiganya belum ditelusuri.
+
+Tiga peristiwa sisanya jatuh di luar jendela bahkan sesudah digulir, dan itu
+juga belum ditelusuri.
+
+Jadi uji "stroke bukan fill" TETAP merah, dan itu jujur: ia merah untuk tiga
+ray PSP dan untuk `gaps/CE-NWOG` yang sudah merah sebelum pass ini ada. Yang
+berubah adalah lima ray yang sebelumnya tidak terukur sama sekali sekarang
+terukur dan lolos.
