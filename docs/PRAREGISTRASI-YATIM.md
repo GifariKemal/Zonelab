@@ -520,17 +520,18 @@ Detektor 0 direproduksi sebelum angka OTE dipercaya: **n=598, PF 1,113, cand
 | COMEX:GC1! 1d | 622 | 39,55 | **0,876** | - | - |
 
 > [!WARNING]
-> **Baris COMEX di atas dihitung pada populasi yang tersaring**, dan belum
-> diukur ulang. Ditemukan 8 September 2026: `qsize` meminta kurang dari satu
+> **Baris COMEX di atas SUDAH diukur ulang 8 September 2026 dan ia TIDAK
+> terpengaruh**: n=622, PF 0,876, identik sampai digit terakhir. Peringatan
+> versi pertama di sini menduga sebaliknya, dan dugaan itu salah. Ditemukan 8 September 2026: `qsize` meminta kurang dari satu
 > kontrak untuk setiap stop yang lebih lebar dari 10 dolar di instrumen
 > ber-pointvalue 100, TradingView membulatkannya ke bawah, dan order itu tidak
-> pernah jadi posisi - sementara penghitung `fill` tetap menghitungnya. Saringan
-> itu condong ke STOP RAPAT. Terukur dengan detektor FVG di sel yang sama:
-> populasi 132 dari 537 memberi PF 1,167, populasi utuh 496 dari 537 memberi
-> 0,923. Cacatnya sudah diperbaiki di `qsize` (`risk_eff`), tapi angka 0,876 di
-> baris ini diukur SEBELUM perbaikan itu. Lihat `docs/QA-SD-GATE.md` bagian
-> terakhir dan `docs/CALIBRATION.md`. Angka FX:XAUUSD di baris atasnya TIDAK
-> terpengaruh: pointvalue 1 di sana.
+> pernah jadi posisi - sementara penghitung `fill` tetap menghitungnya. Terukur
+> dengan detektor FVG di sel yang sama: populasi 132 dari 537 memberi PF 1,167,
+> populasi utuh 496 dari 537 memberi 0,923. Cacatnya diperbaiki di `qsize`
+> (`risk_eff`), dan OTE dijalankan ulang di atas perbaikan itu - hasilnya
+> tidak bergerak, jadi stop OTE di sel ini memang sudah cukup rapat untuk
+> memberi lebih dari satu kontrak. Lihat `docs/QA-SD-GATE.md` bagian terakhir
+> dan `docs/CALIBRATION.md`.
 
 
 Peringkat di XAU harian, enam detektor lewat bracket identik: supply_demand

@@ -40,6 +40,20 @@ membentang 0,9 ATR, dan tidak ada satu pun pasangan di ujungnya yang "sama".
 Dengan anchor tetap, setiap anggota berjarak paling jauh `equal_tol_atr` dari
 harga yang sama, jadi klaim "equal" berlaku untuk seluruh anggota.
 
+SKALANYA BEBAS-JENDELA, DAN DI SINI ITU LEBIH PENTING DARIPADA DI MANA PUN
+`mean_true_range`, bukan `wilder_atr`. Wilder adalah RMA yang disemai dari bar
+pertama, jadi nilainya di satu bar absolut bergantung berapa bar yang dimuat
+pemanggil - `detect_fvg` ditukar karena itu pada 7 September 2026. Di sana ATR
+cuma menskalakan sebuah RASIO; DI SINI ia menetapkan TOLERANSI PENGELOMPOKAN,
+jadi ia memutuskan pivot mana yang masuk satu kolam dan karena itu menggeser
+POPULASINYA, bukan cuma angkanya.
+
+Terukur sebelum ditukar, XAUUSD harian dengan Wilder: deret penuh memberi 5 zona
+yang lahir di 100 bar terakhir, potongan 100 bar saja memberi 4, dan himpunannya
+BERBEDA - dua zona hanya ada di deret penuh, satu hanya ada di potongan. Itu juga
+yang membuat parity lawan Pine terbaca meleset satu: Pine membaca seluruh
+riwayat, run Python yang dibandingkan dengannya membaca 100 bar.
+
 GERBANG: NOL, DINYATAKAN
 Tinggi kotak di sini adalah sebaran yang kebetulan teramati di dalam toleransi,
 jadi menggerbanginya adalah menggerbangi `equal_tol_atr` lewat pintu belakang.
@@ -52,7 +66,7 @@ pernah diukur terhadap outcome.
 
 from __future__ import annotations
 
-from ..indicators import wilder_atr
+from ..indicators import mean_true_range
 from ..models import Candle, LiquidityPoolParams, Zone, ZoneKind, ZoneSide
 from .imbalance import _arrays, _finish, _present
 from .structure import swings
@@ -75,7 +89,7 @@ def detect(
         return _present([], params, stats, int(candles[-1].time) if candles else 0)
 
     time, _open, high, low, close = _arrays(candles)
-    atr = wilder_atr(high, low, close, params.atr_period)
+    atr = mean_true_range(high, low, close, params.atr_period)
     pivots = swings(high, low, params.swing_n, params.swing_n)
     found: list[Zone] = []
 

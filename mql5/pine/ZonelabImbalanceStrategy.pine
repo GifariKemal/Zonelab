@@ -321,12 +321,22 @@ if strategy.closedtrades > seen
 //     risk_usd 1.000    fill 537, n 132 (25%), PF 1,167
 //     risk_usd 100.000  fill 537, n 496 (92%), PF 0,923
 //
-// Angka di atas satu itu dihitung atas seperempat sampelnya sendiri, dan
-// seperempat yang dipilih oleh lebar stop. SETIAP angka futures di repo ini
-// yang lebih tua dari baris ini membawa saringan itu - termasuk stress test
-// S&D di COMEX. Angka XAUUSD dan BTCUSD spot TIDAK terpengaruh: pointvalue 1
-// di sana, jadi qty = risk_usd / risk sudah jauh di atas 1 dan tidak pernah
-// dibulatkan hilang.
+// Mekanismenya dikonfirmasi dengan membalikkannya: menurunkan risk_usd ke 10
+// sesudah perbaikan - yang mengembalikan qty ke besaran lama - mereproduksi
+// n=132 dan PF 1,167 PERSIS. Jadi yang menggerakkannya besaran qty, bukan
+// tebakan.
+//
+// SIAPA YANG KENA, DIUKUR BUKAN DIASUMSIKAN. Versi pertama catatan ini menulis
+// "setiap angka futures di repo ini" dan itu TERLALU LUAS. Diperiksa satu per
+// satu di GC1! harian sesudah perbaikan:
+//
+//     FVG   1,167 -> 0,923   KENA, populasi 132 -> 496
+//     SD    0,797 -> 0,797   TIDAK, n=251 identik
+//     OTE   0,876 -> 0,876   TIDAK, n=622 identik
+//
+// Jadi ia bergantung pada sebaran lebar stop tiap detektor: kalau qty lama
+// sudah di atas satu kontrak, tidak ada yang dibulatkan hilang. Angka XAUUSD
+// dan BTCUSD spot juga tidak terpengaruh - pointvalue 1 di sana.
 //
 // PERBAIKANNYA MENSKALAKAN RISIKO, BUKAN KUANTITAS, dan `risk_eff` dipakai di
 // KETIGA tempat yang menyentuh satuan R. Itu bukan kerapian: menaikkan qty
@@ -623,7 +633,12 @@ if isCZ
 //    beda seri memindahkan pivot ke bar lain sehingga seluruh kluster bergeser.
 // 2. TOLERANSI MILIK KLUSTER, dibekukan saat kluster lahir - bukan diambil dari
 //    ATR di bar pivot yang baru datang. Pita sebuah kolam adalah properti kolam.
-// 3. TIDAK ADA DEDUPE DI SINI, sama seperti enam detektor lain di berkas ini,
+// 3. SKALANYA `atr_v`, BUKAN `atr_w`. Wilder disemai dari bar pertama, jadi
+//    nilainya bergantung berapa bar yang dimuat - dan di sini ATR menetapkan
+//    TOLERANSI PENGELOMPOKAN, jadi ia memutuskan pivot mana yang sekolam dan
+//    menggeser POPULASI, bukan cuma rasio. Terukur dengan Wilder: deret penuh
+//    memberi 5 zona di 100 bar terakhir, potongan 100 bar memberi 4.
+// 4. TIDAK ADA DEDUPE DI SINI, sama seperti enam detektor lain di berkas ini,
 //    sementara Python memanggil `_dedupe`. Jadi populasi di sini LEBIH BESAR.
 //    Itu cacat parity yang sudah diketahui dan diukur untuk cisd_zone (+44%),
 //    ote (+11%) dan supply_demand (0%); untuk layer ini angkanya belum diukur.
@@ -691,10 +706,10 @@ if isLQ and bar_index > lq_n * 2 + 2
 
     pidx = bar_index - lq_n
     // ATR di bar SEBELUM pivot, offset TETAP - cermin `atr[origin - 1]`.
-    pscl = atr_w[lq_n + 1]
-    ptol = lq_tol * atr_w
+    pscl = atr_v[lq_n + 1]
+    ptol = lq_tol * atr_v
 
-    if okh and atr_w > 0
+    if okh and atr_v > 0
         // Buang kluster yang likuiditasnya sudah diambil.
         if array.size(bAnc) > 0
             for i = array.size(bAnc) - 1 to 0
@@ -738,7 +753,7 @@ if isLQ and bar_index > lq_n * 2 + 2
                 l_scale := array.get(bScl, hit)
                 l_got   := true
 
-    if okl and atr_w > 0 and not l_got
+    if okl and atr_v > 0 and not l_got
         if array.size(sAnc) > 0
             for i = array.size(sAnc) - 1 to 0
                 if array.get(sExt, i) < array.get(sAnc, i) - array.get(sTolA, i)

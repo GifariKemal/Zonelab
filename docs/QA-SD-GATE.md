@@ -791,10 +791,19 @@ Terukur dengan kontrol di simbol yang sama, detektor FVG di GC1! harian:
 | 1.000 (default) | 537 | 132 | 25% | 1,167 |
 | 100.000 | 537 | 496 | 92% | **0,923** |
 
-Angka di atas satu itu jatuh ke bawah satu begitu populasinya utuh. Jadi angka
-COMEX mana pun di halaman ini - termasuk baseline PF 0,797 dan stress test 3 dari
-8 - dihitung pada populasi yang tersaring, dan harus diukur ulang sebelum dikutip
-lagi.
+Angka di atas satu itu jatuh ke bawah satu begitu populasinya utuh, dan
+mekanismenya dikonfirmasi dengan membalikkannya: menurunkan `risk_usd` ke 10
+sesudah perbaikan mereproduksi n=132 dan PF 1,167 persis.
+
+> [!NOTE]
+> **Diukur ulang 8 September 2026, dan S&D di halaman ini TIDAK terpengaruh.**
+> Peringatan versi pertama di sini berbunyi "angka COMEX mana pun di halaman ini"
+> dan itu terlalu luas. Dijalankan ulang sesudah perbaikan, baseline S&D di GC1!
+> harian terbaca **n=251, win 51,79%, PF 0,797 - identik sampai digit terakhir**
+> dengan yang tercatat. Begitu juga OTE di sel yang sama (n=622, PF 0,876).
+> Yang berubah hanya FVG. Sebabnya sebaran lebar stop per detektor: kalau qty
+> lama sudah di atas satu kontrak, tidak ada yang dibulatkan hilang. Stress test
+> S&D 3 dari 8 karena itu tetap berlaku.
 
 Angka XAUUSD dan BTCUSD spot TIDAK terpengaruh: pointvalue 1 di sana, jadi
 `qty = risk_usd / risk` sudah jauh di atas satu dan tidak pernah dibulatkan

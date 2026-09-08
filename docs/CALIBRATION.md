@@ -3349,3 +3349,107 @@ dedupe tidak membuang apa pun di tol 0,25 / 0,5 / 1,0 (4 kandidat, 4 zona di
 Nol penumpukan, berbeda dari IFVG yang merah karena kotak terbaliknya
 berdesakan. Kolam likuiditas tersebar di harga yang berbeda-beda menurut
 definisinya, jadi masalah legibilitas IFVG tidak muncul di sini.
+
+### Lima sisa dikerjakan berurut, 8 September 2026, dan dua di antaranya membatalkan angka yang baru saja dilaporkan
+
+#### 1. `swing_n` disapu, dan puncaknya terisolasi
+
+XAUUSD harian, tol 0,5, t3:
+
+| swing_n | n | PF |
+|---|---|---|
+| 2 | 196 | 0,999 |
+| **3 (di-ship)** | 108 | **1,170** |
+| 4 | 72 | 0,725 |
+| 5 | 53 | 0,921 |
+| 8 | 28 | 0,238 |
+
+Puncaknya TAJAM dan sendirian: kedua tetangganya 0,999 dan 0,725. Permukaan
+parameter yang nyata tidak melonjak di satu nilai lalu jatuh di kedua sisi. Itu
+memperkuat putusan null, bukan melemahkannya.
+
+#### 2 dan 4. Parity menemukan cacat di detektornya sendiri
+
+Parity lawan Pine terbaca meleset satu (Pine 5 kandidat, Python 4) di jendela
+yang sama. Dua tersangka murah disingkirkan lebih dulu - anchor di luar potongan
+(ternyata ada di dalam, idx 70) dan aturan sapuan (ternyata benar) - lalu yang
+tersisa terbukti: **detektornya sendiri bergantung pada panjang jendela.**
+
+Diukur langsung dengan `wilder_atr`: deret penuh memberi 5 zona yang lahir di 100
+bar terakhir, potongan 100 bar memberi 4, dan HIMPUNANNYA berbeda.
+
+Sebabnya `wilder_atr` adalah RMA yang disemai dari bar pertama. `detect_fvg`
+ditukar ke `mean_true_range` pada 7 September karena itu, dan `liquidity_pool`
+mewarisi masalah yang sama - **lebih buruk di sini**, karena di FVG ATR cuma
+menskalakan sebuah rasio sementara di sini ia menetapkan TOLERANSI
+PENGELOMPOKAN, jadi ia memutuskan pivot mana yang sekolam dan menggeser
+POPULASINYA.
+
+Ditukar di kedua sisi (`mean_true_range` di Python, `atr_v` di Pine). Sesudahnya
+jumlahnya cocok, 4 lawan 4, dan sisa selisih dua id adalah carry-over kluster di
+batas potongan - sifat warm-up yang melekat pada detektor berkeadaan, bukan
+selisih aturan. Regresi detektor 0 tetap identik.
+
+#### Dan pertukaran itu MENGGESER hasilnya, jadi semuanya diukur ulang
+
+| XAUUSD 1d, tol 0,5 t3 | Wilder | bebas-jendela |
+|---|---|---|
+| sampel penuh | 1,170 | **1,482** |
+| placebo | 0,990 | 1,290 |
+| margin | +0,180 | +0,192 |
+| IS 2000-2013 | 1,783 | 1,881 |
+| **OOS 2013-2026** | **0,657** | **0,985** |
+
+Stress test 8 periode ikut berubah, dan pola yang saya laporkan sebelumnya -
+"pembelahan bersih di 2013, empat periode pertama di atas satu dan empat
+terakhir di bawah" - **ternyata artefak skala itu**:
+
+| periode | Wilder | bebas-jendela |
+|---|---|---|
+| 2000-2003 | 2,105 | 2,173 |
+| 2003-2006 | 2,894 | 3,160 |
+| 2006-2010 | 1,123 | **0,589** |
+| 2010-2013 | 1,113 | 1,864 |
+| 2013-2016 | 0,469 | **1,449** |
+| 2016-2020 | 0,815 | 0,841 |
+| 2020-2023 | 0,091 | **1,223** |
+| 2023-2026 | 0,216 | 0,187 |
+
+**5 dari 8** sekarang, bukan 4, dan tanpa pola monoton apa pun. Yang bertahan:
+periode SEKARANG tetap yang terburuk dari delapan, 0,187.
+
+#### 3. Grid lengkap, skala bebas-jendela, tol 0,5 t3 n3
+
+| sel | n | PF | placebo | putusan |
+|---|---|---|---|---|
+| XAUUSD 1d | 107 | **1,482** | 1,290 | lolos +0,192 |
+| COMEX GC1! 1d | 95 | **1,336** | 1,176 | lolos +0,160 |
+| XAUUSD 4h | 423 | 0,956 | - | di bawah satu |
+| BTCUSD 1d | 66 | 0,602 | - | di bawah satu |
+
+Dua sel di atas satu dan keduanya mengalahkan placebo - jauh lebih kuat daripada
+yang saya laporkan sebelum pertukaran skala. **Tapi putusannya tidak berubah**:
+luar sampel 0,985 dan stress test 5 dari 8, jadi ia gagal aturan yang
+menggerbangi `orderable`.
+
+#### 5. Angka COMEX lama diukur ulang, dan PERINGATAN SAYA TERLALU LUAS
+
+Saya menulis bahwa "setiap angka futures di repo ini" membawa saringan qty.
+Dijalankan ulang satu per satu di GC1! harian sesudah perbaikan:
+
+| detektor | tercatat | diukur ulang | |
+|---|---|---|---|
+| FVG | 1,167 (n=132) | **0,923** (n=496) | KENA |
+| supply_demand | 0,797 (n=251) | **0,797** (n=251) | tidak bergerak |
+| OTE | 0,876 (n=622) | **0,876** (n=622) | tidak bergerak |
+
+Hanya FVG yang terpengaruh. Stress test S&D 3 dari 8 di COMEX karena itu TETAP
+BERLAKU, dan baris OTE di `PRAREGISTRASI-YATIM.md` tetap berlaku - keduanya
+sudah dikoreksi di tempatnya, karena peringatan yang salah sama merusaknya
+dengan angka yang salah.
+
+Mekanismenya sendiri dikonfirmasi dengan membalikkannya: menurunkan `risk_usd`
+ke 10 sesudah perbaikan - yang mengembalikan qty ke besaran lama - mereproduksi
+n=132 dan PF 1,167 PERSIS. Jadi yang menggerakkannya besaran qty, dan detektor
+yang stopnya sudah cukup rapat untuk memberi lebih dari satu kontrak tidak
+pernah kehilangan apa pun.
