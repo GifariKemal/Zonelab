@@ -519,6 +519,20 @@ Detektor 0 direproduksi sebelum angka OTE dipercaya: **n=598, PF 1,113, cand
 | FX:XAUUSD 1d | 685 | 43,50 | **1,066** | 0,958 | +0,108 |
 | COMEX:GC1! 1d | 622 | 39,55 | **0,876** | - | - |
 
+> [!WARNING]
+> **Baris COMEX di atas dihitung pada populasi yang tersaring**, dan belum
+> diukur ulang. Ditemukan 8 September 2026: `qsize` meminta kurang dari satu
+> kontrak untuk setiap stop yang lebih lebar dari 10 dolar di instrumen
+> ber-pointvalue 100, TradingView membulatkannya ke bawah, dan order itu tidak
+> pernah jadi posisi - sementara penghitung `fill` tetap menghitungnya. Saringan
+> itu condong ke STOP RAPAT. Terukur dengan detektor FVG di sel yang sama:
+> populasi 132 dari 537 memberi PF 1,167, populasi utuh 496 dari 537 memberi
+> 0,923. Cacatnya sudah diperbaiki di `qsize` (`risk_eff`), tapi angka 0,876 di
+> baris ini diukur SEBELUM perbaikan itu. Lihat `docs/QA-SD-GATE.md` bagian
+> terakhir dan `docs/CALIBRATION.md`. Angka FX:XAUUSD di baris atasnya TIDAK
+> terpengaruh: pointvalue 1 di sana.
+
+
 Peringkat di XAU harian, enam detektor lewat bracket identik: supply_demand
 1,235, breaker 1,181, fvg 1,112, ifvg 1,067, **ote 1,066**, order_block 0,972.
 Praktis kembar dengan IFVG, kelima dari enam.
