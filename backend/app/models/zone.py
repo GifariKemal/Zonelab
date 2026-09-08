@@ -137,6 +137,14 @@ FLOOR_GATE_ATR: dict[ZoneKind, float] = {
     # antara 'cuma run besar' dan 'cuma stop rapat' dan tidak satu pun
     # bersumber. Ia disapu di TradingView, bukan ditebak di sini.
     ZoneKind.CISD: 0.0,
+    # NOL, dinyatakan, dan di sini alasannya LEBIH kuat daripada CISD: tinggi
+    # kotak BSL/SSL adalah sebaran pivot yang kebetulan teramati di dalam
+    # `equal_tol_atr`, jadi menggerbanginya adalah menggerbangi toleransi
+    # pengelompokan lewat pintu belakang - dua knob untuk satu keputusan, dan
+    # yang satu diam-diam. Kalau ada yang layak digerbangi di sini, itu jumlah
+    # sentuhan (`min_touches`), dan itu knob tersendiri yang disapu.
+    ZoneKind.BSL: 0.0,
+    ZoneKind.SSL: 0.0,
 }
 #: Kind yang gerbangnya plafon, bukan lantai.
 #:
@@ -228,7 +236,8 @@ SUPPLY_DEMAND_KINDS = (ZoneKind.RBR, ZoneKind.DBR, ZoneKind.DBD, ZoneKind.RBD)
 #: lantai 2,0 ATR pada panjang leg adalah padanan yang dipilih supaya ia
 #: sebanding dengan empat detektor lain - dan permukaan yang menampilkan
 #: verdict harus menahan diri sampai ia benar benar disapu.
-GATE_UNMEASURED_KINDS = (ZoneKind.BRK, ZoneKind.OTE, ZoneKind.CISD)
+GATE_UNMEASURED_KINDS = (ZoneKind.BRK, ZoneKind.OTE, ZoneKind.CISD,
+                         ZoneKind.BSL, ZoneKind.SSL)
 
 
 class Zone(BaseModel):

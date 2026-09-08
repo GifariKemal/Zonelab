@@ -191,6 +191,7 @@ _HANDLERS: dict[str, _Handler] = {
     "breaker": _zone_layer("breaker"),
     "ote": _zone_layer("ote"),
     "cisd_zone": _zone_layer("cisd_zone"),
+    "liquidity_pool": _zone_layer("liquidity_pool"),
     "structure": _draw_structure,
     "session": _draw_session,
     "vortex": _draw_vortex,

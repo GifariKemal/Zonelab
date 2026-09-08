@@ -322,6 +322,60 @@ export const Toolbox = memo(function Toolbox({
           </>
         );
 
+      case "liquidity_pool":
+        return (
+          <>
+            {/* BUKAN BSL/SSL YANG SAMA dengan layer `liquidity`. Yang itu
+                ekstrem periode (PDH/PDL/PWH/PWL) sebagai garis; yang ini
+                kluster equal highs / equal lows sebagai kotak. Slider di sini
+                tidak menyentuh layer itu sama sekali. */}
+            <Slider
+              label="Swing width"
+              hint="Lebar fraktal pivot, dipakai sebagai left DAN right."
+              note="Knob terpisah dari OTE walau namanya sama: kedua detektor boleh membaca struktur pada derajat berbeda. Menaikkannya memberi pivot yang lebih jarang tapi lebih dominan."
+              suffix="bars"
+              min={2}
+              max={50}
+              step={1}
+              value={params.liquidity_pool.swing_n}
+              onChange={(v) => onParams("liquidity_pool", { swing_n: v })}
+            />
+            <Slider
+              label="Equal tolerance"
+              hint="Seberapa dekat dua pivot boleh berbeda dan masih disebut sama."
+              note="MENGELOMPOKKAN, tidak menggambar: tepi kotak diambil dari sebaran pivot yang teramati, jadi slider ini tidak mengubah tinggi kotak secara langsung. DIPILIH bukan diukur, dan SEPI di default - 0,1 ATR memberi NOL kolam di 100 bar XAU harian karena pasangan swing high terdekat di sana berjarak 0,367 ATR. Populasi XAU harian: 0,1/0,25/0,5/1,0/2,0 memberi 49/99/116/112/80 zona, tidak monoton karena toleransi lebar menggabung kluster secepat ia membuatnya."
+              suffix="ATR"
+              min={0}
+              max={5}
+              step={0.05}
+              value={params.liquidity_pool.equal_tol_atr}
+              onChange={(v) => onParams("liquidity_pool", { equal_tol_atr: v })}
+            />
+            <Slider
+              label="Touches"
+              hint="Berapa pivot harus sepakat sebelum kluster jadi kolam."
+              note="Dua adalah definisi minimum equal highs. Kotaknya lahir tepat saat sentuhan ke-N DIKONFIRMASI dan tidak dipancarkan ulang saat kluster tumbuh - menunggu kluster selesai adalah lookahead, jadi kolam beranggota empat digambar oleh dua anggota pertamanya."
+              suffix="pivots"
+              min={2}
+              max={10}
+              step={1}
+              value={params.liquidity_pool.min_touches}
+              onChange={(v) => onParams("liquidity_pool", { min_touches: v })}
+            />
+            <Slider
+              label="Merge overlap"
+              hint="Dua kotak sesisi yang tumpang tindih lebih dari ini dianggap satu kolam."
+              note="Kolam bertumpuk saat satu pivot masuk dua kluster berdekatan."
+              min={0}
+              max={1}
+              step={0.05}
+              value={params.liquidity_pool.merge_overlap_pct}
+              onChange={(v) =>
+                onParams("liquidity_pool", { merge_overlap_pct: v })
+              }
+            />
+          </>
+        );
       case "ote":
         return (
           <>
@@ -2541,6 +2595,7 @@ function layerSwatch(): Record<string, readonly string[]> {
     breaker: ["var(--demand)", "var(--supply)"],
     ote: ["var(--demand)", "var(--supply)"],
     cisd_zone: ["var(--demand)", "var(--supply)"],
+    liquidity_pool: ["var(--demand)", "var(--supply)"],
     structure: [ink("structure", 0.95)],
     session: [ink("grid", 0.95)],
     gaps: [ink("levels", 0.95)],

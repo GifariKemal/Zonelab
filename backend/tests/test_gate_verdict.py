@@ -86,6 +86,11 @@ EXPECTED_GATE_ATR = {
     ZoneKind.OTE: 2.0,
     # NOL, dinyatakan: lihat FLOOR_GATE_ATR dan detect/cisd_zone.py.
     ZoneKind.CISD: 0.0,
+    # NOL, dinyatakan: tinggi kotaknya sebaran teramati di dalam
+    # `equal_tol_atr`, jadi menggerbanginya menggerbangi toleransi lewat
+    # pintu belakang. Lihat detect/liquidity_pool.py.
+    ZoneKind.BSL: 0.0,
+    ZoneKind.SSL: 0.0,
 }
 
 #: KEDUANYA SEKARANG TERUKUR, dan urutan kejadiannya layak dicatat karena satu

@@ -138,6 +138,15 @@ UNPORTED: dict[str, str] = {
     "cisd_zone": (
         "BELUM DI-PORT, ditambahkan 8 September 2026. `CISDDetector.mqh` sudah ada dan memeriksa LEVEL-nya - 0 mismatch di 349 event pada feed yang sama - jadi separuh parity-nya sudah terbukti. Yang belum: tepi KEDUA, ekstrem run, yang baru ditambahkan hari ini ke `DeliveryRun`. Port kotaknya berarti menambahkan field yang sama di sisi MQL5 dan membandingkan dua tepi, bukan satu"
     ),
+    "liquidity_pool": (
+        "BELUM DI-PORT, ditambahkan 8 September 2026 bersama detektornya. "
+        "Sisi MQL5 sudah punya BSL/SSL tapi sebagai LEVEL periode, sama "
+        "seperti `app/liquidity.py` di sini, dan itu konstruk yang BERBEDA "
+        "dari kluster equal-highs ini - port yang menyamakan keduanya akan "
+        "membandingkan dua populasi. Yang harus di-port lebih dulu "
+        "`structure.swings`, yang juga belum ada di sana dan yang sudah "
+        "jadi prasyarat `ote`"
+    ),
     "ote": (
         "BELUM DI-PORT, ditambahkan 8 September 2026 bersama detektornya. "
         "Ia detektor pertama di sini yang kotaknya tidak memuat lilin apa "

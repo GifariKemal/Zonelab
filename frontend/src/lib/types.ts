@@ -359,6 +359,27 @@ export interface CisdZoneParams {
   merge_overlap_pct: number;
 }
 
+/** Knob detektor `liquidity_pool`, yang memancarkan DUA kind: BSL dan SSL.
+ *  BUKAN BSL/SSL yang sama dengan `liquidity`: yang itu ekstrem periode
+ *  (PDH/PDL/PWH/PWL) sebagai GARIS, yang ini kluster equal highs / equal lows
+ *  sebagai kotak. Dua populasi berbeda; jangan kutip angka satu untuk lainnya.
+ *
+ *  `equal_tol_atr` MENGELOMPOKKAN, ia tidak menggambar - tepi kotak diambil
+ *  dari sebaran pivot yang teramati, jadi tidak ada konstanta yang masuk ke
+ *  geometri. */
+export interface LiquidityPoolParams {
+  atr_period: number;
+  swing_n: number;
+  equal_tol_atr: number;
+  min_touches: number;
+  mitigation_pct: number;
+  arrival_bars: number;
+  show_broken: boolean;
+  show_mitigated: boolean;
+  max_zones_per_side: number;
+  merge_overlap_pct: number;
+}
+
 export interface OteParams {
   atr_period: number;
   swing_n: number;
@@ -1724,6 +1745,7 @@ export interface LayerParams {
   imbalance: ImbalanceParams;
   ote: OteParams;
   cisd_zone: CisdZoneParams;
+  liquidity_pool: LiquidityPoolParams;
   structure: StructureParams;
   session: SessionParams;
   dfr: DFRParams;
@@ -1781,6 +1803,22 @@ export const DEFAULT_LAYER_PARAMS: LayerParams = {
     max_zones_per_side: 6,
     // Level CISD PADAT - 12,05% bar XAU harian, 3,2x pembanding LuxAlgo - jadi
     // dedupe di sini kebutuhan, bukan salinan. Ia membuang 271 dari 377.
+    merge_overlap_pct: 0.6,
+  },
+  liquidity_pool: {
+    atr_period: 14,
+    swing_n: 3,
+    // DIPILIH, bukan diukur, dan ia SEPI: 0,1 ATR memberi NOL kolam di 100 bar
+    // XAU harian - pasangan swing high terdekat di sana berjarak 0,367 ATR -
+    // dan 49 kolam di seluruh 3.128 bar harian. Disapu di TradingView.
+    equal_tol_atr: 0.1,
+    // Dua adalah definisi minimum "equal highs". Menaikkannya memangkas cepat.
+    min_touches: 2,
+    mitigation_pct: 0.5,
+    arrival_bars: 6,
+    show_broken: false,
+    show_mitigated: true,
+    max_zones_per_side: 6,
     merge_overlap_pct: 0.6,
   },
   ote: {

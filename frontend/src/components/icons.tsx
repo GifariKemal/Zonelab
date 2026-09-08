@@ -77,6 +77,15 @@ const P = {
     </>
   ),
 
+  /** Dua puncak setinggi sama dan pita tipis tempat stop beristirahat. */
+  liquidity_pool: (
+    <>
+      <path d="M2 12l3-5 3 5" />
+      <path d="M8 12l3-5 3 5" />
+      <rect x="1.5" y="3" width="13" height="2" strokeDasharray="2.4 1.8" />
+    </>
+  ),
+
   ote: (
     <>
       <path d="M1.5 13L7 3.5L12 9" />
@@ -337,6 +346,7 @@ export const LAYER_ICON: Record<string, IconName> = {
   breaker: "breaker",
   ote: "ote",
   cisd_zone: "cisd_zone",
+  liquidity_pool: "liquidity_pool",
   structure: "structure",
   wyckoff: "wyckoff",
   cisd: "cisd",

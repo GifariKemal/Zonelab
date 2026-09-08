@@ -37,8 +37,8 @@ strategy("Zonelab Imbalance Strategy", overlay=true,
 // digerbangi PLAFON pada tinggi gap; OB dan BRK digerbangi LANTAI pada kekuatan
 // impuls. Satu pembaca yang cuma melihat angka gerbangnya tidak bisa tahu mana
 // yang berlaku.
-detector      = input.int(0, "detektor 0=FVG 1=OB 2=IFVG 3=BRK 4=SD 5=OTE 6=CISD", group="Detector",
-     minval=0, maxval=6)
+detector      = input.int(0, "detektor 0=FVG 1=OB 2=IFVG 3=BRK 4=SD 5=OTE 6=CISD 7=LIQ", group="Detector",
+     minval=0, maxval=7)
 atr_len       = input.int(14,    "atr_period",         group="Detector")
 min_gap_atr   = input.float(0.0, "min_gap_atr",        group="Detector", step=0.05)
 gate_ceiling  = input.float(0.25,"gate ceiling (ATR)", group="Detector", step=0.05)
@@ -54,6 +54,13 @@ min_body      = input.float(0.3, "min_body_ratio",     group="Detector", step=0.
 // knob-nya tidak ditawarkan alih-alih ditawarkan dengan diam-diam salah.
 cz_run        = input.int(2,     "min_run",            group="CISD", minval=1)
 cz_floor      = input.float(0.0, "run_min_atr",        group="CISD", step=0.1)
+
+// KNOB LIKUIDITAS BSL/SSL. Cermin `LiquidityPoolParams`. `equal_tol_atr`
+// MENGELOMPOKKAN dan tidak menggambar: tepi kotak diambil dari sebaran pivot
+// yang teramati, jadi tidak ada konstanta yang masuk ke geometri.
+lq_n          = input.int(3,     "swing_n (liq)",      group="Liquidity", minval=2)
+lq_tol        = input.float(0.1, "equal_tol_atr",      group="Liquidity", step=0.05)
+lq_touch      = input.int(2,     "min_touches",        group="Liquidity", minval=2)
 
 // KNOB OPTIMAL TRADE ENTRY. Cermin `OteParams`. Pitanya 0,618-0,786 dan kedua
 // rasio itu TIDAK jadi input: mereka diambil dari `fibonacci-primitive.ts`,
@@ -92,6 +99,19 @@ reward_r      = input.float(1.0, "reward (R), mode 0",  group="Trade", step=0.5)
 stop_buf_atr  = input.float(1.0, "stop buffer ATR",    group="Trade", step=0.05)
 horizon       = input.int(80,    "horizon bars",       group="Trade")
 risk_usd      = input.float(1000,"risk per trade USD", group="Trade")
+
+// DIDEKLARASIKAN DI SINI, BUKAN DI DEKAT `qsize`, karena Pine menuntut
+// deklarasi mendahului pemakaian dan loop closedtrades yang menghitung R ada
+// jauh di atas fungsi itu. Versi pertama menaruhnya di bawah dan gagal
+// kompilasi dengan dua "Undeclared identifier" - gagal keras, bukan diam-diam
+// memakai nilai lain.
+pv_of() =>
+    na(syminfo.pointvalue) or syminfo.pointvalue <= 0 ? 1.0 : syminfo.pointvalue
+
+//: Risiko dalam satuan uang instrumen. Untuk spot ia sama dengan `risk_usd`;
+//: untuk futures ia dikali pointvalue supaya `qsize` mengembalikan kuantitas
+//: yang tidak dibulatkan hilang. Lihat catatan panjang di `qsize`.
+risk_eff = risk_usd * pv_of()
 max_pending   = input.int(80,    "max pending zones",  group="Trade")
 // Terukur 7 September 2026: 30 memberi PF 1,079, 300 memberi 1,091, dan 1000
 // memberi angka yang IDENTIK dengan 300, jadi batas ini sudah jenuh.
@@ -256,11 +276,11 @@ if strategy.closedtrades > seen
         // kontrak kali pointvalue. Tanpa itu biaya futures 100 kali terlalu
         // kecil, dan pada COMEX GC baris biaya membaca 0,0001 R padahal XAU
         // spot di sel yang sebanding membaca 0,015 R.
-        pvc = na(syminfo.pointvalue) or syminfo.pointvalue <= 0 ? 1.0 : syminfo.pointvalue
+        pvc = pv_of()
         notional = strategy.closedtrades.entry_price(i) * math.abs(strategy.closedtrades.size(i)) * pvc
         fee = 2.0 * notional * cost_pct / 100.0
         sum_fee += fee
-        r = (strategy.closedtrades.profit(i) - fee) / risk_usd
+        r = (strategy.closedtrades.profit(i) - fee) / risk_eff
         n_tr += 1
         if r > 0
             n_win += 1
@@ -284,9 +304,38 @@ if strategy.closedtrades > seen
 // dengan faktor pointvalue. Seluruh angka XAUUSD dan BTCUSD sebelumnya TIDAK
 // terpengaruh - keduanya pointvalue 1 - jadi ini tidak mencabut apa pun yang
 // sudah diukur, ia membuka instrumen yang sebelumnya tidak bisa dipakai.
+// CACAT KEDUA DI FUNGSI YANG SAMA, ditemukan 8 September 2026, dan ia LEBIH
+// buruk daripada yang pertama karena ia tidak menggeser angka melainkan
+// MEMILIH sampelnya.
+//
+// Perbaikan pointvalue di atas membuat qty benar dalam kontrak, dan justru itu
+// yang membuka cacatnya: pada GC, `risk_usd / (risk * 100)` dengan default
+// risk_usd 1000 memberi `10 / risk`, jadi setiap stop yang lebih lebar dari 10
+// dolar memberi kurang dari SATU kontrak. TradingView membulatkan kuantitas
+// pecahan ke bawah, jadi order-order itu tidak pernah jadi posisi - sementara
+// penghitung `fill` di berkas ini tetap menghitungnya.
+//
+// Akibatnya bukan angka yang meleset, melainkan populasi yang tersaring diam
+// diam ke arah STOP RAPAT. Terukur di COMEX:GC1! harian, detektor FVG:
+//
+//     risk_usd 1.000    fill 537, n 132 (25%), PF 1,167
+//     risk_usd 100.000  fill 537, n 496 (92%), PF 0,923
+//
+// Angka di atas satu itu dihitung atas seperempat sampelnya sendiri, dan
+// seperempat yang dipilih oleh lebar stop. SETIAP angka futures di repo ini
+// yang lebih tua dari baris ini membawa saringan itu - termasuk stress test
+// S&D di COMEX. Angka XAUUSD dan BTCUSD spot TIDAK terpengaruh: pointvalue 1
+// di sana, jadi qty = risk_usd / risk sudah jauh di atas 1 dan tidak pernah
+// dibulatkan hilang.
+//
+// PERBAIKANNYA MENSKALAKAN RISIKO, BUKAN KUANTITAS, dan `risk_eff` dipakai di
+// KETIGA tempat yang menyentuh satuan R. Itu bukan kerapian: menaikkan qty
+// tanpa menaikkan pembagi R akan menghidupkan kembali cacat pointvalue yang
+// baru saja diperbaiki di atas, karena profit satu R ikut membesar pv kali.
+// Karena pembilang dan pembagi bergerak bersama, tidak satu pun angka spot
+// bergerak - diperiksa: biaya per trade 0,0022 R sebelum, 0,0023 R sesudah.
 qsize(float risk_price) =>
-    pv = na(syminfo.pointvalue) or syminfo.pointvalue <= 0 ? 1.0 : syminfo.pointvalue
-    risk_usd / (risk_price * pv)
+    risk_eff / (risk_price * pv_of())
 
 // ---- KANDIDAT FAIR VALUE GAP ----
 f_scale  = atr_v[3]
@@ -407,6 +456,7 @@ sdDrop(int k) =>
 isSD = detector == 4
 isOTE = detector == 5
 isCZ = detector == 6
+isLQ = detector == 7
 
 // ---- OPTIMAL TRADE ENTRY, detektor 5 --------------------------------------
 //
@@ -562,6 +612,179 @@ if isCZ
         y_dep := math.round((y_top - y_bot) / y_scale * 1000) / 1000
         y_ok  := y_dep >= cz_floor
 
+// ---- LIKUIDITAS BSL/SSL SEBAGAI KOTAK, detektor 7 -------------------------
+//
+// Cermin `detect/liquidity_pool.py`. Tiga hal yang harus dibaca sebelum
+// angkanya dipakai:
+//
+// 1. PIVOTNYA DITULIS TANGAN, BUKAN `ta.pivothigh`. Aturan seri di
+//    `structure.swings` adalah maksimum KETAT di kiri dan tidak-terlampaui di
+//    kanan; `ta.pivothigh` tidak menjanjikan aturan seri yang sama, dan satu
+//    beda seri memindahkan pivot ke bar lain sehingga seluruh kluster bergeser.
+// 2. TOLERANSI MILIK KLUSTER, dibekukan saat kluster lahir - bukan diambil dari
+//    ATR di bar pivot yang baru datang. Pita sebuah kolam adalah properti kolam.
+// 3. TIDAK ADA DEDUPE DI SINI, sama seperti enam detektor lain di berkas ini,
+//    sementara Python memanggil `_dedupe`. Jadi populasi di sini LEBIH BESAR.
+//    Itu cacat parity yang sudah diketahui dan diukur untuk cisd_zone (+44%),
+//    ote (+11%) dan supply_demand (0%); untuk layer ini angkanya belum diukur.
+//
+// SATU SLOT PER BAR. Sebuah pivot high dan pivot low bisa terkonfirmasi di bar
+// yang SAMA, dan Python memancarkan keduanya. Jalur bersama di berkas ini cuma
+// punya satu slot zona per bar, jadi BSL diperiksa lebih dulu dan SSL kalah di
+// bar itu. Itu batas harness, bukan aturan detektor, dan ia dinyatakan di sini
+// supaya selisih populasi tidak dibaca sebagai selisih deteksi.
+var float[] bAnc  = array.new_float()
+var float[] bTolA = array.new_float()
+var float[] bLo   = array.new_float()
+var float[] bHi   = array.new_float()
+var float[] bExt  = array.new_float()
+var float[] bScl  = array.new_float()
+var int[]   bLast = array.new_int()
+var int[]   bCnt  = array.new_int()
+var bool[]  bEmit = array.new_bool()
+
+var float[] sAnc  = array.new_float()
+var float[] sTolA = array.new_float()
+var float[] sLo   = array.new_float()
+var float[] sHi   = array.new_float()
+var float[] sExt  = array.new_float()
+var float[] sScl  = array.new_float()
+var int[]   sLast = array.new_int()
+var int[]   sCnt  = array.new_int()
+var bool[]  sEmit = array.new_bool()
+
+l_ok    = false
+l_bull  = false
+l_top   = 0.0
+l_bot   = 0.0
+l_scale = 0.0
+l_dep   = 0.0
+l_got   = false
+
+if isLQ and bar_index > lq_n * 2 + 2
+    // EKSTREM BERJALAN DILIPAT SATU BAR PER BAR, bukan dihitung ulang dengan
+    // loop offset variabel. Bar yang dilipat di sini berindeks
+    // `bar_index - lq_n - 1`, yang persis bar TERAKHIR di rentang Python
+    // [last + 1, pivot). Jadi saat sebuah pivot terkonfirmasi, ekstremnya sudah
+    // memuat tepat rentang itu dan tidak satu bar pun lebih.
+    fidx = bar_index - lq_n - 1
+    if array.size(bAnc) > 0
+        for i = 0 to array.size(bAnc) - 1
+            if fidx > array.get(bLast, i)
+                array.set(bExt, i, math.max(array.get(bExt, i), high[lq_n + 1]))
+    if array.size(sAnc) > 0
+        for i = 0 to array.size(sAnc) - 1
+            if fidx > array.get(sLast, i)
+                array.set(sExt, i, math.min(array.get(sExt, i), low[lq_n + 1]))
+
+    okh = true
+    okl = true
+    for k = 1 to lq_n
+        if high[lq_n] <= high[lq_n + k]
+            okh := false
+        if high[lq_n] < high[lq_n - k]
+            okh := false
+        if low[lq_n] >= low[lq_n + k]
+            okl := false
+        if low[lq_n] > low[lq_n - k]
+            okl := false
+
+    pidx = bar_index - lq_n
+    // ATR di bar SEBELUM pivot, offset TETAP - cermin `atr[origin - 1]`.
+    pscl = atr_w[lq_n + 1]
+    ptol = lq_tol * atr_w
+
+    if okh and atr_w > 0
+        // Buang kluster yang likuiditasnya sudah diambil.
+        if array.size(bAnc) > 0
+            for i = array.size(bAnc) - 1 to 0
+                if array.get(bExt, i) > array.get(bAnc, i) + array.get(bTolA, i)
+                    array.remove(bAnc, i)
+                    array.remove(bTolA, i)
+                    array.remove(bLo, i)
+                    array.remove(bHi, i)
+                    array.remove(bExt, i)
+                    array.remove(bScl, i)
+                    array.remove(bLast, i)
+                    array.remove(bCnt, i)
+                    array.remove(bEmit, i)
+        hit = -1
+        if array.size(bAnc) > 0
+            for j = 0 to array.size(bAnc) - 1
+                if hit < 0 and math.abs(high[lq_n] - array.get(bAnc, j)) <= array.get(bTolA, j)
+                    hit := j
+        if hit < 0
+            array.push(bAnc, high[lq_n])
+            array.push(bTolA, ptol)
+            array.push(bLo, high[lq_n])
+            array.push(bHi, high[lq_n])
+            array.push(bExt, -1e30)
+            array.push(bScl, pscl)
+            array.push(bLast, pidx)
+            array.push(bCnt, 1)
+            array.push(bEmit, false)
+        else
+            array.set(bCnt, hit, array.get(bCnt, hit) + 1)
+            array.set(bLo, hit, math.min(array.get(bLo, hit), high[lq_n]))
+            array.set(bHi, hit, math.max(array.get(bHi, hit), high[lq_n]))
+            array.set(bLast, hit, pidx)
+            array.set(bExt, hit, -1e30)
+            if not array.get(bEmit, hit) and array.get(bCnt, hit) >= lq_touch
+                array.set(bEmit, hit, true)
+                // BSL duduk di SUPPLY: stop beli beristirahat DI ATAS harga.
+                l_bull  := false
+                l_top   := array.get(bHi, hit)
+                l_bot   := array.get(bLo, hit)
+                l_scale := array.get(bScl, hit)
+                l_got   := true
+
+    if okl and atr_w > 0 and not l_got
+        if array.size(sAnc) > 0
+            for i = array.size(sAnc) - 1 to 0
+                if array.get(sExt, i) < array.get(sAnc, i) - array.get(sTolA, i)
+                    array.remove(sAnc, i)
+                    array.remove(sTolA, i)
+                    array.remove(sLo, i)
+                    array.remove(sHi, i)
+                    array.remove(sExt, i)
+                    array.remove(sScl, i)
+                    array.remove(sLast, i)
+                    array.remove(sCnt, i)
+                    array.remove(sEmit, i)
+        hitl = -1
+        if array.size(sAnc) > 0
+            for j = 0 to array.size(sAnc) - 1
+                if hitl < 0 and math.abs(low[lq_n] - array.get(sAnc, j)) <= array.get(sTolA, j)
+                    hitl := j
+        if hitl < 0
+            array.push(sAnc, low[lq_n])
+            array.push(sTolA, ptol)
+            array.push(sLo, low[lq_n])
+            array.push(sHi, low[lq_n])
+            array.push(sExt, 1e30)
+            array.push(sScl, pscl)
+            array.push(sLast, pidx)
+            array.push(sCnt, 1)
+            array.push(sEmit, false)
+        else
+            array.set(sCnt, hitl, array.get(sCnt, hitl) + 1)
+            array.set(sLo, hitl, math.min(array.get(sLo, hitl), low[lq_n]))
+            array.set(sHi, hitl, math.max(array.get(sHi, hitl), low[lq_n]))
+            array.set(sLast, hitl, pidx)
+            array.set(sExt, hitl, 1e30)
+            if not array.get(sEmit, hitl) and array.get(sCnt, hitl) >= lq_touch
+                array.set(sEmit, hitl, true)
+                // SSL duduk di DEMAND.
+                l_bull  := true
+                l_top   := array.get(sHi, hitl)
+                l_bot   := array.get(sLo, hitl)
+                l_scale := array.get(sScl, hitl)
+                l_got   := true
+
+    if l_got and l_top > l_bot and l_scale > 0
+        l_dep := math.round((l_top - l_bot) / l_scale * 1000) / 1000
+        l_ok  := true
+
 // ---- YANG DIPAKAI, satu jalur setelah ini ----
 //
 // 0=FVG 1=OB 2=IFVG 3=BRK. IFVG induknya FVG dan BRK induknya OB, jadi jalur
@@ -571,16 +794,16 @@ isOB      = detector == 1 or detector == 3
 // detektor tertinggi 3; begitu SD dan OTE masuk, keduanya ikut terbaca
 // sebagai mode inversi dan blok induk-pecah akan menembak untuk mereka.
 inverting = detector == 2 or detector == 3
-scale = isCZ ? y_scale : isOTE ? e_scale : isOB ? o_scale : f_scale
+scale = isLQ ? l_scale : isCZ ? y_scale : isOTE ? e_scale : isOB ? o_scale : f_scale
 // Lilin BEARISH sebelum gerakan NAIK adalah block DEMAND, jadi sisi long di
 // sini datang dari lilin turun - kebalikan dari intuisi warna lilinnya.
-bull  = isCZ ? y_bull : isOTE ? e_bull : isOB ? o_bear : f_bull
-top0  = isCZ ? y_top : isOTE ? e_top : isOB ? o_bt   : f_top0
-bot0  = isCZ ? y_bot : isOTE ? e_bot : isOB ? o_bb   : f_bot0
+bull  = isLQ ? l_bull : isCZ ? y_bull : isOTE ? e_bull : isOB ? o_bear : f_bull
+top0  = isLQ ? l_top : isCZ ? y_top : isOTE ? e_top : isOB ? o_bt   : f_top0
+bot0  = isLQ ? l_bot : isCZ ? y_bot : isOTE ? e_bot : isOB ? o_bb   : f_bot0
 // S&D punya jalur sendiri di bawah, jadi jalur bersama ini DIMATIKAN untuknya.
 // Kalau tidak, detektor 4 akan menjalankan aturan FVG sekaligus aturannya
 // sendiri dan tabelnya akan mencampur dua populasi tanpa terlihat.
-ok    = isSD ? false : isCZ ? y_ok : isOTE ? e_ok : isOB ? o_ok   : f_ok
+ok    = isSD ? false : isLQ ? l_ok : isCZ ? y_ok : isOTE ? e_ok : isOB ? o_ok   : f_ok
 
 if ok and in_win
     h    = top0 - bot0
@@ -618,13 +841,13 @@ if ok and in_win
         // itu, dan gate_measured mengembalikan False untuk BRK justru supaya
         // permukaan yang menampilkan verdict bisa menahan diri. Angka BRK di
         // bawah karena itu mengukur gerbang PINJAMAN.
-        gateVal  = isCZ ? y_dep : isOTE ? e_dep : isOB ? o_move : h / scale
+        gateVal  = isLQ ? l_dep : isCZ ? y_dep : isOTE ? e_dep : isOB ? o_move : h / scale
         fvgPass  = h >= min_gap_atr * scale and (gate_ceiling <= 0 or gateVal < gate_ceiling)
         // OTE digerbangi LANTAI pada panjang leg, bukan plafon pada tinggi
         // kotak. Doktrinnya sendiri tidak membawa gerbang apa pun - ia
         // aturan tempat masuk - jadi lantai ini padanan yang DIPILIH agar
         // sebanding dengan OB dan SD, dan itu dinyatakan di layers.py.
-        gatePass = isCZ ? gateVal >= cz_floor : isOTE ? gateVal >= ote_gate : isOB ? gateVal >= gate_floor : fvgPass
+        gatePass = isLQ ? true : isCZ ? gateVal >= cz_floor : isOTE ? gateVal >= ote_gate : isOB ? gateVal >= gate_floor : fvgPass
 
         if inverting
             // TIDAK ADA ORDER DI INDUK. Induk cuma ditunggu pecah, dan
@@ -883,8 +1106,10 @@ if barstate.islastconfirmedhistory or barstate.islast
     // berbeda terbaca kembar di baris ini - dan angka gerbangnya sendiri tidak
     // bisa membedakannya, karena yang satu plafon dan yang lain lantai.
     table.cell(t, 1, 0, syminfo.ticker + " " + timeframe.period +
-         " " + (detector == 0 ? "FVG" : detector == 1 ? "OB" : detector == 2 ? "IFVG" : detector == 3 ? "BRK" : detector == 4 ? "SD" : detector == 5 ? "OTE" : "CISD") +
-         (isCZ ? " flr" + str.tostring(cz_floor) + " r" + str.tostring(cz_run)
+         " " + (detector == 0 ? "FVG" : detector == 1 ? "OB" : detector == 2 ? "IFVG" : detector == 3 ? "BRK" : detector == 4 ? "SD" : detector == 5 ? "OTE" : (detector == 6 ? "CISD" : "LIQ")) +
+         (isLQ ? " tol" + str.tostring(lq_tol) + " n" + str.tostring(lq_n) +
+                  " t" + str.tostring(lq_touch)
+               : isCZ ? " flr" + str.tostring(cz_floor) + " r" + str.tostring(cz_run)
                : isOTE ? " legflr" + str.tostring(ote_gate) + " n" + str.tostring(ote_n)
                : isOB ? " flr" + str.tostring(gate_floor) +
                  " d" + str.tostring(disp_atr) + "/" + str.tostring(disp_bars) +
@@ -932,7 +1157,7 @@ if barstate.islastconfirmedhistory or barstate.islast
     table.cell(t, 0, 11, "PF",   bgcolor=color.new(color.gray, 80), text_size=size.small)
     table.cell(t, 1, 11, str.tostring(sum_win / math.max(sum_loss, 0.000001), "#.###"), text_size=size.small)
     table.cell(t, 0, 12, "biaya (R)", bgcolor=color.new(color.gray, 80), text_size=size.small)
-    table.cell(t, 1, 12, str.tostring(sum_fee / risk_usd / math.max(n_tr, 1), "#.####") +
+    table.cell(t, 1, 12, str.tostring(sum_fee / risk_eff / math.max(n_tr, 1), "#.####") +
          " x" + str.tostring(n_tr), text_size=size.small)
     table.cell(t, 0, 13, "exp_r / RR", bgcolor=color.new(color.gray, 80), text_size=size.small)
     table.cell(t, 1, 13, str.tostring((sum_win - sum_loss) / math.max(n_tr, 1), "#.####") +

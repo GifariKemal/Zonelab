@@ -24,6 +24,7 @@ from .params import (
     ImbalanceParams,
     OteParams,
     CisdZoneParams,
+    LiquidityPoolParams,
     LiquidityParams,
     NewsParams,
     PoolParams,
@@ -170,6 +171,16 @@ class DrawRequest(BaseModel):
             "Detektor cisd_zone meneruskan min_run dan interrupt_tolerance ke "
             "`app.cisd.cisds` yang SAMA yang dipakai overlay, jadi kotak dan "
             "garis tidak bisa berselisih soal apa itu CISD."
+        ),
+    )
+    liquidity_pool: LiquidityPoolParams = Field(
+        default_factory=LiquidityPoolParams,
+        description=(
+            "Detektor liquidity_pool memancarkan DUA kind, BSL dan SSL, dari "
+            "satu blok knob - sama seperti supply_demand memancarkan empat. "
+            "Jangan samakan dengan BSL/SSL di app/liquidity.py: yang itu "
+            "ekstrem periode sebagai GARIS, yang ini kluster equal highs dan "
+            "equal lows sebagai kotak, dan keduanya populasi berbeda."
         ),
     )
     ote: OteParams = Field(

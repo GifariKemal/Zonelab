@@ -60,6 +60,16 @@ FORMATIONS: dict[ZoneKind, tuple[str, str]] = {
         "Optimal trade entry",
         "pita 0,618-0,786 dari satu leg struktur - tempat masuk, bukan alasan masuk",
     ),
+    # SISINYA TERBALIK DARI NAMANYA dan kalimat ini yang dibaca trader, jadi
+    # ia mengatakannya: BSL likuiditas BELI yang beristirahat DI ATAS harga.
+    ZoneKind.BSL: (
+        "Buy-side liquidity",
+        "kluster equal highs - stop beli beristirahat DI ATAS, jadi harga naik menuju ke sana",
+    ),
+    ZoneKind.SSL: (
+        "Sell-side liquidity",
+        "kluster equal lows - stop jual beristirahat DI BAWAH, jadi harga turun menuju ke sana",
+    ),
 }
 
 

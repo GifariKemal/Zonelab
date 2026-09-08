@@ -231,6 +231,58 @@ class CisdZoneParams(ParamBlock):
     merge_overlap_pct: float = Field(default=0.6, ge=0.0, le=1.0)
 
 
+class LiquidityPoolParams(ParamBlock):
+    """Knob detektor `liquidity_pool`, yang memancarkan kotak BSL dan SSL.
+
+    BSL/SSL SUDAH ADA DI REPO INI SEBAGAI LEVEL, dan itu harus dibaca sebelum
+    knob mana pun di sini disentuh. `app/liquidity.py` membawa `PeriodLevel`
+    dengan `side: Literal["BSL","SSL"]` untuk PDH/PDL/PWH/PWL/FRI/MON, plus ERL
+    dan IRL dari dealing range. Semua itu GARIS, dan tak satu pun diukur
+    terhadap outcome. Detektor ini pertanyaan yang BERBEDA: bukan "di mana
+    ekstrem periode kemarin" melainkan "di mana beberapa pivot sepakat harga",
+    yaitu kluster equal highs / equal lows. Dua konstruk, dua populasi; jangan
+    mengutip pengukuran yang satu untuk yang lain.
+
+    TOLERANSI MENGELOMPOKKAN, IA TIDAK MENGGAMBAR. Ini pemisahan yang disengaja
+    dan ia yang menjaga jumlah konstanta tetap: `equal_tol_atr` hanya memutuskan
+    pivot mana yang masuk satu kluster, sementara tepi kotaknya diambil dari
+    sebaran pivot yang TERAMATI di dalam kluster itu. Alternatifnya - kotak
+    selebar toleransi, diangkur di pivot terekstrem, yang dipakai beberapa
+    script publik - ditolak karena ia memindahkan sebuah konstanta ke dalam
+    geometri, dan tinggi kotak adalah jarak stop. Konsekuensinya kluster yang
+    seluruh pivotnya berharga PERSIS sama memberi kotak setinggi nol; itu
+    ditolak dan dihitung di `rejected_zero_height`, bukan ditambal dengan lantai
+    karangan. Terukur nol dari 100 bar XAUUSD harian, jadi ia kasus tepi nyata
+    tapi jarang di feed ini.
+    """
+
+    atr_period: int = Field(default=14, ge=2, le=200)
+
+    #: Lebar fraktal pivot, diteruskan ke `structure.swings` sebagai left DAN
+    #: right. Sama dengan `OteParams.swing_n`, dan sengaja knob terpisah: kedua
+    #: detektor boleh membaca struktur pada derajat yang berbeda.
+    swing_n: int = Field(default=3, ge=2, le=50)
+
+    #: Seberapa dekat dua pivot boleh berbeda dan masih disebut "sama", dalam
+    #: ATR. DIPILIH, bukan diukur, dan itu dinyatakan: 0,1 ATR adalah tebakan
+    #: awal yang disapu di TradingView, bukan angka yang punya sumber.
+    equal_tol_atr: float = Field(default=0.1, ge=0.0, le=5.0)
+
+    #: Berapa pivot yang harus sepakat sebelum kluster jadi kolam. Dua adalah
+    #: definisi minimum "equal highs"; menaikkannya menuntut kolam yang lebih
+    #: sering disentuh dan memangkas populasi dengan cepat.
+    min_touches: int = Field(default=2, ge=2, le=10)
+
+    mitigation_pct: float = Field(default=0.5, ge=0.0, le=1.0)
+    arrival_bars: int = Field(default=6, ge=1, le=50)
+    show_broken: bool = False
+    show_mitigated: bool = True
+    max_zones_per_side: int = Field(default=6, ge=0, le=100)
+
+    #: Kolam bertumpuk saat satu pivot masuk dua kluster yang berdekatan.
+    merge_overlap_pct: float = Field(default=0.6, ge=0.0, le=1.0)
+
+
 class OteParams(ParamBlock):
     """Knob detektor `ote`: pita retracement di atas satu leg struktur.
 

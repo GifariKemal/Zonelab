@@ -31,7 +31,8 @@ registered as drawings, not as signals; see `inversion.py`.
 
 from __future__ import annotations
 
-from . import cisd_zone, imbalance, inversion, ote, supply_demand
+from . import (cisd_zone, imbalance, inversion, liquidity_pool, ote,
+               supply_demand)
 
 DETECTORS = {
     "supply_demand": supply_demand.detect,
@@ -43,6 +44,7 @@ DETECTORS = {
     # bukan dict ini - tapi dibiarkan sejajar supaya keduanya terbaca sama.
     "ote": ote.detect,
     "cisd_zone": cisd_zone.detect,
+    "liquidity_pool": liquidity_pool.detect,
 }
 
 # Which parameter block each detector reads lives in `app/layers.py`, on the
@@ -56,4 +58,5 @@ DETECTORS = {
 # populations drift apart. That reasoning now lives beside the entries it
 # governs.
 
-__all__ = ["DETECTORS", "cisd_zone", "imbalance", "inversion", "ote", "supply_demand"]
+__all__ = ["DETECTORS", "cisd_zone", "imbalance", "inversion",
+           "liquidity_pool", "ote", "supply_demand"]

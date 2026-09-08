@@ -67,6 +67,19 @@ class ZoneKind(StrEnum):
     # loop yang sudah mengunjungi tiap lilin conforming - lihat cisd.py.
     CISD = "CISD"  # Change in state of delivery: level ditembus sampai ekstrem run
 
+    # Kluster pivot yang sepakat harga: tempat stop beristirahat. BSL di atas
+    # (equal highs, buy stop), SSL di bawah (equal lows, sell stop). Ia sudah
+    # ada di repo ini sebagai LEVEL - `liquidity.PeriodLevel` membawa
+    # `side: Literal["BSL","SSL"]` untuk PDH/PDL/PWH/PWL - dan yang baru di sini
+    # kotaknya, dibangun dari sebaran pivot yang TERAMATI, bukan dari toleransi.
+    #
+    # SISINYA TERBALIK DARI INTUISI NAMANYA, dan itu benar. BSL adalah likuiditas
+    # BELI yang beristirahat di atas harga, jadi harga naik MENUJU-nya dan ia
+    # duduk di sisi SUPPLY dari peta ini; SSL cerminnya. Menamainya "buy side"
+    # lalu menaruhnya di sisi demand akan membuat setiap pembaca salah baca.
+    BSL = "BSL"  # Buy-side liquidity: kluster equal highs
+    SSL = "SSL"  # Sell-side liquidity: kluster equal lows
+
 
 
 class ZoneSide(StrEnum):

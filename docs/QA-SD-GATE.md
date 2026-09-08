@@ -770,3 +770,38 @@ batang hijau tinggi yang memulai rally di posisi x itu, membentang dari sekitar
 
 
 Copyright 2026 PT Surya Inovasi Prioritas (SURIOTA).
+
+
+## CACAT SIZING KETIGA, 8 September 2026, dan ia MENCABUT setiap angka COMEX di atas
+
+Bagian COMEX di halaman ini diukur di atas seperempat sampelnya sendiri, dan
+seperempat itu dipilih oleh lebar stop.
+
+Perbaikan `pointvalue` yang dicatat di bawah membuat qty benar dalam KONTRAK, dan
+justru itu yang membuka cacat berikutnya. `risk_usd / (risk * pv)` dengan default
+`risk_usd` 1.000 dan pv 100 memberi `10 / risk`: setiap stop yang lebih lebar
+dari 10 dolar meminta kurang dari SATU kontrak, TradingView membulatkannya ke
+bawah, dan order itu tidak pernah jadi posisi - sementara penghitung `fill` di
+script tetap menghitungnya.
+
+Terukur dengan kontrol di simbol yang sama, detektor FVG di GC1! harian:
+
+| risk_usd | fill | n | porsi | PF |
+|---|---|---|---|---|
+| 1.000 (default) | 537 | 132 | 25% | 1,167 |
+| 100.000 | 537 | 496 | 92% | **0,923** |
+
+Angka di atas satu itu jatuh ke bawah satu begitu populasinya utuh. Jadi angka
+COMEX mana pun di halaman ini - termasuk baseline PF 0,797 dan stress test 3 dari
+8 - dihitung pada populasi yang tersaring, dan harus diukur ulang sebelum dikutip
+lagi.
+
+Angka XAUUSD dan BTCUSD spot TIDAK terpengaruh: pointvalue 1 di sana, jadi
+`qty = risk_usd / risk` sudah jauh di atas satu dan tidak pernah dibulatkan
+hilang. Diperiksa, bukan diasumsikan: regresi spot sesudah perbaikan terbaca
+identik sampai digit terakhir, n=598, PF 1,113, biaya 0,015 R.
+
+Diperbaiki di `qsize` lewat `risk_eff = risk_usd * pointvalue`, dipakai di KETIGA
+tempat yang menyentuh satuan R - `qsize`, R per trade, dan baris biaya. Ketiganya
+harus ikut: menaikkan qty tanpa menaikkan pembagi R menghidupkan kembali cacat
+pointvalue yang diperbaiki tepat sebelumnya. Detailnya di `docs/CALIBRATION.md`.

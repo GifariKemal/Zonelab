@@ -3100,3 +3100,252 @@ hasilnya berbalik. Bukan begitu: 2.051 trade di lengan ber-CISD sudah tidak ada
 di populasinya sama sekali. Angka +0,0244 dan -0,1127 tidak diukur pada kohort
 yang sama, jadi keduanya tidak boleh dibandingkan langsung, dan kalimat itu
 diperbaiki di tempat ia ter-ship.
+
+
+## BSL dan SSL sebagai kotak, detektor kedelapan, 8 September 2026
+
+Diminta dengan alur yang sama seperti enam detektor sebelumnya. Bagian ini
+mencatat yang sudah terukur; sel TradingView dan benchmark publik menyusul di
+bagian berikutnya begitu Pine detektor 7 terpasang.
+
+### Konstruknya sudah ada di repo ini, dan itu harus dibaca lebih dulu
+
+`app/liquidity.py` SUDAH memancarkan `side: BSL/SSL`, untuk ekstrem periode
+(PDH, PDL, PWH, PWL, FRI, MON) dan untuk dua sisi dealing range. Semuanya GARIS,
+dan modul itu menyatakan sendiri bahwa tidak ada isinya yang pernah diukur
+terhadap outcome.
+
+Detektor baru ini pertanyaan yang BERBEDA: bukan "di mana ekstrem periode
+kemarin" melainkan "di mana beberapa pivot sepakat harga", yaitu kluster equal
+highs dan equal lows. Dua konstruk, dua populasi. Mengutip pengukuran salah
+satunya untuk yang lain akan salah.
+
+### Empat keputusan desain, dan alasan masing-masing
+
+**Sisinya terbalik dari namanya, dan itu benar.** BSL adalah likuiditas BELI
+yang beristirahat DI ATAS harga, jadi harga naik menuju kolam itu dan kotaknya
+duduk di sisi SUPPLY. SSL cerminnya, di DEMAND. Menamai sesuatu "buy side" lalu
+memfilekannya di demand akan membuat tiap pembaca salah baca arah.
+
+**Toleransi mengelompokkan, ia tidak menggambar.** Tepi kotak diambil dari
+sebaran pivot yang TERAMATI, bukan dari `equal_tol_atr`. Beberapa script publik
+menggambar pita selebar toleransi yang diangkur di pivot terekstrem; itu ditolak
+karena memindahkan sebuah konstanta ke dalam GEOMETRI, dan tinggi kotak adalah
+jarak stop. Harganya satu kasus tepi nyata: kluster yang pivotnya persis sama
+memberi tinggi nol. Ia ditolak dan dihitung, bukan ditambal dengan lantai
+karangan - dan ia BUKAN hipotetis, muncul 1 kali di XAUUSD 1 jam dan 1 kali di
+BTCUSD 1 jam.
+
+**Kolam mati saat likuiditasnya diambil**, bukan setelah sekian bar. Sebuah
+kolam berhenti jadi kolam ketika harga menembusnya. Aturan matinya karena itu
+datang dari konstruknya sendiri dan tidak menambah konstanta, dan ia yang
+mencegah kluster 2005 menangkap pivot 2026.
+
+**Anchor kluster tetap di anggota pertama, bukan rata-rata berjalan.** Dengan
+rata-rata berjalan, sepuluh pivot yang masing-masing berjarak 0,09 ATR dari
+tetangganya masuk satu kluster yang membentang 0,9 ATR, dan tidak satu pun
+pasangan di ujungnya "sama".
+
+### Dua cacat saya sendiri, keduanya gagal keras
+
+**Versi pertama memberi NOL kandidat.** Ia cuma membandingkan pivot baru dengan
+kluster yang PERSIS sebelumnya, jadi dua equal high yang dipisahkan satu lower
+high tidak pernah bertemu - dan equal highs justru hampir selalu begitu.
+
+**Toleransi awalnya milik pivot yang baru datang, bukan milik kluster.** Itu
+berarti pita sebuah kolam ikut bergerak setiap kali ada pivot baru di mana pun
+di deret. Pita adalah properti kolam, jadi ia dibekukan saat kluster lahir.
+Diperbaiki sebelum ada satu angka pun diukur, jadi tidak ada yang dibatalkan.
+
+### Populasi lawan toleransi, dan ia TIDAK monoton
+
+`max_zones_per_side=0`, `show_broken=True`, riwayat penuh MT5.
+
+| tol (ATR) | XAU 1d | XAU 1h | BTC 1h |
+|---|---|---|---|
+| 0,10 | 49 | 568 | 867 |
+| 0,25 | 99 | 998 | 1.322 |
+| 0,50 | **116** | **1.002** | 1.181 |
+| 1,00 | 112 | 712 | 745 |
+| 2,00 | 80 | 434 | 409 |
+
+Puncaknya di tengah dan turun di kedua ujung, karena toleransi lebar MENGGABUNG
+kluster secepat ia membuatnya. Terbaca langsung di `clusters_grown`, yaitu pivot
+yang bergabung ke kolam yang kotaknya sudah lahir: di XAU 1 jam ia naik dari 57
+di 0,10 ke 4.390 di 2,00. Populasi yang tersembunyi itu dihitung, bukan
+ditebak - konsekuensi aturan satu-kotak-per-kluster.
+
+**BSL dan SSL keluar seimbang di setiap sel** (XAU 1d 0,25 ATR: 48 lawan 51).
+Itu hal pertama yang akan pecah kalau pemetaan sisinya salah.
+
+### Default yang di-ship itu SEPI, dan itu dinyatakan
+
+`equal_tol_atr = 0.1` adalah tebakan yang dinyatakan, bukan angka bersumber, dan
+ia memberi **NOL kolam di 100 bar XAUUSD harian** - pasangan swing high terdekat
+di sampel itu berjarak 0,367 ATR, sementara toleransinya 0,1. Emas harian
+ber-ATR sekitar 100 USD, jadi dua pivot dalam 10 USD memang jarang. Di seluruh
+3.128 bar harian ia memberi 49 kolam.
+
+### Belum ada satu pun pengukuran outcome
+
+Tidak ada backtest, placebo, hold-out, atau walk-forward untuk kotak ini.
+Gerbangnya 0,0 dan kedua kind masuk `GATE_UNMEASURED_KINDS`, karena tinggi kotak
+di sini adalah sebaran yang kebetulan teramati di dalam toleransi - menggerbangi
+ia berarti menggerbangi `equal_tol_atr` lewat pintu belakang, dua knob untuk
+satu keputusan dan yang satu diam-diam. Kalau ada yang layak digerbangi, itu
+`min_touches`, dan itu knob tersendiri.
+
+### Pine detektor 7, dan sebuah cacat futures yang lebih besar dari layernya
+
+Pine detektor 7 ditulis sebagai cermin baris-per-baris, dengan tiga hal yang
+dinyatakan di kepalanya: pivotnya ditulis tangan (bukan `ta.pivothigh`, yang
+tidak menjanjikan aturan seri yang sama dengan `structure.swings`), toleransinya
+milik kluster, dan tidak ada dedupe. Regresi detektor 0 lolos identik sesudah
+push: n=598, PF 1,113, cand 1.479, gate 610.
+
+#### Sapuan XAUUSD harian, dan `min_touches` yang menggerakkan hasil
+
+Evidence layer ini ditulis SEBELUM diukur dan menebak bahwa kalau ada yang layak
+digerbangi, itu `min_touches`. Tebakan itu benar.
+
+| tol (ATR) | t2 | t3 | t4 |
+|---|---|---|---|
+| 0,10 | 0,781 (n=91) | | |
+| 0,25 | 0,852 (n=189) | | |
+| 0,50 | 0,841 (n=280) | **1,170** (n=108) | **1,186** (n=47) |
+| 1,00 | 0,884 (n=276) | **1,193** (n=163) | |
+| 2,00 | 0,893 (n=180) | 0,889 (n=150) | |
+
+Toleransi sendiri hampir tidak menggerakkan apa pun di t2 - semuanya 0,78 sampai
+0,89. Yang membuka pintu ke atas satu adalah menuntut sentuhan ketiga.
+
+Ciri yang konsisten di seluruh sel: **win rate 25-43 persen dengan RR 2,8 sampai
+10,9**. Kotak BSL/SSL sangat tipis, jadi jarak stopnya kecil, jadi R kecil dan
+target zona lawan berjarak banyak R. Detektor ini secara struktural adalah
+lottery-ticket, bukan grinder.
+
+#### Placebo membunuh dua dari tiga, hold-out membunuh sisanya
+
+| arm | nyata | placebo | putusan |
+|---|---|---|---|
+| tol 1,0 t3 | 1,193 | **1,223** | kontrol MENANG, mati |
+| tol 0,5 t3 | 1,170 | 0,990 | lolos, +0,180 |
+| tol 0,5 t4 | 1,186 | 0,852 | lolos, +0,334 |
+
+Lalu seleksi di paruh pertama, jendela diverifikasi di baris `win`:
+
+| arm | IS 2000-2013 | OOS 2013-2026 |
+|---|---|---|
+| tol 0,5 t3 | **1,783** (n=52) | **0,657** (n=56) |
+| tol 0,5 t4 | - | **0,885** (n=26) |
+
+PF 1,170 di sampel penuh itu seluruhnya milik paruh pertama, dan luar sampelnya
+0,657 - jatuh paling keras dari semua detektor yang pernah diuji di rig ini.
+**Tidak ada arm BSL/SSL yang bisa dipilih**, sama seperti CISD dan MSS.
+
+#### COMEX, dan di sinilah cacatnya ketahuan
+
+| GC1! 1d | n | win% | PF |
+|---|---|---|---|
+| tol 0,5 t2 | 230 | 30,43 | 0,810 |
+| tol 0,5 t3 | 96 | 34,38 | 1,016 |
+| tol 0,5 t3 placebo | 99 | 31,31 | **1,031** |
+
+Kontrol menang lagi. Tapi angka pertama yang saya baca di COMEX berbunyi PF
+1,223 dengan **fill 253 lawan n 57**, dan selisih itu yang membuka semuanya.
+
+### CACAT SIZING FUTURES, dan ia mencabut setiap angka COMEX di repo ini
+
+Diperiksa dengan kontrol di simbol yang sama: detektor FVG di GC1! juga
+menunjukkan fill 537 lawan n 132. Jadi ini bukan sifat layer baru, ini sifat
+instrumennya.
+
+Sebabnya di `qsize`. Perbaikan pointvalue 8 September membuat qty benar dalam
+kontrak, dan justru itu yang membuka cacat berikutnya: `risk_usd / (risk * pv)`
+dengan default risk_usd 1.000 dan pv 100 memberi `10 / risk`, jadi setiap stop
+yang lebih lebar dari 10 dolar meminta KURANG DARI SATU kontrak. TradingView
+membulatkannya ke bawah, order itu tidak pernah jadi posisi, dan penghitung
+`fill` di script ini tetap menghitungnya.
+
+Yang hilang bukan angkanya, melainkan populasinya - dan ia tersaring ke arah
+**stop rapat**. Diukur langsung, FVG di GC1! harian:
+
+| risk_usd | fill | n | porsi | PF |
+|---|---|---|---|---|
+| 1.000 (default) | 537 | 132 | 25% | **1,167** |
+| 100.000 | 537 | 496 | 92% | **0,923** |
+
+Angka di atas satu itu dihitung atas seperempat sampelnya sendiri, dan
+seperempat yang dipilih oleh lebar stop. Dengan populasi penuh ia di BAWAH satu.
+
+**Konsekuensinya lebih luas dari layer ini.** Setiap angka futures di repo yang
+lebih tua dari 8 September membawa saringan yang sama, termasuk stress test S&D
+di COMEX yang tercatat 3 dari 8. Angka XAUUSD dan BTCUSD spot TIDAK terpengaruh:
+pointvalue 1 di sana, jadi qty = risk_usd / risk sudah jauh di atas satu dan
+tidak pernah dibulatkan hilang.
+
+**Diperbaiki di sumbernya.** `risk_eff = risk_usd * pointvalue` dipakai di KETIGA
+tempat yang menyentuh satuan R - `qsize`, R per trade, dan baris biaya. Ketiganya
+harus ikut: menaikkan qty tanpa menaikkan pembagi R akan menghidupkan kembali
+cacat pointvalue yang baru diperbaiki, karena profit satu R ikut membesar pv
+kali. Diverifikasi dua arah: GC1! di default sekarang memberi n=496 dan PF 0,923
+(sebelumnya 132 dan 1,167), sementara XAUUSD spot **tidak bergerak satu digit
+pun** - n=598, PF 1,113, biaya 0,015 R, identik.
+
+### Benchmark lawan `Buyside & Sellside Liquidity [LuxAlgo]`
+
+Dibaca lewat `data_get_pine_boxes` di feed yang sama, XAUUSD harian. Dua selisih
+konstruk, dan keduanya persis pilihan yang saya nyatakan sebelum mengukur:
+
+**Empat dari sepuluh kotaknya bertinggi NOL** (4023,49 / 3886,28 / 3435,07 /
+2721,28). Itu level murni yang digambar sebagai kotak degenerate. Detektor ini
+menolak tinggi nol dan menghitungnya, karena tinggi kotak adalah jarak stop dan
+kotak tanpa tinggi bukan kotak.
+
+**Pitanya sekitar dua kali lebih tinggi.** Tinggi non-degenerate mereka 138,77 /
+157,09 / 64,54 / 64,17 / 54,75 / 40,87; kotak kita di instrumen yang sama 47,27 /
+37,11 / 28,24 / 17,11. Median mereka sekitar 64, kita sekitar 33. Sebabnya
+struktural: mereka menggambar pita selebar toleransi yang simetris di sekitar
+level (setengah-lebarnya 69,4 dan 78,5 di dua kotak teratas, jadi ia ATR pada
+saat pembentukan), kita menggambar sebaran pivot yang teramati. Untuk trader itu
+berarti stop mereka dua kali lebih lebar untuk konstruk yang sama.
+
+### Parity Python lawan Pine, dan ia BUKAN satu angka
+
+Karena Pine tidak punya dedupe, populasi Pine PERSIS sama dengan
+`merge_overlap_pct = 1.0` di Python - jadi paparannya bisa diukur tanpa
+menjalankan Pine sama sekali. Riwayat penuh MT5:
+
+| sel | tol 0,10 | tol 0,25 | tol 0,50 |
+|---|---|---|---|
+| XAUUSD 1d | +2,0% | +7,1% | +16,4% |
+| XAUUSD 1h | +4,6% | +24,6% | +65,2% |
+| BTCUSD 1h | +9,7% | +42,1% | **+103,6%** |
+
+Ini satu-satunya dari empat detektor ber-dedupe yang paparannya fungsi dari
+sebuah knob. Di default yang di-ship selisihnya kecil; di toleransi 0,5 populasi
+Pine bisa DUA KALI populasi Zonelab. Jadi angka TradingView untuk layer ini
+hanya sebanding dengan Zonelab pada toleransi yang sama DAN sempit - dan sapuan
+di atas dijalankan di 0,5, tempat selisihnya 16,4 persen di sel yang dipakai.
+
+Geometrinya sendiri diperiksa di satu feed: pada 100 bar TradingView harian,
+dedupe tidak membuang apa pun di tol 0,25 / 0,5 / 1,0 (4 kandidat, 4 zona di
+0,5), jadi di jendela itu Zonelab dan Pine identik kotak per kotak.
+
+### Autodrawing: 7 dari 7, dan ini yang terbersih dari layer mana pun
+
+`e2e/pixel-truth.mjs liquidity_pool`, 6 zona di 15 menit:
+
+| pemeriksaan | hasil |
+|---|---|
+| zona ditemukan di canvas | 6/6 |
+| berdiri sendiri dan cukup tinggi | 6/6, nol bertumpuk, nol di bawah 14px |
+| tepi terbaca | atas 6/6, bawah 6/6 |
+| tepi ATAS di tempat skala harga menaruhnya | terburuk **0,4px** |
+| tepi BAWAH | terburuk **0,4px** |
+| kotak menutupi bar asalnya | terburuk 0,01 bar |
+| tepi kiri terbaca | 6/6 |
+
+Nol penumpukan, berbeda dari IFVG yang merah karena kotak terbaliknya
+berdesakan. Kolam likuiditas tersebar di harga yang berbeda-beda menurut
+definisinya, jadi masalah legibilitas IFVG tidak muncul di sini.
