@@ -317,12 +317,12 @@ await page.evaluate(() => {
  *  sama-sama menggambar ray horizontal saling menimpa, dan ray yang tertimpa
  *  terbaca sebagai gambar yang hilang.
  */
-const pass = async (layer, pick) => {
+const pass = async (layer, pick, extra = {}, layers = null) => {
   await (await layerSwitch(layer)).click();
   await page.waitForTimeout(5000);
 
   const drawn = await page.evaluate(
-    async ([api, interval, bars, id]) => {
+    async ([api, interval, bars, id, more, ids]) => {
       const r = await fetch(`${api}/api/draw`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -330,12 +330,13 @@ const pass = async (layer, pick) => {
           symbol: "XAUUSD",
           interval,
           bars,
-          layers: [id],
+          layers: ids ?? [id],
+          ...more,
         }),
       });
       return r.json();
     },
-    [API, INTERVAL, BARS, layer],
+    [API, INTERVAL, BARS, layer, extra, layers],
   );
 
   const wanted = pick(drawn.drawing);
@@ -397,6 +398,33 @@ const poolsPass = await pass("pools", (d) =>
     taken: p.taken_at !== null,
     expect: "solid",
   })),
+);
+
+// PSP TIDAK MENGGAMBAR APA PUN DENGAN SETELAN DEFAULT, dan itu bukan cacat
+// melainkan konfigurasi: `ssmt_symbols` dan `ssmt_degrees` kosong di
+// `DrawRequest`, jadi loop yang memancarkan PSP tidak pernah berjalan. Terukur
+// 8 September 2026 - `layers:["psp"]` sendirian mengembalikan NOL baris, dan
+// dengan keranjang partner diisi ia mengembalikan 11. Sampai pass ini ada,
+// akurasi gambar PSP tidak pernah dibaca balik satu piksel pun, sementara
+// `wiring.mjs` dan `ink-budget.mjs` melaporkan hijau karena keduanya menguji
+// pipa dan tinta, bukan geometri.
+//
+// `psp` menumpang fetch SSMT di `app/main.py`, jadi kedua layer diminta
+// bersama - meminta psp sendirian akan menguji jalur yang tidak pernah
+// menggambar.
+const pspPass = await pass(
+  "psp",
+  (d) =>
+    (d.psp ?? []).map((e) => ({
+      tag: `PSP ${e.direction}${e.triad_crack ? " crack" : ""}`,
+      price: e.level,
+      taken: false,
+      expect: "solid",
+    })),
+  {
+    checklist: { ssmt_symbols: ["XAGUSD", "XPTUSD"], ssmt_degrees: ["day"] },
+  },
+  ["psp", "ssmt"],
 );
 
 const levelsPass = await pass("liquidity", (d) =>
@@ -562,7 +590,7 @@ check(
       `atas ${mssMeasured.length} garis MSS`,
 );
 
-const all = [...poolsPass.rows, ...levelsPass.rows, ...gapsPass.rows];
+const all = [...poolsPass.rows, ...pspPass.rows, ...levelsPass.rows, ...gapsPass.rows];
 const inked = all.filter((r) => r.duty > 0.05);
 const fillOnly = inked.filter((r) => r.strength < STROKE_FLOOR);
 const found = inked.filter((r) => r.strength >= STROKE_FLOOR);

@@ -520,9 +520,13 @@ Detektor 0 direproduksi sebelum angka OTE dipercaya: **n=598, PF 1,113, cand
 | COMEX:GC1! 1d | 622 | 39,55 | **0,876** | - | - |
 
 > [!WARNING]
-> **Baris COMEX di atas SUDAH diukur ulang 8 September 2026 dan ia TIDAK
-> terpengaruh**: n=622, PF 0,876, identik sampai digit terakhir. Peringatan
-> versi pertama di sini menduga sebaliknya, dan dugaan itu salah. Ditemukan 8 September 2026: `qsize` meminta kurang dari satu
+> **Baris COMEX di atas DIUKUR ULANG DUA KALI 8 September 2026, dan bacaan
+> keduanya yang berlaku: PF 1,152 pada n=679.** Bacaan pertama menyatakan ia
+> tidak terpengaruh (0,876 identik) dan itu benar hanya untuk sumbu yang
+> diuji saat itu - pembulatan kuantitas. Cacat kedua di fungsi sizing yang
+> sama adalah plafon MODAL: pada pointvalue 100 satu trade bisa meminta
+> notional sebesar seluruh ekuitas dan order berikutnya dipotong. Sesudah
+> `initial_capital` dinaikkan, angkanya naik dari 0,876 ke 1,152. Ditemukan 8 September 2026: `qsize` meminta kurang dari satu
 > kontrak untuk setiap stop yang lebih lebar dari 10 dolar di instrumen
 > ber-pointvalue 100, TradingView membulatkannya ke bawah, dan order itu tidak
 > pernah jadi posisi - sementara penghitung `fill` tetap menghitungnya. Terukur

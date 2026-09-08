@@ -51,7 +51,10 @@ memilih arah setelah melihat data lain.
                        yang proximal-nya di PREMIUM punya resolved R berbeda
                        dari yang tidak. Prediksi praktisi: lebih tinggi.
   H2 psp_before_touch  FVG yang didahului PSP punya resolved R berbeda.
-                       Prediksi: lebih tinggi.
+                       Prediksi: lebih tinggi. PSP-nya dinilai dengan
+                       `psp.at_bar`, PREDIKAT YANG SAMA yang `app/main.py`
+                       gambar dan `psp_outcomes.py` ukur - lihat catatan
+                       panjang di tempat ia dipanggil.
   H3 purge_before_touch FVG yang didahului sapuan likuiditas punya resolved R
                        berbeda. Prediksi: lebih tinggi.
   H4 fav_and_psp       Gabungan H1 dan H2, diuji lawan SISA populasi, supaya
@@ -108,7 +111,7 @@ from app.dealing_range import mark_dealing_range
 from app.models.zone import DEPARTURE_GATE_ATR_CEILING
 from app.detect import DETECTORS
 from app.detect.structure import swings
-from app.psp import detect as psp_detect
+from app.psp import at_bar as psp_at_bar
 from tools.csid_ob_intrabar import (
     FOLDS,
     MIN_GROUP,
@@ -163,6 +166,7 @@ def _cell_rows(symbol: str, interval: str) -> list[dict]:
     high = np.array([c.high for c in candles], dtype=np.float64)
     low = np.array([c.low for c in candles], dtype=np.float64)
     pivots = swings(high, low, SWING_N, SWING_N)
+    # Dipakai HANYA oleh lengan purge; PSP memakai predikatnya sendiri.
     psp_levels = [(s.confirmed_at, float(s.price)) for s in pivots]
 
     out: list[dict] = []
@@ -181,14 +185,26 @@ def _cell_rows(symbol: str, interval: str) -> list[dict]:
         if pos is not None:
             fav = pos < 0.5 if zone.side.value == "demand" else pos > 0.5
 
-        # LEVEL YANG SUDAH TERKONFIRMASI SAJA, jadi tidak ada bar sesudah
-        # sentuhan yang ikut. `confirmed_at <= touch` adalah seluruh aturan
-        # anti-lookahead di sini.
-        near = [lv for at, lv in psp_levels if at <= touch]
-        psp = bool(near) and psp_detect(
-            candles, max(0, touch - PSP_LOOKBACK), near,
-            lookback=PSP_LOOKBACK,
-        ) is not None
+        # PREDIKAT YANG SAMA DENGAN YANG DIGAMBAR, dan versi pertama file ini
+        # salah di sini. `app/psp.py` menulis peringatannya sendiri: "ONE
+        # PREDICATE, USED TWICE - `psp_outcomes.py` measured the object with
+        # this function and `app/main.py` draws it with this function, so the
+        # thing on the chart and the thing in the evidence file cannot drift
+        # apart. A second copy of the arithmetic would have measured the copy."
+        #
+        # Versi pertama memanggil `detect()` dengan daftar level buatan sendiri
+        # (swing 50 bar terkonfirmasi), yang BUKAN level `at_bar` - open bar
+        # `LEVEL_BACK` ke belakang. Jadi ia mengukur objek lain, persis yang
+        # peringatan itu larang. `tools/conditioned.py` melakukan hal yang sama
+        # dan cacat itu dibagi, bukan diwarisi sebagai pembenaran.
+        #
+        # SYARAT SSMT DAN TRIAD TIDAK IKUT, dan itu dinyatakan: keduanya butuh
+        # instrumen partner yang rig ini tidak muat. Yang membuat kelalaian itu
+        # bisa dipertahankan adalah H2 di `docs/psp_outcomes.json`, yang khusus
+        # menanyakan apakah SSMT di depan PSP menambah sesuatu dan menjawab
+        # tidak - dengan laju crack triad identik di kedua lengan.
+        psp = any(psp_at_bar(candles, j) is not None
+                  for j in range(max(0, touch - PSP_LOOKBACK), touch))
 
         # SAPUAN: dalam `PSP_LOOKBACK` bar sebelum sentuhan, harga menembus
         # sebuah level terkonfirmasi lalu MENUTUP kembali di sisi asalnya.

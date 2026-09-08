@@ -13,7 +13,20 @@
 // PF 0,9396 tanpa lawan 0,9568 dengan, pada 6.409 lawan 6.408 trade.
 strategy("Zonelab Imbalance Strategy", overlay=true,
      pyramiding = 500,
-     initial_capital = 10000000,
+     // DINAIKKAN 8 September 2026, dan ini cacat KEDUA di jalur sizing yang
+     // sama. Perbaikan `risk_eff` menutup kegagalan PEMBULATAN (qty di bawah
+     // satu kontrak dibulatkan hilang); ia tidak menutup kegagalan MODAL.
+     // Pada pointvalue 100 satu trade bisa meminta notional sebesar seluruh
+     // ekuitas - qty 50 kontrak emas di 2.000 dolar adalah 10 juta - jadi
+     // order berikutnya ditolak dan `fill` menghitungnya sementara `n` tidak.
+     // Terukur di GC1! harian, detektor PSP: risk_usd 1.000 memberi n=731 dari
+     // 1.083 fill dan PF 0,859; risk_usd 200 - qty lima kali lebih kecil -
+     // memberi n=1.132 dan PF 1,011. Dua saringan berlawanan arah di satu
+     // fungsi: terlalu kecil dibulatkan nol, terlalu besar ditolak modal.
+     //
+     // Menaikkan modal menghapus plafonnya tanpa menyentuh satuan R, karena
+     // setiap angka yang dilaporkan dinormalkan terhadap risiko.
+     initial_capital = 1000000000000,
      default_qty_type = strategy.fixed,
      default_qty_value = 1,
      commission_type = strategy.commission.percent,
@@ -37,8 +50,8 @@ strategy("Zonelab Imbalance Strategy", overlay=true,
 // digerbangi PLAFON pada tinggi gap; OB dan BRK digerbangi LANTAI pada kekuatan
 // impuls. Satu pembaca yang cuma melihat angka gerbangnya tidak bisa tahu mana
 // yang berlaku.
-detector      = input.int(0, "detektor 0=FVG 1=OB 2=IFVG 3=BRK 4=SD 5=OTE 6=CISD 7=LIQ", group="Detector",
-     minval=0, maxval=7)
+detector      = input.int(0, "detektor 0=FVG 1=OB 2=IFVG 3=BRK 4=SD 5=OTE 6=CISD 7=LIQ 8=PSP", group="Detector",
+     minval=0, maxval=8)
 atr_len       = input.int(14,    "atr_period",         group="Detector")
 min_gap_atr   = input.float(0.0, "min_gap_atr",        group="Detector", step=0.05)
 gate_ceiling  = input.float(0.25,"gate ceiling (ATR)", group="Detector", step=0.05)
@@ -61,6 +74,12 @@ cz_floor      = input.float(0.0, "run_min_atr",        group="CISD", step=0.1)
 lq_n          = input.int(3,     "swing_n (liq)",      group="Liquidity", minval=2)
 lq_tol        = input.float(0.1, "equal_tol_atr",      group="Liquidity", step=0.05)
 lq_touch      = input.int(2,     "min_touches",        group="Liquidity", minval=2)
+
+// KNOB PSP. Cermin `app/psp.py`, dan cuma SATU knob karena predikatnya cuma
+// punya satu: level yang disapu adalah OPEN bar sekian ke belakang. `WINDOW`
+// tidak diekspos - ia milik `after_ssmt`, yang menuntut SSMT dan karena itu
+// menuntut instrumen partner yang backtest ini tidak muat.
+psp_back      = input.int(3,     "level_back (PSP)",   group="PSP", minval=1)
 
 // KNOB OPTIMAL TRADE ENTRY. Cermin `OteParams`. Pitanya 0,618-0,786 dan kedua
 // rasio itu TIDAK jadi input: mereka diambil dari `fibonacci-primitive.ts`,
@@ -467,6 +486,7 @@ isSD = detector == 4
 isOTE = detector == 5
 isCZ = detector == 6
 isLQ = detector == 7
+isPSP = detector == 8
 
 // ---- OPTIMAL TRADE ENTRY, detektor 5 --------------------------------------
 //
@@ -800,6 +820,57 @@ if isLQ and bar_index > lq_n * 2 + 2
         l_dep := math.round((l_top - l_bot) / l_scale * 1000) / 1000
         l_ok  := true
 
+// ---- PSP SEBAGAI KOTAK, detektor 8 ----------------------------------------
+//
+// Cermin `psp.at_bar`, dan itu disengaja sampai ke pemilihan fungsinya.
+// `app/psp.py` menulis peringatannya sendiri: "ONE PREDICATE, USED TWICE -
+// `psp_outcomes.py` measured the object with this function and `app/main.py`
+// draws it with this function... A second copy of the arithmetic would have
+// measured the copy." Blok ini adalah salinan ketiga, jadi ia menyalin
+// `at_bar` baris per baris dan bukan gagasan tentang PSP.
+//
+//     level  = open bar `psp_back` ke belakang
+//     buy    = open >= level and low  < level and close > level
+//     sell   = open <= level and high > level and close < level
+//
+// GUARD `open` ITU BUKAN HIASAN. Tanpa `open <= level` cabang sell juga
+// menyala pada bar yang BUKA di atas level lalu tutup di bawahnya, dan itu
+// penembusan biasa yang tidak memurnikan apa pun. Docstring Python mencatat
+// cacat itu ditemukan oleh tes yang fixture-nya sengaja dibuat non-event.
+//
+// KOTAKNYA: proximal di LEVEL, distal di ekstrem sapuan. Tidak ada konstanta
+// baru - keduanya harga yang barnya sudah punya, bentuk yang sama dengan
+// `cisd_zone`. Buy PSP menyapu ke BAWAH, jadi kotaknya level..low dan sisinya
+// DEMAND; sell cerminnya.
+//
+// YANG TIDAK IKUT, DINYATAKAN: syarat SSMT dan syarat triad `in_same_candle`.
+// Keduanya butuh instrumen partner. Yang membuat kelalaian itu bisa
+// dipertahankan adalah H2 di `docs/psp_outcomes.json`, yang khusus menanyakan
+// apakah SSMT di depan PSP menambah sesuatu dan menjawab TIDAK, dengan laju
+// crack triad identik di kedua lengan (0,2644 lawan 0,2644). Jadi yang
+// di-backtest di sini adalah PSP tanpa gerbang triadnya, dan itu bukan PSP
+// doktrinal secara utuh.
+p_lvl   = open[psp_back]
+p_buy   = open >= p_lvl and low  < p_lvl and close > p_lvl
+p_sell  = open <= p_lvl and high > p_lvl and close < p_lvl
+
+p_ok    = false
+p_bull  = false
+p_top   = 0.0
+p_bot   = 0.0
+p_scale = 0.0
+p_dep   = 0.0
+
+if isPSP and (p_buy or p_sell)
+    p_bull  := p_buy
+    p_top   := p_buy ? p_lvl : high
+    p_bot   := p_buy ? low   : p_lvl
+    // Skala di bar SEBELUM barnya sendiri, sama dengan lima detektor lain.
+    p_scale := atr_v[1]
+    if p_top > p_bot and p_scale > 0
+        p_dep := math.round((p_top - p_bot) / p_scale * 1000) / 1000
+        p_ok  := true
+
 // ---- YANG DIPAKAI, satu jalur setelah ini ----
 //
 // 0=FVG 1=OB 2=IFVG 3=BRK. IFVG induknya FVG dan BRK induknya OB, jadi jalur
@@ -809,16 +880,16 @@ isOB      = detector == 1 or detector == 3
 // detektor tertinggi 3; begitu SD dan OTE masuk, keduanya ikut terbaca
 // sebagai mode inversi dan blok induk-pecah akan menembak untuk mereka.
 inverting = detector == 2 or detector == 3
-scale = isLQ ? l_scale : isCZ ? y_scale : isOTE ? e_scale : isOB ? o_scale : f_scale
+scale = isPSP ? p_scale : isLQ ? l_scale : isCZ ? y_scale : isOTE ? e_scale : isOB ? o_scale : f_scale
 // Lilin BEARISH sebelum gerakan NAIK adalah block DEMAND, jadi sisi long di
 // sini datang dari lilin turun - kebalikan dari intuisi warna lilinnya.
-bull  = isLQ ? l_bull : isCZ ? y_bull : isOTE ? e_bull : isOB ? o_bear : f_bull
-top0  = isLQ ? l_top : isCZ ? y_top : isOTE ? e_top : isOB ? o_bt   : f_top0
-bot0  = isLQ ? l_bot : isCZ ? y_bot : isOTE ? e_bot : isOB ? o_bb   : f_bot0
+bull  = isPSP ? p_bull : isLQ ? l_bull : isCZ ? y_bull : isOTE ? e_bull : isOB ? o_bear : f_bull
+top0  = isPSP ? p_top : isLQ ? l_top : isCZ ? y_top : isOTE ? e_top : isOB ? o_bt   : f_top0
+bot0  = isPSP ? p_bot : isLQ ? l_bot : isCZ ? y_bot : isOTE ? e_bot : isOB ? o_bb   : f_bot0
 // S&D punya jalur sendiri di bawah, jadi jalur bersama ini DIMATIKAN untuknya.
 // Kalau tidak, detektor 4 akan menjalankan aturan FVG sekaligus aturannya
 // sendiri dan tabelnya akan mencampur dua populasi tanpa terlihat.
-ok    = isSD ? false : isLQ ? l_ok : isCZ ? y_ok : isOTE ? e_ok : isOB ? o_ok   : f_ok
+ok    = isSD ? false : isPSP ? p_ok : isLQ ? l_ok : isCZ ? y_ok : isOTE ? e_ok : isOB ? o_ok   : f_ok
 
 if ok and in_win
     h    = top0 - bot0
@@ -856,13 +927,13 @@ if ok and in_win
         // itu, dan gate_measured mengembalikan False untuk BRK justru supaya
         // permukaan yang menampilkan verdict bisa menahan diri. Angka BRK di
         // bawah karena itu mengukur gerbang PINJAMAN.
-        gateVal  = isLQ ? l_dep : isCZ ? y_dep : isOTE ? e_dep : isOB ? o_move : h / scale
+        gateVal  = isPSP ? p_dep : isLQ ? l_dep : isCZ ? y_dep : isOTE ? e_dep : isOB ? o_move : h / scale
         fvgPass  = h >= min_gap_atr * scale and (gate_ceiling <= 0 or gateVal < gate_ceiling)
         // OTE digerbangi LANTAI pada panjang leg, bukan plafon pada tinggi
         // kotak. Doktrinnya sendiri tidak membawa gerbang apa pun - ia
         // aturan tempat masuk - jadi lantai ini padanan yang DIPILIH agar
         // sebanding dengan OB dan SD, dan itu dinyatakan di layers.py.
-        gatePass = isLQ ? true : isCZ ? gateVal >= cz_floor : isOTE ? gateVal >= ote_gate : isOB ? gateVal >= gate_floor : fvgPass
+        gatePass = isPSP ? true : isLQ ? true : isCZ ? gateVal >= cz_floor : isOTE ? gateVal >= ote_gate : isOB ? gateVal >= gate_floor : fvgPass
 
         if inverting
             // TIDAK ADA ORDER DI INDUK. Induk cuma ditunggu pecah, dan
@@ -1121,8 +1192,9 @@ if barstate.islastconfirmedhistory or barstate.islast
     // berbeda terbaca kembar di baris ini - dan angka gerbangnya sendiri tidak
     // bisa membedakannya, karena yang satu plafon dan yang lain lantai.
     table.cell(t, 1, 0, syminfo.ticker + " " + timeframe.period +
-         " " + (detector == 0 ? "FVG" : detector == 1 ? "OB" : detector == 2 ? "IFVG" : detector == 3 ? "BRK" : detector == 4 ? "SD" : detector == 5 ? "OTE" : (detector == 6 ? "CISD" : "LIQ")) +
-         (isLQ ? " tol" + str.tostring(lq_tol) + " n" + str.tostring(lq_n) +
+         " " + (detector == 0 ? "FVG" : detector == 1 ? "OB" : detector == 2 ? "IFVG" : detector == 3 ? "BRK" : detector == 4 ? "SD" : detector == 5 ? "OTE" : (detector == 6 ? "CISD" : detector == 7 ? "LIQ" : "PSP")) +
+         (isPSP ? " back" + str.tostring(psp_back)
+               : isLQ ? " tol" + str.tostring(lq_tol) + " n" + str.tostring(lq_n) +
                   " t" + str.tostring(lq_touch)
                : isCZ ? " flr" + str.tostring(cz_floor) + " r" + str.tostring(cz_run)
                : isOTE ? " legflr" + str.tostring(ote_gate) + " n" + str.tostring(ote_n)

@@ -795,8 +795,21 @@ Angka di atas satu itu jatuh ke bawah satu begitu populasinya utuh, dan
 mekanismenya dikonfirmasi dengan membalikkannya: menurunkan `risk_usd` ke 10
 sesudah perbaikan mereproduksi n=132 dan PF 1,167 persis.
 
+> [!CAUTION]
+> **CATATAN DI BAWAH INI DICABUT beberapa jam setelah ditulis.** Ia menyatakan
+> S&D tidak terpengaruh, dan itu benar untuk sumbu yang diuji saat itu -
+> pembulatan kuantitas - tapi ada cacat KEDUA di fungsi sizing yang sama:
+> plafon MODAL. Pada pointvalue 100 satu trade bisa meminta notional sebesar
+> seluruh ekuitas, jadi order berikutnya dipotong sebagian. Sesudah
+> `initial_capital` dinaikkan, baseline S&D di GC1! harian terbaca **PF 1,214
+> pada n=241**, bukan 0,797. FVG 1,043 (bukan 0,923) dan OTE 1,152 (bukan
+> 0,876). Angka COMEX di halaman ini karena itu HARUS dibaca sebagai
+> pra-perbaikan sampai diukur ulang, termasuk stress test 3 dari 8. Angka spot
+> tidak bergerak satu digit pun di seluruh perubahan ini. Detailnya di
+> `docs/CALIBRATION.md`.
+
 > [!NOTE]
-> **Diukur ulang 8 September 2026, dan S&D di halaman ini TIDAK terpengaruh.**
+> **Catatan lama, 8 September 2026 pagi - S&D tidak terpengaruh PEMBULATAN.**
 > Peringatan versi pertama di sini berbunyi "angka COMEX mana pun di halaman ini"
 > dan itu terlalu luas. Dijalankan ulang sesudah perbaikan, baseline S&D di GC1!
 > harian terbaca **n=251, win 51,79%, PF 0,797 - identik sampai digit terakhir**

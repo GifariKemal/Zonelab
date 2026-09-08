@@ -3586,3 +3586,143 @@ Itu konsisten dengan yang sudah tercatat di `app/layers.py`: titik impas FVG ada
 
 Satu sel XAUUSD sendiri memberi exp_r sekitar nol; delapan instrumen lain lebih
 buruk, dan pooling-nya yang menarik angka ke -0,15.
+
+## PSP diberi perlakuan penuh, 8 September 2026, dan dua koreksi lagi atas sizing COMEX
+
+Diminta: backtest TV, tuning, parity dengan Zonelab, autodrawing, plus benchmark
+lawan script publik. Keempatnya sebelumnya tidak ada.
+
+Konflik guard yang sempat memblokir ini larut sendiri: Pine berdiri sendiri,
+jadi PSP bisa jadi detektor 8 di sana tanpa `ZoneKind.PSP` di Python - dan tanpa
+`psp` masuk `advisor.py`, yang `tests/test_psp_not_wired_to_decisions.py`
+larang.
+
+### Predikat, dan kenapa ia disalin baris per baris
+
+`app/psp.py` menulis peringatannya sendiri: "ONE PREDICATE, USED TWICE...
+A second copy of the arithmetic would have measured the copy." Blok Pine ini
+salinan KETIGA, jadi ia menyalin `at_bar` apa adanya:
+
+    level = open[psp_back]
+    buy   = open >= level and low  < level and close > level
+    sell  = open <= level and high > level and close < level
+
+Kotaknya: proximal di LEVEL, distal di ekstrem sapuan. Tidak ada konstanta baru.
+
+TIDAK IKUT, DINYATAKAN: syarat SSMT dan triad. Keduanya butuh instrumen partner.
+Yang membuat kelalaian itu bisa dipertahankan adalah H2 di `psp_outcomes.json`
+yang mengukur SSMT tidak menambah apa pun.
+
+### Backtest dan tuning
+
+XAUUSD harian, sapuan `level_back`:
+
+| back | n | win% | PF |
+|---|---|---|---|
+| 1 | 1.727 | 50,67 | 0,816 |
+| 2 | 1.317 | 50,72 | 1,008 |
+| **3 (di-ship)** | 1.151 | 52,22 | **1,030** |
+| 5 | 917 | 44,71 | 0,849 |
+| 8 | 746 | 46,92 | 0,798 |
+
+Puncaknya di 3 - nilai yang dipilih dari doktrin ("3 candle last") sebelum ada
+pengukuran apa pun - dan bentuknya bukit, bukan lonjakan.
+
+Placebo 1,016 lawan nyata 1,030: margin +0,014, tipis sekali. Hold-out IS 1,132
+lawan OOS 0,996. COMEX GC1! 1,032. Tidak ada yang memisahkan.
+
+### DUA KOREKSI LAGI ATAS SIZING COMEX, dan keduanya membatalkan laporan kemarin
+
+PSP di COMEX awalnya membaca `fill 1083` lawan `n 731`, dan itu membuka cacat
+KEDUA di jalur sizing yang sama.
+
+Perbaikan `risk_eff` kemarin menutup kegagalan PEMBULATAN (qty di bawah satu
+kontrak dibulatkan hilang). Ia TIDAK menutup kegagalan MODAL: pada pointvalue
+100 satu trade bisa meminta notional sebesar seluruh ekuitas, jadi order
+berikutnya dipotong atau ditolak. Terukur langsung - risk_usd 1.000 memberi
+n=731 dan PF 0,859; risk_usd 200, qty lima kali lebih kecil, memberi n=1.132 dan
+PF 1,011.
+
+Jadi ada DUA saringan berlawanan arah di satu fungsi: terlalu kecil dibulatkan
+nol, terlalu besar dipotong modal. `initial_capital` dinaikkan dari 10 juta ke
+1 triliun; satuan R tidak bergerak karena semuanya dinormalkan terhadap risiko.
+
+**Dan itu membatalkan apa yang saya laporkan kemarin.** Diukur ulang di GC1!
+harian sesudah plafon modal dicabut:
+
+| detektor | asli | pasca risk_eff | pasca modal |
+|---|---|---|---|
+| FVG | 1,167 (n=132) | 0,923 (n=496) | **1,043** (n=560) |
+| supply_demand | 0,797 (n=251) | 0,797 (n=251) | **1,214** (n=241) |
+| OTE | 0,876 (n=622) | 0,876 (n=622) | **1,152** (n=679) |
+| PSP | - | 0,859 (n=731) | **1,032** (n=1151) |
+
+Dua pernyataan saya kemarin karena itu salah dan dicabut di sini: **"FVG di
+COMEX 0,923, di bawah satu"** - ia 1,043 - dan **"S&D dan OTE tidak
+terpengaruh"** - keduanya terpengaruh, hanya lewat plafon modal dan bukan lewat
+pembulatan, jadi sumbu yang saya uji kemarin memang tidak menunjukkannya.
+
+S&D bergerak dari 0,797 ke 1,214 dengan n hampir sama (251 lawan 241). n yang
+tidak berubah sementara PF melompat adalah tanda ukuran posisi DIPOTONG
+SEBAGIAN, bukan order ditolak: PF menjumlah uang, bukan R, jadi penskalaan yang
+tidak seragam merusaknya. Itu mekanisme yang PALING mungkin dan ia belum
+dibuktikan langsung.
+
+Regresi spot diperiksa di tiap langkah dan tidak bergerak satu digit pun:
+n=598, PF 1,113, biaya 0,015 R.
+
+### Parity: yang terbaik dari seluruh sesi ini
+
+Diukur di satu feed, 100 bar TradingView harian. Pine detektor 8 memberi
+**17 kandidat**; `psp.at_bar` di Python atas bar yang sama memberi **17**.
+
+Dan koordinatnya: **12 dari 12** harga entry Pine cocok sampai sen dengan level
+Python, arah ikut cocok - 4539,99 buy / 4504,33 sell / 4495,40 sell / 3998,54
+buy / 4121,86 sell / 4075,27 sell / 4077,43 sell / 4055,42 buy / 4389,28 sell /
+4368,69 buy / 4572,26 sell / 4608,07 sell. Lima sisanya persis kelima zona yang
+tabelnya laporkan `no wall`.
+
+Tidak ada celah dedupe di sini karena PSP bukan detektor Python sama sekali.
+
+### Benchmark: nama yang sama, konstruk yang berbeda
+
+Tiga script PSP publik diperiksa di TradingView. `Quarterly Theory ICT 03
+[TradingFinder] Precision Swing Points` memakai `request.security` DUA simbol
+dan plot-nya bernama "Bullish PinBar in Up Trend", "Bearish PinBar in Down
+Trend" - jadi PSP mereka **pin bar plus SMT**. Dua lainnya menaruh SMT di
+judulnya sendiri: `PSP (Precision Swing Point - CIC SMT)` dan `Precision Swing
+Points (PSP) - Correlated Divergence`.
+
+Ketiganya menaruh SMT lintas instrumen DI DALAM definisi. Predikat `at_bar`
+Zonelab tidak - triad-nya hidup terpisah di `in_same_candle`, yang cuma dipakai
+overlay yang digambar. Jadi yang di-backtest di sini bukan PSP versi publik,
+dan itu selisih konstruk bukan selisih setelan.
+
+Perbandingan kepadatan tidak bisa dilakukan: ketiga script itu memakai
+`plotshape`, yang tidak terbaca oleh alat MCP mana pun.
+
+### Autodrawing: tidak pernah diukur sampai hari ini, dan sebabnya konfigurasi
+
+`nonbox-truth.mjs` - satu-satunya harness geometri untuk objek bukan-kotak -
+tidak menyebut `psp` sama sekali. Yang menyentuhnya cuma `wiring`, `ink-budget`
+dan `rails`, dan ketiganya menguji pipa dan tinta, bukan apakah penanda mendarat
+di harga yang benar.
+
+Dan PSP MENGGAMBAR NOL dengan setelan default: `ssmt_symbols` dan
+`ssmt_degrees` kosong di `DrawRequest`, jadi loop yang memancarkannya tidak
+pernah berjalan. Terukur: `layers:["psp"]` sendirian mengembalikan 0 baris;
+dengan keranjang partner diisi (XAGUSD, XPTUSD, degree day) ia mengembalikan 11.
+
+Pass PSP ditambahkan ke harness, dan hasil pertamanya:
+
+- PSP TIDAK muncul di kegagalan penempatan - ray yang ketemu ada di harga yang
+  API laporkan. Yang meleset cuma `gaps/CE-NDOG`, 4px, dan itu sudah ada
+  sebelumnya.
+- PSP GAGAL uji "stroke bukan fill" dengan kekuatan tinta **0,048**, bersama
+  `gaps/CE-NWOG` yang sudah gagal sebelum pass ini ada.
+- Uji putus-putus tetap merah dan itu pra-ada: duty solid 1,000 lawan dashed
+  1,000.
+
+Jadi jawaban presisi PSP: penempatannya lolos, ketebalannya tidak. Dan yang
+lebih penting - sebelum hari ini tidak ada satu piksel pun dari layer ini yang
+pernah dibaca balik.
