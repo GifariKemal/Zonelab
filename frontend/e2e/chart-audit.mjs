@@ -284,7 +284,13 @@ const shapes = {
     // jadi SETIAP kotak di kedua layer itu adalah kotak di dalam kotak. Untuk
     // fvg dan order_block hal ini tidak pernah muncul karena tak satu pun
     // zonanya terbalik. Terjadi di audit ifvg 7 September 2026.
-    inverted_inner_stroke: "a zone with inverted_at (every IFVG and every BRK) is drawn with a SECOND border set a few pixels inside the first - a box inside a box. That is the cue that the band changed role, it is not an extra zone, and it will not appear as a separate entry in the list",
+    // DUA PENGGAMBARAN UNTUK PITA YANG SAMA, dan keduanya benar. Diperiksa
+    // 8 September 2026 sebelum menyarankan perubahan: grid memakai ink
+    // family `levels` (biru-abu 137,183,207) sementara zona memakai hijau
+    // dan merah, jadi keduanya SUDAH terbedakan warna dan tidak ada aturan
+    // supresi yang perlu ditambahkan. Yang kurang cuma kalimat ini.
+    fibonacci_grid_vs_ote_box: "when the structure layer is on, a neutral BLUE-GREY nine-level Fibonacci/OTE grid is drawn over the current leg (0.786, 0.705, 0.618, 0.5, extensions). When the ote layer is on, the 0.618-0.786 band is ALSO drawn as green/red zone boxes. These are two different objects and both are correct: the grid is reference levels over the CURRENT leg with no direction claim, the boxes are historical zones carrying lifecycle and gate state. Tell them apart by hue - grid is blue-grey, zones are demand-green or supply-red. Do not report the pair as a duplicate",
+    inverted_inner_stroke: "a zone with inverted_at (every IFVG and every BRK) is drawn with a SECOND border set a few pixels inside the first, and that inner border is DASH-DOT while every ordinary box border is solid. It is the cue that the band changed role, it is not an extra zone, and it will not appear as a separate entry in the list. DO NOT read two parallel SOLID lines as this cue: two boxes of the same side whose price bands overlap draw exactly that, and neither of them is inverted - the dash-dot texture is the only thing that distinguishes them, and it was made dash-dot on 8 September 2026 precisely because an audit misread an overlap as an inversion",
     // CAPTION BISA BERGESER KE LUAR KOTAKNYA, dan itu pilihan yang disengaja di
     // `zone-primitive.ts`: plate-nya didorong ke KIRI supaya muat, bukan
     // teksnya yang dipotong, karena caption yang terpotong terbaca seperti

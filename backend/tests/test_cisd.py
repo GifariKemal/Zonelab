@@ -83,6 +83,13 @@ def test_three_down_candles_then_a_close_above_anchors_on_the_first_open():
         run_start=0,
         run_end=2,
         run_length=3,
+        # TEPI KEDUA, ditambahkan 8 September 2026 bersama detektor kotaknya.
+        # Run TURUN, jadi ekstremnya low terjauh dari tiga lilin conforming.
+        # Dituliskan eksplisit dan bukan dibaca dari `runs`, karena satu tanda
+        # yang terbalik di `delivery_runs` akan membuat kedua sisi sepakat pada
+        # angka yang salah - dan itu tepat yang terjadi di percobaan pertama:
+        # run naik dicatat low-nya, dan SELURUH 377 kotak jadi tinggi nol.
+        run_extreme=min(r.low for r in rows[0:3]),
     )
     # The run itself, so a failure says whether the run or the break was wrong.
     assert [(r.start, r.end, r.direction, r.length) for r in runs] == [(0, 2, -1, 3)]

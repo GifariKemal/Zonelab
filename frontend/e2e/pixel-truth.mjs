@@ -354,6 +354,14 @@ for (const [n, zone] of drawing.zones.entries()) {
       // "prefer the row nearest the expectation" - that would let the answer
       // choose the measurement. This uses a structural fact about the renderer:
       // the outer stroke IS the box, the inner one is 3.5px in by construction.
+      // PREMISNYA BERGESER 8 September 2026 dan penyempitannya tetap benar.
+      // Stroke dalam sekarang DASH-DOT, bukan solid, jadi ia tidak lagi
+      // mendarat utuh di satu baris dan tidak semenonjol dulu dalam kontes
+      // baris terkuat. Penyempitan ini TIDAK dicabut karena alasannya
+      // struktural, bukan soal kekuatan tinta: stroke luar ADALAH kotaknya
+      // dan yang dalam duduk 3px ke dalam. Diperiksa sesudah perubahan:
+      // ifvg tetap 4/7 atas dan 5/7 bawah dengan galat 0,5 dan 0,4px, brk
+      // tetap 1/5 dan 3/5 dengan 0,5px - nol pergeseran.
       const inverted = zoneIn.inverted_at !== null && zoneIn.inverted_at !== undefined;
       const vLimit = inverted ? 3 : 6;
       const vSpan = Math.max(1, Math.min(vLimit, Math.floor(boxH / 2)));

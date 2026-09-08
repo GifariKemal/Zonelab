@@ -488,12 +488,38 @@ class ZoneEdgeRenderer implements IPrimitivePaneRenderer {
             // tiga pixel adalah "kotak di dalam kotak", dan cue itu hilang
             // kalau kedua kotaknya bersentuhan.
             const inset = 3 * ky;
+            // DASH-DOT, DAN ITU MEMPERBAIKI ISYARAT YANG AMBIGU. Sampai
+            // 8 September 2026 stroke dalam ini SOLID, dan "dua garis sejajar
+            // sewarna" adalah persis yang dihasilkan dua kotak SESISI yang
+            // saling tumpang tindih sebagian - tumpukan yang biasa terjadi di
+            // supply_demand, yang tidak punya zona terbalik sama sekali.
+            //
+            // Terukur di audit `e2e/chart-audit.mjs` pada supply_demand, XAUUSD
+            // harian: sebuah zona DBR yang bottom-nya (4019,06) jatuh di bawah
+            // top zona di bawahnya (4030,71) tergambar sebagai pita bergaris
+            // ganda, dan auditor melaporkannya sebagai zona yang BERGANTI PERAN.
+            // Ia tidak. Grounding run itu USABLE, jadi laporannya tidak
+            // tercemar angka karangan - isyaratnya memang bertabrakan makna.
+            //
+            // Yang diperbaiki TEKSTURNYA, bukan geometrinya, karena geometri
+            // tidak bisa membedakannya: tumpang tindih memang menghasilkan dua
+            // garis sejajar dan itu data yang benar. Tumpang tindih TIDAK bisa
+            // menghasilkan garis putus-titik, karena setiap border kotak lain
+            // solid. Polanya sengaja bukan `[4 3]` (dipakai border zona yang
+            // belum confirmed) dan bukan `[1 3]` (`--dash-fvg`, di rule
+            // proximal), jadi ketiganya tetap saling terbedakan.
+            //
+            // Dash DISETEL ULANG lebih dulu: tanpa itu zona yang belum
+            // confirmed mewarisi `[4 3]` dari border luarnya dan stroke
+            // dalamnya berhenti jadi isyarat yang tetap.
+            ctx.setLineDash([5 * kx, 2 * kx, 1 * kx, 2 * kx]);
             ctx.strokeRect(
               x + inset + lw / 2,
               y + inset + lw / 2,
               Math.max(w - 2 * inset - lw, 1),
               Math.max(h - 2 * inset - lw, 1),
             );
+            ctx.setLineDash([]);
           }
           ctx.restore();
         }

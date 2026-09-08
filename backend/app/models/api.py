@@ -22,6 +22,8 @@ from .params import (
     GapParams,
     WyckoffParams,
     ImbalanceParams,
+    OteParams,
+    CisdZoneParams,
     LiquidityParams,
     NewsParams,
     PoolParams,
@@ -162,6 +164,23 @@ class DrawRequest(BaseModel):
         ),
     )
     supply_demand: SupplyDemandParams = Field(default_factory=SupplyDemandParams)
+    cisd_zone: CisdZoneParams = Field(
+        default_factory=CisdZoneParams,
+        description=(
+            "Detektor cisd_zone meneruskan min_run dan interrupt_tolerance ke "
+            "`app.cisd.cisds` yang SAMA yang dipakai overlay, jadi kotak dan "
+            "garis tidak bisa berselisih soal apa itu CISD."
+        ),
+    )
+    ote: OteParams = Field(
+        default_factory=OteParams,
+        description=(
+            "Blok sendiri, tidak menumpang `imbalance`: detektor ote tidak "
+            "membaca geometri lilin sama sekali, ia dibuat dari dua harga "
+            "swing dan dua rasio, jadi ia butuh `swing_n` yang tidak dipakai "
+            "keempat detektor imbalance."
+        ),
+    )
     imbalance: ImbalanceParams = Field(
         default_factory=ImbalanceParams,
         description=(

@@ -1157,6 +1157,142 @@ antar state bersebelahan, jadi sinyalnya ada; ia cuma di bawah ambang yang bisa
 dibaca mata di render ini. Itu keputusan desain yang belum diambil, bukan cacat
 yang belum diperbaiki.
 
+## Adaptivitas keempat detektor, diukur 8 September 2026
+
+Sampai hari ini "adaptive" tidak pernah diuji sama sekali. Pertanyaannya dibuat
+bisa diukur: **apakah tinggi kotak melacak volatilitas, atau ia membawa besaran
+harga absolut?** Kalau melacak volatilitas, tinggi kotak dalam satuan ATR harus
+kira-kira tetap lintas instrumen dan timeframe, walau dalam dolar ia berbeda
+ratusan kali.
+
+Delapan sel, XAUUSD dan BTCUSD di 30m/1h/4h/1d, keluarga ATR MASING-MASING
+detektor (`mean_true_range` untuk fvg/ifvg, `wilder_atr` untuk
+order_block/breaker) diambil di bar sebelum bar origin zona. **32 kombinasi,
+nol sel dilewat.**
+
+| detektor | med ATR min..maks | maks/min | CV | maks/min ABSOLUT | selisih XAU lawan BTC di TF sama |
+|---|---|---|---|---|---|
+| fvg | 0,2587 .. 0,3922 | 1,516 | 13,2% | **389,9x** | 7,3% |
+| order_block | 0,3220 .. 0,4299 | 1,335 | 11,0% | **283,0x** | **2,5%** |
+| ifvg | 0,2554 .. 0,3792 | 1,485 | 12,1% | **389,5x** | 7,9% |
+| **breaker** | 0,3259 .. 0,4049 | **1,242** | **7,5%** | **316,1x** | 7,3% |
+
+**Keempatnya adaptif, dan buktinya perbandingan dua kolom terakhir.** Dalam
+dolar, tinggi kotak median bergerak 283 sampai 390 kali lintas sel - 1,168 USD
+di XAU 30m sampai 455,39 USD di BTC 1d. Dinormalkan ATR, seluruh rentang itu
+mengerut jadi 1,24 sampai 1,52 kali. Geometrinya tidak membawa besaran harga.
+
+Bukan cuma mediannya: sebaran p90/median dalam satuan ATR 2,7 sampai 4,4 dan
+tetap per detektor, dan **p90 duduk di sekitar 1,0 sampai 1,36 ATR di 32 dari
+32 kombinasi**. Jadi bentuk distribusinya yang berskala volatilitas, bukan satu
+titik ringkasannya.
+
+### Sisa variasinya timeframe, bukan instrumen - dan tandanya BERLAWANAN
+
+Di timeframe yang sama, XAU dan BTC cuma beda 2,5 sampai 7,9 persen. Yang
+tersisa hampir seluruhnya sumbu resolusi, dan dua pasang detektor bergerak ke
+arah yang berlawanan:
+
+| pasangan | arah dari 30m ke 1d | bacaan |
+|---|---|---|
+| fvg, ifvg | kotak MEMBESAR dalam ATR (0,28 ke 0,39 di XAU) | celah tiga bar melebar relatif terhadap ATR 14 bar saat resolusi melambat |
+| order_block, breaker | kotak MENGECIL dalam ATR (0,43 ke 0,34 di XAU) | badan satu lilin mengisi pecahan ATR 14 bar yang lebih kecil di TF tinggi |
+
+Tandanya berlawanan karena geometrinya memang beda jenis - satu jarak antar
+tiga bar, satu badan satu bar - jadi ini konsisten, bukan anomali. Tak satu pun
+berasal dari konstanta yang bisa disetel: `min_gap_atr` default 0,0 dan tidak
+menolak apa pun di sini.
+
+### Dua hal yang tak terduga
+
+**order_block paling invarian lintas instrumen dari keempatnya**, 2,5 persen -
+padahal ia detektor dengan angka edge TERLEMAH di repo ini. Adaptivitas
+geometri dan daya prediksi ternyata dua sifat yang terpisah, dan sel yang sama
+bisa kuat di satu dan lemah di satu lagi.
+
+**breaker paling datar dari keempatnya**, CV 7,5 persen, dan di BTC praktis rata
+di 0,36 sampai 0,39 lintas keempat resolusi. Kalau ada satu yang layak disebut
+bebas skala, itu BRK - detektor yang sama yang gerbangnya dipinjam, gambarnya
+paling sulit dibaca, dan definisinya kekurangan satu syarat kanon.
+
+ifvg berada dalam 2 sampai 3 persen dari sel fvg pasangannya di setiap sel, dan
+populasinya 96 sampai 98 persen ukuran populasi fvg - persis bentuk yang
+diharapkan dari detektor yang mewarisi geometri induknya dan cuma menambah satu
+peristiwa.
+
+## Stress test delapan periode untuk OB dan BRK, 8 September 2026
+
+Saringan terberat di repo ini - jendela dibagi delapan, tiap periode dinilai
+sendiri - belum pernah dikenakan ke OB maupun BRK. Sekarang sudah, XAUUSD
+harian, **batas periode identik dengan run IFVG** supaya bisa dibandingkan
+baris demi baris. Jendela diverifikasi di baris `win` pada SETIAP run.
+
+Baseline jendela penuh direproduksi lebih dulu: OB n=560, win 41,79%, PF 0,972,
+sama persis dengan tabel di atas.
+
+| periode | OB n | OB win% | OB PF | BRK n | BRK win% | BRK PF |
+|---|---|---|---|---|---|---|
+| 2000-2003 | 56 | 57,14 | **1,827** | 48 | 31,25 | **0,404** |
+| 2003-2006 | 63 | 34,92 | 0,729 | 55 | 58,18 | 0,973 |
+| 2006-2010 | 98 | 39,80 | 0,762 | 88 | 60,23 | **1,365** |
+| 2010-2013 | 73 | 49,32 | **1,141** | 56 | 50,00 | 0,983 |
+| 2013-2016 | 67 | 35,82 | 0,781 | 54 | 51,85 | 0,827 |
+| 2016-2020 | 73 | 36,99 | **1,012** | 62 | 66,13 | **1,738** |
+| 2020-2023 | 61 | 40,98 | **1,198** | 56 | 60,71 | **1,070** |
+| 2023-2026 | 52 | 51,92 | **1,041** | 38 | 47,37 | 0,683 |
+| **lolos** | | | **5 dari 8** | | | **3 dari 8** |
+
+### Peringkat stabilitas MEMBALIK peringkat PF
+
+Ini temuan utamanya, dan arahnya berlawanan dengan tabel benchmark harian:
+
+| detektor | PF jendela penuh XAU 1d | periode lolos | peringkat berbalik? |
+|---|---|---|---|
+| BRK | **1,181**, tertinggi dari empat | **3 dari 8**, terendah dari empat | **ya, dari teratas ke terbawah** |
+| FVG | 1,112 | 6 dari 8 (diukur di 4 jam) | - |
+| IFVG | 1,067 | 6 dari 8 | - |
+| OB | **0,972**, terendah dari empat | **5 dari 8** | **ya, dari terbawah ke ketiga** |
+
+**BRK 1,181 bersandar pada satu periode.** Paruh kedua yang sebelumnya
+disebut sebagai sumber angka itu ternyata sendiri campur aduk: 0,827 / 1,738 /
+1,070 / 0,683. Buang 2016-2020 dan tidak ada yang tersisa. Sebelumnya yang
+diketahui cuma "seluruhnya dari paruh kedua"; sekarang terlihat ia seluruhnya
+dari SATU jendela empat tahun.
+
+**OB lebih stabil daripada BRK meski PF-nya lebih rendah.** Kotak yang tidak
+bisa menghasilkan angka besar ternyata lebih konsisten daripada kotak yang
+bisa - dan untuk pemakaian sebagai INPUT analisis, itu sifat yang lebih
+berguna daripada PF puncak.
+
+### Periode sekarang, 2023-2026, memisahkan keempatnya
+
+| detektor | PF 2023-2026 | posisi di antara delapan periodenya |
+|---|---|---|
+| **OB** | **1,041** | di atas satu |
+| BRK | 0,683 | kedua terburuk dari delapan |
+| IFVG | 0,730 | **terburuk dari delapan** |
+
+IFVG dan BRK sama-sama gagal di periode yang paling relevan untuk keputusan
+hari ini; OB tidak. Jadi detektor dengan bukti historis terbaik dan detektor
+dengan PF harian tertinggi keduanya sedang berada di titik terlemahnya,
+sementara yang terlemah secara historis sedang di atas satu.
+
+> [!WARNING]
+> n per periode 38 sampai 98, jauh di bawah 135-173 milik run IFVG (yang
+> memakai lengan plafon-mati dengan sampel 2,4 kali lipat). Satu periode 38
+> trade tidak memisahkan 0,683 dari satu secara meyakinkan. Yang ditopang
+> tabel ini adalah HITUNGAN lolos-gagal dan bentuknya lintas periode, bukan
+> presisi tiap sel.
+
+### Cara mengulangnya
+
+Input Pine `in_0` detektor (0=FVG 1=OB 2=IFVG 3=BRK), `in_19`/`in_20` jendela
+sebagai epoch milidetik. Batas yang dipakai: 946684800000, 1041379200000,
+1136073600000, 1262304000000, 1356998400000, 1451606400000, 1577836800000,
+1672531200000, 1767225600000. Beri jeda sekitar 11 detik sesudah set input
+SEBELUM membaca tabel, dan cocokkan baris `cfg` dan `win` dengan yang diminta -
+pembacaan pertama sesudah ganti detektor mengembalikan tabel detektor LAMA.
+
 ## Cara mengulang
 
 ```bash

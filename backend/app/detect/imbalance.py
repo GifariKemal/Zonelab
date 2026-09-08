@@ -42,6 +42,11 @@ is a different detector and would need its own measurement.
 The first two of those changed on 6 September 2026 and both were measured
 before they were written: profit factor 0.984 to 1.320 over twelve cells,
 docs/QA-OB-GATE.md. This paragraph said WHOLE RANGE until then.
+RETRACTED 7 September 2026: those twelve cells ran through the
+lifecycle that checked the break BEFORE the touch. On the corrected rig NO
+cell sits above one - XAU 0.972/0.926/0.798 at 1d/4h/1h, BTC
+0.939/0.859/0.872. Kept as the argument that justified the geometry change,
+not as current performance.
 
 WHY THEY REUSE `Zone`
 Both are boxes with a near edge, a far edge and a lifecycle, which is what
@@ -100,6 +105,9 @@ two of them were settled by measurement instead of opinion.
                           a quantity with no relationship to the signal. Measured
                           over twelve cells: profit factor 0.984 to 1.247 on this
                           alone, 1.320 together with the close-measured impulse.
+                          RETRACTED 7 September 2026, same reason as the module
+                          docstring: pre-lifecycle-fix numbers. The corrected rig
+                          puts no order block cell above one.
                           Read it as GEOMETRY: the win rate FELL, 53.7% to 43.1%,
                           and what rose is R per win.
 
@@ -507,6 +515,11 @@ def detect_order_block(
         # bergerak, 53,66 ke 53,03 persen. Win rate yang diam sementara PF naik
         # adalah tanda tangan filter yang membuang trade rugi, bukan yang
         # memperketat stop.
+        #
+        # DICABUT 7 September 2026: dua belas sel itu lewat lifecycle yang
+        # memeriksa pecah sebelum sentuh. Di rig terkoreksi tak ada satu sel OB
+        # pun di atas satu. Dipertahankan sebagai alasan perubahan geometri,
+        # bukan sebagai performa berlaku.
         if bearish:
             move = (float(close[window].max()) - float(close[i])) / scale
             side = ZoneSide.DEMAND
@@ -587,6 +600,8 @@ def detect_order_block(
         # menjadi 1,247 sendirian, dan 1,320 bersama impuls-dari-close di atas.
         # Empat dari enam timeframe melewati PF 1, termasuk 4h yang 0,761 dengan
         # walk-forward 0 dari 8 dan kini 1,168.
+        # DICABUT 7 September 2026, sebab yang sama. Angka-angka ini pra-perbaikan
+        # lifecycle dan tidak boleh dibaca sebagai performa sekarang.
         #
         # BACA MEKANISMENYA, JANGAN CUMA ANGKANYA: win rate TURUN, 53,66 ke
         # 43,14 persen. Kotak yang lebih pendek adalah stop yang lebih rapat,

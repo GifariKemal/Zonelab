@@ -200,6 +200,46 @@ await page.evaluate(() => {
     return { w: cv.width, h: cv.height, bg: window.__bg };
   };
 
+  // PENEMPATAN SAJA, TANPA DUTY, dan itu instrumen yang berbeda. `__scan` di
+  // bawah menolak jendela di bawah 20 piksel karena duty cycle butuh tiga
+  // periode dash untuk berarti - lantai yang benar untuk pertanyaan yang ia
+  // jawab. Tapi segmen MSS membentang sweep sampai break dan `mss_window`
+  // default 5, jadi ia sering 1 sampai 2 bar dan TIDAK PERNAH bisa mencapai 20
+  // piksel pada jumlah bar yang masih memuat sebuah MSS. Memakai `__scan`
+  // untuknya melaporkan "tidak tergambar" untuk garis yang tergambar
+  // sempurna - alatnya yang salah, bukan gambarnya.
+  //
+  // Fungsi ini karena itu tidak mengukur duty sama sekali. Ia cuma menjawab
+  // satu pertanyaan: di baris piksel mana tinta terkuat berada, supaya baris
+  // itu bisa dikonversi balik ke harga. Lantainya 4 piksel, dan itu cukup
+  // karena tidak ada yang dibagi per periode.
+  window.__scanAt = (yWant, xFrom, xTo) => {
+    const { __img: img, __w: w, __h: h, __bg: bg } = window;
+    const a = Math.max(0, Math.round(xFrom));
+    const b = Math.min(w - 1, Math.round(xTo));
+    if (b - a < 4) return null;
+    const ink = (x, y) => {
+      if (y < 0 || y >= h) return 0;
+      const i = (y * w + x) * 4;
+      const d = Math.abs(img[i] - bg[0]) + Math.abs(img[i + 1] - bg[1]) +
+                Math.abs(img[i + 2] - bg[2]);
+      return d > BG_TOL ? d : 0;
+    };
+    const row = (y) => {
+      let hit = 0, sum = 0;
+      for (let x = a; x <= b; x++) { const v = ink(x, y); if (v) { hit++; sum += v; } }
+      return { duty: hit / (b - a + 1), strength: hit ? sum / hit / 765 : 0 };
+    };
+    let best = null;
+    for (let dy = -6; dy <= 6; dy++) {
+      const y = Math.round(yWant) + dy;
+      const here = row(y), next = row(y + 1);
+      const duty = Math.min(1, here.duty + next.duty);
+      if (!best || duty > best.duty) best = { dy, y, duty, strength: Math.max(here.strength, next.strength) };
+    }
+    return best && best.duty > 0 ? best : null;
+  };
+
   window.__scan = (yWant, xFrom, xTo) => {
     const { __img: img, __w: w, __h: h, __bg: bg } = window;
     const a = Math.max(0, Math.round(xFrom));
@@ -386,6 +426,141 @@ const gapsPass = await pass("gaps", (d) => [
     { tag: `CE-${t.kind}`, price: t.ce, taken: true, expect: "dashed" },
   ]),
 ]);
+
+// --------------------------------------------------- PASS STRUKTUR (MSS)
+//
+// SEGMEN STRUKTUR TIDAK BISA LEWAT `pass`, dan alasannya geometri. `pass`
+// memindai jendela DI KANAN candle terakhir, karena pool, level dan horizon
+// memang ray yang memanjang ke kanan tanpa batas. Segmen struktur tidak: ia
+// membentang dari swing (atau dari SWEEP kalau ia MSS) sampai bar break, semua
+// di masa LALU. Memindainya di kanan candle terakhir akan menemukan nol baris
+// dan melaporkan "tidak menggambar apa-apa" untuk layer yang menggambar 215
+// objek.
+//
+// Sampai 8 September 2026 tidak ada satu piksel pun dari `structure-primitive`
+// yang pernah dibaca balik. `pixel-truth` membaca box dan hanya box; file ini
+// membaca ray dan hanya ray yang memanjang ke kanan. Garis MSS - satu-satunya
+// geometri yang cuma dimiliki MSS, karena ia mulai di bar sweep dan bukan di
+// bar swing - tidak pernah diverifikasi ada di harganya.
+const structurePass = async () => {
+  await (await layerSwitch("structure")).click();
+  await page.waitForTimeout(5000);
+
+  const drawn = await page.evaluate(
+    async ([api, interval, bars]) => {
+      const r = await fetch(`${api}/api/draw`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          symbol: "XAUUSD", interval, bars, layers: ["structure"],
+          structure: { max_events: 0 },
+        }),
+      });
+      return r.json();
+    },
+    [API, INTERVAL, BARS],
+  );
+
+  const events = drawn.drawing?.structure ?? [];
+  const mss = events.filter((e) => e.kind === "MSS");
+  const rows = [];
+  // JARAK SATU BAR, dipakai untuk memberi bantalan pada rentang yang digulir.
+  const cs = drawn.candles ?? [];
+  const step = cs.length > 1 ? cs[1].time - cs[0].time : 3600;
+  for (const e of mss) {
+    // CHART DIGULIR KE PERISTIWANYA, dan tanpa ini pass ini tidak mengukur apa
+    // pun. Diukur 8 September 2026: MSS pertama di XAUUSD 1h/250 bar jatuh di
+    // y = -168 dengan xa = -526 dan xb = -514 pada pane selebar 750 - di luar
+    // layar di KEDUA sumbu. Probe melaporkan "tidak ada tinta", yang terbaca
+    // seperti garis yang hilang padahal ia cuma tidak terlihat. `RIGHT_OFFSET`
+    // di atas menggeser candle ke kiri supaya ray sendirian di kanan; untuk
+    // segmen yang hidup di masa lalu, geseran itu justru mendorongnya keluar.
+    const t1 = e.swept_at ?? e.swing_time;
+    await page.evaluate(
+      ([a, b]) => {
+        const api = window.__zonelabChart;
+        api.chart.timeScale().setVisibleRange({ from: a, to: b });
+      },
+      [t1 - step * 25, e.time + step * 25],
+    );
+    await page.waitForTimeout(700);
+    // `swept_at` ADALAH yang membedakan garis MSS dari BOS/CHoCH di bawahnya:
+    // keduanya duduk di harga yang SAMA pada bar yang sama, dan yang MSS mulai
+    // lebih awal. Memindai rentangnya sendiri karena itu satu-satunya cara
+    // memisahkan keduanya di kanvas.
+    const got = await page.evaluate(
+      async ([price, t1, t2]) => {
+        const api = window.__zonelabChart;
+        window.__frame();
+        const y = api.series.priceToCoordinate(price);
+        const xa = api.chart.timeScale().timeToCoordinate(t1);
+        const xb = api.chart.timeScale().timeToCoordinate(t2);
+        if (y === null || xa === null || xb === null) return null;
+        // PADDING SATU PIKSEL, bukan tiga, dan minimum span lima. Segmen MSS
+        // membentang sweep sampai break dan `mss_window` default 5, jadi ia
+        // sering cuma satu atau dua bar - padding tiga piksel di kedua sisi
+        // memakan seluruh interiornya dan setiap garis dilaporkan "terlalu
+        // pendek". Yang dibuang cuma ujungnya, dan satu piksel sudah cukup
+        // untuk itu.
+        const a = Math.min(xa, xb) + 1;
+        const b = Math.max(xa, xb) - 1;
+        if (b - a < 5) return { tooShort: true, span: b - a };
+        const hit = window.__scanAt(y, a, b);
+        const paneW = api.chart.paneSize().width;
+        return hit
+          ? { ...hit, back: api.series.coordinateToPrice(hit.y), span: b - a,
+              y, xa, xb, paneW }
+          : { missed: true, span: b - a, y, xa, xb, paneW };
+      },
+      [e.level, t1, e.time],
+    );
+    if (!got) continue;
+    rows.push({ tag: `MSS-${e.scale}`, price: e.level, expect: "solid", ...got,
+                price_err: got.back === undefined ? null : got.back - e.level });
+  }
+
+  await (await layerSwitch("structure")).click();
+  await page.waitForTimeout(2000);
+  return { layer: "structure", events: events.length, mss: mss.length, rows };
+};
+
+const structure = await structurePass();
+const mssMeasured = structure.rows.filter((r) => r.price_err !== null);
+const mssShort = structure.rows.filter((r) => r.tooShort);
+console.error(
+  `struktur: ${structure.events} event, ${structure.mss} MSS, ` +
+    `${mssMeasured.length} terukur, ${mssShort.length} span terlalu pendek`,
+);
+for (const r of structure.rows) {
+  console.error(
+    `   ${r.tag} price ${r.price} y ${r.y} xa ${Math.round(r.xa)} xb ` +
+      `${Math.round(r.xb)} paneW ${r.paneW} span ${Math.round(r.span)} ` +
+      `${r.missed ? "TAK ADA TINTA" : `duty ${r.duty.toFixed(2)} err ${r.price_err.toFixed(2)}`}`,
+  );
+}
+// LANTAI ABSOLUT, DAN VERSI PERTAMA GATE INI TIDAK PUNYA. Ia ditulis sebagai
+// `mssMeasured.length === 0 || <galat dalam batas>`, yang LULUS justru ketika
+// nol garis bisa diukur - persis bentuk gate hampa yang seluruh berkas ini ada
+// untuk mencegah, ditulis ulang di dalam berkas itu sendiri beberapa baris di
+// bawah komentar yang memperingatkannya. Sebuah run yang tidak menemukan satu
+// garis MSS pun harus MERAH, karena "tidak ada yang salah" dan "tidak ada yang
+// diperiksa" tidak boleh terbaca sama.
+const mssWorst = mssMeasured.length
+  ? Math.max(...mssMeasured.map((r) => Math.abs(r.price_err)))
+  : null;
+const mssTol = mssMeasured.length
+  ? Math.max(...mssMeasured.map((r) => Math.abs(r.price) * 0.0005))
+  : null;
+check(
+  "garis MSS ada di harga yang skala harga menaruhnya",
+  mssMeasured.length >= 1 && mssWorst <= mssTol,
+  mssMeasured.length === 0
+    ? `TIDAK ADA YANG DIUKUR: ${structure.mss} MSS digambar, ${mssShort.length} span ` +
+      `terlalu pendek untuk dipindai. Kurangi jumlah bar supaya tiap bar lebih ` +
+      `lebar - segmen MSS cuma sepanjang sweep sampai break, biasanya 2 sampai 5 bar.`
+    : `terburuk ${mssWorst.toFixed(2)} lawan toleransi ${mssTol.toFixed(2)} ` +
+      `atas ${mssMeasured.length} garis MSS`,
+);
 
 const all = [...poolsPass.rows, ...levelsPass.rows, ...gapsPass.rows];
 const inked = all.filter((r) => r.duty > 0.05);

@@ -249,6 +249,143 @@ export const Toolbox = memo(function Toolbox({
       // first of them that is on rather than repeated under each. Four copies
       // of a slider that writes one value is a control that appears to be four
       // independent thresholds and is not.
+      case "cisd_zone":
+        return (
+          <>
+            {/* DEFINISI CISD-NYA TIDAK ADA DI SINI: `min_run` dan
+                `interrupt_tolerance` diteruskan ke `app.cisd.cisds` yang sama
+                yang dipakai overlay `cisd`, jadi menggeser slider ini menggeser
+                GARIS dan KOTAK bersamaan. */}
+            <Slider
+              label="Shortest run"
+              hint="Panjang run minimum yang boleh mempersenjatai sebuah level."
+              note="2 sama dengan overlay `cisd`, dan seperti di sana ia DIPILIH bukan diukur. Menaikkannya mengurangi kepadatan, yang di detektor ini masalahnya: level CISD membawa di 12,05 persen bar XAU harian, 3,2 kali lebih padat daripada pembanding LuxAlgo, dan dedupe membuang 271 dari 377 kandidat."
+              suffix="candles"
+              min={1}
+              max={20}
+              step={1}
+              value={params.cisd_zone.min_run}
+              onChange={(v) => onParams("cisd_zone", { min_run: v })}
+            />
+            <Slider
+              label="Interrupt tolerance"
+              hint="Berapa lilin non-conforming berturut yang diserap sebelum run putus."
+              note="Menaikkannya MENGGABUNG run, jadi ia memindahkan level DAN bar tempat event-nya mendarat. Hitungannya tidak stabil terhadap knob ini."
+              suffix="candles"
+              min={0}
+              max={5}
+              step={1}
+              value={params.cisd_zone.interrupt_tolerance}
+              onChange={(v) => onParams("cisd_zone", { interrupt_tolerance: v })}
+            />
+            <Slider
+              label="Run floor"
+              hint="Lantai tinggi kotak dalam ATR. NOL berarti tidak mengikat."
+              note="Tinggi kotak CISD ADALAH jarak stopnya, jadi menggerbanginya memilih antara 'cuma run besar' dan 'cuma stop rapat' dan tidak satu pun bersumber. Disapu di TradingView, bukan ditebak di sini."
+              suffix="ATR"
+              min={0}
+              max={20}
+              step={0.1}
+              value={params.cisd_zone.run_min_atr}
+              onChange={(v) => onParams("cisd_zone", { run_min_atr: v })}
+            />
+            <Slider
+              label="Merge overlap"
+              hint="Dua kotak sesisi yang tumpang tindih lebih dari ini dianggap satu level."
+              note="Kebutuhan di detektor ini, bukan salinan dari supply/demand: pada 0,6 ia membuang 271 dari 377 kandidat di XAUUSD harian."
+              min={0}
+              max={1}
+              step={0.05}
+              value={params.cisd_zone.merge_overlap_pct}
+              onChange={(v) => onParams("cisd_zone", { merge_overlap_pct: v })}
+            />
+            <Toggle
+              label="Show mitigated"
+              value={params.cisd_zone.show_mitigated}
+              onChange={(v) => onParams("cisd_zone", { show_mitigated: v })}
+            />
+            <Toggle
+              label="Show broken"
+              value={params.cisd_zone.show_broken}
+              onChange={(v) => onParams("cisd_zone", { show_broken: v })}
+            />
+            <Slider
+              label="Max zones per side"
+              hint="Cap TAMPILAN, memilih berdasarkan waktu. 0 berarti tanpa cap."
+              note="Setiap pengukuran wajib memakai 0."
+              min={0}
+              max={100}
+              step={1}
+              value={params.cisd_zone.max_zones_per_side}
+              onChange={(v) => onParams("cisd_zone", { max_zones_per_side: v })}
+            />
+          </>
+        );
+
+      case "ote":
+        return (
+          <>
+            {/* SATU SATUNYA DETEKTOR YANG KOTAKNYA TIDAK MEMUAT LILIN. Lima yang
+                lain memotong celah, badan, atau base; pita ini dua HARGA swing
+                dan dua rasio, jadi knob-nya juga beda jenis - tidak ada ambang
+                geometri lilin di sini sama sekali. */}
+            <Slider
+              label="Swing fractal"
+              hint="Berapa bar sebuah pivot harus mendominasi di kedua sisi, DAN berapa lama harus ditunggu sebelum ia boleh dipakai."
+              note="5 mengikuti fractal internal `structure`, BUKAN 50 milik `dealing_range`. Perbedaan itu persis yang membuat dua definisi OTE di repo ini tidak setuju: yang digambar di chart memakai swing struktur, sementara klausa `ote` di app/ict.py memakai dealing range. Nilai di sini dipilih supaya kotaknya cocok dengan grid Fibonacci yang benar benar tampil."
+              suffix="bars"
+              min={2}
+              max={200}
+              step={1}
+              value={params.ote.swing_n}
+              onChange={(v) => onParams("ote", { swing_n: v })}
+            />
+            <Slider
+              label="Leg floor"
+              hint="Panjang leg minimum dalam ATR, diukur di bar anchor pertama. Gerbang detektor ini."
+              note="DOKTRIN OTE TIDAK PUNYA GERBANG - ia aturan tempat masuk, bukan aturan seleksi. Lantai ini padanan yang DIPILIH supaya sebanding dengan order block dan supply/demand, bukan angka yang diwarisi dari sumber, dan OTE karena itu ada di GATE_UNMEASURED_KINDS."
+              evidence="Disapu di XAUUSD harian 8 September 2026 dan naik monoton: mati 1,038, 2,0 memberi 1,066, 3,0 memberi 1,099, 4,0 memberi 1,205. TAPI HOLD-OUT MENOLAKNYA. Jendela dibelah di 2013: lantai 4,0 memberi IS 1,191 dan OOS 1,162, sementara lantai 2,0 yang di-ship memberi IS 0,848 dan OOS 1,180. Lantai 4 memang akan terpilih di paruh pertama dan ia tidak runtuh seperti lantai 4 milik BRK, tapi di luar sampel ia KALAH tipis dari 2,0 dengan separuh jumlah trade. Karena itu 2,0 tetap."
+              suffix="ATR"
+              min={0}
+              max={20}
+              step={0.1}
+              value={params.ote.leg_min_atr}
+              onChange={(v) => onParams("ote", { leg_min_atr: v })}
+            />
+            <Slider
+              label="Merge overlap"
+              hint="Dua pita sesisi yang tumpang tindih lebih dari ini, diukur terhadap tinggi yang LEBIH KECIL, dianggap satu level."
+              note="DETEKTOR INI MEMBUTUHKANNYA, bukan meniru supply/demand. Pasangan anchor berurutan berbagi satu anchor - low yang sama dengan high berikutnya - jadi pita berikutnya hampir selalu memotong pita sebelumnya. Empat detektor imbalance tidak punya masalah ini karena kotaknya dibuat dari lilin yang berbeda."
+              evidence="Audit visual 8 September 2026 pada XAUUSD harian tidak bisa memisahkan dua kotak supply yang bertumpuk: 'they render as a single banded region crossed by four solid rules'. Pada 0,6 dedupe membuang 105 dari 197 zona. Ia juga memaksa keluar tabrakan id: `_finish` menyusun id dari kind plus bar ORIGIN, dan dua pita OTE bisa berbagi origin - tak terlihat sampai survivorship jadi bergantung populasi."
+              min={0}
+              max={1}
+              step={0.05}
+              value={params.ote.merge_overlap_pct}
+              onChange={(v) => onParams("ote", { merge_overlap_pct: v })}
+            />
+            <Toggle
+              label="Show mitigated"
+              value={params.ote.show_mitigated}
+              onChange={(v) => onParams("ote", { show_mitigated: v })}
+            />
+            <Toggle
+              label="Show broken"
+              value={params.ote.show_broken}
+              onChange={(v) => onParams("ote", { show_broken: v })}
+            />
+            <Slider
+              label="Max zones per side"
+              hint="Cap TAMPILAN, dan ia memilih berdasarkan WAKTU - zona terbaru per sisi."
+              note="0 berarti tanpa cap. Setiap pengukuran wajib memakai 0: cap ini sudah dua kali membuat sebuah populasi terbaca seperti temuan detektor, termasuk parity FVG yang sempat terbaca 12 dari 22 padahal 20."
+              min={0}
+              max={100}
+              step={1}
+              value={params.ote.max_zones_per_side}
+              onChange={(v) => onParams("ote", { max_zones_per_side: v })}
+            />
+          </>
+        );
+
       case "imbalance":
         return (
           <>
@@ -2402,6 +2539,8 @@ function layerSwatch(): Record<string, readonly string[]> {
     order_block: ["var(--demand)", "var(--supply)"],
     ifvg: ["var(--demand)", "var(--supply)"],
     breaker: ["var(--demand)", "var(--supply)"],
+    ote: ["var(--demand)", "var(--supply)"],
+    cisd_zone: ["var(--demand)", "var(--supply)"],
     structure: [ink("structure", 0.95)],
     session: [ink("grid", 0.95)],
     gaps: [ink("levels", 0.95)],

@@ -40,6 +40,8 @@ from app.models import (
     DFRParams,
     GapParams,
     ImbalanceParams,
+    OteParams,
+    CisdZoneParams,
     LiquidityParams,
     NewsParams,
     PoolParams,
@@ -59,6 +61,8 @@ TYPES_TS = Path(__file__).resolve().parents[2] / "frontend" / "src" / "lib" / "t
 OWNERS = {
     "supply_demand": SupplyDemandParams,
     "imbalance": ImbalanceParams,
+    "ote": OteParams,
+    "cisd_zone": CisdZoneParams,
     "structure": StructureParams,
     "dfr": DFRParams,
     "session": SessionParams,

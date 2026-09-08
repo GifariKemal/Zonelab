@@ -245,7 +245,8 @@ def build(
             warnings.append(
                 f"Kaki keluarnya {zone.departure_atr:.2f} ATR, di ATAS gerbang "
                 f"{zone.gate_atr} ATR. Kohort {zone.kind.value} ini exp_r "
-                f"+{above:.3f} R, lawan +{below:.3f} R yang di bawah gerbang."
+                f"+{above:.3f} R, lawan +{below:.3f} R yang di bawah gerbang. "
+                f"ANGKA PRA-PERBAIKAN, jangan dipakai sebagai ukuran."
             )
         else:
             warnings.append(

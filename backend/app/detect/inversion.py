@@ -13,14 +13,73 @@ is the one crisply defined object in the SMC vocabulary, so the inversion
 inherits a rule with no discretion in it and adds exactly one more event.
 
 **Breaker block.** The order block version of the same event, and it inherits
-the order block's contested definition wholesale: whole-candle range, an
-`impulse_atr` threshold, no structure break required. Every departure listed in
-`imbalance.py` applies here unchanged, because the parent detector is called
-rather than reimplemented.
+the order block's contested definition wholesale: the BODY of the last
+opposite-coloured candle, an `impulse_atr` threshold, no structure break
+required. Every departure listed in `imbalance.py` applies here unchanged,
+because the parent detector is called rather than reimplemented.
+
+That said BODY only from 8 September 2026. This paragraph read
+`whole-candle range` for two days after `imbalance.py` changed the geometry
+on 6 September, and since both docs stress that box height IS risk per unit,
+a reader sizing a breaker stop off this file got the wider box. The same
+wrong wording is still in the docstring of
+`tests/test_inversion.py::test_a_breaker_is_the_order_block_read_from_underneath`,
+where it describes a fixture whose assertions are correct.
+
+AND ONE CANON REQUIREMENT IS MISSING FROM THAT LIST, checked against source
+on 8 September 2026 rather than assumed. Strict ICT requires a LIQUIDITY RUN
+before the parent fails - the failing swing must first trade beyond a prior
+high or low - and what makes that load-bearing is not that it raises
+probability but that IT IS WHAT SEPARATES A BREAKER FROM A MITIGATION BLOCK.
+By the same canon those two are traded in OPPOSITE directions: a breaker
+against the trend, a mitigation block with it. This detector uses the loose
+reading - any violated order block inverts - so `breaker` here is a MIXTURE
+of two populations the doctrine says carry opposite signs, and a mixture like
+that pulls a measured edge toward zero. That is consistent with what BRK
+reads: profit factor around one, and the H8 result below.
+
+It is called a hypothesis and not a finding because it is untested, and two
+things about this repo argue against rushing it. The ingredient already
+exists - `structure.py` has `mss_sweeps` - so testing it means reusing that
+rather than writing a sweep detector. But `structure.py` ALSO already
+measured the sweep-then-opposite-break conjunction and got a null, t = -0.79
+and -0.12 on DELTA. The evidence already in this codebase weakens the hope
+that a sweep filter rescues BRK. Recorded in docs/QA-BRK-GATE.md.
+
+TESTED 8 September 2026, AND THE HYPOTHESIS DID NOT HOLD. Six preregistered
+splits on XAU and BTC at 1h and 1d through the same costed, intrabar-resolved
+rig that produced this page's other numbers. Not one clears the Bonferroni
+threshold 2.6383: the largest pooled |t| is 1.988, the sign flips between
+cells and between lookback windows, and the swept arm is 52.5% of the
+population so this is not a small-sample failure.
+
+The control that settles it: if the canon requirement carried mechanism,
+sweeps OPPOSITE the break - the actual breaker shape - should beat sweeps in
+the SAME direction. They do not, Welch -0.34. The whole pooled positive lives
+in zones swept on BOTH sides inside 20 bars (n=176, +0.3645), which is a
+two-sided volatility marker, not a liquidity run. The flag proxies churn.
+
+So the mixture story above is NOT supported, and the loose reading stays - now
+by measurement rather than by omission. What remains true is the narrower
+statement: this detector and the strict-ICT definition select different sets,
+which is a fact any parity against a public script has to declare.
 
 NOTHING IS INVENTED HERE, and that is the point
-The rectangle, the ATR scale, the gap floor and the impulse threshold all come
-from the parent. This module contributes one decision - the lifecycle of the
+The rectangle, the gap floor and the impulse threshold all come from the
+parent, and so does `departure_atr` - the GATED quantity - which is passed
+into `_finish` rather than recomputed.
+
+THE ATR SCALE IS THE ONE EXCEPTION, and the sentence above claimed otherwise
+until 8 September 2026. This module calls `wilder_atr` for BOTH kinds. That
+matches BRK's parent, `detect_order_block`, but NOT IFVG's: since 7 September
+`detect_fvg` runs on `mean_true_range`, deliberately, and the two families are
+split on purpose. So an IFVG's local ATR is a different family from its own
+parent's. Traced before being called a defect: this array reaches `_finish`
+and feeds `arrival_atr` ONLY, a field that is reported and never scored or
+gated, so no gate, no box coordinate and no measurement in this repo depends
+on it. The wrong-ATR-family class of bug flipped order block's sign from
+1.019 to 0.926, so the question deserved the trace; the blast radius here is
+one diagnostic field. This module contributes one decision - the lifecycle of the
 inverted box starts at `break_index + 1` - and one field, `inverted_at`. A
 second gap threshold for the inversion would let the two populations drift
 apart, so `ImbalanceParams` is shared with the pair being inverted.

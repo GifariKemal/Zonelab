@@ -339,6 +339,38 @@ export interface SupplyDemandParams {
  *  an FVG plus one more event, and a second gap threshold for it would let the
  *  two populations drift apart. Deliberately small: none of them carries a
  *  score, so there is nothing to weight and nothing to retract. */
+/** Knob detektor `ote`. BLOK SENDIRI, tidak menumpang `imbalance`: OTE tidak
+ *  membaca geometri lilin sama sekali - ia dibuat dari dua harga swing dan dua
+ *  rasio - jadi ia butuh `swing_n` yang keempat detektor imbalance tidak pakai,
+ *  dan menaruhnya di blok bersama akan memberi mereka slider yang tak berarti. */
+/** Knob detektor `cisd_zone`. Definisi CISD-nya diwarisi dari `app.cisd.cisds`
+ *  yang SAMA yang dipakai overlay - dua definisi yang bisa berselisih persis
+ *  cara chart tidak setuju dengan kalibrasinya sendiri. */
+export interface CisdZoneParams {
+  atr_period: number;
+  min_run: number;
+  interrupt_tolerance: number;
+  run_min_atr: number;
+  mitigation_pct: number;
+  arrival_bars: number;
+  show_broken: boolean;
+  show_mitigated: boolean;
+  max_zones_per_side: number;
+  merge_overlap_pct: number;
+}
+
+export interface OteParams {
+  atr_period: number;
+  swing_n: number;
+  leg_min_atr: number;
+  mitigation_pct: number;
+  arrival_bars: number;
+  show_broken: boolean;
+  show_mitigated: boolean;
+  max_zones_per_side: number;
+  merge_overlap_pct: number;
+}
+
 export interface ImbalanceParams {
   atr_period: number;
   min_gap_atr: number;
@@ -1690,6 +1722,8 @@ export interface ServerConfig {
 export interface LayerParams {
   supply_demand: SupplyDemandParams;
   imbalance: ImbalanceParams;
+  ote: OteParams;
+  cisd_zone: CisdZoneParams;
   structure: StructureParams;
   session: SessionParams;
   dfr: DFRParams;
@@ -1733,6 +1767,39 @@ export const DEFAULT_LAYER_PARAMS: LayerParams = {
     merge_overlap_pct: 0.6,
     curve_lookback: 200,
     arrival_bars: 6,
+  },
+  cisd_zone: {
+    atr_period: 14,
+    min_run: 2,
+    interrupt_tolerance: 0,
+    // NOL berarti tidak mengikat. Tinggi kotak CISD ADALAH jarak stopnya.
+    run_min_atr: 0.0,
+    mitigation_pct: 0.5,
+    arrival_bars: 6,
+    show_broken: false,
+    show_mitigated: true,
+    max_zones_per_side: 6,
+    // Level CISD PADAT - 12,05% bar XAU harian, 3,2x pembanding LuxAlgo - jadi
+    // dedupe di sini kebutuhan, bukan salinan. Ia membuang 271 dari 377.
+    merge_overlap_pct: 0.6,
+  },
+  ote: {
+    atr_period: 14,
+    // 5 mengikuti StructureParams.structure_n, BUKAN dealing_range yang memakai
+    // 50. Perbedaan itu persis yang membuat dua definisi OTE di repo ini tidak
+    // setuju; nilai di sini dipilih supaya kotaknya cocok dengan grid Fibonacci
+    // yang benar benar DIGAMBAR oleh fibonacci-primitive.ts.
+    swing_n: 5,
+    leg_min_atr: 2.0,
+    mitigation_pct: 0.5,
+    arrival_bars: 6,
+    show_broken: false,
+    show_mitigated: true,
+    max_zones_per_side: 6,
+    // Pasangan anchor berurutan berbagi satu anchor, jadi pitanya nyaris
+    // selalu bertumpuk - detektor ini BUTUH dedupe, tidak sekadar meniru
+    // supply_demand.
+    merge_overlap_pct: 0.6,
   },
   imbalance: {
     atr_period: 14,

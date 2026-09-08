@@ -196,6 +196,95 @@ ORDER_BLOCK_ONLY = (
 )
 
 
+class CisdZoneParams(ParamBlock):
+    """Knob detektor `cisd_zone`. Definisi CISD-nya diwarisi, tidak diulang.
+
+    `min_run` dan `interrupt_tolerance` diteruskan apa adanya ke `app.cisd.cisds`
+    - fungsi yang SAMA yang dipakai overlay dan `recent_in_band`. Dua definisi
+    CISD yang bisa berselisih persis cara chart tidak setuju dengan
+    kalibrasinya sendiri.
+    """
+
+    atr_period: int = Field(default=14, ge=2, le=200)
+
+    #: Panjang run minimum yang boleh mempersenjatai sebuah level. Default 2
+    #: sama dengan `CISDParams`, dan seperti di sana ia DIPILIH bukan diukur.
+    min_run: int = Field(default=2, ge=1, le=20)
+
+    #: Berapa lilin non-conforming berturut yang diserap sebelum run putus.
+    #: Menaikkannya MENGGABUNG run, jadi ia memindahkan level DAN barnya.
+    interrupt_tolerance: int = Field(default=0, ge=0, le=5)
+
+    #: Lantai tinggi kotak dalam ATR. NOL berarti tidak mengikat - lihat
+    #: catatan di `FLOOR_GATE_ATR`. Disediakan supaya bisa disapu.
+    run_min_atr: float = Field(default=0.0, ge=0.0, le=20.0)
+
+    mitigation_pct: float = Field(default=0.5, ge=0.0, le=1.0)
+    arrival_bars: int = Field(default=6, ge=1, le=50)
+    show_broken: bool = False
+    show_mitigated: bool = True
+    max_zones_per_side: int = Field(default=6, ge=0, le=100)
+
+    #: Level CISD PADAT - 12,05 persen bar di XAUUSD harian membawa satu, tiga
+    #: kali lebih padat daripada pembanding LuxAlgo - jadi kotaknya sering
+    #: bertumpuk dan dedupe di sini bukan salinan melainkan kebutuhan.
+    merge_overlap_pct: float = Field(default=0.6, ge=0.0, le=1.0)
+
+
+class OteParams(ParamBlock):
+    """Knob detektor `ote`: pita retracement di atas satu leg struktur.
+
+    BLOK SENDIRI, BUKAN MENUMPANG `imbalance`. Empat detektor imbalance berbagi
+    satu blok karena mereka membaca GEOMETRI yang sama - celah dan badan lilin -
+    dan memberi mereka ambang terpisah akan membiarkan populasinya hanyut. OTE
+    tidak membaca satu pun dari itu: ia dibuat dari dua HARGA swing dan dua
+    rasio. Menaruhnya di `imbalance` berarti empat detektor lain tiba tiba punya
+    slider `swing_n` yang tidak mereka pakai.
+
+    Field lifecycle (`mitigation_pct`, `arrival_bars`, `show_broken`,
+    `show_mitigated`, `max_zones_per_side`) DIULANG dengan nama yang sama karena
+    `_finish` dan `_present` di `imbalance.py` membacanya lewat nama - itu
+    kontraknya, dan menyimpangi namanya akan memutus keduanya diam diam.
+    """
+
+    #: Skala ATR untuk gerbang panjang leg. Sama dengan default detektor lain.
+    atr_period: int = Field(default=14, ge=2, le=200)
+
+    #: Berapa bar sebuah pivot harus mendominasi, DAN berapa lama harus ditunggu
+    #: sebelum ia boleh diketahui. `structure.swings` memakai angka ini di kedua
+    #: sisi, jadi menaikkannya menunda kelahiran zona sebanyak itu juga.
+    #:
+    #: 5 MENGIKUTI `StructureParams.structure_n`, BUKAN `dealing_range`. Yang
+    #: terakhir memakai 50, dan perbedaan itu persis yang membuat dua definisi
+    #: OTE di repo ini tidak setuju - lihat docstring `detect/ote.py`. Nilai di
+    #: sini dipilih supaya kotaknya cocok dengan grid yang DIGAMBAR.
+    swing_n: int = Field(default=5, ge=2, le=200)
+
+    #: Lantai gerbang: panjang leg dalam ATR di bar anchor pertama.
+    #:
+    #: DOKTRIN OTE TIDAK PUNYA GERBANG. Ia aturan tempat masuk, bukan aturan
+    #: seleksi, jadi angka ini padanan yang DIPILIH agar sebanding dengan empat
+    #: detektor lain - bukan sesuatu yang diwarisi dari sumber. Default 2,0
+    #: menyamai `DEPARTURE_GATE_ATR`.
+    leg_min_atr: float = Field(default=2.0, ge=0.0, le=20.0)
+
+    mitigation_pct: float = Field(default=0.5, ge=0.0, le=1.0)
+    arrival_bars: int = Field(default=6, ge=1, le=50)
+    show_broken: bool = False
+    show_mitigated: bool = True
+    max_zones_per_side: int = Field(default=6, ge=0, le=100)
+
+    #: DIPERLUKAN OLEH GEOMETRINYA, bukan disalin dari supply_demand.
+    #: Pasangan anchor BERURUTAN berbagi satu anchor - low yang sama dengan
+    #: high berikutnya - jadi pita yang dihasilkannya nyaris selalu
+    #: bertumpuk. Audit visual 8 September 2026 pada XAUUSD harian tidak
+    #: bisa memisahkan dua kotak supply yang bertumpuk di sebagian besar
+    #: rentangnya: "they render as a single banded region crossed by four
+    #: solid rules". Empat detektor imbalance tidak punya masalah ini
+    #: karena kotaknya dibuat dari lilin yang berbeda.
+    merge_overlap_pct: float = Field(default=0.6, ge=0.0, le=1.0)
+
+
 class ImbalanceParams(ParamBlock):
     """Knobs for the four detectors that read imbalance: fvg, order_block,
     ifvg and breaker.

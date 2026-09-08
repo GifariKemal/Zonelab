@@ -63,6 +63,27 @@ const P = {
       <path d="M4.5 10.5L11.5 5.5M9.5 5.5h2v2" />
     </>
   ),
+  /** Retracement ke dalam pita: leg naik lalu turun ke pita di antara dua
+   *  garis. Sengaja BUKAN kotak polos - lima detektor lain sudah memakai kotak,
+   *  dan yang membedakan OTE bukan bentuk kotaknya melainkan bahwa ia diukur
+   *  dari sebuah LEG. */
+  /** Run lilin searah lalu satu tutup menembus level pembukanya: dua batang
+   *  lalu garis mendatar yang ditembus panah pendek. */
+  cisd_zone: (
+    <>
+      <path d="M3.5 4v5M6.5 5v5" />
+      <path d="M1.5 4.5h13" />
+      <path d="M10 8.5l2.5-3 2.5 3" />
+    </>
+  ),
+
+  ote: (
+    <>
+      <path d="M1.5 13L7 3.5L12 9" />
+      <path d="M4.5 8.5h11M4.5 11h11" strokeDasharray="2.4 1.8" />
+    </>
+  ),
+
   /** Level lama yang tertembus: kotak dengan garis menembusnya. */
   breaker: (
     <>
@@ -314,6 +335,8 @@ export const LAYER_ICON: Record<string, IconName> = {
   order_block: "order_block",
   ifvg: "ifvg",
   breaker: "breaker",
+  ote: "ote",
+  cisd_zone: "cisd_zone",
   structure: "structure",
   wyckoff: "wyckoff",
   cisd: "cisd",

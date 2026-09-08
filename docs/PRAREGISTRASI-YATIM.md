@@ -479,3 +479,236 @@ salah label, satu baris tidak punya kode, dan satu baris arahnya benar dengan
 rentang yang salah. Bagian 5 dipertahankan apa adanya di atas, dengan peringatan
 yang menunjuk ke sini, karena menghapusnya akan menghapus bukti bahwa ia pernah
 dikutip.
+
+
+## OTE jadi DETEKTOR, 8 September 2026, dan itu mengukur definisi yang lain
+
+Bagian 7 dan 10 di atas menguji pita OTE **dealing range** sebagai SARINGAN atas
+sentuhan pertama zona supply/demand, dan hasilnya nol dari dua belas. Yang
+dibangun hari ini objek yang berbeda: sebuah **kotak** dari pita OTE, dengan
+lifecycle, gerbang dan bracket sendiri, di atas **swing struktur** - definisi
+yang selama ini DIGAMBAR di chart lewat `fibonacci-primitive.ts` dan belum
+pernah diukur sama sekali.
+
+Kedua definisi tidak setuju, dan `tools/brief/live.py` sudah mencatatnya:
+29 Agustus 2026 pada bar yang sama, grid memberi retracement 0,376 sementara
+klausa menjawab "no dealing range, no OTE reading". Detektor ini memilih yang
+digambar - bukan karena lebih benar, melainkan karena ia yang belum punya angka.
+
+### Geometri dan gerbang
+
+Leg dari dua anchor confirmed terakhir. Anchor high lebih baru berarti leg NAIK,
+retracement turun ke pita, kotaknya DEMAND; sebaliknya SUPPLY. Pitanya 0,618
+sampai 0,786, dan tepi yang harga temui lebih dulu adalah yang DANGKAL - jadi
+0,618 proximal, 0,786 distal, stop di luar distal seperti lima detektor lain.
+Kedua rasio diambil dari `fibonacci-primitive.ts:LEVELS` supaya kotak dan grid
+tidak bisa hanyut.
+
+Gerbangnya **lantai 2,0 ATR pada panjang leg**, dan itu pilihan yang dinyatakan:
+doktrin OTE tidak membawa gerbang sama sekali - ia aturan tempat masuk, bukan
+aturan seleksi. `FLOOR_GATE_ATR` memaksa tiap kind baru menyatakan lantainya,
+jadi OTE juga masuk `GATE_UNMEASURED_KINDS`.
+
+### Hasil, dan regresi dijalankan lebih dulu
+
+Detektor 0 direproduksi sebelum angka OTE dipercaya: **n=598, PF 1,113, cand
+1.479, gate 610** - identik digit demi digit.
+
+| sel | n | win% | PF | placebo | margin |
+|---|---|---|---|---|---|
+| FX:XAUUSD 1d | 685 | 43,50 | **1,066** | 0,958 | +0,108 |
+| COMEX:GC1! 1d | 622 | 39,55 | **0,876** | - | - |
+
+Peringkat di XAU harian, enam detektor lewat bracket identik: supply_demand
+1,235, breaker 1,181, fvg 1,112, ifvg 1,067, **ote 1,066**, order_block 0,972.
+Praktis kembar dengan IFVG, kelima dari enam.
+
+### Kontrolnya BERSIH, dan itu sifat yang SD maupun IFVG tidak punya
+
+`gate` **identik 679 di kedua lengan**. Gerbang OTE ada pada PANJANG LEG, dan
+leg tidak ikut bergeser saat kotaknya digeser, jadi lengan placebo memakai
+peristiwa yang persis sama dengan kotak di tempat yang salah - definisi placebo
+yang sebenarnya. Bandingkan S&D, yang gerbangnya diukur DARI proximal sehingga
+geseran memindahkan `gate` dari 331 ke 463, dan IFVG yang punya masalah sama.
+Margin +0,108 PF karena itu lebih bisa dibaca daripada margin lebih besar milik
+keduanya.
+
+### Dua cacat harness ditemukan saat membangunnya
+
+**`inverting = detector >= 2` menangkap terlalu banyak.** Benar selama detektor
+tertinggi 3; begitu SD (4) dan OTE (5) masuk, keduanya ikut terbaca sebagai mode
+inversi. Diperiksa sebelum diperbaiki: TIDAK ada angka yang salah karenanya,
+sebab `v_top` hanya diisi di blok bersama dan `ok` sudah false untuk SD. Bahaya
+laten, bukan hasil tercemar. Sekarang `detector == 2 or detector == 3`.
+
+**Gerbang OTE sempat di dalam `e_ok`**, jadi `c_cand` hanya naik untuk zona yang
+sudah lolos dan tabel membaca cand 679 gate 679 - kolom kandidat berhenti
+sebanding dengan lima detektor lain. Dipindah ke `gatePass`: cand 768 gate 679,
+trade praktis tak berubah (n 686 jadi 685).
+
+> [!WARNING]
+> Paste ke editor Pine GAGAL DIAM-DIAM satu kali di sesi ini, dan
+> `pine_smart_compile` melaporkan sukses karena ia menyimpan isi LAMA. Yang
+> menutupinya: regresi detektor 0 tetap lolos, karena detektor 0 tidak tersentuh
+> perubahan OTE. Sebabnya fokus ada di BODY, bukan textarea Monaco, sehingga
+> Ctrl+A/Ctrl+V tidak mendarat. Obatnya: fokuskan
+> `document.querySelector('.monaco-editor textarea')` lewat `ui_evaluate` lebih
+> dulu, lalu VERIFIKASI lewat baris `cfg` - label detektor yang benar adalah
+> bukti paste-nya masuk, dan regresi saja BUKAN.
+
+### Parity lawan Pine publik: konvensinya SAMA, anchor-nya TIDAK
+
+Pembanding: `Optimal Trade Entry (OTE) Zone Plotter [algotim]`, 50 kotak di
+FX:XAUUSD harian, 6 di antaranya jatuh di rentang harga jendela candle yang bisa
+ditarik. Metode sama dengan parity FVG: kode PRODUKSI dijalankan di atas candle
+dari chart yang menggambar kotak mereka, jadi tak ada selisih feed.
+
+**Cocok persis: 0 dari 6.** Tapi itu bukan akhir ceritanya, dan menyebutnya
+"parity gagal" akan salah. Dua uji lanjutan:
+
+**Sapuan `swing_n` 2 sampai 30: nol cocok di setiap nilai.** Jadi selisihnya
+bukan panjang pivot yang bisa disetel.
+
+**Rasio tersiratnya dipecahkan balik dari ekstrem NYATA di data**, dan hasilnya
+mengelompok ketat:
+
+| kotak algotim | H | L | r1 | r2 | r2-r1 |
+|---|---|---|---|---|---|
+| 5060,61 / 4962,34 | 5418,87 | 4840,95 | 0,6199 | 0,7900 | 0,1700 |
+| 4475,24 / 4378,02 | 4833,46 | 4257,24 | 0,6217 | 0,7904 | 0,1687 |
+| 3718,05 / 3536,14 | 4382,48 | 3306,91 | 0,6177 | 0,7869 | 0,1691 |
+| 3369,00 / 3315,51 | 3563,98 | 3246,37 | 0,6139 | 0,7823 | 0,1684 |
+| 3341,96 / 3315,39 | 3438,84 | 3281,54 | 0,6159 | 0,7848 | 0,1689 |
+
+r1 0,614-0,622 dan r2 0,782-0,790 - **itu 0,618 dan 0,786.** Konvensi pitanya
+identik dengan kita. Yang berbeda MURNI pasangan anchor mana yang dipilih untuk
+menggambar leg-nya.
+
+Dan itu instans KETIGA dari masalah yang sama di halaman ini: matematika pitanya
+universal, LEG-nya tidak. Dua definisi OTE internal repo ini berselisih karena
+alasan yang sama (swing struktur lawan dealing range), dan sekarang script pihak
+ketiga berselisih dengan keduanya karena alasan yang sama lagi.
+
+### Tuning: lantainya bisa disetel, tapi TIDAK memperbaiki apa pun
+
+Sapuan lantai panjang leg di XAU harian naik monoton - pola yang persis pernah
+menipu di lantai BRK:
+
+| lantai | n | PF |
+|---|---|---|
+| 0 (mati) | 793 | 1,038 |
+| **2,0 (di-ship)** | 685 | 1,066 |
+| 3,0 | 447 | 1,099 |
+| 4,0 | 278 | **1,205** |
+
+Hold-out dijalankan SEBELUM menyebutnya perbaikan, jendela dibelah di 2013:
+
+| lengan | IS 2000-2013 | OOS 2013-2026 |
+|---|---|---|
+| lantai 2,0 | **0,848** | **1,180** |
+| lantai 4,0 | **1,191** | **1,162** |
+
+Lantai 4,0 memang akan TERPILIH di paruh pertama - 1,191 lawan 0,848 - dan ia
+bertahan di luar sampel, tidak runtuh seperti lantai 4,0 milik BRK yang jatuh ke
+0,861. Tapi **ia tidak mengalahkan lantai yang sudah di-ship**: 1,162 lawan
+1,180, dengan separuh jumlah trade. **Tidak ada perubahan yang direkomendasikan.**
+
+Catatan yang harus dibaca bersamanya: lantai 2,0 sendiri IS 0,848 dan OOS 1,180,
+jadi PF jendela-penuh 1,066 miliknya adalah fenomena paruh kedua - bentuk yang
+sama dengan BRK harian.
+
+### Autodrawing: 7 dari 7, dan satu cacat yang dedupe paksa keluar
+
+`e2e/pixel-truth.mjs` pada `ote`, XAUUSD harian: **7 dari 7 lolos**, tepi atas
+0,5px, tepi bawah 0,4px, tepi kiri 10 dari 10, kotak menutupi basisnya sampai
+0,03 bar.
+
+Tapi audit visual menemukan zona OTE saling menumpuk berat: "they render as a
+single banded region crossed by four solid rules". Sebabnya geometri detektor
+ini - **pasangan anchor berurutan berbagi satu anchor**, jadi pita berikutnya
+hampir selalu memotong pita sebelumnya. Empat detektor imbalance tidak punya
+masalah ini karena kotaknya dibuat dari lilin yang berbeda.
+
+Obatnya memakai ulang `_dedupe` milik supply_demand, bukan menulis versi kedua:
+`merge_overlap_pct` 0,6 membuang **105 dari 197** zona di XAU harian.
+
+**Dan dedupe memaksa keluar cacat yang saya buat sendiri.** `_finish` menyusun
+id dari kind plus bar ORIGIN, unik untuk lima detektor lain. Untuk OTE TIDAK:
+dua pita berbeda bisa berbagi origin, jadi id-nya sama. Sebelum dedupe hal itu
+tak terlihat - `{z.id: z}` diam-diam menyimpan yang terakhir. Begitu dedupe
+masuk, yang bertahan bergantung populasi, dan `test_no_repaint` langsung merah:
+"grew right: OTE-1774544400". React di frontend menandai hal yang sama secara
+independen ("two children with the same key"). Id sekarang membawa KEDUA anchor.
+
+### Dua penggambaran di layar yang sama, dan kenapa itu TIDAK perlu diperbaiki
+
+Pita OTE sekarang tampil dua kali kalau layer `structure` dan `ote` sama-sama
+menyala: sebagai grid sembilan level dari `fibonacci-primitive.ts`, dan sebagai
+kotak dari layer baru.
+
+Diperiksa sebelum menyarankan perubahan: grid memakai ink family `levels`,
+**biru-abu [137, 183, 207]**, sementara zona memakai hijau `#1f8f5f` dan merah
+`#ef8f86`. Keduanya sudah terbedakan warna, dan mereka memang dua objek berbeda
+- grid adalah level acuan netral di atas leg SEKARANG tanpa klaim arah, kotak
+adalah zona berwarna dengan lifecycle, gerbang dan status. **Tidak ada perubahan
+kode yang disarankan**; yang dibutuhkan legenda yang menyebutkannya, bukan aturan
+supresi yang akan menyembunyikan informasi yang berbeda.
+
+### Grid enam detektor lengkap, dan stress test OTE
+
+Dua sel yang hilang diisi supaya baris OTE sebanding, lalu saringan delapan
+periode dikenakan seperti ke lima lainnya.
+
+| detektor | XAU 1d | XAU 4h | BTC 1d (2017+) | periode lolos |
+|---|---|---|---|---|
+| supply_demand | **1,235** | **1,043** | 0,744 | 5 dari 8 |
+| breaker | **1,181** | 0,958 | 0,931 | 3 dari 8 |
+| fvg | **1,112** | **1,091** | 0,737 | 6 dari 8 (di 4 jam) |
+| ifvg | **1,067** | 0,965 | 0,844 | 6 dari 8 |
+| **ote** | **1,066** | 0,960 | 0,881 | **4 dari 8** |
+| order_block | 0,972 | 0,926 | 0,907 | 5 dari 8 |
+
+Delapan periode OTE di XAUUSD harian, batas identik dengan lima lainnya:
+
+| periode | n | win% | PF |
+|---|---|---|---|
+| 2000-2003 | 86 | 46,51 | 0,981 |
+| 2003-2006 | 69 | 36,23 | 0,842 |
+| 2006-2010 | 93 | 44,09 | **1,168** |
+| 2010-2013 | 77 | 42,86 | 0,650 |
+| 2013-2016 | 85 | 44,71 | **1,508** |
+| 2016-2020 | 103 | 51,46 | 0,980 |
+| 2020-2023 | 87 | 37,93 | **1,073** |
+| **2023-2026** | 60 | 45,00 | **1,135** |
+| **lolos** | | | **4 dari 8** |
+
+Periode sekarang 1,135, di atas satu dan ketiga terbaik dari delapan - jadi OTE
+tidak punya bentuk peluruhan yang dipunyai IFVG (2023-2026 terburuk) maupun BRK
+(kedua terburuk). Tapi 4 dari 8 menempatkannya kelima dari enam, sejajar dengan
+peringkat PF-nya, dan jauh dari 8 dari 8 yang menggerbangi `orderable`.
+
+n per periode 60 sampai 103, jadi yang ditopang HITUNGAN lolos-gagalnya, bukan
+presisi tiap sel.
+
+### Lubang UI yang ter-ship, ditutup
+
+`toolbox.tsx` memakai `switch` yang di-hardcode per blok params, dan tidak ada
+`case "ote"` - layernya bisa dinyalakan tapi keempat knob-nya tidak terjangkau.
+`e2e/wiring.mjs` menangkapnya begitu dijalankan: **82 dari 85**, dengan `ote=0`
+objek tergambar, tanpa swatch tinta, dan tanpa baris pemilik.
+
+Tiga yang kurang: panel knob di `toolbox.tsx`, swatch di `layerSwatch()`, dan
+ikon di `icons.tsx`. Ditambah entri `DRAWS` dan `OWNERS` di harness-nya sendiri.
+Sesudahnya **86 dari 86** dan `ote=10` objek tergambar.
+
+Ikonnya sengaja BUKAN kotak polos: lima detektor lain sudah memakai kotak, dan
+yang membedakan OTE bukan bentuk kotaknya melainkan bahwa ia diukur dari sebuah
+LEG - jadi ikonnya leg naik dengan dua garis pita.
+
+### Legenda dua penggambaran, ditulis
+
+`e2e/chart-audit.mjs` sekarang menyatakan bahwa grid Fibonacci biru-abu dan
+kotak OTE hijau/merah adalah dua objek berbeda yang keduanya benar, dan bahwa
+auditor tidak boleh melaporkannya sebagai duplikat. Itu satu-satunya perubahan
+yang diambil untuk isu tersebut; tidak ada aturan supresi, karena keduanya sudah
+terbedakan warna.

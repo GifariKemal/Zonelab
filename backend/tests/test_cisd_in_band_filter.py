@@ -24,8 +24,12 @@ NOW = 1_000_000
 
 def ev(level: float, time: int) -> CISD:
     """CISD yang cuma dua field-nya dibaca `recent_in_band`."""
+    # `run_extreme` tidak dipakai `recent_in_band` - ia menyaring atas `level`
+    # dan `time` saja - jadi di sini ia cuma harus ADA. Diberi nilai yang
+    # konsisten dengan arah +1 (run turun, ekstremnya di bawah level) supaya
+    # fixture-nya tidak menyandi kotak yang mustahil.
     return CISD(index=0, time=time, direction=1, level=level,
-                run_start=0, run_end=1, run_length=2)
+                run_start=0, run_end=1, run_length=2, run_extreme=level - 1.0)
 
 
 def test_a_recent_level_inside_the_band_is_found():

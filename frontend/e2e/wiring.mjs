@@ -66,6 +66,8 @@ const DRAWS = {
   order_block: "zones",
   ifvg: "zones",
   breaker: "zones",
+  ote: "zones",
+  cisd_zone: "zones",
   structure: "swings",
   session: "quarters",
   vortex: "vortex",
@@ -210,6 +212,8 @@ check("every registry row carries an evidence disclosure", bukti === registry.le
 const OWNERS = [
   ["supply_demand", "Supply and demand", "Zones per side"],
   ["fvg", "Fair value gap", "Boxes per side"],
+  ["ote", "Optimal trade entry", "Swing fractal"],
+  ["cisd_zone", "CISD zone", "Shortest run"],
   ["structure", "Market structure", "Major fractal"],
   ["session", "Cycle grid", "Quarters kept"],
   ["gaps", "Opening gaps", "Gaps kept"],

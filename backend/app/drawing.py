@@ -189,6 +189,8 @@ _HANDLERS: dict[str, _Handler] = {
     "order_block": _zone_layer("order_block"),
     "ifvg": _zone_layer("ifvg"),
     "breaker": _zone_layer("breaker"),
+    "ote": _zone_layer("ote"),
+    "cisd_zone": _zone_layer("cisd_zone"),
     "structure": _draw_structure,
     "session": _draw_session,
     "vortex": _draw_vortex,

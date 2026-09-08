@@ -126,13 +126,32 @@ FLOOR_GATE_ATR: dict[ZoneKind, float] = {
     ZoneKind.RBD: DEPARTURE_GATE_ATR,
     ZoneKind.OB: DEPARTURE_GATE_ATR,
     ZoneKind.BRK: DEPARTURE_GATE_ATR,
+    # OTE MENYATAKAN LANTAINYA, karena peta ini memaksa setiap kind baru
+    # melakukannya. Doktrin OTE sendiri tidak membawa gerbang - ia aturan
+    # tempat masuk, bukan aturan seleksi - jadi 2,0 di sini adalah PADANAN
+    # yang dipilih, bukan angka yang diwarisi: ia mengukur panjang leg yang
+    # membuat pitanya, sebagaimana empat kind di atas mengukur keberangkatan.
+    ZoneKind.OTE: DEPARTURE_GATE_ATR,
+    # NOL, dinyatakan, sama alasannya dengan detektor kotak peristiwa lain:
+    # tinggi kotak CISD ADALAH jarak stopnya, jadi menggerbanginya memilih
+    # antara 'cuma run besar' dan 'cuma stop rapat' dan tidak satu pun
+    # bersumber. Ia disapu di TradingView, bukan ditebak di sini.
+    ZoneKind.CISD: 0.0,
 }
 #: Kind yang gerbangnya plafon, bukan lantai.
 #:
 #: BRK TIDAK DI SINI, dan itu keputusan yang belum punya angka. Ia mewarisi
 #: `departure_atr` dari order block induknya lewat mekanisme yang persis sama
 #: dengan IFVG, lalu dinilai dengan lantai 2,0 ATR yang tidak pernah diukur
-#: untuknya. Dicatat di `docs/QA-IFVG-GATE.md` bagian penutup.
+#: untuknya. SUDAH DIUKUR sejak 7 September 2026 dan kalimat di atas ketinggalan:
+#: lihat paragraf `GATE_UNMEASURED_KINDS` di bawah (n=7.410, tidak
+#: memisahkan dari 1,0 sampai 6,0) dan sapuan lantai BRK di
+#: `docs/QA-OB-GATE.md`, tempat lantainya naik monoton dari 0,953 (mati)
+#: ke 1,158 (4,0) lalu runtuh ke 0,861 di luar sampel. Jadi `gate_measured`
+#: False untuk BRK sekarang berdiri di atas sapuan yang PERNAH DILAKUKAN
+#: dan gagal, bukan di atas yang belum pernah dicoba. Rujukan lama ke
+#: bagian penutup `QA-IFVG-GATE.md` juga sudah menggantung, karena bagian
+#: itu sendiri sudah digantikan.
 CEILING_KINDS = (ZoneKind.FVG, ZoneKind.IFVG)
 
 #: exp_r kedua kohort plafon, PER KIND, sebagai (di bawah plafon, di atasnya).
@@ -144,6 +163,22 @@ CEILING_KINDS = (ZoneKind.FVG, ZoneKind.IFVG)
 #: Terlihat di layar hari itu pada zona IFVG 0,37 ATR: "Kohort ini exp_r
 #: +0.190 R, lawan +0.426 R yang di bawah gerbang", sementara kohort IFVG yang
 #: sebenarnya adalah +0,1597 lawan +0,3450.
+#:
+#: PRA-PERBAIKAN LIFECYCLE, DAN ITU BELUM PERNAH DICATAT DI SINI. Kedua
+#: pasang diukur pada lifecycle yang memeriksa PECAH SEBELUM SENTUH.
+#: Untuk FVG, sapuan yang sama sesudah diperbaiki memberi +0,0919 R di
+#: t=+1,88 pada sisi BAWAH plafon - di bawah ambang Bonferroni 3,241 yang
+#: dipakai sapuan aslinya - jadi +0,426 melebih-lebihkan sekitar 4,6 kali.
+#: Untuk IFVG, `layers.py` mencatat bahwa setiap angka di
+#: QA-IFVG-GATE.md sebelum bagian penutupnya mendahului perbaikan itu.
+#:
+#: TABELNYA TIDAK DIHAPUS dan angkanya tidak diganti, karena pasangan
+#: terkoreksinya BELUM DIUKUR: tabel pasca-perbaikan di QA-FVG-TV.md
+#: membandingkan gerbang MATI lawan 0,25, bukan kohort bawah lawan atas.
+#: Mengarang pasangan baru akan mengulang persis kesalahan yang dicatat di
+#: atas. Yang berubah 8 September 2026: `advisor.py` dan `plan.py` berhenti
+#: mencetaknya sebagai angka BERLAKU dan menyebutnya pra-perbaikan.
+#: Menyalakannya kembali sebagai klaim butuh sapuan kohort pasca-perbaikan.
 #:
 #:   FVG   docs/QA-FVG-RECALIBRATION.md
 #:   IFVG  docs/QA-IFVG-GATE.md, n=11.068, 4.484 di bawah dan 6.584 di atas
@@ -186,7 +221,14 @@ SUPPLY_DEMAND_KINDS = (ZoneKind.RBR, ZoneKind.DBR, ZoneKind.DBD, ZoneKind.RBD)
 #: itu diperbaiki, dan itu perbedaan yang disengaja: lantainya masih MENGIKAT
 #: jalur order-nya lewat `tools/execute.py`, jadi pembaca berhak melihat
 #: verdict yang benar-benar menentukan apakah sebuah order dikirim.
-GATE_UNMEASURED_KINDS = (ZoneKind.BRK,)
+#: OTE MASUK SEJAK 8 September 2026, dan alasannya lebih bersih daripada
+#: BRK. BRK ada di sini karena mewarisi lantai induknya lalu gagal saat
+#: lantainya sendiri disapu; OTE ada di sini karena doktrinnya TIDAK PUNYA
+#: gerbang sama sekali. OTE aturan tempat masuk, bukan aturan seleksi, jadi
+#: lantai 2,0 ATR pada panjang leg adalah padanan yang dipilih supaya ia
+#: sebanding dengan empat detektor lain - dan permukaan yang menampilkan
+#: verdict harus menahan diri sampai ia benar benar disapu.
+GATE_UNMEASURED_KINDS = (ZoneKind.BRK, ZoneKind.OTE, ZoneKind.CISD)
 
 
 class Zone(BaseModel):

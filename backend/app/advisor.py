@@ -52,6 +52,14 @@ FORMATIONS: dict[ZoneKind, tuple[str, str]] = {
     ZoneKind.BRK: ("Breaker Block",
                    "order block yang ditembus penutupan, lalu dibaca dari sisi "
                    "sebaliknya - diukur di sini TIDAK membawa arah"),
+    ZoneKind.CISD: (
+        "CISD zone",
+        "level delivery yang ditembus sampai ekstrem run-nya - tepi keduanya sifat run, bukan konstanta",
+    ),
+    ZoneKind.OTE: (
+        "Optimal trade entry",
+        "pita 0,618-0,786 dari satu leg struktur - tempat masuk, bukan alasan masuk",
+    ),
 }
 
 
@@ -104,11 +112,15 @@ def explain(zone: Zone, plan: TradePlan | None, interval: str) -> Advice:
             f"Itu di bawah gerbang {gate_text} ATR. Kohort {zone.kind.value} "
             f"ini exp_r +{low} R lawan +{high} R yang di atasnya, dan yang "
             f"disortir adalah KERAPATAN STOP: win rate justru turun saat "
-            f"plafon diperketat."
+            f"plafon diperketat. ANGKA PRA-PERBAIKAN, jangan dipakai "
+            f"sebagai ukuran: kohort ini diukur pada lifecycle yang "
+            f"memeriksa pecah sebelum sentuh, dan sesudah diperbaiki sisi "
+            f"bawahnya +0,0919 R di t=+1,88."
         )
         not_cleared_text = (
             f"Itu di ATAS gerbang {gate_text} ATR. Kohort {zone.kind.value} "
-            f"ini exp_r +{high} R lawan +{low} R yang di bawahnya."
+            f"ini exp_r +{high} R lawan +{low} R yang di bawahnya. "
+            f"ANGKA PRA-PERBAIKAN, jangan dipakai sebagai ukuran."
         )
     else:
         cleared_text = (

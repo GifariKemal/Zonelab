@@ -135,6 +135,20 @@ PORTED_WYCKOFF = {
 #: bahwa ia tidak diukur - karena "belum diukur" dan "diukur dan lolos" tidak
 #: boleh terlihat sama dari luar.
 UNPORTED: dict[str, str] = {
+    "cisd_zone": (
+        "BELUM DI-PORT, ditambahkan 8 September 2026. `CISDDetector.mqh` sudah ada dan memeriksa LEVEL-nya - 0 mismatch di 349 event pada feed yang sama - jadi separuh parity-nya sudah terbukti. Yang belum: tepi KEDUA, ekstrem run, yang baru ditambahkan hari ini ke `DeliveryRun`. Port kotaknya berarti menambahkan field yang sama di sisi MQL5 dan membandingkan dua tepi, bukan satu"
+    ),
+    "ote": (
+        "BELUM DI-PORT, ditambahkan 8 September 2026 bersama detektornya. "
+        "Ia detektor pertama di sini yang kotaknya tidak memuat lilin apa "
+        "pun - dua harga swing dan dua rasio - jadi parity MQL5-nya akan "
+        "menguji `structure.swings` dan aritmetika retracement, bukan "
+        "geometri lilin seperti lima yang lain. Yang lebih mendesak dari "
+        "port MQL5: pitanya SUDAH digambar di frontend sejak lama lewat "
+        "fibonacci-primitive.ts dan tidak pernah diukur sama sekali, jadi "
+        "parity yang paling berharga untuk layer ini adalah Pine lawan "
+        "Python di feed yang sama, bukan MQL5"
+    ),
     # ---- Enam layer di luar family ICT, ditambahkan 2 September 2026 supaya
     # ---- sensus ini menutup SETIAP layer dan bukan hanya family ICT. Sampai
     # ---- hari itu kelimanya plus `checklist` tidak tercatat di mana pun, jadi

@@ -2453,3 +2453,650 @@ gerbang berhenti rugi. Ia belum terbukti menghasilkan.
   tetapi kecil dan tidak searah.
 - **Satu venue.** Semua sel dari terminal MT5 Exness, dengan biaya dari
   `app/costs.py` profil broker `exness_raw`.
+
+
+## H12: FVG di dalam leg MSS, 8 September 2026
+
+H9 menguji MSS sebagai arah, H11 menambahkan displacement, dan
+`conditioned_structure.py` mengujinya sebagai gerbang zona. Ketiganya gagal.
+Yang tidak pernah ditanyakan: **doktrinnya sendiri tidak menyuruh masuk DI MSS.**
+Ia menyuruh masuk pada retracement ke dalam FVG yang dibuat leg
+displacement-nya. FVG sudah berbentuk kotak dan sudah terukur, jadi klaim itu
+bisa diuji tanpa mengarang satu koordinat pun.
+
+Rig: `detectors_costed.resolved_as("fvg", ...)`, satu backtest per sel,
+4.901 baris, dipecah POST HOC lewat `zone_id`. Empat sel, XAUUSD dan BTCUSD di
+1 jam dan 4 jam. Ambang didaftarkan lebih dulu: MIN_ARM 30, Bonferroni atas
+enam kontras jadi **|t| > 2,638**, tanda sama di kedua paruh, dan minimal 3 dari
+4 sel positif.
+
+### Sebuah lookahead ditemukan di tengah jalan, dan ia ADALAH seluruh efeknya
+
+Pass penandaan pertama melabeli sebuah zona memakai break yang bisa tercetak
+SESUDAH zona itu tersentuh - sesudah trade-nya dimulai. Mewajibkan bar sentuhan
+lebih baru daripada bar pelabelan memindahkan lengan BREAK_ONLY dari
+
+    +0,3248 R, selisih +0,4102, t = +6,54
+
+menjadi
+
+    +0,0569 R, selisih +0,0822, t = +1,40
+
+**Seluruh efek yang terlihat adalah kebocorannya.** t = +6,54 akan lolos setiap
+ambang di halaman ini. Hanya tabel terkoreksi di bawah yang berlaku.
+
+### Hasil, bebas lookahead, gabungan empat sel
+
+| w | lengan | n | exp R | win | PF | selisih | Welch t |
+|---|---|---|---|---|---|---|---|
+| 5 | IN_MSS | 41 | -0,4033 | 31,7% | 0,336 | -0,3926 | -2,87 |
+| 5 | BREAK_ONLY | 670 | +0,0569 | 46,0% | 1,118 | +0,0822 | +1,40 |
+| 5 | SWEEP_ONLY | 115 | +0,1014 | 44,3% | 1,241 | +0,1182 | +0,90 |
+| 20 | **IN_MSS** | **208** | **-0,0376** | 44,7% | 0,923 | **-0,0247** | **-0,28** |
+| 20 | BREAK_ONLY | 830 | +0,0641 | 45,3% | 1,132 | +0,0940 | +1,73 |
+| 20 | SWEEP_ONLY | 121 | +0,0606 | 43,8% | 1,125 | +0,0765 | +0,51 |
+
+**NULL.** FVG di dalam leg MSS tidak mengungguli FVG biasa. Di w=20 - satu
+satunya jendela dengan baris cukup - selisihnya -0,0247 R di t = -0,28, dan cuma
+1 dari 4 sel positif (XAU 1h +0,1843, sisanya negatif).
+
+Di w=5, default yang di-ship, lengannya -0,4033 di t = -2,87 dan itu secara
+formal menabrak aturan GAGAL - tapi ia 41 baris di empat sel dan **tidak satu
+sel pun mencapai MIN_ARM 30** (n = 12, 9, 7, 13). Itu kelangkaan, bukan temuan.
+
+Kedua kontrolnya sama datarnya: BREAK_ONLY +0,0940 (t = +1,73) dan SWEEP_ONLY
++0,0765 (t = +0,51), tak satu pun mendekati 2,638. **Konjungsinya tidak
+menambahkan apa pun atas bagian-bagiannya.**
+
+### Dua hal yang layak disimpan
+
+**Tinggi celah BUKAN confound-nya.** Celah yang bersebelahan dengan break justru
+LEBIH KECIL (0,431 sampai 0,463 ATR) daripada sisanya (0,502 sampai 0,542), jadi
+tidak ada angka lengan yang merupakan artefak tinggi celah.
+
+**Dinding kelangkaan yang sama, untuk keempat kalinya.** `mss_window` 5 yang
+di-ship memberi 47 break MSS dalam 34.121 bar XAUUSD 1 jam, dan 41 baris yang
+bisa diperdagangkan di seluruh repo sesudah saringan span intrabar. Kelangkaan
+itu sudah membunuh H9 (7 dan 43 peristiwa), H11, dan `conditioned_structure.py`
+(48 dari 2.910; `mss_side_swing` punya 4 baris non-`none` dari 1.855).
+Sensitivitas pivot sudah menyingkirkan definisi fraktal kita sebagai sebabnya.
+
+## Garis MSS akhirnya diverifikasi di kanvas, 8 September 2026
+
+Sampai hari ini **tidak satu piksel pun dari `structure-primitive.ts` pernah
+dibaca balik**: `pixel-truth` membaca box dan hanya box, `nonbox-truth` membaca
+ray yang memanjang ke kanan dan hanya itu. Garis MSS - satu satunya geometri
+yang cuma dimiliki MSS, karena ia mulai di bar SWEEP dan bukan di bar swing -
+tidak pernah diverifikasi ada di harganya.
+
+Tiga hal harus dibangun, dan dua di antaranya cacat di harness-nya sendiri:
+
+**Scanner penempatan-saja.** `__scan` menolak jendela di bawah 20 piksel karena
+duty cycle butuh tiga periode dash. Segmen MSS membentang sweep sampai break
+dan `mss_window` default 5, jadi ia sering 1 sampai 2 bar dan tidak akan pernah
+mencapai 20 piksel pada jumlah bar yang masih memuat sebuah MSS. Memakai
+`__scan` untuknya melaporkan "tidak tergambar" untuk garis yang tergambar
+sempurna. `__scanAt` tidak mengukur duty sama sekali dan berlantai 4 piksel.
+
+**Gate hampa, ditulis lalu dibetulkan di sesi yang sama.** Versi pertama gate ini
+berbunyi `mssMeasured.length === 0 || <galat dalam batas>`, yang LULUS justru
+ketika nol garis bisa diukur - persis bentuk yang seluruh berkas itu ada untuk
+mencegah, beberapa baris di bawah komentar yang memperingatkannya.
+
+**Chart harus digulir ke peristiwanya.** Diagnostik: MSS pertama jatuh di
+y = -168 dengan xa = -526 dan xb = -514 pada pane selebar 750 - di luar layar di
+KEDUA sumbu, karena `RIGHT_OFFSET_BARS` menggeser candle ke kiri supaya ray
+sendirian di kanan, dan geseran itu mendorong segmen masa lalu keluar. Probe
+melaporkan "tidak ada tinta", yang terbaca seperti garis hilang.
+
+Hasil, XAUUSD 1 jam 900 bar:
+
+| garis | harga | duty | galat |
+|---|---|---|---|
+| MSS-internal | 4.681,058 | 1,00 | 0,17 |
+| MSS-internal | 4.571,395 | 1,00 | 0,28 |
+
+Terburuk 0,28 lawan toleransi 2,34, yaitu **0,006 persen**. Garis MSS ada di
+harga yang skala harga menaruhnya.
+
+
+## MSS sebagai DETEKTOR KOTAK, 8 September 2026, dan ia TIDAK BISA DIUKUR di rig ini
+
+Diminta sesudah keberatan strukturalnya disampaikan dan tetap dilanjutkan.
+Dikerjakan penuh: detektor backend, Pine detektor 6, backtest spot dan COMEX,
+gambar. Hasilnya bukan null melainkan **tidak bisa diukur**, dan repo ini
+memperlakukan keduanya berbeda dengan sengaja.
+
+### Geometrinya memperkenalkan NOL bilangan baru
+
+Doktrin MSS tidak menyebut kotak. Dua tepi dipilih dari harga yang konstruknya
+SUDAH sebutkan: `event.level` (harga swing yang JEBOL) dan `sweep.level` (harga
+swing yang DISAPU). Keduanya sudah dipakai `mss_sweeps` untuk memutuskan apakah
+sebuah break adalah MSS.
+
+Sisinya jatuh tanpa pilihan lagi: break TURUN berarti sebuah high disapu dan
+sebuah low jebol, jadi kotaknya dari low-yang-jebol sampai high-yang-disapu dan
+sisinya SUPPLY - proximal di level yang jebol, distal di sapuannya. Itu persis
+trade yang doktrinnya jelaskan. Alternatif yang ditolak masing-masing
+memperkenalkan satu bilangan: kotak k kali ATR di sekitar level, atau kotak dari
+ekstrem leg.
+
+### Angkanya, dan kenapa ia bukan angka
+
+| sel | mode target | cand | fill | n | PF | RR | no wall |
+|---|---|---|---|---|---|---|---|
+| XAU 1d | zona lawan | 11 | 11 | **11** | 0,086 | **7,59** | 5 dari 11 |
+| XAU 1h | zona lawan | 26 | 24 | **24** | 0,269 | **16,19** | **17 dari 26** |
+| XAU 1h | R tetap 2,0 | 26 | 24 | 24 | 0,767 | 1,85 | 0 |
+| COMEX GC1! 1h | R tetap 2,0 | 30 | 27 | **10** | 0,229 | 1,80 | 0 |
+
+**Sebelas trade dalam dua puluh enam tahun emas harian.** Itu bukan sampel.
+
+**Konvensi target bersama tidak muat.** Dua pertiga zona MSS di 1 jam tidak
+punya dinding lawan sama sekali, dan yang punya rata-rata 16,19 risk-unit
+jauhnya - karena dinding lawan sebuah MSS adalah MSS lain, dan MSS langka.
+Mengganti ke R tetap menaikkan PF dari 0,269 ke 0,767 dan membuat `no wall` nol,
+yang mengisolasi kerusakannya: separuhnya konvensi target, bukan geometrinya.
+
+**Dan di COMEX bracketnya gagal menyelesaikan trade-nya.** 27 terisi, 10
+tertutup - tujuh belas posisi tidak pernah mencapai stop maupun target di dalam
+horizon 80 bar, karena kotaknya begitu lebar sehingga 2R dalam satuan harga
+sangat jauh.
+
+### Ini dinding yang KELIMA, dan sebabnya sama
+
+H9, H11, `conditioned_structure.py`, H12, dan sekarang ini. `mss_window` 5
+memberi 47 break MSS dalam 34.121 bar XAUUSD 1 jam. Sensitivitas pivot sudah
+menyingkirkan fraktal simetris kita sebagai sebabnya - itu pasar.
+
+Yang baru dari run ini: kelangkaan itu tidak cuma membuat sampelnya kecil, ia
+membuat **konvensi bracket bersama tidak berlaku**, karena bracket itu memilih
+target dari zona lawan dan sebuah detektor sejarang ini tidak punya tetangga.
+
+### Gerbangnya nol, dan itu pernyataan
+
+Tinggi kotak MSS ADALAH jarak stopnya, jadi menggerbanginya berarti memilih
+antara "cuma leg besar" (lantai) dan "cuma stop rapat" (plafon) - keduanya bisa
+dipertahankan, tidak satu pun bersumber. Definisi MSS sudah membawa TIGA syarat.
+MSS ada di `GATE_UNMEASURED_KINDS`, dan `test_the_floor_kinds_clear_by_being_large`
+sekarang mewajibkan setiap kind berlantai-nol ada di sana - kalau tidak, panel
+akan membaca "lolos gerbang" untuk sesuatu yang tidak pernah digerbangi.
+
+### Gambarnya, sebaliknya, bersih
+
+`pixel-truth` pada `mss`: **7 dari 7**, tepi atas 0,1px, tepi bawah 0,2px, tepi
+kiri 1 dari 1, kotak menutupi basisnya sampai 0,01 bar. Satu zona di jendela itu
+- konsisten dengan kelangkaannya.
+
+### Putusan
+
+Kotaknya digambar benar dan geometrinya tidak mengarang bilangan. Tapi
+**populasinya tidak bisa mendukung kesimpulan apa pun** lewat bracket ini, dan
+angka mana pun yang dikutip dari 10 sampai 24 trade akan menyesatkan. Yang
+dilaporkan di sini bukan "MSS buruk" melainkan "MSS tidak terukur di sini", dan
+itu perbedaan yang halaman ini pertahankan sejak H9 melaporkan 7 dan 43
+peristiwa sebagai ketidakmampuan mengukur, bukan sebagai null.
+
+
+### Benchmark dan tuning MSS, dijalankan atas permintaan dengan angkanya DITANDAI
+
+Bagian di atas menyimpulkan MSS tidak terukur di rig ini. Benchmark dan tuning
+tetap dijalankan atas permintaan, dan setiap angka di bawah membawa tanda yang
+menentukan apakah ia boleh dikutip.
+
+#### Benchmark: pembandingnya bukan MSS, ia CHoCH
+
+Satu-satunya perbandingan di sini yang TIDAK bergantung pada ukuran sampel,
+karena ia menghitung objek yang DIGAMBAR dan bukan trade.
+
+`[TehThomas] - Market Structure Shift (MSS)` di FX:XAUUSD harian: **383 label**
+pada 13.297 bar. Kotak MSS kita di chart yang sama: **11**.
+
+Kepadatan, dibandingkan terhadap keluaran `structure.overlay` kita di MT5
+XAUUSD harian (3.128 bar - MT5 memegang lebih sedikit, jadi kepadatan yang
+dibandingkan, bukan hitungan):
+
+| objek | hitungan | kepadatan |
+|---|---|---|
+| MSS kita | 14 | **0,448%** |
+| CHoCH kita | 114 | **3,64%** |
+| BOS + CHoCH kita | 272 | 8,70% |
+| "MSS" TehThomas | 383 / 13.297 | **2,88%** |
+
+**Kepadatan mereka cocok dengan CHoCH kita, bukan MSS kita** - 6,4 kali lebih
+padat daripada MSS kita, dan dalam 27 persen dari CHoCH kita. Itu mengonfirmasi
+secara independen apa yang sudah dicatat survei 867 script di
+`docs/QA-PRODUKSI.md`: MSS dilabeli persis di tempat sumber lain melabeli CHoCH.
+Definisi kita menuntut TIGA syarat; milik mereka tampaknya satu.
+
+**TANDA: angka ini BOLEH dikutip.** Ia hitungan objek digambar atas ratusan
+peristiwa, bukan sampel trade.
+
+#### Tuning: jendela 20 membuat populasinya terbaca, lalu placebo membunuhnya
+
+Semua di XAUUSD 1 jam, target R TETAP 2,0 - bukan konvensi zona lawan, karena
+di sana dua pertiga zona MSS tidak punya dinding.
+
+| mss_window | cand | n | PF |
+|---|---|---|---|
+| 5 (di-ship) | 26 | 24 | 0,767 |
+| **20** | 164 | **162** | **1,199** |
+| 40 | 356 | 351 | 1,064 |
+
+Puncaknya di 20 dan bukan monoton, jadi ia tidak berbentuk seperti sapuan yang
+menipu di lantai BRK dan OTE. Dan 20 salah satu dari DUA jendela yang H9 pakukan
+lebih dulu, jadi memilihnya bukan cherry-pick dari kontinum.
+
+Hold-out, dibelah di 2025-01-01:
+
+| lengan | IS 2023-2025 | OOS 2025-2026 |
+|---|---|---|
+| w=20 | **1,239** (n=88) | **1,153** (n=74) |
+
+Kedua paruh di atas satu dan berdekatan. Itu hasil MSS pertama dalam lima studi
+yang tidak runtuh.
+
+**Lalu kontrolnya dijalankan, dan ia MENANG:**
+
+| lengan | n | win% | PF | exp_r |
+|---|---|---|---|---|
+| kotak asli | 162 | 41,98 | 1,199 | +0,1004 |
+| **placebo 1 ATR** | **166** | **43,98** | **1,358** | **+0,1588** |
+
+Kotak di tempat yang SALAH mengungguli kotak di tempat yang benar. Apa pun yang
+diukur PF 1,199, ia bukan letak kotaknya - itu drift, dan sebuah kotak di harga
+mana pun di jendela itu akan menangkapnya sama baiknya atau lebih baik.
+
+**TANDA: angka tuning ini TIDAK boleh dikutip sebagai edge.** Ia lolos hold-out
+dan gagal placebo, dan di repo ini placebo yang mengikat - pola yang sama sudah
+mencabut order block (placebo menang di PF DAN win rate) dan FVG di BTC harian.
+
+#### Ringkasan tanda
+
+| angka | boleh dikutip? |
+|---|---|
+| kepadatan 0,448% lawan 2,88% pembanding | **ya** - hitungan objek, ratusan peristiwa |
+| PF 0,086 sampai 0,767 di w=5 | **tidak** - 11 sampai 24 trade |
+| PF 1,199 di w=20, hold-out 1,239 / 1,153 | **tidak** - placebo memberi 1,358 |
+| gambar 7 dari 7, tepi 0,1 dan 0,2 px | **ya** - pengukuran piksel, bukan hasil |
+
+
+### Detektor MSS DICABUT, 8 September 2026
+
+Dibangun, diukur, lalu dicabut atas permintaan pemilik metode. Yang dihapus:
+`app/detect/mss.py`, entri `DETECTORS`, `Layer(id="mss")`, handler di
+`drawing.py`, `ZoneKind.MSS`, `MssParams`, field `DrawRequest`, entri
+`FLOOR_GATE_ATR` dan `GATE_UNMEASURED_KINDS`, kalimat advisor, entri buku besar
+port, dan seluruh sisi frontend (interface, default, panel knob, swatch, ikon).
+Layer kembali 22 tanpa `mss`, detektor kembali enam.
+
+**Alasan pencabutan ada di dua tabel di atas dan bukan di prosa ini:** placebo
+mengalahkan kotak aslinya, 1,358 lawan 1,199, jadi letak kotaknya tidak membawa
+informasi. Dan di jendela yang di-ship populasinya 11 sampai 24 trade.
+
+**YANG TIDAK DIHAPUS, dan itu disengaja.** MSS tetap digambar sebagai GARIS oleh
+overlay `structure` - satu segmen dari bar sapuan sampai bar break, ink
+biru-ungu keluarga `structure`, tanpa klaim arah. Itu perilaku yang sudah ada
+sejak lama dan bukan yang dicabut di sini: yang dicabut KOTAK dan jalur
+detektornya. Garisnya juga satu-satunya objek MSS yang punya pengukuran yang
+boleh dikutip - penempatannya diverifikasi di kanvas hari ini, terburuk 0,28
+pada harga 4.571 (0,006 persen).
+
+Harness Pine `detektor 6=MSS` juga DIPERTAHANKAN, karena ia yang menghasilkan
+angka-angka di atas dan mencabutnya akan membuat tabel ini tidak bisa diulang.
+Ia alat ukur, bukan produk.
+
+Kodenya ada di riwayat git kalau geometrinya perlu dibaca lagi: kotaknya
+dibentang antara `event.level` dan `sweep.level`, nol bilangan baru.
+
+
+## CISD sebagai KOTAK, 8 September 2026: detektor ketujuh, dan placebo menutupnya
+
+Pertanyaan KETIGA tentang CISD. Yang pertama arah tingkat bar (null, dan lihat
+di bawah soal sumbernya); yang kedua kondisioner atas zona detektor LAIN
+(terbalik, t = -7,07); yang ini kotaknya sendiri, dan tak satu pun pengukuran
+sebelumnya menyentuhnya.
+
+### Dua cacat integritas ditemukan saat memetakannya
+
+**Null arah 2026-08-20 TIDAK PUNYA SUMBER.** Angka n=23.270, DELTA -0,0195 ATR
+di t=-0,53, "halves flip in 3 of the 4 series", "spread 13x edge" - semuanya
+hidup HANYA sebagai prosa di `evidence` layer `cisd` di `layers.py`. Tidak ada
+tool, tidak ada JSON, nol kemunculan "CISD" di CALIBRATION.md, dan pencarian
+riwayat git atas `n=23270` cuma menemukan commit `d63b813` yang MENAMBAHKAN
+prosa itu bersama `app/cisd.py`. **Ia tidak bisa direproduksi dari repo ini**,
+dan ia load-bearing: `CISDDetector.mqh` mengutipnya sebagai alasan port MQL5 ada
+"untuk membuktikan presisi, bukan untuk trading", dan `AUDIT-MENYELURUH.md`
+mendaftar `cisd` sebagai null atas otoritasnya.
+
+**Hasil terbalik yang terkuat di repo ini BASI.** `docs/csid_ob_intrabar.json`:
+exp_r -0,1119 dengan CISD fresh di band lawan +0,0244 tanpa, delta -0,1363 R,
+Welch **t = -7,07** (bukan -7,04) lawan kritis 2,241, negatif di SELURUH 8 fold.
+Ia dijalankan 31 Agustus 2026, **PRA** perbaikan urutan lifecycle 7 September,
+dan jalurnya lewat `intrabar.resolved` yang memakai `zone.first_test_time` -
+field yang urutan lama tinggalkan None untuk zona tersayat. Perbaikan itu
+memindahkan fvg 30m dari n=1045 PF 1,943 ke n=1657 PF 1,115. **Angka -0,1363
+harus diukur ulang sebelum dijadikan dasar**, dan ia menggerbangi flag CLI
+`--no-cisd-in-band`.
+
+### Tepi keduanya ditambahkan, bukan dikarang, dan gratis
+
+Konstruknya menyebut TEPAT SATU harga: `open_price`, open lilin PERTAMA run.
+`CISDDetector.mqh` menuliskannya - "INI BUKAN BOX" - dan LuxAlgo setuju: 502
+GARIS di XAUUSD harian, nol kotak.
+
+Distal-nya EKSTREM RUN, dicatat di loop yang `delivery_runs` memang sudah
+jalankan untuk menghitung `end` dan `length`. Tiga kandidat non-karangan
+ditimbang: ekstrem run (dipilih - satu-satunya sifat RUN dan bukan sifat satu
+lilin di dalamnya), close lilin terakhir (ditolak, tepi terdangkal), open lilin
+terakhir (ditolak - itu anchor SALAH yang lima paragraf docstring `cisd.py` ada
+untuk mencegah). Kelipatan ATR ditolak: repo ini sudah punya empat konstanta
+chosen-not-measured.
+
+Proximal SELALU level yang ditembus, distal SELALU ekstrem run. Tanpa cabang.
+
+> [!WARNING]
+> Percobaan pertama membalik tanda ekstremnya - run NAIK dicatat LOW-nya - jadi
+> `level` dan `extreme` jatuh di sisi yang sama dan **SELURUH 377 kotak tinggi
+> nol**. Gagalnya keras dan langsung, bukan kotak salah bentuk yang lolos
+> diam-diam. Fixture `test_cisd.py` sekarang menuliskan `run_extreme` eksplisit
+> alih-alih membacanya dari `runs`, supaya satu tanda terbalik tidak bisa
+> membuat kedua sisi sepakat pada angka yang salah.
+
+### Hasil, dan placebo menutupnya
+
+| sel | n | win% | PF | exp_r |
+|---|---|---|---|---|
+| XAU 1d | 783 | 52,36 | 0,889 | -0,031 |
+| **XAU 1d placebo 1 ATR** | 780 | 48,33 | **1,027** | **+0,0084** |
+| COMEX GC1! 1d | 745 | 51,95 | 0,851 | -0,0408 |
+
+**Placebo menang, +0,138 PF.** Kotak di tempat yang salah lebih baik daripada
+kotak di tempat yang benar, jadi letak kotak CISD tidak membawa informasi di
+arah doktrinnya. Bentuk yang sama dengan placebo order block.
+
+Satu detail yang layak dicatat: kotak asli win rate LEBIH TINGGI (52,36 lawan
+48,33) tapi PF lebih rendah. Ia menang lebih sering dan kalah lebih besar.
+
+Populasinya sehat - **783 trade**, terbanyak dari semua detektor di harian - jadi
+ini bukan kasus tidak-terukur seperti MSS. Ia terukur, dan hasilnya negatif.
+
+### Parity level: keluarga anchor yang sama, selektivitas berbeda
+
+Parity yang benar untuk CISD, dan ia TIDAK bergantung pada pilihan kotak saya:
+kedua sisi memancarkan satu HARGA per peristiwa. 330 candle harian dari chart
+yang menggambar garis LuxAlgo itu.
+
+| | |
+|---|---|
+| level kita | 35 |
+| level LuxAlgo di rentang | 101 |
+| **level kita yang mereka punya juga** | **23 dari 35, 65,7%** |
+| level kita yang benar-benar sebuah OPEN lilin | **35 dari 35** |
+| level LuxAlgo yang sebuah OPEN lilin | 93 dari 101 |
+
+Janji inti konstruk kita berlaku sempurna: **setiap level kita memang open
+sebuah lilin.** Milik mereka 93 persen, jadi 8 level mereka bukan open - anchor
+mereka bukan sepenuhnya sama. Dan mereka memancarkan tiga kali lebih banyak,
+konsisten dengan kepadatan: kita 12,05 persen bar, mereka 3,78 persen di jendela
+penuh mereka.
+
+### Gambar: 7 dari 7
+
+`pixel-truth` pada `cisd_zone`: tepi atas 0,4px, tepi bawah 0,4px, tepi kiri 12
+dari 12, kotak menutupi basisnya sampai 0,01 bar. Overlay `cisd` (garisnya)
+TETAP ADA dan tidak diubah - layer baru ini kotaknya, bukan penggantinya.
+
+### Putusan
+
+Kotaknya digambar benar, geometrinya tidak mengarang bilangan, populasinya
+sehat, dan **placebo mengalahkannya**. Angka PF 0,889 tidak boleh dikutip
+sebagai edge dan 1,027 milik placebo tidak boleh dikutip sebagai apa pun.
+
+Yang paling berharga dari sesi ini untuk CISD bukan detektornya melainkan dua
+temuan integritas di atas: satu angka yang tidak punya sumber, dan satu angka
+terkuat di repo yang basi dan menggerbangi sebuah flag.
+
+
+## `csid_ob_intrabar` DIUKUR ULANG pasca perbaikan lifecycle, 8 September 2026
+
+Angka bertanda terkuat di repo ini berdiri di atas populasi pra-perbaikan sejak
+31 Agustus. Diukur ulang dengan tool yang sama, tanpa satu baris pun diubah.
+
+| | PRA 31 Agustus | PASCA 8 September |
+|---|---|---|
+| n | 8.170 | **5.997** |
+| n CISD di dalam | 3.553 | **1.502** |
+| selektivitas | 43,5% | **25,0%** |
+| exp_r DENGAN CISD | -0,1119 | **-0,2568** |
+| exp_r TANPA CISD | **+0,0244** | **-0,1127** |
+| delta | -0,1363 | **-0,1441** |
+| Welch t | -7,075 | **-4,098** |
+| kritis | 2,241 | 2,241 |
+| fold negatif | 8 dari 8 | **8 dari 8** |
+| sel negatif | 9 dari 9 | **8 dari 9** |
+| putusan | MEMISAHKAN | **MEMISAHKAN** |
+
+**Pemisahannya BERTAHAN.** delta -0,1441 di t=-4,098, masih hampir dua kali
+ambang Bonferroni, seluruh delapan fold negatif, dan confound choppiness tetap
+tersingkir (-0,1931 di dalam choppy, -0,1357 di dalam clean). Satu sel berbalik
+tanda: EURUSD +0,0982 di t=+0,84, tidak signifikan.
+
+### Tapi BACAANNYA berubah, dan itu lebih penting daripada delta-nya
+
+Pra-perbaikan lengan TANPA CISD **untung** (+0,0244), jadi bacaannya "CISD di
+dalam mengubah order block yang menguntungkan jadi merugi", dan flag
+`--no-cisd-in-band` dijelaskan sebagai *"filter ini yang membuat order_block
+layak dipilih sama sekali"*.
+
+Pasca-perbaikan kedua lengan **merugi**: -0,2568 dengan, -0,1127 tanpa. Membuang
+block ber-CISD menyisakan kerugian yang lebih kecil, bukan keuntungan. **Kalimat
+di help CLI itu sekarang salah**, dan sudah dikoreksi di tiga tempat yang
+mengutipnya: `tools/execute.py` (help dan komentar gate), `app/ict.py`
+(`MEASURED_AGAINST`), dan evidence layer `cisd_zone`.
+
+Itu konsisten dengan yang sudah diketahui di tempat lain: pasca-perbaikan
+order_block tidak punya satu sel pun di atas satu, dan `orderable` untuknya
+sudah dimatikan. Sebuah filter tidak bisa menyelamatkan detektor yang setiap
+selnya rugi.
+
+### Selektivitasnya juga berubah, dan itu belum dijelaskan
+
+43,5 persen jadi 25,0 persen. Populasi turun 27 persen sementara lengan
+CISD-di-dalam turun 58 persen, jadi zona yang hilang karena perbaikan itu
+condong ke lengan ber-CISD. Perbaikan lifecycle menambahkan zona yang tersayat
+dan tertutup dalam satu bar - yang commit-nya sebut "hampir seluruhnya loser" -
+jadi arah yang diharapkan justru menambah, bukan mengurangi. **Belum saya
+telusuri**, dan ia layak ditelusuri sebelum angka ini dipakai lagi: perubahan
+selektivitas sebesar itu bisa berarti populasi yang dibandingkan bukan populasi
+yang sama.
+
+## Lima sisa CISD dikerjakan, 8 September 2026
+
+Diminta setelah pengukuran ulang `csid_ob_intrabar`. Satu di antaranya menemukan
+cacat yang berlaku untuk tiga detektor, bukan cuma CISD.
+
+### 1. Sapuan knob, dan janji di evidence layer akhirnya ditepati
+
+Evidence `cisd_zone` berbunyi "the floor is swept in TradingView rather than
+guessed here" sejak layer itu ditulis, dan sapuannya tidak pernah dijalankan.
+Dijalankan sekarang, XAUUSD harian, jendela 2000-2026, lewat kode bracket yang
+sama dengan enam detektor lain.
+
+`min_run`, lantai 0:
+
+| min_run | n | win% | PF |
+|---|---|---|---|
+| 1 | 1.788 | 54,64 | 0,981 |
+| **2 (di-ship)** | 783 | 52,36 | **0,889** |
+| 3 | 362 | 52,76 | 0,932 |
+| 4 | 187 | 52,94 | 1,127 |
+| 5 | 84 | 45,24 | **1,243** |
+
+`run_min_atr`, di min_run 2:
+
+| lantai | n | win% | PF |
+|---|---|---|---|
+| 0,0 | 783 | 52,36 | 0,889 |
+| 0,5 | 739 | 52,64 | 0,941 |
+| 1,0 | 478 | 53,97 | **1,039** |
+| 1,5 | 238 | 51,26 | 0,874 |
+| 2,0 | 109 | 49,54 | 0,996 |
+
+Keduanya TIDAK monoton, dan PF naik persis seiring n runtuh. Lantai naik ke
+1,039 di 1,0 lalu turun ke 0,874 di 1,5 lalu naik lagi ke 0,996 di 2,0 - gerbang
+yang nyata tidak berzigzag begitu.
+
+### 2. Placebo membunuh dua dari tiga, hold-out membunuh sisanya
+
+Ketiga arm di atas satu diuji lawan kotak yang digeser 1 ATR:
+
+| arm | nyata | placebo | putusan |
+|---|---|---|---|
+| lantai 1,0 | 1,039 | **1,207** | kontrol MENANG, mati |
+| min_run 4 | 1,127 | 0,968 | lolos, +0,159 |
+| min_run 5 | 1,243 | 0,922 | lolos, +0,321 |
+
+Lalu seleksi di paruh pertama (2000-2013), jendela diverifikasi di baris `win`:
+
+| min_run | IS n | IS PF | OOS n | OOS PF |
+|---|---|---|---|---|
+| 1 | 876 | 1,069 | 912 | **0,932** |
+| 4 | 93 | 1,105 | 93 | **0,962** |
+| 5 | 40 | **1,357** | 44 | 1,067 |
+
+Pemenang di sampel adalah min_run 5, tapi ia dipilih atas **40 trade** - itu
+bukan seleksi, itu derau. Dan di 4 jam ia gagal:
+
+| min_run 5, XAU 4 jam | n | PF |
+|---|---|---|
+| sampel penuh | 323 | 1,029 |
+| placebo | 322 | 0,739 |
+| IS 2013-2020 | 172 | 1,141 |
+| **OOS 2020-2026** | 151 | **0,953** |
+
+Ia mengalahkan placebo di KEDUA timeframe (+0,321 harian, +0,290 di 4 jam) tapi
+gagal luar sampel di 4 jam, dan sampel yang gagal itu (151) tiga kali lebih besar
+daripada sampel harian yang lolos (44). **Tidak ada arm CISD yang bisa dipilih.**
+Default `min_run=2` tetap, dan alasannya sekarang terukur, bukan diwarisi.
+
+### 3. Sel 4 jam, yang sebelumnya tidak ada
+
+`min_run=2` yang di-ship: PF **0,875** di n=2.436, kedalaman data 2013-2026.
+Di bawah satu, sama seperti harian.
+
+### 4. Hold-out di harness ini BUKAN partisi bersih, dan itu berlaku umum
+
+Ditemukan karena aritmetikanya mustahil: min_run 4 memberi 1,127 di sampel penuh
+sementara kedua paruhnya 1,105 dan 0,962. Rasio dua jumlah tidak bisa jatuh di
+luar rentang komponennya.
+
+Sebabnya terbaca di baris `no wall`. Sampel penuh 26 zona tanpa dinding dari 183;
+IS 20 dari 91 ditambah OOS 14 dari 92 sama dengan **34**. Membelah jendela
+membuat delapan zona kehilangan dinding yang di sampel penuh mereka punya, karena
+`profit_zone_at` mencari zona lawan yang HIDUP dan zona yang lahir di seberang
+batas jendela tidak pernah lahir.
+
+Jadi lengan luar sampel selalu kekurangan dinding di awal jendelanya, target
+trade-nya berubah, dan IS + OOS tidak menjumlah ke sampel penuh. Efeknya kecil di
+sini (8 dari 183, 4,4 persen) tapi ia SISTEMATIS dan searah, dan ia berlaku untuk
+setiap angka hold-out di repo ini, termasuk IFVG dan BRK.
+
+### 5. Parity Python lawan Pine: kotaknya identik, POPULASINYA tidak
+
+Diukur di satu feed, bukan lintas feed: 100 bar FX:XAUUSD harian diambil dari
+TradingView lalu dijalankan lewat `detect/cisd_zone.py`, dan harga limit Pine
+dibaca dari daftar order.
+
+**Geometrinya cocok sampai sen.** Tujuh proximal yang bisa diverifikasi di daftar
+order Pine cocok persis dengan proximal zona Python: 4685,50 / 4455,48 / 4329,40 /
+4071,31 / 4123,35 / 4001,49 / 4349,95.
+
+**Tapi Pine memasang order di tiga harga yang tidak punya zona di Zonelab:**
+4070,41, 4007,65, dan 4048,86. Ketiganya persis zona yang `_dedupe` buang.
+
+| | kandidat | zona | selisih |
+|---|---|---|---|
+| Pine (tanpa dedupe) | 13 | 13 | - |
+| Zonelab (`merge_overlap_pct` 0,6) | 13 | **9** | 4 dibuang |
+
+Pine punya **NOL** kode dedupe - kata `overlap`, `merge_overlap`, dan `dedupe`
+tidak muncul satu kali pun di 49 ribu karakter itu. Jadi setiap angka CISD yang
+diukur di TradingView menggambarkan populasi **44 persen lebih besar** daripada
+yang Zonelab hasilkan.
+
+### Dan itu bukan cuma soal CISD
+
+Tiga detektor memanggil `_dedupe` di Python dan nol di Pine. Diukur di 100 bar
+yang sama:
+
+| detektor | Pine | Zonelab | selisih |
+|---|---|---|---|
+| `cisd_zone` | 13 | 9 | **+44%** |
+| `ote` | 10 | 9 | +11% |
+| `supply_demand` | 6 | 6 | **0** |
+
+`supply_demand` nol di jendela ini, dan itu yang paling penting karena ia
+SATU-SATUNYA detektor dengan `orderable=True`. Kotak S&D dipisahkan basis dan
+impuls sehingga jarang bertumpuk. Tapi nol di 100 bar bukan nol di 26 tahun, dan
+paparan itu belum diukur di rentang penuh.
+
+`fvg`, `order_block`, `ifvg`, dan `breaker` tidak memanggil `_dedupe` sama
+sekali, jadi parity Pine mereka tidak tersentuh cacat ini.
+
+### 6. Anomali selektivitas ditelusuri, dan ia membatalkan satu KALIMAT saya
+
+Ditandai kemarin tanpa penjelasan: selektivitas 43,5 turun ke 25,0 persen
+sementara populasi turun 27 persen. Ditelusuri sekarang, dan yang menentukan
+adalah membandingkan sembilan sel satu per satu, bukan totalnya.
+
+| lengan | 31 Agustus | 8 September | perubahan |
+|---|---|---|---|
+| n TANPA CISD | 4.617 | 4.495 | **-2,6%** |
+| n DENGAN CISD | 3.553 | 1.502 | **-58%** |
+| total | 8.170 | 5.997 | -27% |
+
+**Penyusutannya hampir seluruhnya di satu lengan.** Lengan tanpa CISD praktis
+tidak bergerak; lengan ber-CISD kehilangan 2.051 trade. Sembilan sel semuanya
+turun searah dan sebanding (selektivitas 22,2 sampai 28,5 persen), dan sembilan
+pasar independen tidak bergerak seragam karena data - itu kode.
+
+Yang tersingkir sepanjang penelusuran, masing-masing dengan angkanya:
+
+- **bukan cap tampilan**: `POPULATION` memakai `max_zones_per_side = 0`
+- **bukan jendela riwayat halus memendek**: BTC 5 menit dan 1 jam sama-sama
+  membentang 278 hari
+- **bukan default detektor yang berubah di commit yang sama**: `min_body_ratio`
+  0,0 ke 0,3 dan `filter_mother` ke True memang ada di 23773d7, tapi keduanya di
+  dalam `detect_fvg` dan `detect_order_block` tidak membacanya
+- **bukan zona tanpa dinding**: baris 194 `intrabar.py` membuangnya diam-diam,
+  terukur 57 dari 970 di XAUUSD 1 jam, 5,9 persen
+
+Yang tersisa dan cocok dengan asimetrinya: **sentuhan yang tercatat lebih awal**.
+Perbaikannya mencatat sentuh sebelum pecah, jadi zona yang harganya menyayat
+tembus dalam satu bar sekarang punya `first_test_time` yang lebih dini. Dan
+`intrabar.py` baris 147 membuang setiap zona yang sentuhannya mendahului awal
+riwayat 5 menit - terukur membuang **3.322 dari 4.375**, yaitu 76 persen, di
+XAUUSD 1 jam, karena riwayat halus mentok di cap 99.999 bar (mulai 2025-04-10)
+sementara riwayat kasar mundur sampai 2020-12-03.
+
+Sebuah block yang memuat CISD adalah block yang harganya SUDAH kembali
+memasukinya, jadi sentuhannya memang dini relatif terhadap kelahirannya.
+Menggeser sentuh lebih awal mendorong justru kohort itu melewati batas 5 menit.
+Itu menjelaskan kenapa satu lengan runtuh dan satunya tidak.
+
+**Ini hipotesis dengan bukti, bukan sebab yang terbukti.** Membuktikannya butuh
+menjalankan kode lama, dan itu `git checkout` di pohon kerja dengan 25 file
+belum di-commit, jadi tidak dijalankan.
+
+#### Yang harus ditarik dari laporan kemarin
+
+Putusan PASCA tetap berdiri: delta -0,1441 di t=-4,098, 8 dari 8 fold, keduanya
+diukur pada populasi PASCA yang sama, jadi ia konsisten secara internal.
+
+Yang TIDAK berlaku adalah cara saya menarasikan perubahannya. Saya menulis
+"kedua lengan sekarang negatif" seolah trade yang sama dinilai ulang dan
+hasilnya berbalik. Bukan begitu: 2.051 trade di lengan ber-CISD sudah tidak ada
+di populasinya sama sekali. Angka +0,0244 dan -0,1127 tidak diukur pada kohort
+yang sama, jadi keduanya tidak boleh dibandingkan langsung, dan kalimat itu
+diperbaiki di tempat ia ter-ship.

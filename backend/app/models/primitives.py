@@ -55,6 +55,19 @@ class ZoneKind(StrEnum):
     IFVG = "IFVG"  # Inversion fair value gap: a gap price closed through
     BRK = "BRK"  # Breaker block: the order block version of the same inversion
 
+    # Pita retracement 0,618-0,786 di atas satu leg struktur. BEDA JENIS
+    # dari enam di atas: keenamnya kotak yang dibuat LILIN - celah, badan,
+    # atau base - sementara yang ini kotak yang dibuat DUA HARGA dan tidak
+    # memuat lilin apa pun. Ia sudah digambar sebagai grid sejak lama di
+    # `fibonacci-primitive.ts`; yang baru ia jadi kotak yang bisa diukur.
+    OTE = "OTE"  # Optimal trade entry: pita 0,618-0,786 dari satu leg
+
+    # Level delivery yang ditembus lawan ekstrem run yang menembusnya.
+    # Konstruknya menyebut SATU harga; tepi keduanya ekstrem run, dicatat di
+    # loop yang sudah mengunjungi tiap lilin conforming - lihat cisd.py.
+    CISD = "CISD"  # Change in state of delivery: level ditembus sampai ekstrem run
+
+
 
 class ZoneSide(StrEnum):
     DEMAND = "demand"

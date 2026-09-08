@@ -242,7 +242,7 @@ horizon 80 bar.
 | XAU | 30m | 2,7 th | 3.209 | 34,43 | 0,985 | -0,0091 | - | - |
 | XAU | 1h | 3,7 th | 2.016 | 36,61 | **1,175** | +0,1000 | 0,987 | **+0,107** |
 | XAU | 4h | 13,7 th | 1.852 | 37,42 | **1,252** | +0,1393 | - | - |
-| XAU | 1d | 56 th | 632 | 36,39 | 1,221 | +0,1322 | **1,446** | -0,060 |
+| XAU | 1d | 26 th | 632 | 36,39 | 1,221 | +0,1322 | **1,446** | -0,060 |
 | BTC | 4h | penuh | 1.691 | 31,93 | 0,938 | -0,0387 | **1,028** | -0,053 |
 
 **XAUUSD 4h, paruh out-of-sample 2020-2026: PF 1,348, exp_r +0,1838 R, n 919**,
@@ -1252,7 +1252,7 @@ stop 1,0 ATR, magnifier 1 menit, biaya broker dipotong di dalam script.
 
 | TF | rentang | n | win% | PF | biaya R/trade | placebo PF | placebo win% | margin win |
 |---|---|---|---|---|---|---|---|---|
-| 1d | 56 th | 597 | 51,42 | 1,112 | 0,0150 | 1,068 | 43,27 | +8,15 |
+| 1d | 26 th | 597 | 51,42 | 1,112 | 0,0150 | 1,068 | 43,27 | +8,15 |
 | **4h** | 13,7 th | 1.709 | **50,56** | **1,091** | 0,0417 | 1,014 | 38,72 | **+11,84** |
 | 1h | 3,7 th | 1.847 | 48,29 | 1,006 | 0,0746 | 0,881 | 36,36 | **+11,93** |
 | 30m | 2,7 th | 2.964 | 45,07 | 0,906 | 0,1010 | 0,818 | 36,35 | +8,72 |
@@ -1587,5 +1587,124 @@ Yang benar-benar tersisa:
   2026 artinya lengan drawn dan lengan placebo dinilai dengan dua aturan entry
   berbeda. Setiap perbandingan placebo yang lebih tua dari tanggal itu harus
   dibaca dengan ini di kepala.
+
+## Parity FVG lawan LuxAlgo, 8 September 2026
+
+Ini lubang terakhir di sisi presisi: IFVG punya parity (5/5), OB punya
+containment plus jejak filter, FVG dan BRK tidak punya apa-apa.
+
+### Metodenya lebih kuat dari dua parity sebelumnya
+
+Yang sebelumnya membandingkan Pine kita lawan Pine mereka, jadi ia masih bisa
+gagal karena cerminnya tidak persis. Yang ini menjalankan
+`app.detect.imbalance.detect_fvg` **yang sebenarnya** - kode produksi - di atas
+331 candle harian yang ditarik dari chart TradingView yang menggambar kotak
+LuxAlgo itu. Feed sama, kode asli, jadi selisih yang tersisa tidak bisa
+dijelaskan oleh feed maupun oleh mutu cermin.
+
+Sel: `FX:XAUUSD 1D`, 331 bar, 2025-05-30 sampai 2026-09-07. Toleransi satu sen.
+
+| | |
+|---|---|
+| kotak LuxAlgo di rentang harga jendela | 22 |
+| kotak `detect_fvg` di jendela yang sama | 77 |
+| **cocok PERSIS** | **20 dari 22, 90,9%** |
+| tak cocok tapi tertelusuri | 2 |
+| tak cocok dan tak terjelaskan | **0** |
+
+Dua yang tak cocok punya sebab yang berbeda, dan keduanya ditelusuri sampai
+selesai, bukan dibiarkan sebagai sisa:
+
+- **3285,29 / 3249,76** - tidak ada satu pun dari 331 bar yang menyentuh tepi
+  atas maupun bawahnya, jadi bar pembentuknya mendahului bar pertama yang
+  dimuat chart. Artefak batas jendela.
+- **3359,71 / 3352,08** - ditolak `filter_mother`, dan HANYA oleh itu.
+  Dimatikan knob itu, kotaknya muncul persis; dimatikan `min_body_ratio` saja,
+  tidak. Bar tengahnya (H3378,77 L3321,36) menelan kedua bar luar, jadi
+  celahnya artefak rentang bar tengah. Penyimpangan Zonelab yang disengaja,
+  dan sekarang terukur berapa harganya: satu kotak dari 22.
+
+Jadi di tempat kedua aturan sama-sama berlaku, geometrinya **sepenuhnya**
+sepakat. Satu-satunya selisih aturan yang tersisa milik kita, disengaja, dan
+sekarang punya angka.
+
+> [!WARNING]
+> Run pertama memberi **12 dari 22** dan angka itu hampir ditulis sebagai
+> temuan. 12 = `max_zones_per_side` default **6** dikali dua sisi - cap
+> TAMPILAN, bukan hasil detektor. Untuk parity apa pun, cap harus 0 dan
+> `show_broken` harus True, karena LuxAlgo tetap menggambar celah yang sudah
+> dilewati. Jebakan ini sudah tercatat sebelumnya dan tetap termakan sekali
+> lagi; sekarang `tools/box_parity.py::_selftest` memakukan angka 20 supaya
+> kambuhnya berbunyi.
+
+### Keadaan parity keempat detektor sesudah ini
+
+| detektor | parity | metode |
+|---|---|---|
+| **FVG** | **20/22 persis, 2 tertelusuri, 0 sisa** | kode produksi di candle TV |
+| IFVG | 5/5 persis lawan LuxAlgo (2/7 ChartPrime) | cermin Pine, feed sama |
+| OB | containment 2/2, jejak filter maksimum 0,15 poin persen | Pine lawan Pine |
+| BRK | **belum ada** | tidak ada kanon publik yang sebanding selama syarat sapuan belum dipakai |
+
+BRK tetap kosong dan alasannya sekarang lebih tajam daripada "belum
+dikerjakan": pembanding publik mana pun mengikuti definisi ketat yang menuntut
+sapuan likuiditas, sementara detektor kita memakai bacaan longgar, jadi
+himpunan yang dibandingkan memang berbeda menurut definisi. Parity BRK menunggu
+keputusan soal sapuan itu, bukan menunggu waktu luang.
+
+---
+
+> [!NOTE]
+> Label jendela baris harian dikoreksi dari "56 th" jadi "26 th" pada
+> 8 September 2026. `QA-IFVG-GATE.md` sudah mengenalinya sebagai artefak harness
+> (satu bar 1970 nyasar bikin `span` mencetak 1970 padahal `win_from` default
+> 2000-01-01), tapi koreksinya tidak pernah merambat balik ke dokumen ini.
+> Jendelanya 2000-2026, 26 tahun. Tidak ada kode yang membaca label ini.
+
+## 30 menit dan 15 menit terisi, 8 September 2026, dan blokirnya tidak nyata
+
+Dokumen ini menyebut 30m dan 15m sebagai lubang alat: "chart TradingView Desktop
+mati setiap kali salah satu dipilih". **Dicoba lagi hari ini dan keduanya
+jalan.** Yang dulu terjadi hampir pasti korupsi aplikasi setelah uptime panjang,
+yang memang sudah tercatat di dokumen ini beserta obatnya (matikan semua proses
+TradingView, `tv_launch`, lalu BUANG dan PASANG ULANG study-nya). Blokirnya
+keadaan, bukan sifat, dan menyebutnya lubang alat selama dua hari menahan empat
+belas sel tanpa alasan.
+
+Reproduksi diperiksa lebih dulu: FVG 30m memberi PF **0,904** lawan 0,906 yang
+tercatat di bagian 23.6. Rig-nya sama.
+
+### XAUUSD, keempat detektor, keempat resolusi
+
+| TF | jendela | bar | FVG | OB | IFVG | BRK |
+|---|---|---|---|---|---|---|
+| 15m | 1 tahun | 22.033 | 0,800 | 0,807 | **0,908** | 0,872 |
+| 30m | 2,7 tahun | 31.751 | **0,904** | 0,855 | 0,797 | 0,844 |
+| 4h | 13 tahun | - | **1,091** | 0,926 | 0,965 | 0,958 |
+| 1d | 26 tahun | 13.297 | 1,112 | 0,972 | 1,067 | **1,181** |
+
+n di sel halus besar - 1.790 sampai 2.971 - jadi ini bukan soal sampel kecil.
+
+**Tidak ada satu pun dari 16 sel di bawah 4 jam yang di atas satu.** Delapan sel
+halus, delapan angka di bawah satu, keempat detektor. Yang terbaik di 15m
+(IFVG 0,908) dan yang terbaik di 30m (FVG 0,904) sama-sama masih rugi sesudah
+biaya.
+
+### Kenaikannya monoton terhadap timeframe, DAN itu terkonfound
+
+Keempat detektor naik dari 15m ke 1d, dan pola sekonsisten itu menggoda dibaca
+sebagai "edge-nya hidup di timeframe tinggi". Jangan dibaca begitu tanpa
+peringatan ini: **panjang jendela ikut naik bersama timeframe**, 1 tahun di 15m
+sampai 26 tahun di harian, karena itu yang dipegang TradingView. Jadi resolusi
+dan jendela bergerak bersama dan tabel ini tidak bisa memisahkan keduanya.
+
+Yang bisa dinyatakan tanpa memisahkan keduanya: di data yang benar-benar ada di
+15m dan 30m, keempat detektor rugi sesudah biaya. Untuk pemakaian sebagai input
+analisis itu sudah cukup untuk memutuskan di resolusi mana kotak-kotak ini layak
+dipercaya, tanpa perlu menyelesaikan sebab-akibatnya.
+
+Baris `biaya (R)` menjelaskan sebagian: 0,0704 sampai 0,1084 R per trade di sel
+halus. Di 30m dan 15m target dan stop dalam satuan R lebih rapat sementara
+spread tetap, jadi biaya memakan pecahan yang jauh lebih besar dari hasilnya.
 
 Copyright 2026 PT Surya Inovasi Prioritas (SURIOTA).
