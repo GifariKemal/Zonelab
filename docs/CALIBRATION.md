@@ -3453,3 +3453,136 @@ ke 10 sesudah perbaikan - yang mengembalikan qty ke besaran lama - mereproduksi
 n=132 dan PF 1,167 PERSIS. Jadi yang menggerakkannya besaran qty, dan detektor
 yang stopnya sudah cukup rapat untuk memberi lebih dari satu kontrak tidak
 pernah kehilangan apa pun.
+
+## Tiga klaim praktisi tentang FVG, diukur, 8 September 2026
+
+Diminta sebagai "detektor PSP", lalu diubah bentuknya oleh yang meminta menjadi
+klaim tentang FVG. Dikutip apa adanya supaya yang diukur bisa dibandingkan
+dengan yang ditanyakan:
+
+> "FVG yang high probability udah termasuk dalam premium (buat sells) dan
+> discount (buat buys). Gap itu kalo berbobot sm PSP, termasuk lebih
+> probability. Kalo price udah ngepurge liquidity sebelumnya di timeframe
+> seleksi kita."
+
+### Kenapa ini bukan detektor kotak
+
+Permintaan awalnya PSP sebagai detektor, dan itu bertabrakan dengan
+`tests/test_psp_not_wired_to_decisions.py`: guard itu melarang string `psp` di
+`advisor.py`, sementara setiap `ZoneKind` WAJIB punya kalimat di sana. Jadi
+`ZoneKind.PSP` tidak bisa ada tanpa mematahkan salah satu dari dua tes. Sebagai
+pengkondisi, PSP tidak perlu jadi `ZoneKind` sama sekali - dan itu memang bentuk
+klaimnya.
+
+### Yang sudah diukur sebelumnya, dan kenapa ini tetap pertanyaan baru
+
+Empat rig kondisioner sudah ada dan semuanya null: `conditioned.py` 12 kolom,
+`conditioned_structure.py` (termasuk `sweep_before_touch`, |t| terbesar 2,16
+lawan 3,14), `conditioned_gaps.py` 7 kolom, dan `psp_outcomes.json` 48 sel.
+
+Tapi **keempatnya berjalan di populasi `supply_demand`**. Tak satu pun menguji
+pengkondisi apa pun di atas populasi FVG, dan tak satu pun menguji posisi
+premium/discount. Zona FVG bahkan tidak membawa `dealing_range_pos` - terukur
+None di 6.390 dari 6.390 - jadi posisinya distempel di sini.
+
+### Satu cacat di tool ini, ditemukan sebelum angkanya dipakai
+
+Versi pertama menyalin filter `cleared` dari `csid_ob_intrabar`, dan `cleared`
+itu **gerbang LANTAI 2,0 ATR** - gerbang order block. FVG digerbangi **PLAFON
+0,25**. Filternya membuang 93 persen populasi: 204 zona lolos lantai lawan 2.931
+yang lolos plafon sesungguhnya, di XAUUSD 1 jam. Studi pertama karena itu
+berjalan di n=37, dan null-nya tidak berarti apa-apa. Diperbaiki dengan
+mengambil arah gerbang dari `DEPARTURE_GATE_ATR_CEILING`, bukan menghardcode.
+
+### Dan satu sel meyakinkan yang TIDAK bertahan
+
+XAUUSD 1 jam sendiri, n=641, memberi arah yang persis sesuai klaim: posisi
++0,0579, PSP +0,0710, dan gabungannya +0,1020 - yang terbesar, seperti yang
+diklaim. Di sembilan instrumen, n=6.140, dua dari tiga itu runtuh:
+
+| lengan | XAU 1h saja | 9 instrumen | t | wf |
+|---|---|---|---|---|
+| favourable_side | +0,0579 | +0,0408 | +1,14 | 6/8 |
+| psp_before_touch | +0,0710 | **-0,0617** | -1,27 | 6/7 |
+| purge_before_touch | -0,0224 | -0,0467 | -0,90 | 5/7 |
+| fav_and_psp | +0,1020 | **+0,0036** | +0,10 | 5/8 |
+
+Ambangnya 2,73. Tidak satu pun mendekati. **PSP berbalik tanda** antara satu sel
+dan sembilan, dan gabungannya runtuh dari +0,102 ke +0,004.
+
+Tanda PSP itu stabil ke arah yang SALAH: kedua paruh negatif (-0,020 lalu
+-0,151), makin negatif di paruh kedua. Sementara `favourable_side` positif di
+paruh pertama (+0,0995) lalu berbalik negatif di paruh kedua (-0,0185), jadi
+bahkan arahnya meluruh.
+
+### Dua batas yang membuat dua lengan hampir degenerat karena DEFINISINYA
+
+`purge_before_touch` benar di **84,7 persen** populasi, dan itu konsekuensi
+aturannya: dengan fraktal 50 bar ada puluhan level hidup di tiap titik, jadi
+hampir setiap jendela sepuluh bar menyapu sesuatu. `psp_before_touch` benar di
+**82,4 persen** di sembilan instrumen (di XAUUSD sendiri 55,8). Syarat yang
+dipenuhi 85 persen sampel tidak bisa jadi penyaring selektif walaupun ia
+memisahkan.
+
+Versi yang lebih ketat - level terdekat saja, atau level dalam sekian ATR -
+adalah pertanyaan BERBEDA dan butuh praregistrasi sendiri. Mengetatkannya
+sesudah melihat hasil ini berarti memilih definisi setelah melihat jawabannya.
+
+### Lengan kelima, dan ia klaim yang sesungguhnya
+
+"Gap kalo berbobot sm PSP, termasuk LEBIH probability" berarti PSP menambah DI
+ATAS posisi yang sudah benar - bukan sekadar menang lawan posisi yang salah.
+Menguji gabungan lawan sisa populasi (H4) tidak bisa memisahkan keduanya, jadi
+H5 menguji PSP HANYA di antara FVG yang sudah favourable. Pembedaan yang sama
+yang dipakai `docs/psp_outcomes.json` antara H1 dan H2-nya.
+
+| lengan | n | delta | t | paruh | wf | instrumen |
+|---|---|---|---|---|---|---|
+| favourable_side | 3043/3058 | +0,0408 | +1,14 | berbalik | 6/8 | 5/9 |
+| psp_before_touch | 5059/1081 | -0,0617 | -1,27 | stabil | 6/7 | 5/8 |
+| purge_before_touch | 5199/941 | -0,0467 | -0,90 | stabil | 5/7 | 4/7 |
+| fav_and_psp | 2516/3585 | +0,0036 | +0,10 | berbalik | 5/8 | 5/9 |
+| **psp_given_fav** | 2516/527 | **-0,1057** | **-1,55** | stabil | 5/7 | **3/8** |
+
+Ambangnya 2,807 untuk sepuluh grup yang dinilai. Tidak satu pun mendekati.
+
+### Dan kolom terakhir itu yang mencegah salah baca
+
+H5 punya magnitudo terbesar dari kelimanya dan tandanya negatif, dan pembacaan
+pertama saya adalah "sinyal terkuat, arahnya berlawanan dengan klaim". **Itu
+salah**, dan pemecahan per instrumen yang menunjukkannya:
+
+| instrumen | delta psp_given_fav |
+|---|---|
+| GBPUSD | **+0,8466** |
+| EURUSD | **+0,5505** |
+| US30 | +0,1242 |
+| XAUUSD | +0,1026 |
+| USDJPY | +0,0065 |
+| AUDUSD | -0,0417 |
+| XPTUSD | -0,1017 |
+| XAGUSD | -0,2521 |
+
+**LIMA dari delapan positif**, sementara pooled-nya negatif. Angka gabungan itu
+karena itu artefak pembobotan, bukan arah - beberapa instrumen dengan lengan
+PSP-negatif yang besar menariknya ke bawah sementara mayoritas menunjuk ke arah
+sebaliknya. `cells_same_sign` 3 dari 8, kesepakatan terburuk dari kelima lengan.
+
+Jadi putusannya bukan "PSP memperburuk", melainkan **tidak ada tanda yang
+konsisten sama sekali**. Itu null yang lebih bersih daripada null bertanda, dan
+ia satu-satunya kesimpulan yang datanya dukung.
+
+Pelajaran metodologisnya berlaku di luar studi ini: `psp_given_fav` punya |t|
+terbesar DAN kesepakatan lintas pasar terburuk. Kalau rig ini cuma melaporkan t,
+lengan itulah yang akan terlihat paling menjanjikan.
+
+### Konteks yang mengubah cara membaca seluruh tabel
+
+**Setiap lengan negatif.** exp_r berkisar -0,059 sampai -0,187 R. Populasi FVG
+1 jam di bawah plafon 0,25 memang merugi secara keseluruhan, jadi pertanyaan di
+tabel ini bukan "mana yang menguntungkan" melainkan "mana yang kurang merugi".
+Itu konsisten dengan yang sudah tercatat di `app/layers.py`: titik impas FVG ada di
+1 jam, dan selnya yang di atas satu adalah 4 jam dan harian.
+
+Satu sel XAUUSD sendiri memberi exp_r sekitar nol; delapan instrumen lain lebih
+buruk, dan pooling-nya yang menarik angka ke -0,15.
