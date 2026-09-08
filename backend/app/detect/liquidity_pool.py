@@ -15,14 +15,24 @@ bawah harga, sisi DEMAND. Menamainya "buy side" lalu menaruhnya di demand akan
 membuat setiap pembaca salah baca arah, jadi pemetaannya ditulis sekali di sini
 dan tidak diulang di tempat lain.
 
-TOLERANSI MENGELOMPOKKAN, IA TIDAK MENGGAMBAR
-Tepi kotak diambil dari sebaran pivot yang TERAMATI di dalam kluster, bukan dari
-`equal_tol_atr`. Beberapa script publik menggambar pita selebar toleransi yang
-diangkur di pivot terekstrem; itu ditolak di sini karena ia memindahkan sebuah
-konstanta ke dalam GEOMETRI, dan tinggi kotak adalah jarak stop. Harganya:
-kluster yang seluruh pivotnya persis sama memberi tinggi nol, dan itu ditolak
-serta dihitung alih-alih ditambal - pola yang sama dengan `cisd_zone` yang
-menolak 6 dari 377 run marubozu. Terukur nol dari 100 bar XAUUSD harian.
+TOLERANSI MENGELOMPOKKAN, DAN SEJAK 8 September 2026 IA JUGA MENGGAMBAR SATU SISI
+Proximal diambil dari sebaran pivot yang TERAMATI - equal high terendah untuk
+BSL, equal low tertinggi untuk SSL - dan distal didorong `equal_tol_atr`
+melewati pivot terekstrem, ke tempat stop beristirahat.
+
+Versi pertama memakai sebaran teramati di KEDUA sisi dan sengaja menjaga
+toleransi keluar dari geometri. Itu dicabut karena dua alasan yang menumpuk.
+Pertama, ia salah soal konstruknya: kluster menyatakan harga-harga ini sama
+DALAM toleransi, jadi kolam stop adalah pita toleransinya dan sebaran teramati
+cuma sampel dari pita itu - ia mengecilkan kolamnya. Kedua, ia tidak terbaca:
+keempat kotak di XAUUSD 15 menit lebih pendek dari 14 piksel, `pixel-truth`
+membaca 3 dari 7 karena tak ada yang bisa diukur, dan tepi yang dibaca balik
+meleset sampai 29,68 persen dari tinggi kotaknya sendiri.
+
+Harga yang dibayar dinyatakan: `equal_tol_atr` kini menyentuh geometri, jadi
+tinggi kotak - yang adalah jarak stop - ikut bergerak dengannya. Itu bisa
+dipertahankan HANYA karena gerbang kind ini 0,0 dan tidak mengikat; kalau suatu
+saat ia digerbangi, dua knob akan mengendalikan satu keputusan.
 
 SATU KOTAK PER KLUSTER, DAN IA LAHIR SAAT SENTUHAN KE-`min_touches`
 Sebuah kluster bisa terus tumbuh. Memancarkan ulang setiap kali anggota baru
@@ -84,6 +94,7 @@ def detect(
         "rejected_zero_atr": 0.0,
         "rejected_overlap": 0.0,
         "clusters_grown": 0.0,
+        "rejected_warmup": 0.0,
     }
     if len(candles) < 4:
         return _present([], params, stats, int(candles[-1].time) if candles else 0)
@@ -137,6 +148,25 @@ def detect(
             hit = next((c for c in clusters
                         if abs(p.price - c["anchor"]) <= c["tol"]), None)
             if hit is None:
+                # KLUSTER TIDAK BOLEH LAHIR DI WARM-UP, dan tanpa ini kotaknya
+                # REPAINT. `mean_true_range` merata-rata TEPAT `atr_period`
+                # suku, jadi nilainya di bar yang punya cukup riwayat di
+                # depannya tidak bergantung berapa bar yang dimuat - tapi di
+                # bar-bar PERTAMA sebuah potongan ia merata-rata lebih sedikit
+                # suku dan memberi angka lain.
+                #
+                # Selama toleransi cuma menentukan KEANGGOTAAN itu tidak
+                # terlihat: ia sebuah ambang, dan ambang tahan terhadap geseran
+                # kecil. Sejak pita toleransi masuk ke GEOMETRI, selisih itu
+                # langsung jadi tepi yang bergerak - `test_no_repaint`
+                # menangkapnya sebagai "grew left" pada
+                # `BSL-1772064000-1772107200` begitu riwayat ditambahkan di
+                # kiri. Jadi harganya dibayar di sini: kluster yang anchornya
+                # tidak punya `atr_period` bar penuh di depannya tidak dibuat
+                # sama sekali, alih-alih dibuat dengan skala yang belum jadi.
+                if p.index < params.atr_period + 1:
+                    stats["rejected_warmup"] += 1
+                    continue
                 # Anchor TETAP di anggota pertama - lihat docstring.
                 clusters.append({"anchor": p.price, "tol": tol, "members": [p],
                                  "emitted": False, "last_idx": p.index})
@@ -158,11 +188,41 @@ def detect(
 
             stats["candidates"] += 1
             prices = [m.price for m in members]
-            top, bottom = float(max(prices)), float(min(prices))
+            lo_p, hi_p = float(min(prices)), float(max(prices))
+            # PITA TOLERANSI DITAMBAHKAN DI SISI STOP, 8 September 2026, dan ia
+            # mengubah apa yang kotak ini NYATAKAN - bukan cuma seberapa tebal
+            # ia digambar.
+            #
+            # Versi pertama memakai sebaran pivot yang teramati apa adanya, dan
+            # itu MENGECILKAN kolamnya. Kluster ini menyatakan "harga-harga ini
+            # sama dalam `equal_tol_atr`", jadi pita tempat stop beristirahat
+            # adalah pita toleransinya, bukan kebetulan di mana dua pivot
+            # mendarat. Untuk BSL stop beli duduk DI ATAS equal high tertinggi;
+            # untuk SSL cerminnya.
+            #
+            # Jadi PROXIMAL tidak bergerak - ia tetap equal high TERENDAH, harga
+            # pertama yang disentuh saat harga naik - dan DISTAL didorong `tol`
+            # melewati yang tertinggi. Stop sebuah trade dengan begitu duduk di
+            # luar likuiditas yang disapu, bukan di tengahnya.
+            #
+            # DUA HAL IKUT BERUBAH DAN KEDUANYA DINYATAKAN. (1) `equal_tol_atr`
+            # sekarang MASUK ke geometri, yang versi pertama sengaja hindari;
+            # itu bisa dipertahankan hanya karena gerbang kind ini 0,0 dan tidak
+            # mengikat, jadi tidak ada knob kedua yang diam-diam digerbangi.
+            # (2) Kasus tinggi-nol hilang dengan sendirinya: kluster yang seluruh
+            # pivotnya persis sama kini bertinggi `tol`, bukan nol. Penolaknya
+            # DIPERTAHANKAN sebagai jaring - `tol` bisa nol kalau pemanggil
+            # menyetel `equal_tol_atr = 0`.
+            #
+            # Alasan langsungnya legibilitas, dan itu terukur: dengan sebaran
+            # teramati, KEEMPAT kotak di XAUUSD 15m lebih pendek dari 14 piksel
+            # dan `pixel-truth` membaca 3 dari 7 karena tidak ada yang bisa
+            # diukur, dengan tepi meleset sampai 29,68 persen tinggi kotaknya
+            # sendiri.
+            band = hit["tol"]
+            top = hi_p + band if is_high else hi_p
+            bottom = lo_p if is_high else lo_p - band
             if top - bottom <= 0:
-                # Setiap pivot berharga PERSIS sama. Kotak tanpa tinggi bukan
-                # kotak, dan melebarkannya butuh konstanta yang detektor ini
-                # sengaja tidak punya.
                 stats["rejected_zero_height"] += 1
                 continue
 
@@ -205,15 +265,22 @@ def _selftest() -> None:
     supply adalah bottom, jadi harga menyentuh 110,0 lebih dulu - equal high
     yang lebih rendah - dan itu memang stop pertama yang kena.
     """
+    tol = 0.5
     prices = [110.0, 110.4]
-    top, bottom = max(prices), min(prices)
-    assert (top, bottom) == (110.4, 110.0)
-    proximal = bottom  # supply
+    top, bottom = max(prices) + tol, min(prices)
+    assert (top, bottom) == (110.9, 110.0)
+    proximal = bottom  # supply: harga naik, menyentuh equal high TERENDAH dulu
     assert proximal == 110.0
+    # Distal duduk di luar equal high tertinggi, bukan di antaranya.
+    assert top > max(prices)
     lows = [99.6, 100.0]
-    top2, bottom2 = max(lows), min(lows)
+    top2, bottom2 = max(lows), min(lows) - tol
     proximal2 = top2  # demand
-    assert (top2, bottom2) == (100.0, 99.6) and proximal2 == 100.0
+    assert (top2, bottom2) == (100.0, 99.1) and proximal2 == 100.0
+    assert bottom2 < min(lows)
+    # Pivot yang PERSIS sama tidak lagi memberi tinggi nol.
+    same = [105.0, 105.0]
+    assert (max(same) + tol) - min(same) == tol > 0
 
     # Anchor TETAP, bukan rata-rata berjalan: rantai yang menghanyut harus
     # putus, bukan menelan seluruh deret.

@@ -91,7 +91,12 @@ def test_kolam_yang_sudah_disapu_tidak_menangkap_pivot_baru() -> None:
             highs.append(h)
             lows.append(lo)
 
-    push(flat, 95.0, 8)
+    # LEAD-IN LEBIH PANJANG DARI `atr_period`, karena kluster yang anchornya
+    # belum punya 14 bar penuh di depannya sengaja tidak dibuat - skalanya
+    # belum jadi dan kotaknya akan repaint saat riwayat ditambahkan di kiri.
+    # Versi pertama fixture ini memakai 8 bar dan gagal karena aturan itu,
+    # bukan karena aturan sapuannya.
+    push(flat, 95.0, 20)
     push(110.0, 105.0)           # pivot high 1
     push(flat, 95.0, 8)
     push(110.3, 105.0)           # pivot high 2 -> kolam lahir

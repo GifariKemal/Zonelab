@@ -3844,3 +3844,86 @@ pass yang menyalakan kontrol layer lain mengukur chart yang bukan chart yang
 dimaksud. Ketiga widget chip mengekspos `role="group" aria-label={label}`, jadi
 klik-nya sekarang di-scope ke grupnya dan dibuat idempoten lewat `aria-pressed`
 - chip itu toggle, dan mengkliknya saat sudah menyala akan mematikannya.
+
+## Kotak BSL/SSL dilebarkan, diukur ulang, dan edge-nya hilang
+
+Diminta 8 September 2026 sesudah `pixel-truth` membaca 3 dari 7 dengan keempat
+kotak lebih pendek dari 14 piksel.
+
+### Pelebarannya bukan sekadar demi harness
+
+Kluster menyatakan "harga-harga ini sama DALAM `equal_tol_atr`", jadi pita
+tempat stop beristirahat adalah pita toleransinya - sebaran pivot yang teramati
+cuma sampel dari pita itu dan MENGECILKAN kolamnya. Jadi proximal tidak
+bergerak (equal high terendah, harga pertama yang disentuh) dan distal didorong
+`tol` melewati yang tertinggi, ke tempat stop benar-benar duduk.
+
+Harganya dinyatakan: `equal_tol_atr` kini menyentuh GEOMETRI, yang versi pertama
+sengaja hindari. Itu bisa dipertahankan hanya karena gerbang kind ini 0,0 dan
+tidak mengikat; kalau ia pernah digerbangi, dua knob akan mengendalikan satu
+keputusan.
+
+Efek samping yang menyenangkan: kasus tinggi-nol hilang sendiri. Kluster yang
+seluruh pivotnya persis sama kini bertinggi `tol`.
+
+### Dan ia langsung memicu repaint, yang tesnya tangkap
+
+`test_no_repaint` gagal dengan `grew left: BSL-1772064000-1772107200`.
+Sebabnya: `mean_true_range` merata-rata TEPAT `atr_period` suku, jadi di
+bar-bar pertama sebuah potongan ia merata-rata lebih sedikit suku dan memberi
+angka lain. Selama toleransi cuma menentukan KEANGGOTAAN itu tak terlihat - ia
+ambang, dan ambang tahan geseran kecil. Begitu ia jadi geometri, selisih itu
+langsung jadi tepi yang bergerak saat riwayat ditambahkan di kiri.
+
+Diperbaiki dengan menolak kluster yang anchornya belum punya `atr_period` bar
+penuh di depannya, dihitung di `rejected_warmup`. Skala yang belum jadi lebih
+baik tidak dipakai daripada dipakai lalu berubah.
+
+### Gambarnya membaik delapan kali lipat
+
+| | kotak sempit | kotak lebar |
+|---|---|---|
+| pixel-truth | 3 dari 7 | **7 dari 7** |
+| tepi dibaca balik meleset | 29,68% tinggi kotak | **3,83%** |
+| tepi atas | tak terukur | 0,1px |
+| tepi bawah | tak terukur | 0,0px |
+| cukup tinggi untuk diukur | 0 dari 4 | 1 dari 3 |
+
+Diverifikasi lewat histogram `kind` dari JSON-nya, `{BSL: 2, SSL: 1}`, bukan
+lewat baris "lolos" di konsol - jebakan argumen `pixel-truth` sudah menipu saya
+sekali di sesi ini.
+
+**Tapi dua dari tiga kotak MASIH di bawah 14 piksel** pada toleransi default
+0,1. Pelebaran menolong, ia tidak menyelesaikan; di toleransi sekecil itu
+pitanya memang tipis.
+
+### Dan backtest-nya ikut berubah, ke arah yang tidak menguntungkan
+
+XAUUSD harian, tol 0,5 t3 n3, populasi identik (n=107) karena pelebaran tidak
+mengubah kolam MANA yang ada, hanya tingginya:
+
+| | kotak sempit | kotak lebar |
+|---|---|---|
+| PF | 1,482 | 1,364 |
+| win% | 35,5 | 41,1 |
+| RR | 4,59 | 3,17 |
+| biaya per trade | 0,0107 R | 0,0078 R |
+| **placebo** | 1,290 | **1,444** |
+| **margin atas kontrol** | **+0,192** | **-0,080** |
+| IS 2000-2013 | 1,881 | 1,510 |
+| **OOS 2013-2026** | 0,985 | **1,074** |
+
+Konsisten secara mekanis: stop lebih lebar berarti lebih jarang kena (win% naik)
+tapi target lebih dekat dalam satuan R (RR turun), dan biaya jadi fraksi lebih
+kecil dari R.
+
+**Yang penting margin atas kontrolnya BERBALIK.** Dengan kotak sempit ia
+mengalahkan placebo +0,192; dengan kotak lebar ia KALAH -0,080. Bacaannya:
+sebagian keunggulan kotak sempit datang dari stop yang rapat, bukan dari lokasi
+kolamnya - dan placebo yang digeser 1 ATR pun ikut untung dari stop rapat yang
+sama. Luar sampel justru membaik (0,985 ke 1,074), tapi placebo kontrol yang
+lebih tajam, jadi kalah darinya lebih memberatkan daripada lolos hold-out
+memberi ringan.
+
+Putusannya tidak berubah: `liquidity_pool` tetap `orderable=False`. Yang berubah,
+alasannya sekarang lebih kuat.

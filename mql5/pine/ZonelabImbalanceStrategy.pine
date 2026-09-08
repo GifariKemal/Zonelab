@@ -767,8 +767,14 @@ if isLQ and bar_index > lq_n * 2 + 2
             if not array.get(bEmit, hit) and array.get(bCnt, hit) >= lq_touch
                 array.set(bEmit, hit, true)
                 // BSL duduk di SUPPLY: stop beli beristirahat DI ATAS harga.
+                // PITA TOLERANSI DITAMBAHKAN DI SISI STOP, cermin perubahan
+                // 8 September 2026 di `detect/liquidity_pool.py`: proximal
+                // tetap equal high TERENDAH, distal didorong `tol` melewati
+                // yang tertinggi ke tempat stop benar-benar duduk. Sebaran
+                // teramati saja mengecilkan kolamnya - dan menghasilkan kotak
+                // yang lebih pendek dari 14 piksel di chart.
                 l_bull  := false
-                l_top   := array.get(bHi, hit)
+                l_top   := array.get(bHi, hit) + array.get(bTolA, hit)
                 l_bot   := array.get(bLo, hit)
                 l_scale := array.get(bScl, hit)
                 l_got   := true
@@ -809,10 +815,10 @@ if isLQ and bar_index > lq_n * 2 + 2
             array.set(sExt, hitl, 1e30)
             if not array.get(sEmit, hitl) and array.get(sCnt, hitl) >= lq_touch
                 array.set(sEmit, hitl, true)
-                // SSL duduk di DEMAND.
+                // SSL duduk di DEMAND, cermin dari catatan di cabang BSL.
                 l_bull  := true
                 l_top   := array.get(sHi, hitl)
-                l_bot   := array.get(sLo, hitl)
+                l_bot   := array.get(sLo, hitl) - array.get(sTolA, hitl)
                 l_scale := array.get(sScl, hitl)
                 l_got   := true
 
