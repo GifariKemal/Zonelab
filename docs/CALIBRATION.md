@@ -3783,3 +3783,41 @@ Jadi uji "stroke bukan fill" TETAP merah, dan itu jujur: ia merah untuk tiga
 ray PSP dan untuk `gaps/CE-NWOG` yang sudah merah sebelum pass ini ada. Yang
 berubah adalah lima ray yang sebelumnya tidak terukur sama sekali sekarang
 terukur dan lolos.
+
+### `ink-budget` dan `wiring` bertentangan soal `session`, dan itu bukan dari pekerjaan PSP
+
+Ditemukan 8 September 2026 saat memverifikasi perbaikan tinta PSP tidak merusak
+harness lain. `e2e/ink-budget.mjs` merah:
+
+    FAIL  layer yang kosong-default tetap kosong :: session 41012 px
+
+`EMPTY_BY_DEFAULT` di berkas itu memuat `session`, `dfr`, `ssmt` dan `psp`, dan
+komentarnya menyatakan hitungan itu diukur lewat `e2e/wiring.mjs`. Tapi
+`wiring.mjs` di run yang sama melaporkan **`session=91` objek tergambar**.
+
+Dua harness memegang dua fakta yang berlawanan tentang layer yang sama, dan
+yang satu hijau justru karena ia tidak menegaskan apa pun soal kekosongan.
+
+**Bukan dari pekerjaan hari ini.** `session=91` sudah terbaca di run `wiring`
+PERTAMA hari ini, sebelum satu baris pun kode PSP ditulis. Dan hipotesis bahwa
+harness lain mencemarinya lewat state tersimpan sudah diuji dan gugur:
+`localStorage` terbaca NOL kunci di konteks bersih, dan Playwright memakai
+konteks baru tiap proses, jadi klik di satu harness tidak bisa merembes ke
+harness berikutnya.
+
+Yang tersisa dua kemungkinan, dan keduanya belum dipisahkan: `session` memang
+mulai menggambar dengan setelan default di suatu titik dan `EMPTY_BY_DEFAULT`
+jadi basi, atau `ink-budget` menyalakan sesuatu di setup-nya sendiri yang
+`wiring` tidak. Menebak di antara keduanya tanpa mengukur adalah cara catatan
+ini jadi salah, jadi ia ditinggalkan sebagai temuan.
+
+### Satu kerapuhan nyata yang ikut ketemu dan sudah diperbaiki
+
+Pass PSP versi pertama memilih chip dengan
+`getByRole("button", { name }).first()`. Toolbox punya ENAM widget `Degrees`,
+jadi `.first()` untuk "day" mendarat di panel yang salah. Itu tidak menyebabkan
+kegagalan di atas - konteks Playwright terisolasi - tapi ia tetap salah: sebuah
+pass yang menyalakan kontrol layer lain mengukur chart yang bukan chart yang
+dimaksud. Ketiga widget chip mengekspos `role="group" aria-label={label}`, jadi
+klik-nya sekarang di-scope ke grupnya dan dibuat idempoten lewat `aria-pressed`
+- chip itu toggle, dan mengkliknya saat sudah menyala akan mematikannya.

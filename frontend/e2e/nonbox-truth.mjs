@@ -428,15 +428,33 @@ const pspPass = async () => {
   // Partner dan derajat dinyalakan lewat chip yang sama yang dipakai pembaca,
   // bukan lewat jalan pintas: kalau kontrolnya rusak, pass ini harus ikut
   // merah, dan jalan pintas akan menyembunyikannya.
-  const chip = async (name) => {
-    const el = page.getByRole("button", { name, exact: true }).first();
+  //
+  // DI-SCOPE KE GRUP-NYA, DAN VERSI PERTAMA TIDAK. Ia memakai
+  // `getByRole("button", { name }).first()`, dan toolbox punya ENAM widget
+  // `Degrees` - jadi `.first()` untuk "day" mendarat di panel `session`, bukan
+  // di SSMT. Params disimpan di `localStorage`, jadi klik itu bertahan dan
+  // `e2e/ink-budget.mjs` berikutnya melaporkan `session 41012 px` untuk layer
+  // yang seharusnya kosong-default. Sebuah harness yang menyalakan layer lain
+  // sebagai efek samping merusak harness sesudahnya, bukan cuma dirinya.
+  //
+  // `Degrees` dan `Chips` sama-sama membungkus barisnya dengan
+  // `role="group" aria-label={label}`, jadi scoping-nya sudah tersedia.
+  const chipIn = async (group, name) => {
+    const row = page.getByRole("group", { name: group, exact: true });
+    if (!(await row.count())) return false;
+    const el = row.getByRole("button", { name, exact: true }).first();
     if (!(await el.count())) return false;
+    // IDEMPOTEN: chip ini toggle, jadi mengkliknya saat sudah menyala akan
+    // MEMATIKANNYA. Dibaca dulu dari `aria-pressed`.
+    if ((await el.getAttribute("aria-pressed")) === "true") return true;
     await el.click();
     await page.waitForTimeout(400);
     return true;
   };
-  const partners = (await chip("XAGUSD")) && (await chip("XPTUSD"));
-  const degree = await chip("day");
+  const partners =
+    (await chipIn("SSMT against", "XAGUSD")) &&
+    (await chipIn("SSMT against", "XPTUSD"));
+  const degree = await chipIn("SSMT stages", "day");
   await page.waitForTimeout(5000);
 
   const drawn = await page.evaluate(
