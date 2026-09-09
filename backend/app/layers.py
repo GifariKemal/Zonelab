@@ -117,7 +117,22 @@ class Layer:
 LAYERS: tuple[Layer, ...] = (
     Layer(
         id="supply_demand",
-        orderable=True,
+        # DIMATIKAN 9 September 2026 atas keputusan pemilik: "kita masih
+        # membangun detector". Dengan ini `ORDERABLE_LAYERS` di
+        # `tools/execute.py` menjadi KOSONG dan tidak ada satu pun layer yang
+        # bisa mencapai jalur order.
+        #
+        # FIELD-NYA SENGAJA TIDAK DIHAPUS. Sebuah flag yang False di
+        # mana-mana adalah jaminan yang lebih kuat daripada mekanisme yang
+        # dihapus: `test_execute.py` dan penyaring di `drawing._odds_for` tetap
+        # hidup dan tetap menjaga, jadi menyalakan satu layer kembali harus
+        # lewat pintu yang sama dan tetap menghadapi tes yang sama.
+        #
+        # Alasannya juga bukan sekadar kehati-hatian. Layer ini sendiri 5 dari
+        # 8 di aturan yang menggerbangi status itu, jadi `orderable=True`
+        # berdiri di atas keputusan lama dan bukan di atas aturan yang berlaku
+        # sekarang. Nol dari delapan detektor lolos aturan itu.
+        orderable=False,
         gate="floor",
         role="Zona",
         label="Supply and demand",

@@ -72,9 +72,16 @@ def test_every_declared_knob_is_read_by_someone() -> None:
     """
     imb = _fns(ROOT / "imbalance.py")
     sd = _fns(ROOT / "supply_demand.py")
+    # `inversion.py` DITAMBAHKAN 9 September 2026, dan itu memperlengkap
+    # penjaga ini alih-alih melonggarkannya: ia juga memakai `ImbalanceParams`,
+    # jadi sebelum baris ini setiap knob yang HANYA dibaca di sana akan
+    # dilaporkan yatim. `merge_overlap_pct` adalah kasus pertamanya.
+    inv = _fns(ROOT / "inversion.py")
     seen: set[str] = set(_reads(sd["replay_lifecycle"]))
     for name in imb:
         seen |= _reads(imb[name])
+    for name in inv:
+        seen |= _reads(inv[name])
 
     orphan = sorted(set(ImbalanceParams.model_fields) - seen)
     assert not orphan, f"knob tanpa pembaca: {orphan}"

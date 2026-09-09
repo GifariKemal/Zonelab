@@ -101,10 +101,21 @@ def test_the_orderable_list_holds_exactly_the_measured_one():
     Yang dikunci di sini tetap sama: daftarnya berisi TEPAT layer yang punya
     angka, dan yang berikutnya tidak bisa masuk tanpa test ini berubah warna.
     Tersisa satu, dan satu itu pun cuma positif di satu dari tiga sel.
+
+    KEEMPAT KALI, 9 September 2026: daftarnya sekarang KOSONG. `supply_demand`
+    dimatikan atas keputusan pemilik - "kita masih membangun detector" - dan
+    angkanya mendukung: layer itu sendiri 5 dari 8 di aturan yang menggerbangi
+    status ini, jadi `orderable=True` berdiri di atas keputusan lama dan bukan
+    di atas aturan yang berlaku. Nol dari DELAPAN detektor lolos aturan itu.
+
+    Yang dikunci tetap sama bentuknya: daftar ini berisi tepat layer yang punya
+    angka, dan sekarang tidak ada. Menyalakan yang berikutnya tetap harus
+    membuat test ini berubah warna lebih dulu.
     """
     from tools.execute import ORDERABLE_LAYERS
-    assert set(ORDERABLE_LAYERS) == {"supply_demand"}
-    for absent in ("fvg", "order_block", "ifvg", "breaker"):
+    assert set(ORDERABLE_LAYERS) == set()
+    for absent in ("supply_demand", "fvg", "order_block", "ifvg", "breaker",
+                   "ote", "cisd_zone", "liquidity_pool"):
         assert absent not in ORDERABLE_LAYERS
 
 

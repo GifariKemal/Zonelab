@@ -3976,3 +3976,90 @@ mengalahkan placebo DAN bertahan luar sampel DAN 8 dari 8 walk-forward.
 **Enam punya gambar terverifikasi, nol berhasil di backtest.** `supply_demand`
 menyentuh jalur order sebagai warisan keputusan lama; ia sendiri tidak memenuhi
 aturan yang menggerbangi jalur itu.
+
+## `orderable` dimatikan, dan tepi IFVG/BRK dicoba diperbaiki lalu dicabut
+
+### `orderable` kosong, 9 September 2026
+
+Atas keputusan pemilik: "kita masih membangun detector". `supply_demand` adalah
+satu-satunya yang menyala, jadi `ORDERABLE_LAYERS` di `tools/execute.py`
+sekarang KOSONG dan tidak ada layer yang bisa mencapai jalur order.
+
+Angkanya mendukung keputusan itu: layer tersebut sendiri 5 dari 8 di aturan yang
+menggerbangi status ini, jadi `orderable=True` berdiri di atas keputusan lama
+dan bukan di atas aturan yang berlaku. Nol dari DELAPAN detektor lolos aturan
+itu.
+
+**Field-nya sengaja tidak dihapus.** Sebuah flag yang False di mana-mana adalah
+jaminan yang lebih kuat daripada mekanisme yang dihapus: penyaring di
+`drawing._odds_for`, penolakan keras di `execute.candidates`, dan penjaga
+daftarnya tetap hidup, jadi menyalakan satu layer kembali harus lewat pintu yang
+sama dan tetap menghadapi tes yang sama.
+
+Dua tes ikut berubah dan keduanya sengaja:
+- penjaga daftar kini menuntut daftarnya KOSONG, dan menyebut kedelapan nama
+  secara eksplisit;
+- tes jalur order mem-patch `ORDERABLE_LAYERS` di dalam dirinya, karena ia
+  menguji WIRING di dalam `candidates` (cisd ke confluence, stempel dealing
+  range) dan cakupan itu harus tetap hidup selama jalur ordernya masih ada.
+
+### Tepi IFVG dan BRK: penyebabnya DUA, dan cuma satu yang bisa diperbaiki
+
+Keduanya membaca 6 dari 7 di `pixel-truth`, gagal di pemeriksaan yang sama -
+tepi tidak cukup terbaca. Diukur di XAUUSD 15 menit, 500 bar:
+
+| | zona | beririsan harga sesisi | tinggi median | tinggi min |
+|---|---|---|---|---|
+| ifvg | 86 | **63** | 2,14 USD | **0,01 USD** |
+| breaker | 47 | 33 | 3,24 USD | 0,38 USD |
+
+Dua sebab bertumpuk. **Kerumunan**: kotak terbalik lahir tepat di tempat
+induknya pecah, dan induk berkerumun. **Ketipisan**: IFVG mewarisi geometri
+induk FVG, dan gerbang FVG itu PLAFON - jadi induk yang lolos justru gap
+TERKECIL, dan kotak satu sen adalah konsekuensi langsungnya.
+
+Kerumunan tidak bisa diperbaiki lewat gambar. Dua kotak yang harganya memang
+berimpit tidak bisa dipisahkan tanpa memindahkan tepinya dari harga sebenarnya,
+dan justru itu yang `pixel-truth` ada untuk menjaga.
+
+### Jadi dedupe dicoba di jalur inversi, dan hasilnya DICABUT
+
+`_dedupe` dipasang HANYA untuk `ifvg` dan `breaker` - `fvg` dan `order_block`
+diverifikasi nol dibuang, jadi populasi mereka tidak bergerak.
+
+Kerumunannya memang selesai: ifvg 86 ke 56 zona, beririsan 63 ke 23, dan di
+sampel gambar `0 share a price band`. **Tapi tesnya tetap 6 dari 7**, karena
+kegagalannya pindah ke sebab kedua: 4 dari 9 kotak masih di bawah 14 piksel.
+
+Dan ongkosnya besar. Cermin Pine tidak punya dedupe, jadi:
+
+| sel | detektor | Pine | Zonelab | selisih |
+|---|---|---|---|---|
+| XAUUSD 1d | ifvg | 616 | 238 | +158,8% |
+| XAUUSD 1d | breaker | 387 | 201 | +92,5% |
+| XAUUSD 1h | ifvg | 6.132 | 1.055 | +481,2% |
+| XAUUSD 1h | breaker | 4.414 | 1.229 | +259,2% |
+| BTCUSD 1h | ifvg | 7.719 | 873 | **+784,2%** |
+| BTCUSD 1h | breaker | 5.787 | 1.391 | +316,0% |
+
+Parity IFVG dan BRK yang tadinya BERSIH jadi meleset 2,6 sampai 8,8 kali, dan
+setiap angka TradingView untuk keduanya akan menggambarkan populasi yang bukan
+populasi Zonelab. Untuk perbandingan: paparan `cisd_zone` +44 persen sudah
+dianggap cukup serius untuk dikunci tes.
+
+Tujuan tidak tercapai, ongkos nyata dan terukur. Dicabut seluruhnya.
+
+### Yang TETAP dipertahankan dari percobaan itu
+
+`tests/test_shared_param_block.py` sekarang ikut memindai `inversion.py` saat
+mencari pembaca knob. Itu perbaikan yang berdiri sendiri: sebelum baris itu,
+knob apa pun yang HANYA dibaca di `inversion.py` akan dilaporkan yatim padahal
+ia dibaca. Ditemukan karena `merge_overlap_pct` jadi kasus pertamanya.
+
+### Kesimpulan yang jujur untuk tepi IFVG/BRK
+
+Kerumunan bisa dihilangkan tapi tidak menyelesaikan tesnya; ketipisan yang
+menyelesaikannya, dan ketipisan itu ADALAH definisi detektornya - ia mewarisi
+kohort gap terkecil dari gerbang plafon FVG. Memperbaikinya berarti mengubah apa
+itu IFVG, bukan mengubah cara ia digambar. Dibiarkan 6 dari 7, dengan sebabnya
+sekarang terukur dan terpisah dua.
