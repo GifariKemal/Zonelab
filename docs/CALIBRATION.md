@@ -3927,3 +3927,52 @@ memberi ringan.
 
 Putusannya tidak berubah: `liquidity_pool` tetap `orderable=False`. Yang berubah,
 alasannya sekarang lebih kuat.
+
+## Sensus autodrawing kedelapan detektor, 9 September 2026
+
+Pertama kalinya kedelapan diukur dalam satu duduk DAN tiap run diverifikasi
+lewat histogram `kind` dari `pixel-truth.json`, bukan lewat baris "lolos" di
+konsol. Verifikasi itu ada karena jebakan argumen sudah menipu saya sehari
+sebelumnya: `pixel-truth.mjs liquidity_pool` membuat FOLDER bernama itu dan
+menilai `supply_demand`, dan hasil 7 dari 7 sempat dilaporkan sebagai milik
+BSL/SSL.
+
+| detektor | pixel-truth | kind terverifikasi |
+|---|---|---|
+| supply_demand | 7 dari 7 | DBR 2, RBR 1, RBD 1, DBD 1 |
+| fvg | 7 dari 7 | FVG 9 |
+| order_block | 7 dari 7 | OB 12 |
+| ote | 7 dari 7 | OTE 8 |
+| cisd_zone | 7 dari 7 | CISD 8 |
+| liquidity_pool | 7 dari 7 | BSL 2, SSL 1 |
+| **ifvg** | **6 dari 7** | IFVG 9 |
+| **breaker** | **6 dari 7** | BRK 12 |
+
+Enam hijau, dua merah, dan keduanya gagal di pemeriksaan yang SAMA: tepi tidak
+cukup terbaca untuk diukur. BRK terbaca tepi atas 1 dari 6 dan bawah 2 dari 6,
+dengan 5 kotak bertumpuk dan 4 terlalu tipis.
+
+Sebabnya struktural dan sudah tercatat di evidence `ifvg`: kotak terbalik duduk
+tepat di tempat induknya pecah, dan induk berkerumun, jadi tepi-tepinya saling
+menimbun. Itu satu-satunya kegagalan gambar yang tersisa di repo ini, dan ia
+milik dua kind yang berbagi mekanisme yang sama.
+
+### Sisi backtest, di baris yang sama
+
+Tidak satu pun dari delapan lolos aturan yang menggerbangi `orderable`:
+mengalahkan placebo DAN bertahan luar sampel DAN 8 dari 8 walk-forward.
+
+| detektor | posisi terbaik yang terukur |
+|---|---|
+| supply_demand | satu-satunya `orderable=True`, tapi 5 dari 8 |
+| liquidity_pool | dua sel di atas satu, placebo menang sesudah kotak dilebarkan |
+| cisd_zone | tiga arm di atas satu, semua gugur di placebo atau luar sampel |
+| fvg | 1,112 di 4 jam, 6 dari 8 |
+| ifvg | 1,067, 6 dari 8, dan periode sekarang yang gagal |
+| ote | 1,066 di harian, 4 dari 8 |
+| breaker | PF tertinggi 1,181 tapi 3 dari 8, seluruhnya milik paruh kedua |
+| order_block | 0,972, dan t=-5,07 di bracket yang benar-benar trading |
+
+**Enam punya gambar terverifikasi, nol berhasil di backtest.** `supply_demand`
+menyentuh jalur order sebagai warisan keputusan lama; ia sendiri tidak memenuhi
+aturan yang menggerbangi jalur itu.
