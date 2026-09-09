@@ -449,13 +449,38 @@ export const Toolbox = memo(function Toolbox({
                 gate was off. Naming a switch and not shipping it is worse than
                 shipping neither. Order block only: the other three detectors
                 have no block candle to test. */}
+            {/* DIMATIKAN SAAT TIDAK ADA YANG MEMBACANYA, sejak 9 September 2026.
+                `ImbalanceParams` dipakai bersama empat detektor dan knob ini
+                hanya dibaca `order_block` dan `breaker`. `DrawRequest` di
+                backend MENOLAK knob ini kalau ia digeser dari default tanpa
+                salah satu layer itu menyala - guard yang sengaja, supaya
+                sebuah setelan tidak terlihat berlaku sambil menggambar chart
+                default.
+
+                Tapi UI tetap menawarkannya, jadi menekannya mengirim body yang
+                pasti ditolak: `e2e/click-everything.mjs` merah tiga gate dengan
+                422, dan karena knob itu tetap di body sesudahnya, DUA gate
+                berikutnya ikut merah tanpa ada hubungannya. Menekan saklar
+                seharusnya tidak bisa menghentikan chart.
+
+                Dimatikan, bukan disembunyikan: komentar di atas sudah menulis
+                bahwa menyebut sebuah saklar tanpa mengirimkannya lebih buruk
+                daripada tidak menyediakan keduanya. Ia tetap terlihat, tetap
+                menjelaskan dirinya, dan tidak bisa mengirim yang tak terbaca. */}
             <Toggle
               label="Require structure break"
               value={params.imbalance.require_structure_break}
+              disabled={!on("order_block") && !on("breaker")}
               onChange={(v) =>
                 onParams("imbalance", { require_structure_break: v })
               }
             />
+            {!on("order_block") && !on("breaker") ? (
+              <p className="text-[11px] leading-relaxed text-accent">
+                Hanya dibaca order block dan breaker, dan keduanya mati.
+                Nyalakan salah satunya untuk memakai gerbang ini.
+              </p>
+            ) : null}
             <Hint
               k="require-structure-break"
               hint="Order block only: the impulse must CLOSE beyond a confirmed swing, not merely travel the displacement size."
@@ -2465,10 +2490,16 @@ function Toggle({
   onChange,
   swatch,
   icon,
+  disabled,
 }: {
   label: string;
   value: boolean;
   onChange: (value: boolean) => void;
+  /** Mati karena tidak ada layer yang membacanya. Dipakai satu tempat sejauh
+   *  ini - lihat catatan pada "Require structure break" - dan sengaja
+   *  `disabled` alih-alih disembunyikan: panel ini sudah pernah dikritik di
+   *  komentarnya sendiri karena menyebut sebuah saklar tanpa mengirimkannya. */
+  disabled?: boolean;
   /** CSS colours this layer actually draws in, newest-family first. Shown as a
    *  bar beside the name so the palette is documented where the layer is
    *  switched on, rather than in a legend nobody opens. Two colours for the box
@@ -2554,11 +2585,14 @@ function Toggle({
         role="switch"
         aria-checked={value}
         aria-label={label}
+        disabled={disabled}
         onClick={() => onChange(!value)}
         className={`h-4 w-8 shrink-0 border transition-colors duration-[70ms] active:translate-y-px ${
-          value
-            ? "border-accent bg-accent/25 hover:bg-accent/40"
-            : "border-line-strong bg-transparent hover:border-text-faint"
+          disabled
+            ? "cursor-not-allowed border-line opacity-40"
+            : value
+              ? "border-accent bg-accent/25 hover:bg-accent/40"
+              : "border-line-strong bg-transparent hover:border-text-faint"
         }`}
       >
         <span

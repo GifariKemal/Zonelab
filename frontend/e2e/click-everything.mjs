@@ -32,6 +32,35 @@ let failedRequests = [];
 page.on("console", (m) => {
   if (m.type() === "error") consoleErrors.push(m.text());
 });
+
+// STATUS SAJA TIDAK BISA DITINDAKLANJUTI, dan sampai 9 September 2026 itu yang
+// dilaporkan berkas ini. Dua gate merah berbunyi "the server responded with a
+// status of 422 (Unprocessable Content)" - tanpa URL, tanpa body, tanpa alasan
+// validasinya. Dua percobaan reproduksi gagal justru karena tidak ada satu pun
+// dari tiga hal itu untuk dikejar: dikirim sendiri lewat curl, request yang
+// dicurigai menjawab 200.
+//
+// FastAPI mengembalikan alasan penolakannya di body sebagai daftar `detail`,
+// yang menyebut field mana yang salah. Itu yang dibutuhkan, dan itu gratis -
+// tinggal dibaca dari response yang sudah lewat.
+const httpErrors = [];
+page.on("response", async (r) => {
+  if (r.status() < 400 || r.url().includes("favicon")) return;
+  let why = "";
+  try {
+    const j = await r.json();
+    why = JSON.stringify(j.detail ?? j).slice(0, 300);
+  } catch {
+    why = "(body bukan JSON)";
+  }
+  // `URL` di berkas ini SUDAH DIPAKAI sebagai konstanta alamat app, jadi
+  // konstruktor globalnya tertutup. Jalurnya dipotong manual.
+  const path = r.url().replace(/^https?:\/\/[^/]+/, "");
+  httpErrors.push(
+    `${r.status()} ${path} :: ${why}` +
+      ` :: req ${(r.request().postData() ?? "").slice(0, 300)}`,
+  );
+});
 page.on("requestfailed", (r) => {
   const why = r.failure()?.errorText ?? "";
   // ERR_ABORTED is the app working, not failing. page.tsx keeps an
@@ -51,6 +80,10 @@ const alerts = () =>
 /** Everything that must still be true after any interaction. */
 async function healthy(label) {
   const errs = consoleErrors.splice(0);
+  // Kalau ada respons berstatus galat di jendela yang sama, ITU yang dilaporkan
+  // - pesan konsol browser cuma gejalanya.
+  const http = httpErrors.splice(0);
+  if (http.length) errs.unshift(http[0]);
   const reqs = failedRequests.splice(0);
   const canvases = await page.locator("canvas").count();
   const ok = errs.length === 0 && reqs.length === 0 && canvases > 0;

@@ -61,6 +61,28 @@ await page.locator(`div[aria-label="Timeframe"] button:text-is("${INTERVAL}")`).
 // moved, which reads as a broken app rather than as a moved control. Each
 // `<select>` carries an `aria-label`, so the accessible name is the stable
 // handle and a new picker cannot break this again.
+// JUMLAH BAR HARUS ADA DI PICKER-NYA, dan kalau tidak, gagal DI SINI dengan
+// menyebutkan alasannya. `Picker` "Bars" hanya menawarkan 200/500/1000/2000/5000;
+// `selectOption` untuk nilai yang tidak ada tidak melempar "opsi tidak ada", ia
+// menunggu sampai 30 detik lalu melapor `locator.selectOption: Timeout 30000ms`
+// dengan log "waiting for element to be visible and enabled".
+//
+// Pesan itu terbaca seperti aplikasi yang mati, dan pada 9 September 2026 ia
+// memakan waktu persis begitu: harness dipanggil dengan 900, gagal, dan
+// disimpulkan sebagai kerusakan yang sudah ada di repo. Kontrol `git stash` pun
+// tidak menangkapnya, karena argumen yang salah ikut dipertahankan di kontrolnya.
+const barOptions = await page
+  .getByRole("combobox", { name: "Bars" })
+  .locator("option")
+  .allTextContents();
+if (!barOptions.includes(String(BARS))) {
+  console.error(
+    `bar ${BARS} tidak ada di picker. Yang tersedia: ${barOptions.join(", ")}. ` +
+      "Ini argumen yang salah, BUKAN aplikasi yang rusak.",
+  );
+  await browser.close();
+  process.exit(2);
+}
 await page.getByRole("combobox", { name: "Bars" }).selectOption(String(BARS));
 await page.waitForTimeout(6000);
 

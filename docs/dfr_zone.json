@@ -1,0 +1,358 @@
+{
+  "series": [
+    "mt5:XAUUSD 1h",
+    "mt5:BTCUSD 1h",
+    "mt5:ETHUSD 1h",
+    "mt5:EURUSD 1h"
+  ],
+  "window": {
+    "mt5:XAUUSD 1h": [
+      "2023-04-24 02:00",
+      "2026-09-08 00:00"
+    ],
+    "mt5:BTCUSD 1h": [
+      "2024-05-28 18:00",
+      "2026-09-08 00:00"
+    ],
+    "mt5:ETHUSD 1h": [
+      "2024-05-28 18:00",
+      "2026-09-08 00:00"
+    ],
+    "mt5:EURUSD 1h": [
+      "2023-06-21 19:00",
+      "2026-09-08 00:00"
+    ]
+  },
+  "geometries": {
+    "atr": {
+      "reward": 1.0,
+      "horizon": 96,
+      "arms": {
+        "buang 0": {
+          "n_drawn": 6484,
+          "n_placebo": 6158,
+          "held_pct": 48.704503392967304,
+          "placebo_pct": 40.46768431308867,
+          "delta_pp": 8.236819079878636,
+          "delta_supply_pp": 7.335940094882474,
+          "delta_demand_pp": 9.133825944170773,
+          "n_supply": 3236,
+          "n_demand": 3248,
+          "walkforward_positive": 8,
+          "folds_delta_pp": [
+            7.5249241439098355,
+            11.042964433839899,
+            8.33092833092833,
+            8.32882284176982,
+            5.469023423076308,
+            7.704293240668086,
+            7.258297258297262,
+            10.230915816612487
+          ],
+          "test": "z=+9.31 p=0.0000 SIGNIFICANT",
+          "halves": {
+            "first": {
+              "delta_pp": 9.264462104775603,
+              "n_drawn": 3230
+            },
+            "second": {
+              "delta_pp": 9.463145551543626,
+              "n_drawn": 3229
+            }
+          }
+        },
+        "buang 1/3": {
+          "n_drawn": 6462,
+          "n_placebo": 6133,
+          "held_pct": 46.595481275147016,
+          "placebo_pct": 38.61079406489483,
+          "delta_pp": 7.984687210252183,
+          "delta_supply_pp": 7.285847299813781,
+          "delta_demand_pp": 8.669481852537501,
+          "n_supply": 3222,
+          "n_demand": 3240,
+          "walkforward_positive": 8,
+          "folds_delta_pp": [
+            6.763922725757972,
+            10.700524094130408,
+            6.944588061939349,
+            7.401377360682616,
+            7.120065786816461,
+            10.043817697696667,
+            5.772619308867007,
+            9.127434907767181
+          ],
+          "test": "z=+9.05 p=0.0000 SIGNIFICANT",
+          "halves": {
+            "first": {
+              "delta_pp": 7.9189542994470585,
+              "n_drawn": 3224
+            },
+            "second": {
+              "delta_pp": 9.117705319047474,
+              "n_drawn": 3218
+            }
+          }
+        },
+        "buang 1/2": {
+          "n_drawn": 6416,
+          "n_placebo": 6102,
+          "held_pct": 44.731920199501246,
+          "placebo_pct": 37.528679121599474,
+          "delta_pp": 7.203241077901772,
+          "delta_supply_pp": 6.938745909961376,
+          "delta_demand_pp": 7.4658634464482105,
+          "n_supply": 3203,
+          "n_demand": 3213,
+          "walkforward_positive": 8,
+          "folds_delta_pp": [
+            8.837813602476743,
+            11.29777129914401,
+            4.495314792965161,
+            4.434359710161033,
+            7.643620607274464,
+            5.169742746671986,
+            4.498092906658648,
+            11.253158061595684
+          ],
+          "test": "z=+8.18 p=0.0000 SIGNIFICANT",
+          "halves": {
+            "first": {
+              "delta_pp": 4.81603344119619,
+              "n_drawn": 3204
+            },
+            "second": {
+              "delta_pp": 7.120938291167086,
+              "n_drawn": 3194
+            }
+          }
+        },
+        "buang 2/3": {
+          "n_drawn": 6319,
+          "n_placebo": 6004,
+          "held_pct": 41.937015350530146,
+          "placebo_pct": 36.87541638907395,
+          "delta_pp": 5.061598961456198,
+          "delta_supply_pp": 4.618556437523345,
+          "delta_demand_pp": 5.500058629118563,
+          "n_supply": 3162,
+          "n_demand": 3157,
+          "walkforward_positive": 8,
+          "folds_delta_pp": [
+            6.5921419518377675,
+            8.991218459775148,
+            1.4919831223628677,
+            7.210807530887088,
+            5.345147679324896,
+            5.501188289032349,
+            1.4210970464135073,
+            3.936186350688537
+          ],
+          "test": "z=+5.75 p=0.0000 SIGNIFICANT",
+          "halves": {
+            "first": {
+              "delta_pp": 4.291144503177527,
+              "n_drawn": 3164
+            },
+            "second": {
+              "delta_pp": 3.460790730899028,
+              "n_drawn": 3137
+            }
+          }
+        }
+      },
+      "holdout": {
+        "picked_on_first_half": "buang 0",
+        "second_half_delta_pp": 9.463145551543626
+      }
+    },
+    "box": {
+      "reward": 1.0,
+      "horizon": 96,
+      "arms": {
+        "buang 0": {
+          "n_drawn": 6478,
+          "n_placebo": 6153,
+          "held_pct": 47.715344242050016,
+          "placebo_pct": 39.88298391028766,
+          "delta_pp": 7.832360331762352,
+          "delta_supply_pp": 8.018491792175958,
+          "delta_demand_pp": 7.646807598123708,
+          "n_supply": 3232,
+          "n_demand": 3246,
+          "walkforward_positive": 8,
+          "folds_delta_pp": [
+            7.524741971417136,
+            8.351233765191282,
+            8.571818459117978,
+            3.7274639181878015,
+            6.847381779428758,
+            8.680505386183754,
+            8.52413748816003,
+            10.428090428090428
+          ],
+          "test": "z=+8.87 p=0.0000 SIGNIFICANT",
+          "halves": {
+            "first": {
+              "delta_pp": 8.411274676740696,
+              "n_drawn": 3224
+            },
+            "second": {
+              "delta_pp": 8.452672862269715,
+              "n_drawn": 3229
+            }
+          }
+        },
+        "buang 1/3": {
+          "n_drawn": 6460,
+          "n_placebo": 6124,
+          "held_pct": 48.03405572755418,
+          "placebo_pct": 40.28412802090137,
+          "delta_pp": 7.749927706652812,
+          "delta_supply_pp": 7.295749017900633,
+          "delta_demand_pp": 8.19677298063575,
+          "n_supply": 3221,
+          "n_demand": 3239,
+          "walkforward_positive": 8,
+          "folds_delta_pp": [
+            7.177879826032026,
+            8.29757257710105,
+            5.02368977330709,
+            7.5430421632241575,
+            5.078115508904929,
+            8.66368947599721,
+            9.848142478800689,
+            10.362433110151748
+          ],
+          "test": "z=+8.75 p=0.0000 SIGNIFICANT",
+          "halves": {
+            "first": {
+              "delta_pp": 6.557379736731825,
+              "n_drawn": 3221
+            },
+            "second": {
+              "delta_pp": 9.72601259323612,
+              "n_drawn": 3218
+            }
+          }
+        },
+        "buang 1/2": {
+          "n_drawn": 6415,
+          "n_placebo": 6056,
+          "held_pct": 48.573655494933746,
+          "placebo_pct": 41.099735799207394,
+          "delta_pp": 7.473919695726352,
+          "delta_supply_pp": 7.767728085498355,
+          "delta_demand_pp": 7.179567877470376,
+          "n_supply": 3203,
+          "n_demand": 3212,
+          "walkforward_positive": 8,
+          "folds_delta_pp": [
+            6.8423387542322445,
+            9.122998316625875,
+            6.203283073689619,
+            8.74152136172119,
+            5.806981884786055,
+            5.424187220192586,
+            6.495814624600982,
+            11.153753660762227
+          ],
+          "test": "z=+8.39 p=0.0000 SIGNIFICANT",
+          "halves": {
+            "first": {
+              "delta_pp": 6.30463177500404,
+              "n_drawn": 3203
+            },
+            "second": {
+              "delta_pp": 9.13460008071258,
+              "n_drawn": 3194
+            }
+          }
+        },
+        "buang 2/3": {
+          "n_drawn": 6319,
+          "n_placebo": 5997,
+          "held_pct": 49.564804557683175,
+          "placebo_pct": 42.68801067200267,
+          "delta_pp": 6.876793885680506,
+          "delta_supply_pp": 6.762436727921255,
+          "delta_demand_pp": 6.976355477840492,
+          "n_supply": 3162,
+          "n_demand": 3157,
+          "walkforward_positive": 8,
+          "folds_delta_pp": [
+            11.044214423625249,
+            11.951054852320674,
+            5.2806273343360814,
+            6.121518987341773,
+            6.580590717299579,
+            4.021733619509554,
+            2.9822784810126564,
+            7.032911392405062
+          ],
+          "test": "z=+7.65 p=0.0000 SIGNIFICANT",
+          "halves": {
+            "first": {
+              "delta_pp": 6.426733796938308,
+              "n_drawn": 3164
+            },
+            "second": {
+              "delta_pp": 7.820279749194057,
+              "n_drawn": 3137
+            }
+          }
+        }
+      },
+      "holdout": {
+        "picked_on_first_half": "buang 0",
+        "second_half_delta_pp": 8.452672862269715
+      }
+    }
+  },
+  "quarter_control": {
+    "atr": {
+      "Q1": {
+        "n_drawn": 6462,
+        "delta_pp": 7.868950662902115,
+        "walkforward_positive": 8
+      },
+      "Q2": {
+        "n_drawn": 6387,
+        "delta_pp": 10.333996702244086,
+        "walkforward_positive": 8
+      },
+      "Q3": {
+        "n_drawn": 6404,
+        "delta_pp": 9.878639731832102,
+        "walkforward_positive": 8
+      },
+      "Q4": {
+        "n_drawn": 6582,
+        "delta_pp": 6.276078158535277,
+        "walkforward_positive": 8
+      }
+    },
+    "box": {
+      "Q1": {
+        "n_drawn": 6460,
+        "delta_pp": 6.8805220151252655,
+        "walkforward_positive": 8
+      },
+      "Q2": {
+        "n_drawn": 6384,
+        "delta_pp": 8.587664626549156,
+        "walkforward_positive": 8
+      },
+      "Q3": {
+        "n_drawn": 6384,
+        "delta_pp": 8.877114828321417,
+        "walkforward_positive": 8
+      },
+      "Q4": {
+        "n_drawn": 6577,
+        "delta_pp": 8.230693967181175,
+        "walkforward_positive": 8
+      }
+    }
+  }
+}

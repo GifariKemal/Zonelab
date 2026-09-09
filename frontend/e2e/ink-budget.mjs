@@ -41,7 +41,17 @@ const API = "http://127.0.0.1:8100";
 //: dan `session` ikut sebagai pembanding - keduanya menggambar banyak sekali
 //: objek, jadi kalau pools terlihat besar, angka itu butuh tetangga untuk
 //: dibaca.
-const LAYERS = ["pools", "liquidity", "gaps", "projections", "structure", "session"];
+// `dfr`, `ssmt` dan `psp` DITAMBAHKAN 9 September 2026, dan sampai hari itu
+// ketiganya ada di `EMPTY_BY_DEFAULT` di bawah tanpa pernah dijalankan sekali
+// pun. Komentar di sana menjanjikan jaminan DUA ARAH - yang di luar daftar
+// harus menggambar, yang di dalam daftar harus tetap kosong - dan janji itu
+// hanya berlaku untuk `session`, satu-satunya nama yang muncul di kedua tempat.
+// Kalau default `dfr` berubah dan ia mulai menggambar, tidak ada satu pun gate
+// di sini yang akan merah.
+const LAYERS = [
+  "pools", "liquidity", "gaps", "projections", "structure",
+  "session", "dfr", "ssmt", "psp",
+];
 
 //: Layer yang menggambar NOL dengan setelan default, dan hitungannya diukur -
 //: bukan didaftar dari ingatan. `e2e/wiring.mjs` menemukannya dengan

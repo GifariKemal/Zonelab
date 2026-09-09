@@ -36,11 +36,37 @@ PROVENANCE, said plainly so that nobody later claims something this is not.
     could not be equivalent to it even by accident, and no claim of equivalence
     should ever be made on the strength of the shared name "DFR".
 
-  - VERIFICATION STATUS, and this is the weak link: the thirds rule reached us
-    SINGLE-SOURCED, through a summarising fetch, corroborated only by the
-    author's own site. That is one voice, twice. It must be verified against the
-    course video itself before any number is scored on it. Until then, treat
-    every DFR this module draws as provisional.
+  - VERIFICATION STATUS, checked 9 September 2026 and now PARTLY resolved. Two
+    different questions were tangled together here, and they have different
+    answers.
+
+    DOES THIS CODE IMPLEMENT BUCKO'S RULE? Yes, and that is now corroborated
+    through a second channel, independent of the site the rule first reached us
+    from. His own TradingView script `Quarterly Theory Toolkit [Oracle+]`,
+    published under `buckotrades`, states it in one line: "The Defining Range
+    marks the high and low of the 2nd and 3rd thirds of Q1", and describes its
+    own implementation as locating the one-third point between Q1's start and
+    Q2's start, then scanning from there for the highest high and lowest low.
+    That is this function, including the direction of the discard.
+
+    IS THE RULE ITSELF CORROBORATED BY ANYONE ELSE? No, and this is what remains
+    open. It is still ONE AUTHOR. LuxAlgo's Quarterly Theory reference page,
+    which is independent and covers the framework in detail, does not mention a
+    Defining Range at all. And the highest-ranked TradingView script carrying the
+    name - `Quarterly DFR [Dango]` - explicitly does NOT use the thirds rule: its
+    own description says the logic is proprietary and cites price momentum,
+    volatility and volume. It shares only the name and the midpoint-equilibrium
+    shape.
+
+    So: draw it as Bucko's DFR, correctly implemented. Do not draw it as a
+    concept the wider field agrees on, because outside his own material there is
+    no second voice describing it at all.
+
+  - AND IT HAS NOW BEEN SCORED AGAINST OUTCOMES, which the previous version of
+    this note said had to wait. It measures null for the claim that makes it a
+    DFR: see `tools/dfr_zone.py` and the `dfr` entry in `app/layers.py`. Q1 is
+    the WEAKEST or third-weakest of the four quarters under the identical
+    construct, so what the numbers measure is not Q1 and not the thirds rule.
 
 --------------------------------------------------------------------------------
 2. THE CYCLE PROFILE, AMDX VERSUS XAMD

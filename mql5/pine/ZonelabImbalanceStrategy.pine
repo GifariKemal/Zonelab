@@ -50,7 +50,7 @@ strategy("Zonelab Imbalance Strategy", overlay=true,
 // digerbangi PLAFON pada tinggi gap; OB dan BRK digerbangi LANTAI pada kekuatan
 // impuls. Satu pembaca yang cuma melihat angka gerbangnya tidak bisa tahu mana
 // yang berlaku.
-detector      = input.int(0, "detektor 0=FVG 1=OB 2=IFVG 3=BRK 4=SD 5=OTE 6=CISD 7=LIQ 8=PSP 9=SMT", group="Detector",
+detector      = input.int(0, "detektor 0=FVG 1=OB 2=IFVG 3=BRK 4=SD 5=OTE 6=CISD 7=LIQ 8=PSP 9=SMT 10=DFR", group="Detector",
      minval=0, maxval=9)
 atr_len       = input.int(14,    "atr_period",         group="Detector")
 min_gap_atr   = input.float(0.0, "min_gap_atr",        group="Detector", step=0.05)
@@ -95,6 +95,37 @@ psp_back      = input.int(3,     "level_back (PSP)",   group="PSP", minval=1)
 // `docs/ssmt_outcomes.json` sudah mengukur SSMT sendiri - 24 sel, nol lolos,
 // |z| terbesar 2,070 lawan ambang 3,078.
 smt_sym       = input.symbol("OANDA:XAGUSD", "partner (SMT)", group="SMT")
+
+// KNOB DEFINING RANGE. Cermin `app/quarterly.defining_range` pada derajat hari:
+// kuartal 6 jam, sepertiga pertama dibuang, ekstrem dua pertiga sisanya.
+//
+// DUA KNOB DI SINI ADALAH KONTROL, BUKAN PARAMETER YANG BOLEH DI-TUNE, dan
+// keduanya ada karena `tools/dfr_zone.py` sudah mengukur konstruk ini di Python
+// dan menemukan bahwa yang menghasilkan angka BUKAN Q1 dan BUKAN aturan
+// pertiga. Rincinya di evidence layer `dfr`; ringkasnya:
+//
+//   - `dfr_q` memilih kuartal sumbernya. Aturan Bucko memakai Q1. Diukur di
+//     empat instrumen 1 jam, 20.000 bar, Q1 justru PALING LEMAH dari empat
+//     kuartal di KEDUA geometri bracket. Jadi kalau lengan Q2 di sini keluar
+//     lebih baik daripada Q1, itu REPLIKASI, bukan penemuan.
+//   - `dfr_side` memilih paruh mana yang diperdagangkan. Pita adalah rentang,
+//     bukan zona berarah, jadi ia harus dibelah sebelum masuk bracket berarah,
+//     dan ia dibelah di ekuilibriumnya sendiri supaya tidak ada satu pun
+//     parameter baru yang masuk lewat pilihan titik belah.
+dfr_q         = input.int(1, "kuartal DFR 1..4 (KONTROL)", group="DFR", minval=1, maxval=4)
+dfr_side      = input.string("supply", "paruh DFR", options=["supply", "demand"], group="DFR")
+// DERAJAT SIKLUS. Cermin `app/quarters.py`, dan dua dari enam derajatnya saja.
+//
+//   day    siklus buka 18:00 New York, kuartal 6 jam
+//   week   siklus buka MINGGU 18:00 New York, kuartal SATU HARI penuh -
+//          Q1 Senin, Q2 Selasa, Q3 Rabu, Q4 Kamis. Jumat bukan kuartal.
+//
+// `month` TIDAK diport, dan itu keputusan yang dinyatakan bukan kelalaian:
+// siklusnya diangkur ke Senin PERTAMA bulan itu, yang butuh aritmetika kalender
+// yang mahal di Pine, sementara konstruknya sudah terukur null di Python di
+// derajat itu. Kalau suatu hari ia perlu diport, `_month_cycle_start_for` di
+// `app/quarters.py` yang harus dicerminkan, bukan tebakan "empat minggu".
+dfr_degree    = input.string("day", "derajat DFR", options=["day", "week"], group="DFR")
 smt_n         = input.int(5,     "swing_n (SMT)",      group="SMT", minval=2)
 
 // KNOB OPTIMAL TRADE ENTRY. Cermin `OteParams`. Pitanya 0,618-0,786 dan kedua
@@ -504,6 +535,7 @@ isCZ = detector == 6
 isLQ = detector == 7
 isPSP = detector == 8
 isSMT = detector == 9
+isDFR = detector == 10
 
 // ---- OPTIMAL TRADE ENTRY, detektor 5 --------------------------------------
 //
@@ -987,6 +1019,91 @@ if isSMT and bar_index > smt_n * 2 + 2
         m_dep := math.round((m_top - m_bot) / m_scale * 1000) / 1000
         m_ok  := true
 
+// ---- DETEKTOR 10, DEFINING RANGE ----
+//
+// Kuartal derajat HARI dalam waktu New York, sesuai `app/quarters.py`:
+// Q1 18:00-00:00, Q2 00:00-06:00, Q3 06:00-12:00, Q4 12:00-18:00. Sepertiga
+// pertama dibuang, jadi jendela yang disimpan mulai dua jam setelah kuartalnya
+// buka dan tutup saat kuartalnya tutup.
+//
+// PITANYA LAHIR SAAT JENDELA TUTUP, bukan saat ia terbentuk. Itu bukan
+// kerapian: sebelum jendela berakhir ekstremnya masih bisa berubah, jadi kotak
+// yang digambar lebih awal akan BERGERAK. `defining_range` di Python menolak
+// mengembalikan apa pun sebelum Q1 provably closed karena alasan yang sama.
+ny_h  = hour(time, "America/New_York")
+ny_d  = dayofweek(time, "America/New_York")
+
+// DERAJAT HARI. Kuartal 6 jam, sepertiga pertama dibuang, jadi jendela yang
+// disimpan mulai dua jam setelah kuartalnya buka.
+q_open = dfr_q == 1 ? 18 : dfr_q == 2 ? 0 : dfr_q == 3 ? 6 : 12
+k_from = (q_open + 2) % 24
+k_to   = (q_open + 6) % 24
+// Jendela yang melewati tengah malam harus diuji sebagai gabungan, bukan
+// sebagai selang. Q1 adalah satu-satunya yang begitu di derajat hari, dan
+// menuliskannya umum lebih murah daripada mengkhususkan Q1.
+keptDay = k_to > k_from ? (ny_h >= k_from and ny_h < k_to) : (ny_h >= k_from or ny_h < k_to)
+
+// DERAJAT MINGGU. Siklusnya buka Minggu 18:00 New York dan tiap kuartalnya satu
+// hari penuh, jadi Q1 adalah siklus-hari SENIN: 18:00 Minggu sampai 18:00
+// Senin. Sepertiga pertama dari 24 jam adalah 8 jam, jadi jendela yang disimpan
+// 02:00 sampai 18:00 SENIN - seluruhnya di dalam satu hari kalender New York,
+// yang membuatnya tidak perlu penanganan lintas-tengah-malam sama sekali.
+//
+// Q2 Selasa, Q3 Rabu, Q4 Kamis, dengan pola yang sama. JUMAT BUKAN KUARTAL, dan
+// itu doktrin `app/quarters.py`, bukan off-by-one: minggu punya empat kuartal.
+wd_want = dfr_q == 1 ? dayofweek.monday
+     : dfr_q == 2 ? dayofweek.tuesday
+     : dfr_q == 3 ? dayofweek.wednesday
+     : dayofweek.thursday
+keptWeek = ny_d == wd_want and ny_h >= 2 and ny_h < 18
+
+inKept = dfr_degree == "week" ? keptWeek : keptDay
+
+var float d_hi  = na
+var float d_lo  = na
+var bool  d_was = false
+
+d_ok    = false
+d_bull  = false
+d_top   = 0.0
+d_bot   = 0.0
+d_scale = 0.0
+d_dep   = 0.0
+
+if isDFR
+    if inKept
+        d_hi := d_was and not na(d_hi) ? math.max(d_hi, high) : high
+        d_lo := d_was and not na(d_lo) ? math.min(d_lo, low)  : low
+    else if d_was and not na(d_hi) and d_hi > d_lo
+        // Jendela baru saja tutup di bar SEBELUM ini, jadi pitanya knowable
+        // sekarang dan tidak satu pun harga di bawah datang dari masa depan.
+        eq = (d_hi + d_lo) / 2
+        d_bull  := dfr_side == "demand"
+        d_top   := dfr_side == "demand" ? eq   : d_hi
+        d_bot   := dfr_side == "demand" ? d_lo : eq
+        d_scale := atr_v[1]
+        if not na(d_scale) and d_scale > 0 and d_top > d_bot
+            d_dep := math.round((d_top - d_bot) / d_scale * 1000) / 1000
+            d_ok  := true
+    d_was := inKept
+
+// LIMA PITA TERAKHIR DISIMPAN UNTUK UJI PARITY, dan hanya untuk itu. Tidak ada
+// satu pun keputusan dagang yang membacanya.
+//
+// Parity Pine lawan Python untuk DFR TIDAK PERNAH DIUKUR sampai 9 September
+// 2026 - dua implementasi dibangun dan tidak satu pun membuktikan keduanya
+// menghasilkan pita yang sama. Yang paling mungkin berbeda adalah batas
+// kuartal dalam waktu New York dan pemotongan sepertiga; keduanya terbaca dari
+// waktu dan harga pita, jadi lima pita yang dicetak apa adanya cukup untuk
+// menjawabnya secara eksak PADA FEED YANG SAMA, yang tidak bisa dilakukan
+// dengan membandingkan lintas feed.
+var array<string> d_log = array.new_string()
+if isDFR and d_ok
+    array.push(d_log, str.format_time(time, "yyyy-MM-dd HH:mm", "UTC") + " " +
+         str.tostring(d_hi, "#.##") + " " + str.tostring(d_lo, "#.##"))
+    if array.size(d_log) > 5
+        array.shift(d_log)
+
 // ---- YANG DIPAKAI, satu jalur setelah ini ----
 //
 // 0=FVG 1=OB 2=IFVG 3=BRK. IFVG induknya FVG dan BRK induknya OB, jadi jalur
@@ -996,16 +1113,16 @@ isOB      = detector == 1 or detector == 3
 // detektor tertinggi 3; begitu SD dan OTE masuk, keduanya ikut terbaca
 // sebagai mode inversi dan blok induk-pecah akan menembak untuk mereka.
 inverting = detector == 2 or detector == 3
-scale = isSMT ? m_scale : isPSP ? p_scale : isLQ ? l_scale : isCZ ? y_scale : isOTE ? e_scale : isOB ? o_scale : f_scale
+scale = isDFR ? d_scale : isSMT ? m_scale : isPSP ? p_scale : isLQ ? l_scale : isCZ ? y_scale : isOTE ? e_scale : isOB ? o_scale : f_scale
 // Lilin BEARISH sebelum gerakan NAIK adalah block DEMAND, jadi sisi long di
 // sini datang dari lilin turun - kebalikan dari intuisi warna lilinnya.
-bull  = isSMT ? m_bull : isPSP ? p_bull : isLQ ? l_bull : isCZ ? y_bull : isOTE ? e_bull : isOB ? o_bear : f_bull
-top0  = isSMT ? m_top : isPSP ? p_top : isLQ ? l_top : isCZ ? y_top : isOTE ? e_top : isOB ? o_bt   : f_top0
-bot0  = isSMT ? m_bot : isPSP ? p_bot : isLQ ? l_bot : isCZ ? y_bot : isOTE ? e_bot : isOB ? o_bb   : f_bot0
+bull  = isDFR ? d_bull : isSMT ? m_bull : isPSP ? p_bull : isLQ ? l_bull : isCZ ? y_bull : isOTE ? e_bull : isOB ? o_bear : f_bull
+top0  = isDFR ? d_top : isSMT ? m_top : isPSP ? p_top : isLQ ? l_top : isCZ ? y_top : isOTE ? e_top : isOB ? o_bt   : f_top0
+bot0  = isDFR ? d_bot : isSMT ? m_bot : isPSP ? p_bot : isLQ ? l_bot : isCZ ? y_bot : isOTE ? e_bot : isOB ? o_bb   : f_bot0
 // S&D punya jalur sendiri di bawah, jadi jalur bersama ini DIMATIKAN untuknya.
 // Kalau tidak, detektor 4 akan menjalankan aturan FVG sekaligus aturannya
 // sendiri dan tabelnya akan mencampur dua populasi tanpa terlihat.
-ok    = isSD ? false : isSMT ? m_ok : isPSP ? p_ok : isLQ ? l_ok : isCZ ? y_ok : isOTE ? e_ok : isOB ? o_ok   : f_ok
+ok    = isSD ? false : isDFR ? d_ok : isSMT ? m_ok : isPSP ? p_ok : isLQ ? l_ok : isCZ ? y_ok : isOTE ? e_ok : isOB ? o_ok   : f_ok
 
 if ok and in_win
     h    = top0 - bot0
@@ -1049,7 +1166,15 @@ if ok and in_win
         // kotak. Doktrinnya sendiri tidak membawa gerbang apa pun - ia
         // aturan tempat masuk - jadi lantai ini padanan yang DIPILIH agar
         // sebanding dengan OB dan SD, dan itu dinyatakan di layers.py.
-        gatePass = isSMT ? true : isPSP ? true : isLQ ? true : isCZ ? gateVal >= cz_floor : isOTE ? gateVal >= ote_gate : isOB ? gateVal >= gate_floor : fvgPass
+        // DFR TIDAK PUNYA GERBANG, dan itu bukan kelalaian: kotaknya tidak
+        // punya leg-out, jadi `departure` di sini cuma tinggi kotak dibagi
+        // ATR dan menyaring dengannya berarti menyaring TINGGI PITA, bukan
+        // kekuatan apa pun. Rig Python-nya juga jalan tanpa gerbang.
+        //
+        // Tanpa baris ini detektor 10 mewarisi CEILING 0,25 milik FVG dan
+        // menolak 950 dari 950 kandidat - `gate 0`, `n 0`, tabel yang
+        // terlihat sehat dan tidak mengukur apa pun.
+        gatePass = isDFR ? true : isSMT ? true : isPSP ? true : isLQ ? true : isCZ ? gateVal >= cz_floor : isOTE ? gateVal >= ote_gate : isOB ? gateVal >= gate_floor : fvgPass
 
         if inverting
             // TIDAK ADA ORDER DI INDUK. Induk cuma ditunggu pecah, dan
@@ -1125,7 +1250,7 @@ if inverting and in_win and array.size(v_top) > 0
             ibull = pdir != 1
             iprox = ibull ? ptop : pbot
             idist = ibull ? pbot : ptop
-            ipass = isOB ? gv >= gate_floor : (gate_ceiling <= 0 or gv < gate_ceiling)
+            ipass = isDFR ? true : isOB ? gv >= gate_floor : (gate_ceiling <= 0 or gv < gate_ceiling)
             // Zona terbalik jadi calon dinding bagi zona terbalik lain, karena
             // profit_zone_at dipanggil dengan daftar keluaran detektor INI.
             array.push(w_prox, iprox)
@@ -1302,19 +1427,20 @@ if barstate.isfirst
 // digambar dan tidak pernah mengurangi, jadi ia tidak bisa menghidupkan lagi
 // cacat pertama.
 if barstate.islastconfirmedhistory or barstate.islast
-    var table t = table.new(position.top_right, 2, 14, border_width=1)
+    var table t = table.new(position.top_right, 2, 19, border_width=1)
     table.cell(t, 0, 0, "cfg",   bgcolor=color.new(color.gray, 80), text_size=size.small)
     // DETEKTOR DAN ARAH GERBANGNYA DIECHO, kalau tidak dua run dengan detektor
     // berbeda terbaca kembar di baris ini - dan angka gerbangnya sendiri tidak
     // bisa membedakannya, karena yang satu plafon dan yang lain lantai.
     table.cell(t, 1, 0, syminfo.ticker + " " + timeframe.period +
-         " " + (detector == 0 ? "FVG" : detector == 1 ? "OB" : detector == 2 ? "IFVG" : detector == 3 ? "BRK" : detector == 4 ? "SD" : detector == 5 ? "OTE" : (detector == 6 ? "CISD" : detector == 7 ? "LIQ" : detector == 8 ? "PSP" : "SMT")) +
+         " " + (detector == 0 ? "FVG" : detector == 1 ? "OB" : detector == 2 ? "IFVG" : detector == 3 ? "BRK" : detector == 4 ? "SD" : detector == 5 ? "OTE" : (detector == 6 ? "CISD" : detector == 7 ? "LIQ" : detector == 8 ? "PSP" : detector == 9 ? "SMT" : "DFR-" + dfr_degree + "-Q" + str.tostring(dfr_q) + "-" + dfr_side)) +
          (isSMT ? " n" + str.tostring(smt_n)
                : isPSP ? " back" + str.tostring(psp_back)
                : isLQ ? " tol" + str.tostring(lq_tol) + " n" + str.tostring(lq_n) +
                   " t" + str.tostring(lq_touch)
                : isCZ ? " flr" + str.tostring(cz_floor) + " r" + str.tostring(cz_run)
                : isOTE ? " legflr" + str.tostring(ote_gate) + " n" + str.tostring(ote_n)
+               : isDFR ? " nogate"
                : isOB ? " flr" + str.tostring(gate_floor) +
                  " d" + str.tostring(disp_atr) + "/" + str.tostring(disp_bars) +
                  " bf" + str.tostring(ob_box_floor) + " W"
@@ -1366,3 +1492,13 @@ if barstate.islastconfirmedhistory or barstate.islast
     table.cell(t, 0, 13, "exp_r / RR", bgcolor=color.new(color.gray, 80), text_size=size.small)
     table.cell(t, 1, 13, str.tostring((sum_win - sum_loss) / math.max(n_tr, 1), "#.####") +
          " / " + str.tostring(sum_rr / math.max(c_gate - c_nowall, 1), "#.##"), text_size=size.small)
+    // BARIS PARITY, kosong untuk setiap detektor selain 10. Waktu di sini adalah
+    // waktu bar tempat pita jadi knowable, yaitu bar pertama SESUDAH jendela
+    // yang disimpan tutup - bukan bar penutup jendelanya. Python harus dibaca
+    // dengan konvensi yang sama atau selisihnya cuma beda definisi.
+    if isDFR
+        for i = 0 to 4
+            table.cell(t, 0, 14 + i, "band" + str.tostring(i),
+                 bgcolor=color.new(color.gray, 80), text_size=size.small)
+            table.cell(t, 1, 14 + i,
+                 i < array.size(d_log) ? array.get(d_log, i) : "-", text_size=size.small)

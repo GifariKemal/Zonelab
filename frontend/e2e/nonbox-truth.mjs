@@ -224,7 +224,26 @@ await page.evaluate(() => {
   // bawah di tiap ujung justru supaya dua harga yang dibandingkan terlihat
   // sebagai titik. Fungsi ini mencari pusat tinta di satu kolom, jadi ia
   // menjawab: di harga berapa ujung ini benar-benar dicat.
-  window.__scanCol = (xWant, yWant, span) => {
+  // TINT OPSIONAL, ditambahkan 9 September 2026. Default "any" adalah perilaku
+  // lama: tinta apa pun yang berbeda dari latar. Itu cukup untuk objek yang
+  // hidup di ruang kosong, dan TIDAK cukup untuk marker SMT.
+  //
+  // Wajik SMT digambar TEPAT DI swing high atau swing low, yaitu persis tempat
+  // ujung sumbu lilin berada, di kolom yang sama. Jadi sentroid buta-warna di
+  // kolom itu menimbang tinta wajik BERSAMA tinta sumbu, dan jawabannya titik
+  // tengah keduanya - bukan galat penempatan. Itulah dua pencilan 1,76px dan
+  // 2,12px yang membuat gate ini merah, dan dugaan pertama saya - alpha
+  // INK_FAINT 0,55 - tidak pernah menjelaskannya, karena marker non-took lain
+  // terbaca 0,45px.
+  //
+  // "ssmt" memisahkannya lewat HUE, bukan lewat mempersempit span. Tinta
+  // `[204,141,181]` itu magenta: merah dan biru sama-sama di atas hijau. Lilin
+  // hijau `[38,166,154]` memberi min(r-g, b-g) = -128, lilin merah
+  // `[239,83,80]` memberi -3, latar -2, sementara tinta SMT memberi +34 pada
+  // alpha 0,85 dan +24 pada 0,55. Ambang 12 duduk di antara keduanya dengan
+  // jarak lebar di kedua sisi, dan diturunkan dari warnanya - bukan dipilih
+  // karena membuat tesnya hijau.
+  window.__scanCol = (xWant, yWant, span, tint = "any") => {
     const { __img: img, __w: w, __h: h, __bg: bg } = window;
     const x = Math.round(xWant);
     if (x < 0 || x >= w) return null;
@@ -235,8 +254,16 @@ await page.evaluate(() => {
     let hit = 0;
     for (let y = lo; y <= hi; y++) {
       const i = (y * w + x) * 4;
-      const d = Math.abs(img[i] - bg[0]) + Math.abs(img[i + 1] - bg[1]) +
-                Math.abs(img[i + 2] - bg[2]);
+      // Tint menyaring, jarak-warna tetap yang diukur - lihat catatan yang sama
+      // di `__scanAt`. `strength` yang dilaporkan harus satu satuan dengan
+      // baris tanpa tint, atau gate mana pun yang membandingkannya jadi salah.
+      const magenta =
+        Math.min(img[i] - img[i + 1], img[i + 2] - img[i + 1]) > 12;
+      const d =
+        tint === "ssmt" && !magenta
+          ? 0
+          : Math.abs(img[i] - bg[0]) + Math.abs(img[i + 1] - bg[1]) +
+            Math.abs(img[i + 2] - bg[2]);
       if (d > BG_TOL) {
         hit++;
         sum += d;
@@ -250,7 +277,22 @@ await page.evaluate(() => {
     return { y: wsum / sum, hit, strength: sum / hit / 765 };
   };
 
-  window.__scanAt = (yWant, xFrom, xTo) => {
+  // TINT DAN RADIUS OPSIONAL, ditambahkan 9 September 2026 untuk alasan yang
+  // sama dengan `__scanCol`: pemindai buta-warna melaporkan tinta APA PUN, dan
+  // di jendela ray PSP yang "bersih" itu ternyata bukan tinta PSP.
+  //
+  // Gejalanya khas dan saya melewatkannya berkali-kali: dua dari tiga ray
+  // melaporkan galat TEPAT -6px, yaitu batas jendela pencarian ±6. Pencarian
+  // yang mentok di batasnya bukan pengukuran, itu pengakuan bahwa yang dicari
+  // tidak ada di dalam jendela - dan `__scanAt` mengembalikan baris terkuat
+  // yang KEBETULAN ada di tepi, dengan kekuatan 0,048 yang gate sebelahnya
+  // sudah lama laporkan sebagai satu piksel fringe.
+  //
+  // PSP memakai tinta `ssmt` yang sama dengan marker SMT, jadi predikat magenta
+  // yang sama memisahkannya. Radius dilebarkan supaya jaraknya TERUKUR: jendela
+  // yang lebih lebar tidak bisa membuat ray yang meleset jadi lolos, karena dy
+  // yang dilaporkan tetap jarak sebenarnya dan tetap diadu dengan toleransi 2.
+  window.__scanAt = (yWant, xFrom, xTo, tint = "any", radius = 6) => {
     const { __img: img, __w: w, __h: h, __bg: bg } = window;
     const a = Math.max(0, Math.round(xFrom));
     const b = Math.min(w - 1, Math.round(xTo));
@@ -260,6 +302,16 @@ await page.evaluate(() => {
       const i = (y * w + x) * 4;
       const d = Math.abs(img[i] - bg[0]) + Math.abs(img[i + 1] - bg[1]) +
                 Math.abs(img[i + 2] - bg[2]);
+      // TINT MENYARING, JARAK-WARNA TETAP YANG DIUKUR. Versi pertama
+      // mengembalikan nilai magenta itu sendiri, dan itu skala lain: `strength`
+      // di bawah membagi dengan 765, jadi tiap baris ber-tint jatuh ke sekitar
+      // 0,033 dan DUA gate tetangga langsung merah - lantai stroke 0,15 dan
+      // uji duty dash yang populasinya menyusut dari 12 ke 4. Sebuah probe yang
+      // memperbaiki satu gate sambil merusak dua lainnya belum selesai.
+      if (tint === "ssmt" &&
+          Math.min(img[i] - img[i + 1], img[i + 2] - img[i + 1]) <= 12) {
+        return 0;
+      }
       return d > BG_TOL ? d : 0;
     };
     const row = (y) => {
@@ -267,14 +319,106 @@ await page.evaluate(() => {
       for (let x = a; x <= b; x++) { const v = ink(x, y); if (v) { hit++; sum += v; } }
       return { duty: hit / (b - a + 1), strength: hit ? sum / hit / 765 : 0 };
     };
-    let best = null;
-    for (let dy = -6; dy <= 6; dy++) {
+    // BARIS TERDEKAT YANG BERTINTA, BUKAN YANG TERKUAT. Pertanyaan gate ini
+    // adalah "apakah ada tinta di harga yang API laporkan", dan jawabannya
+    // baris terdekat yang membawa tinta sungguhan - bukan objek paling pekat
+    // yang kebetulan ada di sekitarnya.
+    //
+    // Diukur, bukan diasumsikan. Ray `PSP buy` di 4641,55 dilaporkan meleset
+    // 12px, dan profil duty per baris menunjukkan DUA blok: 0,50 di dy -2..+1,
+    // yaitu ray dashed-nya sendiri tepat di tempatnya, dan 0,83 di dy +10..+14.
+    // Level PSP terdekat 69,7 piksel jauhnya, jadi blok kedua bukan ray lain -
+    // itu tinta layer `ssmt`, yang memakai warna yang sama persis dan ikut
+    // menyala di pass ini. Memilih duty tertinggi memilih tinta layer lain.
+    //
+    // Ini TIDAK melonggarkan gate: ray yang benar-benar meleset tidak punya
+    // tinta di dekat targetnya sama sekali, jadi baris terdekat yang lolos
+    // ambang tetap jauh dan tetap gagal. Yang berubah cuma siapa yang menang di
+    // antara beberapa baris yang SAMA-SAMA bertinta.
+    //
+    // Ambangnya separuh duty tertinggi yang ditemukan, supaya piksel fringe
+    // tunggal - jenis yang pernah membuat tinta PSP terbaca 0,048 - tidak lolos
+    // sebagai kandidat hanya karena ia kebetulan lebih dekat.
+    const r = Math.max(1, Math.round(radius));
+    const scan = [];
+    for (let dy = -r; dy <= r; dy++) {
       const y = Math.round(yWant) + dy;
       const here = row(y), next = row(y + 1);
-      const duty = Math.min(1, here.duty + next.duty);
-      if (!best || duty > best.duty) best = { dy, y, duty, strength: Math.max(here.strength, next.strength) };
+      scan.push({
+        dy, y,
+        duty: Math.min(1, here.duty + next.duty),
+        strength: Math.max(here.strength, next.strength),
+      });
     }
-    return best && best.duty > 0 ? best : null;
+    const peak = Math.max(...scan.map((c) => c.duty));
+    if (peak <= 0) return null;
+    const floor = peak / 2;
+    let best = null;
+    for (const c of scan) {
+      if (c.duty < floor) continue;
+      if (!best || Math.abs(c.dy) < Math.abs(best.dy)) best = c;
+    }
+    return best;
+  };
+
+  // PROBE KEBIRUAN, dipakai HANYA oleh pass `dfr`, dan ia ada karena dua
+  // pemindai di atas tidak bisa menjawab pertanyaan ini.
+  //
+  // `__scanAt` dan `__scan` menyebut "tinta" apa pun yang berbeda dari latar.
+  // Itu cukup untuk ray yang hidup di kanan candle terakhir, di ruang kosong.
+  // Pita DFR TIDAK begitu: ia TERTUTUP di kanan dan digambar TEPAT DI ATAS
+  // bar-bar yang membentuknya, jadi tiap baris di dalamnya penuh tinta lilin.
+  // Pemindai buta-warna akan memilih baris terpadat dalam radius 6 piksel, dan
+  // baris terpadat di sana hampir selalu badan lilin, bukan tepi kotaknya.
+  //
+  // Yang memisahkan keduanya adalah HUE, bukan lebar jendela. Tinta dfr
+  // `[118,126,178]` pada alpha 0,55 di atas latar `[11,13,16]` mendarat di
+  // sekitar (70,75,105): biru melebihi dua kanal lain sekitar 30. Lilin hijau
+  // `[38,166,154]` memberi -12, lilin merah jauh lebih negatif. Jadi
+  // `biru - max(merah, hijau)` memisahkan tanpa satu pun angka yang dipilih
+  // setelah melihat hasil.
+  //
+  // Ambang 12 diturunkan dari isian kotak, bukan dari hasil: isian digambar
+  // pada alpha 0,05 dan memberi selisih sekitar 3, jadi ambang harus di atas
+  // itu supaya yang terukur adalah GARIS TEPI dan bukan washnya. 12 adalah
+  // angka bulat pertama yang aman di antara 3 dan 30.
+  // RADIUS-NYA ARGUMEN, dan itu bukan kenyamanan. Sentroid berbobot menjawab
+  // "di mana pusat tinta dalam radius ini", jadi kalau ADA GARIS LAIN di dalam
+  // radius itu, jawabannya titik tengah keduanya - bukan galat penempatan.
+  // Pemanggilnya yang tahu di mana garis lain berada, jadi pemanggilnya yang
+  // harus menyempitkan jendelanya.
+  window.__scanBlue = (yWant, xFrom, xTo, radius = 6) => {
+    const { __img: img, __w: w, __h: h } = window;
+    const a = Math.max(0, Math.round(xFrom));
+    const b = Math.min(w - 1, Math.round(xTo));
+    if (b - a < 4) return null;
+    const blue = (x, y) => {
+      if (y < 0 || y >= h) return 0;
+      const i = (y * w + x) * 4;
+      const v = img[i + 2] - Math.max(img[i], img[i + 1]);
+      return v > 12 ? v : 0;
+    };
+    const row = (y) => {
+      let hit = 0;
+      for (let x = a; x <= b; x++) if (blue(x, y)) hit++;
+      return hit / (b - a + 1);
+    };
+    // SENTROID BERBOBOT, bukan baris terkuat, karena garis 1 piksel di offset
+    // setengah piksel terbelah di dua baris dan memilih salah satunya memberi
+    // galat setengah piksel yang bukan milik gambarnya. Pelajaran yang sama
+    // yang membuat `__scanCol` memakai sentroid.
+    let num = 0;
+    let den = 0;
+    let peak = 0;
+    const r = Math.max(1, Math.round(radius));
+    for (let dy = -r; dy <= r; dy++) {
+      const y = Math.round(yWant) + dy;
+      const d = row(y);
+      num += y * d;
+      den += d;
+      peak = Math.max(peak, d);
+    }
+    return den > 0 ? { y: num / den, duty: peak } : null;
   };
 
   window.__scan = (yWant, xFrom, xTo) => {
@@ -518,6 +662,19 @@ const pspPass = async () => {
   );
 
   const events = drawn.drawing?.psp ?? [];
+  // SEMUA LEVEL PSP, dipakai untuk membatasi radius pindai tiap ray.
+  //
+  // `__scanAt` memilih baris ber-DUTY TERTINGGI di dalam radiusnya, bukan yang
+  // terdekat, jadi ray tetangga yang kebetulan lebih pekat MENANG atas ray yang
+  // sedang diukur. Terukur langsung: `PSP buy` di 4641,55 dilaporkan meleset
+  // 12px dengan duty 0,833, sementara semua ray lain duduk di duty 0,25-0,5 -
+  // dan `PSP sell` ada di 4628,50, sekitar 13 piksel jauhnya. Yang ditemukan
+  // tinta tetangganya.
+  //
+  // Melebarkan radius ke 14 untuk mengukur jarak justru membawa tetangga itu ke
+  // dalam jangkauan. Jadi radiusnya dibatasi separuh jarak ke level PSP
+  // terdekat lainnya - pola yang sama dengan pass ekstensi DFR di bawah.
+  const pspLevels = events.map((e) => e.level);
   const cs = drawn.candles ?? [];
   const step = cs.length > 1 ? cs[1].time - cs[0].time : 3600;
   const rows = [];
@@ -531,19 +688,35 @@ const pspPass = async () => {
     );
     await page.waitForTimeout(600);
     const got = await page.evaluate(
-      ([price, t1, t2]) => {
+      ([price, t1, t2, levels]) => {
         const api = window.__zonelabChart;
         window.__frame();
         const y = api.series.priceToCoordinate(price);
         const xb = api.chart.timeScale().timeToCoordinate(t2);
         if (y === null || xb === null) return null;
+        let nearest = Infinity;
+        for (const other of levels) {
+          if (other === price) continue;
+          const yo = api.series.priceToCoordinate(other);
+          if (yo !== null) nearest = Math.min(nearest, Math.abs(yo - y));
+        }
+        const radius = Math.min(14, Math.max(2, nearest / 2));
         // RUAS BERSIH DI KANAN TICK, bukan ruas yang dilintasi lilin. Versi
         // pertama memindai antara bar SSMT dan bar sapuan, dan di situ yang ada
         // memang lilin - primitive ini dicat di bawahnya. Yang diukur di sana
         // bukan gambar PSP.
-        return window.__scanAt(y, xb + 3, xb + 26);
+        const hit = window.__scanAt(y, xb + 3, xb + 26, "ssmt", radius);
+        // Profil duty per baris di sekitar target, supaya baris yang MENANG bisa
+        // dibandingkan dengan baris yang SEHARUSNYA menang. Tanpa ini setiap
+        // penjelasan galat 12px cuma tebakan.
+        const profile = [];
+        for (let dy = -14; dy <= 14; dy++) {
+          const one = window.__scanAt(y + dy, xb + 3, xb + 26, "ssmt", 0);
+          profile.push(one ? Number(one.duty.toFixed(2)) : 0);
+        }
+        return hit && { ...hit, nearest, radius, profile };
       },
-      [e.level, e.ssmt_at, e.at],
+      [e.level, e.ssmt_at, e.at, pspLevels],
     );
     rows.push({
       layer: "psp",
@@ -813,7 +986,7 @@ const ssmtPass = async () => {
         const x = api.chart.timeScale().timeToCoordinate(t);
         const y = api.series.priceToCoordinate(price);
         if (x === null || y === null) return null;
-        const scan = window.__scanCol(x, y, 5);
+        const scan = window.__scanCol(x, y, 5, "ssmt");
         return scan ? { err: Math.abs(scan.y - y), strength: scan.strength } : null;
       },
       [e.time_at, e.price_at],
@@ -831,10 +1004,276 @@ const ssmtPass = async () => {
   return { rows, partners, degree, drawn: segs.length, markers: markers.length };
 };
 
+// --------------------------------------------------- PASS DFR
+// TIGA HARGA PER PITA, dan ketiganya klaim terpisah: `high` dan `low` adalah
+// ekstrem dua pertiga terakhir Q1, `equilibrium` titik tengahnya. Sebuah pita
+// yang tepi atasnya benar tapi ekuilibriumnya meleset menggambarkan rentang
+// yang benar dengan titik tengah yang tidak pernah ada, dan itu level yang
+// dipakai orang untuk memutuskan premium lawan discount.
+//
+// Pemindaian dilakukan DI DALAM rentang x pita itu sendiri, bukan di kanan
+// candle terakhir seperti pass ray: kotaknya tertutup di kanan, jadi jendela
+// pass generik akan menemukan nol dan melaporkannya sebagai tidak tergambar.
+const dfrPass = async () => {
+  await (await layerSwitch("dfr")).click();
+  await page.waitForTimeout(2000);
+
+  // DERAJAT DINYALAKAN LEWAT CHIP YANG SAMA YANG DIPAKAI PEMBACA, bukan lewat
+  // body fetch. Versi pertama pass ini hanya menaruh `dfr: {degrees:["day"]}`
+  // di fetch-nya SENDIRI dan melaporkan "4 pita, 0 dari 12 tepi terukur".
+  // Itu bukan cacat gambar: halaman merender dari state-nya sendiri, yang
+  // defaultnya derajat KOSONG, jadi kanvasnya memang tidak punya satu pun pita
+  // sementara fetch terpisah punya empat. Dua sumber kebenaran yang berbeda,
+  // dan yang dipindai adalah kanvas.
+  //
+  // Konsekuensinya kontrol itu ikut terikat: kalau chip "Cycle degree" rusak,
+  // gate ini merah. Itu memang yang diinginkan.
+  if (!(await chipInScoped("Cycle degree", "day"))) {
+    console.error('chip "Cycle degree" -> "day" tidak ketemu; pass dfr dilewati');
+    await (await layerSwitch("dfr")).click();
+    return { rows: [], bands: 0, skipped: true };
+  }
+  await page.waitForTimeout(3000);
+
+  const drawn = await page.evaluate(
+    async ([api, interval, bars]) => {
+      const r = await fetch(`${api}/api/draw`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          symbol: "XAUUSD",
+          interval,
+          bars,
+          layers: ["dfr"],
+          // Derajat harus diminta EKSPLISIT. Defaultnya daftar kosong, yang
+          // menggambar nol pita dan tidak memberi kesalahan - kegagalan diam
+          // yang persis dicatat `ink-budget.mjs` sebagai alasan `dfr` masuk
+          // EMPTY_BY_DEFAULT.
+          dfr: { degrees: ["day"] },
+        }),
+      });
+      return r.json();
+    },
+    [API, INTERVAL, BARS],
+  );
+
+  const bands = drawn.drawing?.dfr ?? [];
+  const rows = [];
+  for (const band of bands) {
+    const span = band.time_to - band.time_from;
+    await page.evaluate(
+      ([a, b]) => {
+        window.__zonelabChart.chart.timeScale().setVisibleRange({ from: a, to: b });
+      },
+      [band.time_from - span * 3, band.time_to + span * 3],
+    );
+    await page.waitForTimeout(500);
+
+    // LEVEL EKSTENSI IKUT DIUKUR, dan sampai 9 September 2026 tidak satu pun
+    // pernah dibaca balik. Pass pertama cuma membaca tiga harga pita; proyeksi
+    // -0,5 dan -1 MENYALA SECARA DEFAULT begitu derajat dipilih, jadi yang tidak
+    // terukur justru garis yang paling sering ada di layar pembaca.
+    //
+    // Bentuknya beda dari tepi pita: ekstensi MEMANJANG KE KANAN sampai gutter
+    // label, dash-nya 1-on-4-off, dan yang jatuh di luar pane dibuang oleh
+    // primitive-nya - garis dan nama sekaligus - jadi absennya level di luar
+    // layar adalah perilaku yang benar dan dicatat begitu, bukan kegagalan.
+    const paneW = await page.evaluate(
+      () => window.__zonelabChart.chart.paneSize().width,
+    );
+    // SEMUA HARGA YANG LAYER INI GAMBAR, dari SEMUA pita, bukan cuma pita yang
+    // sedang diukur. Keempat pita digambar bersamaan dan proyeksinya sama-sama
+    // memanjang ke kanan, jadi garis pita lain melintasi jendela pindai yang
+    // sama. Versi pertama pass ini melupakan itu dan melaporkan galat 2,04px
+    // pada `ext -0.5` di 4456,59 - yang ternyata titik tengah antara garis itu
+    // dan proyeksi pita LAIN di 4457,75, sekitar 4,4 piksel jauhnya. Garisnya
+    // tergambar benar; jendelanyalah yang terlalu lebar.
+    const allPrices = bands.flatMap((b) => [
+      b.high, b.low, b.equilibrium,
+      ...(b.extensions ?? []).map((e) => e.price),
+    ]);
+    // Radius aman: separuh jarak ke klaim TERDEKAT lainnya, dibatasi 6 di atas
+    // dan 2 di bawah. Di bawah 2 piksel tidak ada jendela yang bisa memisahkan
+    // keduanya, jadi barisnya ditandai `unresolvable` dan DIKELUARKAN dari
+    // gate - bukan diluluskan, bukan digagalkan. Mengaku tidak bisa mengukur
+    // lebih jujur daripada melaporkan titik tengah dua garis sebagai galat.
+    const radiusFor = async (price) =>
+      page.evaluate(
+        ([target, others]) => {
+          const api = window.__zonelabChart;
+          const y = api.series.priceToCoordinate(target);
+          if (y === null) return null;
+          let nearest = Infinity;
+          for (const o of others) {
+            if (o === target) continue;
+            const yo = api.series.priceToCoordinate(o);
+            if (yo === null) continue;
+            nearest = Math.min(nearest, Math.abs(yo - y));
+          }
+          return { half: nearest / 2, nearest };
+        },
+        [price, allPrices],
+      );
+
+    for (const ext of band.extensions ?? []) {
+      const gap = await radiusFor(ext.price);
+      const radius = gap ? Math.min(6, Math.max(2, gap.half)) : 6;
+      const unresolvable = gap !== null && gap.half < 2;
+      const got = await page.evaluate(
+        ([t1, price, w, rad]) => {
+          const api = window.__zonelabChart;
+          window.__frame();
+          const x1 = api.chart.timeScale().timeToCoordinate(t1);
+          const y = api.series.priceToCoordinate(price);
+          if (x1 === null || y === null) return null;
+          // GUTTER 46 PIKSEL, angka yang sama yang dipakai primitive-nya untuk
+          // berhenti, dikurangi tiga lagi supaya ujung garisnya tidak ikut.
+          const hit = window.__scanBlue(y, x1 + 3, w - 46 - 3, rad);
+          return hit ? { err: Math.abs(hit.y - y), duty: hit.duty } : null;
+        },
+        [band.time_from, ext.price, paneW, radius],
+      );
+      rows.push({
+        layer: "dfr",
+        tag: `${band.degree}/ext ${ext.multiple}`,
+        price: ext.price,
+        onScreen: got !== null,
+        err: got ? got.err : null,
+        duty: got ? got.duty : 0,
+        band_px: null,
+        suppressed: false,
+        radius_px: Number(radius.toFixed(2)),
+        nearest_px: gap ? Number(gap.nearest.toFixed(2)) : null,
+        unresolvable,
+      });
+    }
+
+    for (const edge of ["high", "low", "equilibrium"]) {
+      const got = await page.evaluate(
+        ([t1, t2, price, hiPrice, loPrice]) => {
+          const api = window.__zonelabChart;
+          window.__frame();
+          const ts = api.chart.timeScale();
+          const x1 = ts.timeToCoordinate(t1);
+          const x2 = ts.timeToCoordinate(t2);
+          const y = api.series.priceToCoordinate(price);
+          if (x1 === null || x2 === null || y === null) return null;
+          // Tiga piksel masuk dari tiap tepi, supaya garis tepi VERTIKAL kotak
+          // tidak ikut terhitung sebagai tinta baris horizontal.
+          // TINGGI PITA DALAM PIKSEL IKUT DIBAWA, dan itu bukan hiasan.
+          // `dfr-primitive.ts` MENAHAN garis 50% saat pita lebih pendek dari
+          // MIN_BOX_PX = 8 piksel, jadi "tidak ada tinta" di sana punya dua
+          // sebab yang berbeda: gambar yang meleset, dan gambar yang memang
+          // sengaja tidak dibuat. Tanpa angka ini keduanya terbaca sama, dan
+          // menggabungkan "tidak terlihat" dengan "salah" adalah cara gate ini
+          // bisa merah tanpa ada yang rusak - atau hijau sambil menutupi yang
+          // rusak.
+          const yHi = api.series.priceToCoordinate(hiPrice);
+          const yLo = api.series.priceToCoordinate(loPrice);
+          const bandPx =
+            yHi === null || yLo === null ? null : Math.abs(yLo - yHi);
+          const hit = window.__scanBlue(y, x1 + 3, x2 - 3);
+          return hit
+            ? { err: Math.abs(hit.y - y), duty: hit.duty, bandPx }
+            : { err: null, duty: 0, bandPx, missing: true };
+        },
+        [band.time_from, band.time_to, band[edge], band.high, band.low],
+      );
+      rows.push({
+        layer: "dfr",
+        tag: `${band.degree}/${edge}`,
+        price: band[edge],
+        onScreen: got !== null && got.err !== null,
+        err: got ? got.err : null,
+        duty: got ? got.duty : 0,
+        band_px: got ? got.bandPx : null,
+        // Garis 50% pada pita di bawah 8 piksel DITAHAN oleh primitive-nya,
+        // jadi absennya bukan kegagalan gambar.
+        //
+        // DAN ITU BUKAN SATU-SATUNYA SEBAB TINTA BISA NOL, yang baru ketahuan
+        // KARENA kolom `band_px` ini ada. Run pertama melaporkan satu garis 50%
+        // tanpa tinta dan saya menyebut MIN_BOX_PX sebagai sebabnya; pita itu
+        // ternyata setinggi 227 piksel. Sebab sebenarnya OKLUSI:
+        // `dfr-primitive.ts` memakai zOrder "bottom", jadi ia mengecat DI BAWAH
+        // lilin, dan garis 50% lewat di tengah rentang tempat badan lilin
+        // menumpuk. Angka duty-nya adalah mekanisme itu terbaca langsung -
+        // 0,99 di tepi high dan low yang cuma dilewati ujung sumbu, 0,38 di
+        // garis 50% yang terbaca lawan 0,50 untuk dash 3-on-3-off tanpa oklusi,
+        // dan 0,00 saat barisnya tertutup ujung ke ujung.
+        //
+        // Jadi baris ber-`suppressed: false` yang tetap tanpa tinta BUKAN
+        // otomatis cacat geometri. Bedakan lewat `band_px` dan `duty` sebelum
+        // menyimpulkan.
+        suppressed:
+          edge === "equilibrium" &&
+          got !== null &&
+          got.err === null &&
+          got.bandPx !== null &&
+          got.bandPx < 8,
+      });
+    }
+  }
+
+  // CHIP DIKEMBALIKAN, bukan cuma layer-nya dimatikan. Params disimpan di
+  // `localStorage`, jadi derajat yang pass ini nyalakan BERTAHAN - dan harness
+  // berikutnya akan melihat `dfr` menggambar padahal ia kosong-default. Persis
+  // cacat yang catatan di pass PSP di atas dokumentasikan, cuma layernya lain.
+  // `chipInScoped` idempoten lewat `aria-pressed`, jadi ia tidak akan
+  // menyalakan ulang chip yang sudah mati.
+  const dayChip = page
+    .getByRole("group", { name: "Cycle degree", exact: true })
+    .getByRole("button", { name: "day", exact: true })
+    .first();
+  if ((await dayChip.count()) &&
+      (await dayChip.getAttribute("aria-pressed")) === "true") {
+    await dayChip.click();
+    await page.waitForTimeout(400);
+  }
+
+  await (await layerSwitch("dfr")).click();
+  await page.waitForTimeout(2000);
+  return { rows, bands: bands.length };
+};
+
+const dfr = await dfrPass();
+
 const ssmt = await ssmtPass();
 
 const psp = await pspPass();
 const structure = await structurePass();
+
+// SEMUA CHIP DIKEMBALIKAN KE MATI, di satu tempat, setelah pass terakhir.
+//
+// Params disimpan di `localStorage` dan BERTAHAN antar harness. Pass SSMT dan
+// PSP menyalakan partner `XAGUSD`/`XPTUSD` dan derajat `day` lewat chip, dan
+// sampai 9 September 2026 tidak satu pun mematikannya lagi - jadi harness
+// berikutnya menemukan `ssmt` dan `psp` sudah menggambar padahal keduanya
+// kosong-default.
+//
+// TERUKUR, bukan dikhawatirkan. `e2e/ink-budget.mjs` dijalankan tepat sesudah
+// berkas ini melaporkan `session`, `dfr`, `ssmt` dan `psp` masing-masing 40.893
+// piksel - angka yang IDENTIK untuk empat layer berbeda, yang mustahil sebagai
+// gambar dan merupakan tanda baseline-nya yang bergeser. Dijalankan sendirian,
+// keempatnya 0 piksel dan gate-nya hijau.
+//
+// Dikembalikan di sini dan bukan di tiap pass, karena chip-nya DIPAKAI BERSAMA
+// oleh dua pass dan mematikannya di pass pertama akan merusak pass kedua.
+for (const [group, name] of [
+  ["SSMT against", "XAGUSD"],
+  ["SSMT against", "XPTUSD"],
+  ["SSMT stages", "day"],
+  ["Cycle degree", "day"],
+]) {
+  const chip = page
+    .getByRole("group", { name: group, exact: true })
+    .getByRole("button", { name, exact: true })
+    .first();
+  if ((await chip.count()) &&
+      (await chip.getAttribute("aria-pressed")) === "true") {
+    await chip.click();
+    await page.waitForTimeout(300);
+  }
+}
 const mssMeasured = structure.rows.filter((r) => r.price_err !== null);
 const mssShort = structure.rows.filter((r) => r.tooShort);
 console.error(
@@ -892,6 +1331,51 @@ console.log(
 // DUA GATE TERPISAH, karena `ssmt` dan `smt` dua objek dengan dua klaim: satu
 // segmen yang menghubungkan dua harga, satu marker di satu harga. Menggabung
 // keduanya akan membiarkan yang satu menutupi kegagalan yang lain.
+const dfrOn = dfr.rows.filter((r) => r.onScreen && !r.tag.includes("ext"));
+const dfrWorst = dfrOn.length ? Math.max(...dfrOn.map((r) => r.err ?? 0)) : Infinity;
+const dfrHeld = dfr.rows.filter((r) => r.suppressed).length;
+console.log(
+  `dfr: ${dfr.bands} pita, ${dfrOn.length} dari ` +
+    `${dfr.rows.filter((r) => !r.tag.includes("ext")).length} tepi terukur` +
+    (dfrHeld ? `, ${dfrHeld} garis 50% ditahan karena pita < 8px` : "") +
+    (dfrOn.length ? `, terburuk ${dfrWorst.toFixed(2)}px` : ""),
+);
+// GATE-NYA MENUNTUT KETIGA TEPI TERUKUR PADA MINIMAL DUA PITA, bukan sekadar
+// "ada yang terukur". Sebuah pita menyumbang tiga klaim harga dan salah satunya
+// bisa lolos sementara dua lain tidak pernah dipindai; menghitung baris saja
+// akan membiarkan itu lewat sebagai hijau.
+const dfrExtAll = dfr.rows.filter((r) => r.tag.includes("ext"));
+const dfrExtBlind = dfrExtAll.filter((r) => r.unresolvable && r.onScreen);
+const dfrExt = dfrExtAll.filter((r) => r.onScreen && !r.unresolvable);
+const dfrExtWorst = dfrExt.length
+  ? Math.max(...dfrExt.map((r) => r.err ?? 0))
+  : Infinity;
+console.log(
+  `dfr ekstensi: ${dfrExtAll.length} level, ${dfrExt.length} terukur` +
+    (dfrExtBlind.length
+      ? `, ${dfrExtBlind.length} tak terpisahkan dari garis tetangga`
+      : "") +
+    (dfrExt.length ? `, terburuk ${dfrExtWorst.toFixed(2)}px` : ""),
+);
+// GATE TERPISAH dari tepi pita. Sebuah pita bisa digambar sempurna sementara
+// proyeksinya meleset, dan menggabungkan keduanya membiarkan yang satu menutupi
+// yang lain - persis yang terjadi antara SSMT dan SMT beberapa hari lalu.
+check(
+  "level ekstensi DFR ada di harga yang API laporkan",
+  dfrExt.length >= 2 && dfrExtWorst <= EDGE_TOL_PX,
+  dfrExt.length
+    ? `terburuk ${dfrExtWorst.toFixed(2)} lawan toleransi ${EDGE_TOL_PX.toFixed(2)} ` +
+      `atas ${dfrExt.length} level`
+    : "TIDAK ADA level ekstensi yang terukur",
+);
+check(
+  "tepi dan ekuilibrium pita DFR ada di harga yang API laporkan",
+  dfrOn.length >= 6 && dfrWorst <= EDGE_TOL_PX,
+  dfrOn.length
+    ? `terburuk ${dfrWorst.toFixed(2)} lawan toleransi ${EDGE_TOL_PX.toFixed(2)} ` +
+      `atas ${dfrOn.length} tepi dari ${dfr.bands} pita`
+    : "TIDAK ADA tepi yang terukur",
+);
 check(
   "marker SMT ada di harga yang API laporkan",
   smtOn.length >= 2 && smtWorst <= EDGE_TOL_PX,
@@ -1051,6 +1535,7 @@ writeFileSync(
       // dicetak ke konsol lalu hilang, dan sebuah angka yang tidak bisa
       // diperiksa ulang tidak bisa dipertanggungjawabkan.
       ssmt_rows: ssmt.rows,
+      dfr_rows: dfr.rows,
     },
     null,
     2,
