@@ -897,9 +897,22 @@ if isPSP and (p_buy or p_sell)
 // ---- SMT SEBAGAI KOTAK, detektor 9 ---------------------------------------
 //
 // Dua instrumen tidak sepakat soal sebuah ekstrem: yang satu membuat high yang
-// lebih tinggi dari swing high sebelumnya, yang lain gagal. Cermin `app/ssmt.py`
-// pada bagian SMT-nya saja - lihat catatan di knob soal kenapa SSMT tidak
-// ikut.
+// lebih tinggi dari swing high SEBELUMNYA, yang lain gagal.
+//
+// INI BUKAN CERMIN `app/ssmt.smt`, DAN VERSI PERTAMA BLOK INI MENGKLAIM BEGITU.
+// Klaim itu salah dan dicabut 9 September 2026. Dua konstruk yang berbeda:
+//
+//     app/ssmt.smt   kuartal sekarang lawan ekstrem BERJALAN di jendela,
+//                    diangkur ke grid kuartal `app/quarters.py`
+//     blok ini       pivot swing sekarang lawan pivot swing SEBELUMNYA
+//
+// Yang di sini adalah bentuk yang dipakai script publik - `SMT Divergences
+// [LuxAlgo]` menggambar konektor antar SWING POINT - jadi angka yang keluar
+// dari sini adalah benchmark KONSTRUK PUBLIK lewat bracket repo ini, bukan
+// pengukuran SMT yang Zonelab gambar. Jangan mengutipnya untuk layer `smt`.
+//
+// Memport konstruk Zonelab-nya berarti memport grid kuartal, yaitu alasan yang
+// sama kenapa SSMT tidak ikut - lihat catatan di knob.
 //
 // LOOKAHEAD MATI, dan itu bukan default yang bisa diandalkan diam-diam:
 // `request.security` tanpa `lookahead` memakai `barmerge.lookahead_off`, tapi

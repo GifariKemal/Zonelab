@@ -4206,3 +4206,71 @@ menggabungkannya adalah cara gate ini bisa hijau tanpa mengukur apa pun.
 
 `nonbox-truth` sekarang 6 dari 7. Yang tersisa merah penempatan ray PSP
 (-3px dan -6px), yang sudah merah sebelum pass SSMT ada.
+
+## Gambar SMT diukur, dan klaim Pine detektor 9 dicabut
+
+### Koreksi lebih dulu: detektor 9 BUKAN SMT-nya Zonelab
+
+Blok Pine yang saya tulis kemarin menyebut dirinya "cermin `app/ssmt.py` pada
+bagian SMT-nya". Itu salah, dan dicabut.
+
+| | konstruk |
+|---|---|
+| `app/ssmt.smt` | kuartal sekarang lawan ekstrem BERJALAN di jendela, diangkur ke grid kuartal |
+| Pine detektor 9 | pivot swing sekarang lawan pivot swing SEBELUMNYA |
+
+Dua objek berbeda. Jadi angka yang dilaporkan - PF 0,393 di XAU harian, placebo
+menang -0,593 - mengukur SMT **berbasis swing**, yang justru bentuk yang dipakai
+script publik: `SMT Divergences [LuxAlgo]` menggambar konektor antar SWING
+POINT. Itu benchmark konstruk publik lewat bracket repo ini, **bukan** pengukuran
+SMT yang Zonelab gambar. Memport konstruk Zonelab-nya berarti memport grid
+kuartal, alasan yang sama kenapa SSMT tidak ikut.
+
+Dikoreksi di dua tempat yang bisa dibaca orang: kepala blok Pine dan evidence
+layer `ssmt`.
+
+### Marker SMT diukur untuk pertama kalinya
+
+`smt-primitive.ts` menggambar WAJIK ber-radius 4 piksel di titiknya, dengan
+plate label di sebelah KANAN. Di kolom tengah wajik, tinta muncul tepat di dua
+verteks - atas dan bawah - jadi sentroid kolom jatuh di pusatnya, dan plate-nya
+tidak ikut terpindai. Span 5, yaitu radius ditambah satu piksel untuk lebar
+stroke, diambil dari primitive-nya.
+
+17 marker digambar, **11 di layar**:
+
+| galat | jumlah |
+|---|---|
+| di bawah 1,0px | **9** |
+| 1,76px | 1 |
+| 2,12px | 1 |
+
+Median 0,66px, terbaik 0,04px. **Gate-nya MERAH**: 2,12 lawan toleransi 2,00.
+
+### Dan ia dibiarkan merah, sengaja
+
+Dua pencilan itu, bukan pergeseran sistematis - sembilan dari sebelas di bawah
+satu piksel. Mempersempit span dari 5 ke 4 hampir pasti akan menghijaukannya,
+dan saya tidak melakukannya: gerakan itu sudah dipakai sekali di SSMT dengan
+alasan berprinsip (span = lebar tick, diambil dari primitive), dan memakainya
+lagi semata untuk membalik merah jadi hijau adalah penyetelan-sampai-lulus.
+
+Dugaan sebabnya, belum ditelusuri: kedua pencilan adalah marker `high` TANPA
+`took`, yang primitive-nya gambar dengan `INK_FAINT` 0,55 alih-alih 0,85. Tinta
+yang lebih pudar membuat sentroid lebih mudah tertarik oleh tinta lilin di
+kolom yang sama. Tapi satu marker non-took lain terbaca 0,45px, jadi alpha saja
+tidak menjelaskannya.
+
+### Yang ikut diperbaiki
+
+Baris `ssmt` dan `smt` sekarang ditulis ke `nonbox-truth.json` sebagai
+`ssmt_rows`. Sebelumnya ia dicetak ke konsol lalu hilang - dan angka yang tidak
+bisa diperiksa ulang tidak bisa dipertanggungjawabkan. Sebaran di atas cuma bisa
+dibaca karena baris itu ada.
+
+Dua gate dipisah, `ssmt` dan `smt` sendiri-sendiri, karena keduanya dua klaim
+berbeda: satu segmen yang menghubungkan dua harga, satu marker di satu harga.
+Menggabungkannya akan membiarkan yang satu menutupi kegagalan yang lain -
+dan memang itu yang terjadi di sini: SSMT lolos di 1,56px sementara SMT merah.
+
+`nonbox-truth` sekarang 6 dari 8.

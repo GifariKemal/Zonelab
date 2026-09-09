@@ -785,7 +785,50 @@ const ssmtPass = async () => {
       });
     }
   }
-  return { rows, partners, degree, drawn: segs.length };
+  // MARKER SMT DIUKUR DI PASS YANG SAMA, karena layer, toggle dan fetch-nya
+  // memang sama - `ssmt` memancarkan DUA kunci gambar dan sampai 9 September
+  // 2026 baru satu yang pernah dibaca balik.
+  //
+  // `smt-primitive.ts` menggambar WAJIK ber-radius 4 piksel di titiknya, plus
+  // plate label di sebelah KANAN. Di kolom tengah wajik itu tinta muncul tepat
+  // di dua verteks - atas dan bawah - jadi sentroid kolom jatuh di pusatnya,
+  // dan plate-nya tidak ikut terpindai karena ia di kanan.
+  //
+  // Span 5, yaitu radius wajik ditambah satu piksel untuk lebar stroke. Sama
+  // seperti span tick SSMT di atas, angka itu diambil dari primitive-nya dan
+  // bukan dari hasil mana yang hijau.
+  const markers = drawn.drawing?.smt ?? [];
+  for (const e of markers) {
+    await page.evaluate(
+      ([a, b]) => {
+        window.__zonelabChart.chart.timeScale().setVisibleRange({ from: a, to: b });
+      },
+      [e.time_at - step * 30, e.time_at + step * 30],
+    );
+    await page.waitForTimeout(600);
+    const got = await page.evaluate(
+      ([t, price]) => {
+        const api = window.__zonelabChart;
+        window.__frame();
+        const x = api.chart.timeScale().timeToCoordinate(t);
+        const y = api.series.priceToCoordinate(price);
+        if (x === null || y === null) return null;
+        const scan = window.__scanCol(x, y, 5);
+        return scan ? { err: Math.abs(scan.y - y), strength: scan.strength } : null;
+      },
+      [e.time_at, e.price_at],
+    );
+    rows.push({
+      layer: "smt",
+      tag: `SMT ${e.side}${e.self_took ? " took" : ""}`,
+      price: e.price_at,
+      onScreen: got !== null,
+      err: got ? got.err : null,
+      strength: got ? got.strength : 0,
+    });
+  }
+
+  return { rows, partners, degree, drawn: segs.length, markers: markers.length };
 };
 
 const ssmt = await ssmtPass();
@@ -826,7 +869,9 @@ const mssTol = mssMeasured.length
 // sentroid tinta di sebuah kolom, bukan sebuah harga. Yang di luar layar TIDAK dihitung sebagai lolos;
 // mereka dilaporkan terpisah, karena "tidak terlihat" dan "benar" adalah dua
 // hal dan menggabungkannya adalah cara gate ini bisa hijau tanpa mengukur.
-const ssmtOn = ssmt.rows.filter((r) => r.onScreen);
+const ssmtOn = ssmt.rows.filter((r) => r.onScreen && r.layer === "ssmt");
+const smtOn = ssmt.rows.filter((r) => r.onScreen && r.layer === "smt");
+const smtWorst = smtOn.length ? Math.max(...smtOn.map((r) => r.err ?? 0)) : Infinity;
 const ssmtWorst = ssmtOn.length
   ? Math.max(...ssmtOn.map((r) => r.err ?? 0))
   : Infinity;
@@ -840,6 +885,21 @@ for (const r of ssmtOn.slice(0, 4)) {
       `kekuatan ${r.strength.toFixed(3)}`,
   );
 }
+console.log(
+  `smt: ${ssmt.markers} marker, ${smtOn.length} di layar` +
+    (smtOn.length ? `, terburuk ${smtWorst.toFixed(2)}px` : ""),
+);
+// DUA GATE TERPISAH, karena `ssmt` dan `smt` dua objek dengan dua klaim: satu
+// segmen yang menghubungkan dua harga, satu marker di satu harga. Menggabung
+// keduanya akan membiarkan yang satu menutupi kegagalan yang lain.
+check(
+  "marker SMT ada di harga yang API laporkan",
+  smtOn.length >= 2 && smtWorst <= EDGE_TOL_PX,
+  smtOn.length
+    ? `terburuk ${smtWorst.toFixed(2)} lawan toleransi ${EDGE_TOL_PX.toFixed(2)} ` +
+      `atas ${smtOn.length} marker`
+    : "TIDAK ADA marker yang terukur",
+);
 check(
   "kedua ujung segmen SSMT ada di harga yang API laporkan",
   ssmtOn.length >= 2 && ssmtWorst <= EDGE_TOL_PX,
@@ -986,6 +1046,11 @@ writeFileSync(
       strength_taken: sTaken,
       untested_branches: constant,
       rows: all,
+      // SSMT DAN SMT DICATAT TERPISAH, karena `all` cuma memuat ray
+      // horizontal dan dua objek ini bukan ray. Tanpa baris ini pengukurannya
+      // dicetak ke konsol lalu hilang, dan sebuah angka yang tidak bisa
+      // diperiksa ulang tidak bisa dipertanggungjawabkan.
+      ssmt_rows: ssmt.rows,
     },
     null,
     2,
