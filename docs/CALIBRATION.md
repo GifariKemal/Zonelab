@@ -4063,3 +4063,83 @@ menyelesaikannya, dan ketipisan itu ADALAH definisi detektornya - ia mewarisi
 kohort gap terkecil dari gerbang plafon FVG. Memperbaikinya berarti mengubah apa
 itu IFVG, bukan mengubah cara ia digambar. Dibiarkan 6 dari 7, dengan sebabnya
 sekarang terukur dan terpisah dua.
+
+## SMT dan SSMT: benchmark publik, lalu backtest, 9 September 2026
+
+### Yang ada di TradingView, dan selisihnya bukan setelan
+
+Pencarian mengembalikan **25 script SMT** dan **SATU** script SSMT. Itu sendiri
+temuan: varian SEQUENTIAL yang jadi konfirmasi utama di engine ini hampir tidak
+ada di ekosistem publik.
+
+`SMT Divergences [LuxAlgo]`, yang berperingkat, menggambar **25 garis diagonal**
+di XAUUSD harian dan NOL level horizontal - konektor antara dua swing yang
+berdivergensi. Bentuk yang sama dengan `ssmt` kita, yang memancarkan
+`time_from/price_from` ke `time_to/price_to`.
+
+`SSMT_ES/NQ/YM Sequential SMT Divergence Indicator`, satu-satunya SSMT publik,
+menggambar **LABEL BERTEKS** dan hanya **4 buah** di seluruh chart ES 1 jam,
+dengan teks "ES/NQ Weekly SSMT" dan "ES/NQ Ln/Am SSMT".
+
+| | publik (satu-satunya SSMT) | Zonelab |
+|---|---|---|
+| pasangan | DIPATOK ES/NQ/YM | parameter, pasangan apa pun |
+| derajat | Weekly dan London/Am | seluruh derajat `quarters` |
+| bentuk gambar | label berteks | garis swing ke swing |
+| kepadatan | 4 di ES 1 jam | 40 (mentok cap) di XAU 1 jam |
+
+### Dan satu perbedaan yang cuma terlihat saat dijalankan
+
+Di XAUUSD HARIAN dengan derajat `day`, `ssmt` kita mengembalikan **NOL** baris
+sementara `smt` mengembalikan 120. Sebabnya bukan cacat: grid kuartal derajat
+`day` tidak bisa terurai di dalam satu bar harian. Di 1 jam ia memberi 40 SSMT
+dan 16 SMT. Jadi SSMT menuntut bar intraday, dan itu tidak tertulis di mana pun
+sebelum baris ini.
+
+### Backtest: SMT di-port ke Pine sebagai detektor 9
+
+Yang di-port **SMT biasa, bukan SSMT**, dan alasannya dinyatakan di knob-nya:
+SSMT menuntut grid kuartal yang hidup di `app/quarters.py` dengan derajat, true
+open dan batas 18:00 New York. Menyalin permukaan itu ke Pine berarti
+menyalinnya SALAH sampai terbukti sama. `docs/ssmt_outcomes.json` sudah mengukur
+SSMT sendiri - 24 sel, nol lolos, |z| terbesar 2,070 lawan ambang 3,078.
+
+Kotaknya: level referensi (swing sebelumnya) ke ekstrem baru - bentuk yang sama
+dengan CISD dan PSP, dua harga yang barnya sudah punya. `lookahead_off` ditulis
+EKSPLISIT di `request.security`, karena satu argumen yang hilang di sana memberi
+harga partner dari masa depan dan setiap angka di bawah jadi fiksi tanpa satu
+tes pun berubah warna.
+
+### Hasilnya negatif, dan konsisten
+
+XAUUSD, partner XAGUSD:
+
+| sel | swing_n | n | win% | PF |
+|---|---|---|---|---|
+| 1d | 3 | 263 | 32,7 | 0,869 |
+| 1d | 5 | 160 | 29,4 | **0,393** |
+| 1d | 10 | 72 | 20,8 | **0,254** |
+| 1h | 5 | 621 | 30,6 | 0,720 |
+| 1h | 10 | 297 | 31,3 | 0,546 |
+
+Seluruhnya di bawah satu, dan **menurun monoton seiring swing melebar**: makin
+signifikan divergensinya, makin buruk hasilnya.
+
+**Dan placebonya MENANG telak.** Di XAU 1d n=5: nyata 0,393 lawan placebo
+**0,986**, margin **-0,593** - kontrol terkuat melawan sebuah detektor di
+seluruh sesi ini, dan arahnya melawan. Kotak yang digeser 1 ATR dari lokasi SMT
+jauh lebih baik daripada kotak DI lokasi SMT.
+
+### Cara membacanya, dengan batasnya
+
+Bracket ini memasang limit di proximal dan stop di luar distal - untuk SMT sisi
+high itu berarti MEMUDARKAN high, yang persis yang doktrin minta. Jadi yang
+diukur memang pembacaan doktrinal, bukan kebalikannya.
+
+Batasnya dinyatakan: SATU pasangan (XAU/XAG) dan dua sel. Studi SSMT di repo ini
+memakai empat pasangan dan 24 sel untuk mencapai putusan null-nya. Yang di sini
+lebih sempit tapi lebih tajam tandanya - dan dua-duanya menunjuk ke arah yang
+sama.
+
+`smt` dan `ssmt` tetap overlay yang digambar, tidak jadi `ZoneKind`, dan tidak
+menyentuh jalur order - yang sejak 9 September 2026 kosong untuk semua layer.

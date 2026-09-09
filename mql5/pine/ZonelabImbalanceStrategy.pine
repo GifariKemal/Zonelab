@@ -50,8 +50,8 @@ strategy("Zonelab Imbalance Strategy", overlay=true,
 // digerbangi PLAFON pada tinggi gap; OB dan BRK digerbangi LANTAI pada kekuatan
 // impuls. Satu pembaca yang cuma melihat angka gerbangnya tidak bisa tahu mana
 // yang berlaku.
-detector      = input.int(0, "detektor 0=FVG 1=OB 2=IFVG 3=BRK 4=SD 5=OTE 6=CISD 7=LIQ 8=PSP", group="Detector",
-     minval=0, maxval=8)
+detector      = input.int(0, "detektor 0=FVG 1=OB 2=IFVG 3=BRK 4=SD 5=OTE 6=CISD 7=LIQ 8=PSP 9=SMT", group="Detector",
+     minval=0, maxval=9)
 atr_len       = input.int(14,    "atr_period",         group="Detector")
 min_gap_atr   = input.float(0.0, "min_gap_atr",        group="Detector", step=0.05)
 gate_ceiling  = input.float(0.25,"gate ceiling (ATR)", group="Detector", step=0.05)
@@ -80,6 +80,22 @@ lq_touch      = input.int(2,     "min_touches",        group="Liquidity", minval
 // tidak diekspos - ia milik `after_ssmt`, yang menuntut SSMT dan karena itu
 // menuntut instrumen partner yang backtest ini tidak muat.
 psp_back      = input.int(3,     "level_back (PSP)",   group="PSP", minval=1)
+
+// KNOB SMT. Yang di-port SMT BIASA, bukan SSMT.
+//
+// SSMT menambahkan kata SEQUENTIAL, dan urutannya adalah grid kuartal: ekstrem
+// yang dipersoalkan adalah milik KUARTAL SEBELUMNYA dan dibaca pada derajat
+// yang sama di kedua instrumen. Grid itu hidup di `app/quarters.py` dengan
+// derajat, true open dan aturan batas 18:00 New York - permukaan yang jauh
+// lebih besar daripada satu detektor, dan menyalinnya ke Pine berarti
+// menyalinnya SALAH sampai terbukti sama. Jadi yang di-backtest di sini SMT
+// biasa: dua instrumen tidak sepakat soal sebuah ekstrem SWING.
+//
+// Konsekuensinya dinyatakan: angka di bawah TIDAK berlaku untuk SSMT, dan
+// `docs/ssmt_outcomes.json` sudah mengukur SSMT sendiri - 24 sel, nol lolos,
+// |z| terbesar 2,070 lawan ambang 3,078.
+smt_sym       = input.symbol("OANDA:XAGUSD", "partner (SMT)", group="SMT")
+smt_n         = input.int(5,     "swing_n (SMT)",      group="SMT", minval=2)
 
 // KNOB OPTIMAL TRADE ENTRY. Cermin `OteParams`. Pitanya 0,618-0,786 dan kedua
 // rasio itu TIDAK jadi input: mereka diambil dari `fibonacci-primitive.ts`,
@@ -487,6 +503,7 @@ isOTE = detector == 5
 isCZ = detector == 6
 isLQ = detector == 7
 isPSP = detector == 8
+isSMT = detector == 9
 
 // ---- OPTIMAL TRADE ENTRY, detektor 5 --------------------------------------
 //
@@ -877,6 +894,86 @@ if isPSP and (p_buy or p_sell)
         p_dep := math.round((p_top - p_bot) / p_scale * 1000) / 1000
         p_ok  := true
 
+// ---- SMT SEBAGAI KOTAK, detektor 9 ---------------------------------------
+//
+// Dua instrumen tidak sepakat soal sebuah ekstrem: yang satu membuat high yang
+// lebih tinggi dari swing high sebelumnya, yang lain gagal. Cermin `app/ssmt.py`
+// pada bagian SMT-nya saja - lihat catatan di knob soal kenapa SSMT tidak
+// ikut.
+//
+// LOOKAHEAD MATI, dan itu bukan default yang bisa diandalkan diam-diam:
+// `request.security` tanpa `lookahead` memakai `barmerge.lookahead_off`, tapi
+// ia ditulis EKSPLISIT di sini karena satu argumen yang hilang di baris ini
+// akan memberi harga partner dari masa depan dan setiap angka di bawah jadi
+// fiksi tanpa satu pun tes berubah warna.
+smt_ph = request.security(smt_sym, timeframe.period, high,
+     lookahead = barmerge.lookahead_off)
+smt_pl = request.security(smt_sym, timeframe.period, low,
+     lookahead = barmerge.lookahead_off)
+
+var float m_prevHi = na
+var float m_prevLo = na
+var float m_pPrevHi = na
+var float m_pPrevLo = na
+
+m_ok    = false
+m_bull  = false
+m_top   = 0.0
+m_bot   = 0.0
+m_scale = 0.0
+m_dep   = 0.0
+
+if isSMT and bar_index > smt_n * 2 + 2
+    // Pivot ditulis tangan, aturan seri yang sama dengan `structure.swings`.
+    okh = true
+    okl = true
+    for k = 1 to smt_n
+        if high[smt_n] <= high[smt_n + k]
+            okh := false
+        if high[smt_n] < high[smt_n - k]
+            okh := false
+        if low[smt_n] >= low[smt_n + k]
+            okl := false
+        if low[smt_n] > low[smt_n - k]
+            okl := false
+
+    px  = high[smt_n]
+    pl  = low[smt_n]
+    ppx = smt_ph[smt_n]
+    ppl = smt_pl[smt_n]
+
+    if okh
+        if not na(m_prevHi) and not na(m_pPrevHi)
+            // DIVERGENSI: satu menembus swing high sebelumnya, satunya tidak.
+            self_took = px > m_prevHi
+            part_took = ppx > m_pPrevHi
+            if self_took != part_took
+                // Kotaknya: level referensi (swing high sebelumnya) ke ekstrem
+                // yang baru. Bentuk yang sama dengan CISD dan PSP - dua harga
+                // yang barnya sudah punya, tanpa konstanta baru.
+                m_bull  := false
+                m_top   := math.max(px, m_prevHi)
+                m_bot   := math.min(px, m_prevHi)
+                m_scale := atr_v[smt_n + 1]
+        m_prevHi  := px
+        m_pPrevHi := ppx
+
+    if okl and m_top == 0.0
+        if not na(m_prevLo) and not na(m_pPrevLo)
+            self_took = pl < m_prevLo
+            part_took = ppl < m_pPrevLo
+            if self_took != part_took
+                m_bull  := true
+                m_top   := math.max(pl, m_prevLo)
+                m_bot   := math.min(pl, m_prevLo)
+                m_scale := atr_v[smt_n + 1]
+        m_prevLo  := pl
+        m_pPrevLo := ppl
+
+    if m_top > m_bot and not na(m_scale) and m_scale > 0
+        m_dep := math.round((m_top - m_bot) / m_scale * 1000) / 1000
+        m_ok  := true
+
 // ---- YANG DIPAKAI, satu jalur setelah ini ----
 //
 // 0=FVG 1=OB 2=IFVG 3=BRK. IFVG induknya FVG dan BRK induknya OB, jadi jalur
@@ -886,16 +983,16 @@ isOB      = detector == 1 or detector == 3
 // detektor tertinggi 3; begitu SD dan OTE masuk, keduanya ikut terbaca
 // sebagai mode inversi dan blok induk-pecah akan menembak untuk mereka.
 inverting = detector == 2 or detector == 3
-scale = isPSP ? p_scale : isLQ ? l_scale : isCZ ? y_scale : isOTE ? e_scale : isOB ? o_scale : f_scale
+scale = isSMT ? m_scale : isPSP ? p_scale : isLQ ? l_scale : isCZ ? y_scale : isOTE ? e_scale : isOB ? o_scale : f_scale
 // Lilin BEARISH sebelum gerakan NAIK adalah block DEMAND, jadi sisi long di
 // sini datang dari lilin turun - kebalikan dari intuisi warna lilinnya.
-bull  = isPSP ? p_bull : isLQ ? l_bull : isCZ ? y_bull : isOTE ? e_bull : isOB ? o_bear : f_bull
-top0  = isPSP ? p_top : isLQ ? l_top : isCZ ? y_top : isOTE ? e_top : isOB ? o_bt   : f_top0
-bot0  = isPSP ? p_bot : isLQ ? l_bot : isCZ ? y_bot : isOTE ? e_bot : isOB ? o_bb   : f_bot0
+bull  = isSMT ? m_bull : isPSP ? p_bull : isLQ ? l_bull : isCZ ? y_bull : isOTE ? e_bull : isOB ? o_bear : f_bull
+top0  = isSMT ? m_top : isPSP ? p_top : isLQ ? l_top : isCZ ? y_top : isOTE ? e_top : isOB ? o_bt   : f_top0
+bot0  = isSMT ? m_bot : isPSP ? p_bot : isLQ ? l_bot : isCZ ? y_bot : isOTE ? e_bot : isOB ? o_bb   : f_bot0
 // S&D punya jalur sendiri di bawah, jadi jalur bersama ini DIMATIKAN untuknya.
 // Kalau tidak, detektor 4 akan menjalankan aturan FVG sekaligus aturannya
 // sendiri dan tabelnya akan mencampur dua populasi tanpa terlihat.
-ok    = isSD ? false : isPSP ? p_ok : isLQ ? l_ok : isCZ ? y_ok : isOTE ? e_ok : isOB ? o_ok   : f_ok
+ok    = isSD ? false : isSMT ? m_ok : isPSP ? p_ok : isLQ ? l_ok : isCZ ? y_ok : isOTE ? e_ok : isOB ? o_ok   : f_ok
 
 if ok and in_win
     h    = top0 - bot0
@@ -933,13 +1030,13 @@ if ok and in_win
         // itu, dan gate_measured mengembalikan False untuk BRK justru supaya
         // permukaan yang menampilkan verdict bisa menahan diri. Angka BRK di
         // bawah karena itu mengukur gerbang PINJAMAN.
-        gateVal  = isPSP ? p_dep : isLQ ? l_dep : isCZ ? y_dep : isOTE ? e_dep : isOB ? o_move : h / scale
+        gateVal  = isSMT ? m_dep : isPSP ? p_dep : isLQ ? l_dep : isCZ ? y_dep : isOTE ? e_dep : isOB ? o_move : h / scale
         fvgPass  = h >= min_gap_atr * scale and (gate_ceiling <= 0 or gateVal < gate_ceiling)
         // OTE digerbangi LANTAI pada panjang leg, bukan plafon pada tinggi
         // kotak. Doktrinnya sendiri tidak membawa gerbang apa pun - ia
         // aturan tempat masuk - jadi lantai ini padanan yang DIPILIH agar
         // sebanding dengan OB dan SD, dan itu dinyatakan di layers.py.
-        gatePass = isPSP ? true : isLQ ? true : isCZ ? gateVal >= cz_floor : isOTE ? gateVal >= ote_gate : isOB ? gateVal >= gate_floor : fvgPass
+        gatePass = isSMT ? true : isPSP ? true : isLQ ? true : isCZ ? gateVal >= cz_floor : isOTE ? gateVal >= ote_gate : isOB ? gateVal >= gate_floor : fvgPass
 
         if inverting
             // TIDAK ADA ORDER DI INDUK. Induk cuma ditunggu pecah, dan
@@ -1198,8 +1295,9 @@ if barstate.islastconfirmedhistory or barstate.islast
     // berbeda terbaca kembar di baris ini - dan angka gerbangnya sendiri tidak
     // bisa membedakannya, karena yang satu plafon dan yang lain lantai.
     table.cell(t, 1, 0, syminfo.ticker + " " + timeframe.period +
-         " " + (detector == 0 ? "FVG" : detector == 1 ? "OB" : detector == 2 ? "IFVG" : detector == 3 ? "BRK" : detector == 4 ? "SD" : detector == 5 ? "OTE" : (detector == 6 ? "CISD" : detector == 7 ? "LIQ" : "PSP")) +
-         (isPSP ? " back" + str.tostring(psp_back)
+         " " + (detector == 0 ? "FVG" : detector == 1 ? "OB" : detector == 2 ? "IFVG" : detector == 3 ? "BRK" : detector == 4 ? "SD" : detector == 5 ? "OTE" : (detector == 6 ? "CISD" : detector == 7 ? "LIQ" : detector == 8 ? "PSP" : "SMT")) +
+         (isSMT ? " n" + str.tostring(smt_n)
+               : isPSP ? " back" + str.tostring(psp_back)
                : isLQ ? " tol" + str.tostring(lq_tol) + " n" + str.tostring(lq_n) +
                   " t" + str.tostring(lq_touch)
                : isCZ ? " flr" + str.tostring(cz_floor) + " r" + str.tostring(cz_run)
