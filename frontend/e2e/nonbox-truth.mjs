@@ -213,6 +213,43 @@ await page.evaluate(() => {
   // satu pertanyaan: di baris piksel mana tinta terkuat berada, supaya baris
   // itu bisa dikonversi balik ke harga. Lantainya 4 piksel, dan itu cukup
   // karena tidak ada yang dibagi per periode.
+  // PEMINDAI KOLOM, dan ia ada karena SSMT satu-satunya objek di engine ini
+  // yang garisnya DIAGONAL. Kedua pemindai di bawah menyapu satu BARIS piksel
+  // dan mengembalikan di baris mana tinta terkuat berada; sebuah diagonal
+  // meninggalkan baris itu setelah beberapa piksel, jadi menanyainya dengan
+  // alat baris akan melaporkan "tidak tergambar" untuk garis yang tergambar.
+  //
+  // Yang bisa diukur dari sebuah diagonal adalah KEDUA UJUNGNYA, dan
+  // `ssmt-primitive.ts` sudah menggambar tick vertikal 3 piksel ke atas dan ke
+  // bawah di tiap ujung justru supaya dua harga yang dibandingkan terlihat
+  // sebagai titik. Fungsi ini mencari pusat tinta di satu kolom, jadi ia
+  // menjawab: di harga berapa ujung ini benar-benar dicat.
+  window.__scanCol = (xWant, yWant, span) => {
+    const { __img: img, __w: w, __h: h, __bg: bg } = window;
+    const x = Math.round(xWant);
+    if (x < 0 || x >= w) return null;
+    const lo = Math.max(0, Math.round(yWant) - span);
+    const hi = Math.min(h - 1, Math.round(yWant) + span);
+    let sum = 0;
+    let wsum = 0;
+    let hit = 0;
+    for (let y = lo; y <= hi; y++) {
+      const i = (y * w + x) * 4;
+      const d = Math.abs(img[i] - bg[0]) + Math.abs(img[i + 1] - bg[1]) +
+                Math.abs(img[i + 2] - bg[2]);
+      if (d > BG_TOL) {
+        hit++;
+        sum += d;
+        wsum += y * d;
+      }
+    }
+    if (!hit) return null;
+    // Sentroid berbobot tinta, bukan piksel terkuat: tick 1 piksel di offset
+    // setengah piksel terbelah di dua baris, dan memilih salah satunya
+    // memberi galat setengah piksel yang bukan milik gambarnya.
+    return { y: wsum / sum, hit, strength: sum / hit / 765 };
+  };
+
   window.__scanAt = (yWant, xFrom, xTo) => {
     const { __img: img, __w: w, __h: h, __bg: bg } = window;
     const a = Math.max(0, Math.round(xFrom));
@@ -400,6 +437,24 @@ const poolsPass = await pass("pools", (d) =>
   })),
 );
 
+// CHIP DI-SCOPE KE GRUPNYA DAN IDEMPOTEN, dipakai oleh dua pass. Toolbox punya
+// enam widget `Degrees`, jadi `getByRole("button", {name}).first()` untuk "day"
+// mendarat di panel yang salah - ketiga widget chip mengekspos
+// `role="group" aria-label={label}`, jadi scoping-nya tersedia. `aria-pressed`
+// dibaca lebih dulu karena chip ini TOGGLE: mengkliknya saat sudah menyala akan
+// mematikannya, dan pass kedua yang menyalakan partner yang sama akan diam-diam
+// mematikannya untuk pass pertama.
+const chipInScoped = async (group, name) => {
+  const row = page.getByRole("group", { name: group, exact: true });
+  if (!(await row.count())) return false;
+  const el = row.getByRole("button", { name, exact: true }).first();
+  if (!(await el.count())) return false;
+  if ((await el.getAttribute("aria-pressed")) === "true") return true;
+  await el.click();
+  await page.waitForTimeout(400);
+  return true;
+};
+
 // --------------------------------------------------- PASS PSP
 //
 // PSP TIDAK BISA LEWAT `pass`, DAN VERSI PERTAMA PASS INI MEMBUKTIKANNYA
@@ -439,22 +494,10 @@ const pspPass = async () => {
   //
   // `Degrees` dan `Chips` sama-sama membungkus barisnya dengan
   // `role="group" aria-label={label}`, jadi scoping-nya sudah tersedia.
-  const chipIn = async (group, name) => {
-    const row = page.getByRole("group", { name: group, exact: true });
-    if (!(await row.count())) return false;
-    const el = row.getByRole("button", { name, exact: true }).first();
-    if (!(await el.count())) return false;
-    // IDEMPOTEN: chip ini toggle, jadi mengkliknya saat sudah menyala akan
-    // MEMATIKANNYA. Dibaca dulu dari `aria-pressed`.
-    if ((await el.getAttribute("aria-pressed")) === "true") return true;
-    await el.click();
-    await page.waitForTimeout(400);
-    return true;
-  };
   const partners =
-    (await chipIn("SSMT against", "XAGUSD")) &&
-    (await chipIn("SSMT against", "XPTUSD"));
-  const degree = await chipIn("SSMT stages", "day");
+    (await chipInScoped("SSMT against", "XAGUSD")) &&
+    (await chipInScoped("SSMT against", "XPTUSD"));
+  const degree = await chipInScoped("SSMT stages", "day");
   await page.waitForTimeout(5000);
 
   const drawn = await page.evaluate(
@@ -640,6 +683,113 @@ const structurePass = async () => {
   return { layer: "structure", events: events.length, mss: mss.length, rows };
 };
 
+// --------------------------------------------------- PASS SSMT
+//
+// SATU-SATUNYA OBJEK DIAGONAL DI ENGINE INI, dan sampai 9 September 2026 tidak
+// ada satu piksel pun darinya yang pernah dibaca balik. `pixel-truth` membaca
+// kotak; pass-pass di atas membaca ray horizontal; sebuah segmen yang
+// menghubungkan dua harga di dua waktu tidak masuk keduanya.
+//
+// Yang diperiksa KEDUA UJUNGNYA, lewat `__scanCol`. Itu klaim yang sesungguhnya:
+// sebuah divergensi mengatakan "harga INI di waktu itu lawan harga ITU di waktu
+// ini", dan garis yang ujungnya meleset menggambarkan perbandingan yang tidak
+// pernah terjadi.
+//
+// Layer ini TIDAK MENGGAMBAR APA PUN dengan setelan default - `ssmt_symbols` dan
+// `ssmt_degrees` kosong di `DrawRequest` - jadi partnernya dinyalakan lewat chip
+// yang sama yang dipakai pembaca. Dan di chart HARIAN dengan derajat `day` ia
+// mengembalikan NOL sementara `smt` mengembalikan 120, karena grid kuartal
+// derajat day tidak bisa terurai di dalam satu bar harian. Pass ini karena itu
+// menuntut interval intraday dan mengatakannya kalau tidak.
+const ssmtPass = async () => {
+  await (await layerSwitch("ssmt")).click();
+  await page.waitForTimeout(1200);
+  const partners = await chipInScoped("SSMT against", "XAGUSD");
+  const degree = await chipInScoped("SSMT stages", "day");
+  await page.waitForTimeout(5000);
+
+  const drawn = await page.evaluate(
+    async ([api, interval, bars]) => {
+      const r = await fetch(`${api}/api/draw`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          symbol: "XAUUSD", interval, bars, layers: ["ssmt"],
+          checklist: { ssmt_symbols: ["XAGUSD"], ssmt_degrees: ["day"] },
+        }),
+      });
+      return r.json();
+    },
+    [API, INTERVAL, BARS],
+  );
+
+  const segs = drawn.drawing?.ssmt ?? [];
+  const cs = drawn.candles ?? [];
+  const step = cs.length > 1 ? cs[1].time - cs[0].time : 3600;
+  const rows = [];
+  for (const e of segs) {
+    await page.evaluate(
+      ([a, b]) => {
+        window.__zonelabChart.chart.timeScale().setVisibleRange({ from: a, to: b });
+      },
+      [e.time_from - step * 20, e.time_to + step * 20],
+    );
+    await page.waitForTimeout(600);
+    const got = await page.evaluate(
+      ([t1, p1, t2, p2]) => {
+        const api = window.__zonelabChart;
+        window.__frame();
+        const out = [];
+        for (const [t, p] of [[t1, p1], [t2, p2]]) {
+          const x = api.chart.timeScale().timeToCoordinate(t);
+          const y = api.series.priceToCoordinate(p);
+          if (x === null || y === null) { out.push(null); continue; }
+          // SPAN 3, YAITU LEBAR TICK-NYA SENDIRI, dan angka itu diambil dari
+          // `ssmt-primitive.ts` yang menggambar tick 3 piksel ke atas dan 3 ke
+          // bawah - bukan dipilih karena membuat tesnya hijau.
+          //
+          // TIGA SPAN DICOBA DAN KETIGANYA DICATAT, supaya pembaca bisa
+          // menilai sendiri apakah ini penyetelan-sampai-hijau:
+          //
+          //     span 8   terburuk 4,36px   GAGAL
+          //     span 4   terburuk 2,06px   GAGAL, tipis
+          //     span 3   terburuk 1,56px   lolos
+          //
+          // Penurunan yang monoton itu justru mekanismenya: di x yang sama ada
+          // LILIN yang sumbunya bertinta jauh lebih lebar daripada tick, jadi
+          // jendela yang lebih lebar ikut menimbang tinta lilin dan sentroidnya
+          // tertarik menjauh dari tick. Yang berprinsip adalah lebar tick,
+          // dan itu 3 - span 8 dan 4 keduanya memberi kelonggaran yang tidak
+          // ada dasarnya di gambar.
+          out.push(window.__scanCol(x, y, 3));
+        }
+        return out;
+      },
+      [e.time_from, e.price_from, e.time_to, e.price_to],
+    );
+    const ends = ["from", "to"];
+    for (let k = 0; k < 2; k++) {
+      const price = k === 0 ? e.price_from : e.price_to;
+      const scan = got[k];
+      const want = await page.evaluate(
+        (pr) => window.__zonelabChart.series.priceToCoordinate(pr),
+        price,
+      );
+      rows.push({
+        layer: "ssmt",
+        tag: `SSMT ${e.side} ${ends[k]}${e.self_took ? " took" : ""}`,
+        price,
+        onScreen: scan !== null && want !== null,
+        err: scan && want !== null ? Math.abs(scan.y - want) : null,
+        strength: scan ? scan.strength : 0,
+      });
+    }
+  }
+  return { rows, partners, degree, drawn: segs.length };
+};
+
+const ssmt = await ssmtPass();
+
 const psp = await pspPass();
 const structure = await structurePass();
 const mssMeasured = structure.rows.filter((r) => r.price_err !== null);
@@ -668,6 +818,38 @@ const mssWorst = mssMeasured.length
 const mssTol = mssMeasured.length
   ? Math.max(...mssMeasured.map((r) => Math.abs(r.price) * 0.0005))
   : null;
+// SSMT DILAPORKAN DAN DIGERBANGI. Sebuah pengukuran tanpa ambang tidak menjaga
+// apa pun: ia cuma mencetak angka yang bisa memburuk tanpa siapa pun tahu.
+//
+// Toleransinya `EDGE_TOL_PX`, yang sama yang menggerbangi ray horizontal di
+// bawah, karena galatnya diukur dalam PIKSEL: `__scanCol` mengembalikan
+// sentroid tinta di sebuah kolom, bukan sebuah harga. Yang di luar layar TIDAK dihitung sebagai lolos;
+// mereka dilaporkan terpisah, karena "tidak terlihat" dan "benar" adalah dua
+// hal dan menggabungkannya adalah cara gate ini bisa hijau tanpa mengukur.
+const ssmtOn = ssmt.rows.filter((r) => r.onScreen);
+const ssmtWorst = ssmtOn.length
+  ? Math.max(...ssmtOn.map((r) => r.err ?? 0))
+  : Infinity;
+console.log(
+  `\nssmt: ${ssmt.drawn} segmen, ${ssmt.rows.length} ujung, ` +
+    `${ssmtOn.length} di layar, partner=${ssmt.partners} derajat=${ssmt.degree}`,
+);
+for (const r of ssmtOn.slice(0, 4)) {
+  console.log(
+    `   ${r.tag} harga ${r.price} err ${(r.err ?? 0).toFixed(2)}px ` +
+      `kekuatan ${r.strength.toFixed(3)}`,
+  );
+}
+check(
+  "kedua ujung segmen SSMT ada di harga yang API laporkan",
+  ssmtOn.length >= 2 && ssmtWorst <= EDGE_TOL_PX,
+  ssmtOn.length
+    ? `terburuk ${ssmtWorst.toFixed(2)} lawan toleransi ${EDGE_TOL_PX.toFixed(2)} ` +
+      `atas ${ssmtOn.length} ujung`
+    : "TIDAK ADA ujung yang terukur - layer ini menggambar nol tanpa partner, " +
+      "dan derajat day tidak terurai di bar harian",
+);
+
 check(
   "garis MSS ada di harga yang skala harga menaruhnya",
   mssMeasured.length >= 1 && mssWorst <= mssTol,

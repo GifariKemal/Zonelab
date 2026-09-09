@@ -4143,3 +4143,66 @@ sama.
 
 `smt` dan `ssmt` tetap overlay yang digambar, tidak jadi `ZoneKind`, dan tidak
 menyentuh jalur order - yang sejak 9 September 2026 kosong untuk semua layer.
+
+## Gambar SSMT diukur untuk pertama kalinya, 9 September 2026
+
+Sebelum ini tidak ada satu piksel pun dari `ssmt-primitive.ts` yang pernah
+dibaca balik. `pixel-truth` membaca KOTAK; pass-pass di `nonbox-truth` membaca
+RAY HORIZONTAL; sebuah segmen yang menghubungkan dua harga di dua waktu tidak
+masuk keduanya. SSMT adalah satu-satunya objek diagonal di engine ini.
+
+### Alat barunya, dan kenapa alat lama tidak bisa dipakai
+
+Kedua pemindai yang ada menyapu satu BARIS piksel dan menjawab "di baris mana
+tinta terkuat berada". Sebuah diagonal meninggalkan baris itu setelah beberapa
+piksel, jadi menanyainya dengan alat baris akan melaporkan "tidak tergambar"
+untuk garis yang tergambar sempurna.
+
+Yang bisa diukur dari diagonal adalah KEDUA UJUNGNYA - dan itu memang klaimnya:
+sebuah divergensi mengatakan "harga INI di waktu itu lawan harga ITU di waktu
+ini", jadi garis yang ujungnya meleset menggambarkan perbandingan yang tidak
+pernah terjadi. `ssmt-primitive.ts` sudah menggambar tick vertikal di tiap ujung
+justru supaya dua harga itu terlihat sebagai titik.
+
+`window.__scanCol` karena itu ditambahkan: sentroid tinta berbobot di satu
+kolom. Sentroid, bukan piksel terkuat, karena tick 1 piksel di offset setengah
+piksel terbelah di dua baris dan memilih salah satunya memberi galat setengah
+piksel yang bukan milik gambarnya.
+
+### Dan probe-nya sendiri hampir jadi temuan palsu
+
+Versi pertama memakai span 8 piksel dan melaporkan galat terburuk **4,36px**
+lawan toleransi 2,00 - GAGAL. Tapi tick SSMT cuma membentang 3 piksel ke tiap
+arah, sementara di x yang sama ADA LILIN yang sumbunya bertinta jauh lebih
+lebar. Jendela yang terlalu lebar ikut menimbang tinta lilin, dan sentroidnya
+tertarik menjauh dari tick.
+
+Tiga span dicoba dan ketiganya dicatat supaya pembaca bisa menilai sendiri:
+
+| span | galat terburuk | |
+|---|---|---|
+| 8 | 4,36px | gagal |
+| 4 | 2,06px | gagal, tipis |
+| **3** | **1,56px** | **lolos** |
+
+Penurunan yang monoton itu justru mekanismenya, bukan tanda penyetelan sampai
+hijau. Yang berprinsip lebar tick-nya sendiri - dan itu 3, diambil dari
+primitive-nya. Span 8 dan 4 sama-sama memberi kelonggaran yang tidak punya dasar
+di gambar.
+
+**Ini kedua kalinya di sesi ini sebuah "kegagalan gambar" ternyata milik
+probe-nya**, sesudah kekuatan tinta PSP 0,048 yang ternyata satu piksel fringe.
+
+### Hasilnya
+
+40 segmen, 80 ujung, **63 di layar**, dan galat terburuk **1,56px** lawan
+toleransi 2,00. Contoh: 1,56 / 0,79 / 0,58 / 0,23 piksel.
+
+Pass ini juga menyalakan partnernya lewat chip yang sama yang dipakai pembaca -
+bukan jalan pintas - jadi kalau kontrol itu rusak, gate-nya ikut merah. Dan
+gate-nya menuntut minimal dua ujung terukur: yang di luar layar TIDAK dihitung
+sebagai lolos, karena "tidak terlihat" dan "benar" adalah dua hal berbeda dan
+menggabungkannya adalah cara gate ini bisa hijau tanpa mengukur apa pun.
+
+`nonbox-truth` sekarang 6 dari 7. Yang tersisa merah penempatan ray PSP
+(-3px dan -6px), yang sudah merah sebelum pass SSMT ada.
