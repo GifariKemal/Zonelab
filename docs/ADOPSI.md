@@ -1126,3 +1126,31 @@ kolom salah nama. Provenance aturan pertiga TIDAK naik, karena dokumen ini
 penulis yang sama dengan yang sudah dikutip `app/quarterly.py`.
 
 Copyright 2026 PT Surya Inovasi Prioritas (SURIOTA).
+
+
+## Kenapa keempat adopsi QT A-Z TIDAK diport ke Pine, ditulis 12 September 2026
+
+Ini keputusan, bukan pekerjaan yang tertinggal. Dicatat di sini supaya sesi
+berikutnya tidak membacanya sebagai gap dan "menyelesaikannya".
+
+Setelah keempatnya diukur, tidak satu pun punya alasan untuk ada di strategi
+Pine:
+
+| Studi | Hasil terukur |
+|---|---|
+| S1 QT Killzone | null, dan condong NEGATIF |
+| S2 Time premium/discount | terbelah antar instrumen: lolos di BTC, gagal di XAU, dan klausa `discount_or_premium` yang lama terbelah sama persis |
+| S3 Hidden SSMT | null di ketiga lengan, dan klaim berarahnya tepat di kebetulan (12 dari 24) |
+| S4 SMT Fill | belum dijalankan, butuh bracket sendiri |
+
+Mem-port detektor yang tidak memisahkan berarti membangun permukaan produksi
+untuk sesuatu yang tidak mengukur apa pun, dan repo ini sudah membayar
+pelajaran itu sekali: SMT diport sebagai detektor 9, lalu placebo-nya sendiri
+mengalahkannya dengan margin terlebar di repo, dan klaimnya harus ditarik.
+Urutannya sekarang dibalik: diukur dulu, diport kalau lolos.
+
+Yang bisa membalik keputusan ini cuma satu hal, yaitu S4 lolos gerbang penuh
+termasuk lengan kontrol gap-simultan-tanpa-divergensi. Sampai itu terjadi,
+ketiganya tetap hidup di backend sebagai overlay yang bisa dinyalakan sendiri
+dan mati by default, yang memang tempat yang benar untuk sesuatu yang belum
+membuktikan apa-apa.
