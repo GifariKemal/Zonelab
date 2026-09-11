@@ -514,9 +514,19 @@ async def triad_read(
     # which is the only feed carrying the treasury yields. If NOTHING carries
     # the triad the caller's provider is kept, so `load_aligned` raises naming
     # the leg that is actually missing instead of a substitute feed's problem.
+    # The app default leads, NOT a name written here. An unnamed provider means
+    # "whatever the chart is on", and this route spelling that as `mt5` was only
+    # ever indistinguishable from the default because the default happened to be
+    # mt5 too. That stopped being true the day the default moved to the exchange
+    # tape, and the triad would have kept answering from the broker's tape while
+    # every other route answered from the exchange's.
     triad_provider = next(
-        (p for p in (provider, "mt5", "yahoo") if p and carries(p, symbols)),
-        provider or "mt5",
+        (
+            p
+            for p in (provider, settings.default_provider, "mt5", "yahoo")
+            if p and carries(p, symbols)
+        ),
+        provider or settings.default_provider,
     )
     try:
         series, load_stats = await load_aligned(

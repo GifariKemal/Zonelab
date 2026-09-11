@@ -25,6 +25,8 @@ one of the defects fixed alongside this file.
 from __future__ import annotations
 
 import pytest
+
+from app.providers import carries
 from fastapi.testclient import TestClient
 
 from app import agent as agent_mod
@@ -410,40 +412,44 @@ def test_triad_reports_the_provider_it_actually_used(aligned):
     """The silent substitution, now audible.
 
     `binance` carries three of the twenty instruments and none of the triad
-    partners, so this route quietly rewrote the provider to mt5 and answered 200
-    with MT5 prices under a request that said binance. Nothing in the body said
-    so, and correlations computed on a broker's CFD tape are not the same
-    numbers as correlations computed on an exchange's spot tape.
+    partners, so this route quietly rewrote the provider and answered 200 with
+    another tape's prices under a request that said binance. Nothing in the body
+    said so, and correlations computed on a broker's CFD tape are not the same
+    numbers as correlations computed on an exchange's.
 
-    Both halves are asserted: that the fetch really went to mt5, and that the
-    RESPONSE says mt5. Asserting only the fetch would pass against the old code.
+    Both halves are asserted: that the fetch really was substituted, and that the
+    RESPONSE says what it was substituted with. Asserting only the fetch would
+    pass against the old code.
     """
     response = client.get("/api/triad", params={"provider": "binance"})
     assert response.status_code == 200, response.text
-    assert aligned["provider"] == "mt5", "the substitution itself"
-    assert response.json()["provider"] == "mt5", "and it is now reported"
+    assert aligned["provider"] != "binance", "the substitution itself"
+    assert response.json()["provider"] == aligned["provider"], "and it is reported"
 
 
 @pytest.mark.parametrize("asked", ["binance", None])
-def test_every_substituted_provider_is_reported_as_mt5(asked, aligned):
-    """The inputs the route rewrites, not just the one in the ticket.
+def test_a_substituted_provider_is_one_that_can_actually_serve(asked, aligned):
+    """The substitute has to CARRY the triad, whatever it is called today.
 
-    `None` is in this list because it is the DEFAULT, so the unreported
-    substitution was happening on the ordinary request rather than on an exotic
-    one: a caller who names no provider gets mt5 here and the chart's own
-    `settings.default_provider` everywhere else, and those two agreeing today is
-    a coincidence of configuration.
+    This asserted the literal `"mt5"` until 11 September 2026, and its own
+    docstring had already named why that was fragile: a caller who names no
+    provider got mt5 here and `settings.default_provider` everywhere else, "and
+    those two agreeing today is a coincidence of configuration". The default
+    moved to the exchange tape and the coincidence ended, so all this test had
+    been pinning was the config.
 
-    `yahoo` USED TO BE IN THIS LIST and was removed as wrong, not as
-    inconvenient. It was here because the route rewrote it, and the route
-    rewrote it because a hand-written list of provider names claimed Yahoo
-    carried no triad partner. The coverage table says otherwise - Yahoo maps
-    every leg of all seven triads - so the assertion was pinning a substitution
-    that never needed to happen. It now lives in the pass-through test below.
+    The invariant underneath it does not move: whatever feed the route picks, it
+    must carry every leg, and the body must say which one it picked. That holds
+    whichever way the default is set, which is the point.
+
+    `None` stays in the list because it is the DEFAULT path - the substitution
+    happens on the ordinary request rather than an exotic one.
     """
     params = {} if asked is None else {"provider": asked}
     body = client.get("/api/triad", params=params).json()
-    assert body["provider"] == "mt5"
+    legs = [body["base"], *body["partners"]]
+    assert carries(body["provider"], legs), "the substitute must serve the triad"
+    assert body["provider"] == aligned["provider"], "and the body must say so"
 
 
 @pytest.mark.parametrize("asked", ["synthetic", "yahoo"])

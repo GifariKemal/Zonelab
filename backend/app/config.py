@@ -12,13 +12,30 @@ class Settings(BaseSettings):
 
     # Which provider serves candles when the request does not name one.
     #
-    # The local MetaTrader 5 terminal, where one is installed and logged in. It
-    # is the broker's own tape rather than a proxy for it, it carries a real
-    # spread, and it answered 99,999 bars in 0.01s here where binance caps a
-    # page at 1000. On a machine with no terminal it probes as unavailable and
-    # the UI falls through to the next source that carries the symbol, so this
-    # default costs a clean checkout nothing but one failed probe.
-    default_provider: str = "mt5"
+    # The exchange tape, not the broker's. Gold resolves to COMEX GC=F, silver
+    # to SI=F, platinum to PL=F - the same front-month contracts a TradingView
+    # chart shows as GC1!/SI1!/PL1! - and MT5 is demoted to what it is uniquely
+    # good at, which is placing orders.
+    #
+    # THE COVERAGE ARGUMENT, measured 11 September 2026 against the 26 names in
+    # `providers.SYMBOLS`: Yahoo is missing one (DE30), MT5 is missing eight
+    # (EURFX, GBPFX, IDX, RBOB, RUS2000, ULSD, US10Y, US30Y). The broker tape
+    # was the NARROWER feed for this app the whole time, which is also why the
+    # `bonds` triad could not be served at all while mt5 was the forced default.
+    #
+    # THE COST, and it is real: Yahoo's futures are on the exchange's 10-minute
+    # delay. Measured the same day, gold's newest 1m bar was 10.2 minutes old
+    # against MT5's 0.0, so `actionable.py` now flags gold at 1m and 5m as a
+    # feed behind - correctly, that is the guard doing its job on a delayed
+    # tape rather than a new defect. At 15m and slower the lag is inside one
+    # interval and nothing flags. Crypto is unaffected: BTC measured 0.1 minutes
+    # behind, because that tape is not exchange-licensed.
+    #
+    # This is a DEFAULT, not a lock. The Source selector still carries mt5, and
+    # the measurement tools in `tools/` address feeds by explicit `mt5:` and
+    # `yahoo:` prefixes through `history.load`, so neither the calibration runs
+    # nor the auto-trade daemon read this value at all.
+    default_provider: str = "yahoo"
 
     # Stempel waktu tetap untuk provider synthetic, 0 berarti ikut jam dinding.
     #
