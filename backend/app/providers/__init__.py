@@ -10,6 +10,7 @@ from ..models import Candle
 from .base import INTERVALS, Provider, ProviderError
 from .dukascopy import DukascopyProvider
 from .mt5 import MT5Provider
+from .tradingview import TradingViewProvider
 from .sources import (
     SYMBOLS,
     BinanceProvider,
@@ -27,6 +28,11 @@ PROVIDERS: dict[str, Provider] = {
         # terminal beats every network source on depth, latency and on being
         # the venue the user actually trades. It reports itself unavailable
         # where no terminal exists, so this costs nothing on a machine without.
+        # First, and above MT5, since 12 September 2026: this is the exchange
+        # tape the user's own TradingView shows, it carries every instrument
+        # here, and it reports itself unavailable when the desktop app is not
+        # running - so on a machine without it the order below is unchanged.
+        TradingViewProvider(),
         MT5Provider(),
         BinanceProvider(),
         DukascopyProvider(),
@@ -325,6 +331,7 @@ __all__ = [
     "INTERVALS",
     "PROVIDERS",
     "SYMBOLS",
+    "TradingViewProvider",
     "carries",
     "Provider",
     "ProviderError",

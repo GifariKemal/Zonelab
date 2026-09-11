@@ -475,15 +475,24 @@ def test_a_provider_that_carries_the_triad_is_passed_through_unchanged(
 def test_a_triad_mt5_cannot_serve_is_routed_to_a_feed_that_can(aligned):
     """`bonds` was 502 for every caller on every provider.
 
-    Not a hypothetical: US10Y and US30Y are carried by Yahoo alone, the old
+    Not a hypothetical: US10Y and US30Y were carried by Yahoo alone, the old
     flat list sent every triad read to mt5, and mt5 carries neither - so the
     route substituted in the one feed guaranteed to fail and the error blamed
     the instruments. A flat list of provider names cannot express "the fallback
     is the thing that cannot serve this"; asking the coverage table per leg can.
+
+    NAMING THE FEED HERE WAS WRONG TWICE. This asserted "yahoo" for one day,
+    for the same reason the tests above asserted "mt5" for months - it was the
+    only feed that could serve bonds at the moment of writing. A day later
+    TradingView was added, it carries the treasuries too, and the assertion
+    failed on behaviour that was correct. What is promised is that mt5 cannot
+    serve this triad and that whatever is chosen can.
     """
     body = client.get("/api/triad", params={"triad": "bonds"}).json()
-    assert aligned["provider"] == "yahoo"
-    assert body["provider"] == "yahoo"
+    legs = [body["base"], *body["partners"]]
+    assert not carries("mt5", legs), "the premise: mt5 cannot serve bonds"
+    assert carries(body["provider"], legs), "so it was routed somewhere that can"
+    assert body["provider"] == aligned["provider"], "and the body says where"
 
 
 def test_triad_returns_the_full_reading_shape(aligned):

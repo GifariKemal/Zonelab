@@ -35,6 +35,7 @@ from .base import INTERVALS, ProviderError, normalize
 # does not carry the instrument, which is reported rather than silently retried.
 SYMBOLS: dict[str, dict[str, str]] = {
     "XAUUSD": {
+        "tradingview": "COMEX:GC1!",
         "mt5": "XAUUSD",
         "binance": "PAXGUSDT",
         "dukascopy": "XAUUSD",
@@ -43,6 +44,7 @@ SYMBOLS: dict[str, dict[str, str]] = {
         "polygon": "C:XAUUSD",
     },
     "BTCUSD": {
+        "tradingview": "COINBASE:BTCUSD",
         "mt5": "BTCUSD",
         "binance": "BTCUSDT",
         "yahoo": "BTC-USD",
@@ -50,6 +52,7 @@ SYMBOLS: dict[str, dict[str, str]] = {
         "polygon": "X:BTCUSD",
     },
     "EURUSD": {
+        "tradingview": "OANDA:EURUSD",
         "mt5": "EURUSD",
         "dukascopy": "EURUSD",
         "yahoo": "EURUSD=X",
@@ -80,23 +83,35 @@ SYMBOLS: dict[str, dict[str, str]] = {
     # not the 30-year bond, and mapping `US30Y` onto it would put an equity
     # index behind a yield id - real prices under the wrong name, which is the
     # one failure nothing downstream can detect.
-    "XAGUSD": {"mt5": "XAGUSD", "yahoo": "SI=F", "twelvedata": "XAG/USD", "polygon": "C:XAGUSD"},
-    "XPTUSD": {"mt5": "XPTUSD", "yahoo": "PL=F", "twelvedata": "XPT/USD"},
-    "XPDUSD": {"mt5": "XPDUSD", "yahoo": "PA=F", "twelvedata": "XPD/USD"},
-    "COPPER": {"mt5": "XCUUSD", "yahoo": "HG=F"},
-    "DXY": {"mt5": "DXY", "yahoo": "DX-Y.NYB"},
-    "NAS100": {"mt5": "USTEC", "yahoo": "NQ=F"},
-    "SPX500": {"mt5": "US500", "yahoo": "ES=F"},
-    "WTI": {"mt5": "USOIL", "yahoo": "CL=F"},
-    "BRENT": {"mt5": "UKOIL", "yahoo": "BZ=F"},
+    "XAGUSD": {
+        "tradingview": "COMEX:SI1!","mt5": "XAGUSD", "yahoo": "SI=F", "twelvedata": "XAG/USD", "polygon": "C:XAGUSD"},
+    "XPTUSD": {
+        "tradingview": "NYMEX:PL1!","mt5": "XPTUSD", "yahoo": "PL=F", "twelvedata": "XPT/USD"},
+    "XPDUSD": {
+        "tradingview": "NYMEX:PA1!","mt5": "XPDUSD", "yahoo": "PA=F", "twelvedata": "XPD/USD"},
+    "COPPER": {
+        "tradingview": "COMEX:HG1!","mt5": "XCUUSD", "yahoo": "HG=F"},
+    "DXY": {
+        "tradingview": "TVC:DXY","mt5": "DXY", "yahoo": "DX-Y.NYB"},
+    "NAS100": {
+        "tradingview": "CME_MINI:NQ1!","mt5": "USTEC", "yahoo": "NQ=F"},
+    "SPX500": {
+        "tradingview": "CME_MINI:ES1!","mt5": "US500", "yahoo": "ES=F"},
+    "WTI": {
+        "tradingview": "NYMEX:CL1!","mt5": "USOIL", "yahoo": "CL=F"},
+    "BRENT": {
+        "tradingview": "NYMEX:BZ1!","mt5": "UKOIL", "yahoo": "BZ=F"},
     # The 10-year note and the 30-year bond as CME contracts. The `^TNX` and
     # `^TYX` yield series exist and were verified, but they are cash, they print
     # a YIELD rather than a price (so they move inverse to the contract), and
     # they carry a third of the bars. Both facts would have to be explained at
     # every call site, so the contracts are what this table offers.
-    "US10Y": {"yahoo": "ZN=F"},
-    "US30Y": {"yahoo": "ZB=F"},
-    "ETHUSD": {"mt5": "ETHUSD", "binance": "ETHUSDT", "yahoo": "ETH-USD", "polygon": "X:ETHUSD"},
+    "US10Y": {
+        "tradingview": "CBOT:ZN1!","yahoo": "ZN=F"},
+    "US30Y": {
+        "tradingview": "CBOT:ZB1!","yahoo": "ZB=F"},
+    "ETHUSD": {
+        "tradingview": "COINBASE:ETHUSD","mt5": "ETHUSD", "binance": "ETHUSDT", "yahoo": "ETH-USD", "polygon": "X:ETHUSD"},
     # --- added 2026-08-20, because they WORKED and were unreachable -----------
     # `US30` and `GBPJPY` returned real bars from this terminal all along, through
     # the pass-through below, and neither was in this table - so neither appeared
@@ -109,20 +124,25 @@ SYMBOLS: dict[str, dict[str, str]] = {
     # Measured on one 5-day 1h window: `YM=F` 90 bars against `^DJI` 31, and
     # `NIY=F` 90 against `^N225` 36 - so the futures again, for the session reason
     # already stated.
-    "US30": {"mt5": "US30", "yahoo": "YM=F"},
+    "US30": {
+        "tradingview": "CBOT_MINI:YM1!","mt5": "US30", "yahoo": "YM=F"},
     # THE DOLLAR-YEN, which belongs in a gold complex more than most indices do.
     # Verified: 113 bars on the same window.
-    "USDJPY": {"mt5": "USDJPY", "yahoo": "USDJPY=X"},
-    "GBPJPY": {"mt5": "GBPJPY", "yahoo": "GBPJPY=X"},
+    "USDJPY": {
+        "tradingview": "OANDA:USDJPY","mt5": "USDJPY", "yahoo": "USDJPY=X"},
+    "GBPJPY": {
+        "tradingview": "OANDA:GBPJPY","mt5": "GBPJPY", "yahoo": "GBPJPY=X"},
     # Natural gas, the energy leg beside WTI and BRENT.
-    "NGAS": {"mt5": "XNGUSD", "yahoo": "NG=F"},
+    "NGAS": {
+        "tradingview": "NYMEX:NG1!","mt5": "XNGUSD", "yahoo": "NG=F"},
     # THE DAX IS MT5-ONLY HERE, and that is the honest entry rather than a gap.
     # Yahoo publishes no DAX future: `FDAX=F` 404s and `DAX=F` answers 200 with
     # zero bars. The cash index `^GDAXI` exists and returns 45 bars against the
     # futures' 90, and this table's own rule is that a cash index is left out
     # rather than offered as a trap. One provider is a fact about the venue, the
     # same shape `US10Y` and `US30Y` already have in reverse.
-    "DE30": {"mt5": "DE30"},
+    "DE30": {
+        "tradingview": "XETR:DAX","mt5": "DE30"},
     # --- added 2026-08-31: the instruments the owner asked to cover -----------
     # E-mini Russell 2000, NY Harbour ULSD, RBOB gasoline, and the two CME
     # currency futures (6E euro, 6B British pound). All five are Yahoo futures
@@ -131,11 +151,16 @@ SYMBOLS: dict[str, dict[str, str]] = {
     # while the auto-trade daemon holds the MT5 client would contend with a live
     # order path. A missing column is the honest "not verified", the same shape
     # `US10Y` and `US30Y` already carry in reverse.
-    "RUS2000": {"yahoo": "RTY=F"},
-    "ULSD": {"yahoo": "HO=F"},
-    "RBOB": {"yahoo": "RB=F"},
-    "EURFX": {"yahoo": "6E=F"},
-    "GBPFX": {"yahoo": "6B=F"},
+    "RUS2000": {
+        "tradingview": "CME_MINI:RTY1!","yahoo": "RTY=F"},
+    "ULSD": {
+        "tradingview": "NYMEX:HO1!","yahoo": "HO=F"},
+    "RBOB": {
+        "tradingview": "NYMEX:RB1!","yahoo": "RB=F"},
+    "EURFX": {
+        "tradingview": "CME:6E1!","yahoo": "6E=F"},
+    "GBPFX": {
+        "tradingview": "CME:6B1!","yahoo": "6B=F"},
     # The Jakarta Composite (IHSG). A CASH index, kept under a warning rather than
     # silently in the futures block: it trades a WIB session that overlaps the New
     # York clock almost not at all, so every killzone, day-of-week and session
@@ -143,7 +168,8 @@ SYMBOLS: dict[str, dict[str, str]] = {
     # only. LQ45 and IDX30 have no Yahoo ticker and stay out until a Jakarta
     # source exists - a cash-index trap with no data at all is worse than one with
     # a warning.
-    "IDX": {"yahoo": "^JKSE"},
+    "IDX": {
+        "tradingview": "IDX:COMPOSITE","yahoo": "^JKSE"},
     # NOT ADDED, deliberately: `twelvedata` and `polygon` do carry several of the
     # instruments above under mechanical ids like `USD/JPY`, and no key is
     # installed on this machine to verify them. Writing an unverified mapping

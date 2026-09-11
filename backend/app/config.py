@@ -12,30 +12,38 @@ class Settings(BaseSettings):
 
     # Which provider serves candles when the request does not name one.
     #
-    # The exchange tape, not the broker's. Gold resolves to COMEX GC=F, silver
-    # to SI=F, platinum to PL=F - the same front-month contracts a TradingView
-    # chart shows as GC1!/SI1!/PL1! - and MT5 is demoted to what it is uniquely
-    # good at, which is placing orders.
+    # TradingView Desktop, over the data session it is already logged in to.
+    # Not the broker's tape and not a proxy for the exchange's: gold resolves to
+    # COMEX:GC1! because that is the contract, and the same one the owner's own
+    # panes show.
     #
-    # THE COVERAGE ARGUMENT, measured 11 September 2026 against the 26 names in
-    # `providers.SYMBOLS`: Yahoo is missing one (DE30), MT5 is missing eight
-    # (EURFX, GBPFX, IDX, RBOB, RUS2000, ULSD, US10Y, US30Y). The broker tape
-    # was the NARROWER feed for this app the whole time, which is also why the
-    # `bonds` triad could not be served at all while mt5 was the forced default.
+    # WHY IT SITS ABOVE YAHOO, which held this slot for one day. Both draw the
+    # same COMEX front month, so the question was depth and breadth, and it was
+    # measured on 12 September 2026 rather than argued:
     #
-    # THE COST, and it is real: Yahoo's futures are on the exchange's 10-minute
-    # delay. Measured the same day, gold's newest 1m bar was 10.2 minutes old
-    # against MT5's 0.0, so `actionable.py` now flags gold at 1m and 5m as a
-    # feed behind - correctly, that is the guard doing its job on a delayed
-    # tape rather than a new defect. At 15m and slower the lag is inside one
-    # interval and nothing flags. Crypto is unaffected: BTC measured 0.1 minutes
-    # behind, because that tape is not exchange-licensed.
+    #   XAUUSD 1d   TradingView 13,003 bars back to 1975 | yahoo 603 | mt5 3,132
+    #   XAUUSD 4h   TradingView 15,479 | yahoo 3,713 | mt5 10,649
+    #   XAUUSD 1h   TradingView 20,000 (the request cap, not its limit)
+    #   coverage    26 of 26 instruments resolve; yahoo misses 1, mt5 misses 8
+    #   speed       2.6-2.8s for 300 bars, 4.5s for 20,000
     #
-    # This is a DEFAULT, not a lock. The Source selector still carries mt5, and
-    # the measurement tools in `tools/` address feeds by explicit `mt5:` and
-    # `yahoo:` prefixes through `history.load`, so neither the calibration runs
-    # nor the auto-trade daemon read this value at all.
-    default_provider: str = "yahoo"
+    # WHAT IT DOES NOT BUY, because a premium account was assumed to and then
+    # checked: 21 of the 26 arrive delayed - 600s on every CME, COMEX, NYMEX
+    # and CBOT contract, 900s on XETR - and only five are live (crypto through
+    # Coinbase, FX through OANDA, and DXY). Exchange real-time is a separate
+    # subscription from TradingView Premium. The number is read per symbol off
+    # the protocol's own `series_completed` frame, never from a table here, and
+    # `Feed.delay_seconds` carries it.
+    #
+    # THE COST OF THIS DEFAULT is that it needs the desktop app running. The
+    # provider probes for it and reports itself unavailable when it is not, so
+    # the failure is a named one rather than a wrong number - but on a machine
+    # with TradingView closed, the Source selector is how the chart comes back.
+    #
+    # This is a DEFAULT, not a lock. The measurement tools in `tools/` address
+    # feeds by explicit `mt5:` and `yahoo:` prefixes through `history.load`, and
+    # the auto-trade daemon holds `mt5:` symbols, so neither reads this value.
+    default_provider: str = "tradingview"
 
     # Stempel waktu tetap untuk provider synthetic, 0 berarti ikut jam dinding.
     #
