@@ -68,6 +68,8 @@
 import { mkdirSync, writeFileSync } from "node:fs";
 import { chromium } from "playwright";
 
+import { setLayer } from "./_layers.mjs";
+
 const OUT = process.argv[2] ?? ".playwright-shots";
 const INTERVAL = process.argv[3] ?? "1h";
 const BARS = Number(process.argv[4] ?? 900);
@@ -156,8 +158,12 @@ const layerSwitch = async (id) => {
 
 // Supply and demand dimatikan sekali di depan. Box-nya mengecat wilayah lebar
 // dan setiap baris di dalamnya lolos uji tinta, jadi ia mencemari setiap pass.
-await (await layerSwitch("supply_demand")).click();
-await page.waitForTimeout(2500);
+//
+// DIPERIKSA DULU, BUKAN DI-TOGGLE. Layer sekarang milik per timeframe, dan
+// harness ini default-nya 1h - di sana supply and demand memang sudah mati,
+// jadi satu klik buta justru MENYALAKANNYA dan setiap pass di bawah mengukur
+// box yang katanya sudah disingkirkan.
+await setLayer(page, "supply_demand", false, { settle: 2500 });
 
 // Disuntik sekali. Tinggal di halaman karena butuh bitmap kanvas, dan mengirim
 // ImageData 1400x800 lewat bridge per ray adalah cara lambat menanyakan hal

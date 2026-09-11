@@ -28,6 +28,7 @@ from .models import (
     Drawing,
     EventHorizonLevel,
     ExpectationFan,
+    KillzoneWindow,
     PathPoint,
     GapStack,
     LiquidityPool,
@@ -41,6 +42,7 @@ from .models import (
     SessionParams,
     SessionQuarter,
     TierHorizon,
+    TimeRangeBand,
     DFRExtension,
     DefiningRangeBand,
     TrueOpenLevel,
@@ -53,6 +55,8 @@ from . import quarterly
 from .quarters import ALL_DEGREES
 from .quarters import quarters as quarter_grid
 from .quarters import true_opens
+from .quarterly import time_premium_discount
+from .sequence import killzones as killzone_windows
 
 
 #: The layers `bar_overlays` actually handles, declared HERE rather than in
@@ -883,8 +887,25 @@ def session_grid(
     # sendiri-sendiri, dan keduanya disebut namanya: seorang pembaca yang
     # memilih grid tapi bukan true open sedang melihat separuh layer dan berhak
     # tahu separuh mana.
-    if not params.quarters and not params.true_opens:
+    # EMPAT DAFTAR SEKARANG, BUKAN DUA. `killzones` dan `premium_discount`
+    # menyusul pada 11 September 2026, dan tanpa syarat tambahan di baris ini
+    # sebuah chart yang menggambar 30 killzone plus 22 band premium/discount
+    # tetap melaporkan "pilih minimal satu degree" - rail bilang layer-nya
+    # kosong sementara 52 objek ada di kanvas. `e2e/rails.mjs` membaca kalimat
+    # ini DARI API lalu memeriksa ia muncul di DOM, jadi kalimat yang salah
+    # tidak akan merah di mana pun; ia cuma bohong.
+    asked = (
+        params.quarters
+        or params.true_opens
+        or params.killzones
+        or params.premium_discount
+    )
+    if not asked:
         stats["reason"] = "pilih minimal satu degree untuk grid atau true open"
+    elif not params.quarters and not params.true_opens:
+        # Killzone atau premium/discount saja: itu pilihan yang sah dan bukan
+        # kekosongan, jadi yang disebut apa yang TIDAK dipilih.
+        stats["reason"] = "tidak ada grid kuarter atau true open, hanya overlay jam"
     elif not params.quarters:
         stats["reason"] = "tidak ada degree untuk grid kuarter, hanya true open"
     elif not params.true_opens:
@@ -937,6 +958,71 @@ def session_grid(
         missing[degree] = expected - sum(1 for o in drawn if o.degree == degree)
     if missing:
         stats["true_opens_missing"] = missing
+
+    # ------------------------------------------------------- QT killzones
+    # Windows where every named degree sits in the same numbered quarter. Pure
+    # clock arithmetic - no bar is read - which is why it lives here beside the
+    # quarter grid rather than in a detector.
+    #
+    # THE BASE RATE IS REPORTED WITH THE COUNT, always. Two degrees align on one
+    # quarter in four by construction and three on one in sixteen, so a bare
+    # count of windows is a number a reader will over-read. `meta` carries both.
+    if params.killzones:
+        try:
+            windows = killzone_windows(params.killzones, *span)
+        except ValueError as exc:
+            stats["killzones_error"] = str(exc)
+        else:
+            drawing.killzones = [
+                KillzoneWindow(
+                    degrees=list(w.degrees),
+                    number=w.number,  # type: ignore[arg-type]
+                    depth=w.depth,
+                    time_from=w.start,
+                    time_to=w.end,
+                )
+                for w in windows
+            ]
+            stats["killzones"] = len(drawing.killzones)
+            stats["killzones_base_rate"] = round(
+                1 / 4 ** (len(params.killzones) - 1), 6
+            )
+
+    # -------------------------------------- time-based premium and discount
+    # The previous PARENT quarter's range. One band per parent quarter, and no
+    # parameter anywhere in it.
+    if params.premium_discount:
+        bands: list[TimeRangeBand] = []
+        for degree in dict.fromkeys(params.premium_discount):
+            try:
+                found_pd = time_premium_discount(rows, degree)
+            except ValueError:
+                unknown.append(degree)
+                continue
+            bands.extend(
+                TimeRangeBand(
+                    degree=b.degree,
+                    parent=b.parent,
+                    time_from=b.start,
+                    time_to=b.end,
+                    high=b.high,
+                    low=b.low,
+                    mid=b.mid,
+                    source_from=b.source_start,
+                    source_to=b.source_end,
+                )
+                for b in found_pd
+            )
+        drawing.time_pd = bands
+        stats["time_pd"] = len(bands)
+        if not bands:
+            # The coarsest degree has no parent to read a range from, and saying
+            # so beats an empty overlay the reader has to diagnose.
+            stats["time_pd_reason"] = (
+                "no parent degree above the one requested, or no bars in the "
+                "previous parent quarter"
+            )
+
     if unknown:
         stats["unknown_degrees"] = sorted(set(unknown))
     return stats

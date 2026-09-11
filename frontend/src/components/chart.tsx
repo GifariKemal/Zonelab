@@ -28,12 +28,15 @@ import type {
   OpeningGap,
   PSPReading,
   RangeProjection,
+  KillzoneWindow,
   SMTDivergence,
+  SMTFillDivergence,
   SSMTDivergence,
   SessionQuarter,
   StructureEvent,
   SwingPoint,
   TierHorizon,
+  TimeRangeBand,
   TrueOpenLevel,
   VortexDial,
   WyckoffPhase,
@@ -85,6 +88,14 @@ interface Props {
    *  call, because a divergence needs a second instrument. */
   ssmt: SSMTDivergence[];
   smt: SMTDivergence[];
+  /** Gap-fill divergences on this symbol's own gaps. Empty unless the smt_fill
+   *  layer is on. Rides the same aligned basket ssmt fetches. */
+  smtFill: SMTFillDivergence[];
+  /** Windows where every requested degree is in the same numbered quarter.
+   *  Clock arithmetic, no price. Empty unless asked for. */
+  killzones: KillzoneWindow[];
+  /** Time-based premium and discount: the previous parent quarter's range. */
+  timePd: TimeRangeBand[];
   /** Defining ranges with their equilibrium and projections. Empty unless the
    *  dfr layer is on. Single-sourced and unverified, and drawn fainter for it. */
   dfr: DefiningRangeBand[];
@@ -265,6 +276,9 @@ export function Chart({
   vortex,
   ssmt,
   smt,
+  smtFill,
+  killzones,
+  timePd,
   dfr,
   dfrEquilibrium,
   expectation,
@@ -805,8 +819,14 @@ export function Chart({
   }, [fibonacci]);
 
   useEffect(() => {
-    sessionPrimitive.current?.setSession(quarters, trueOpens, news);
-  }, [quarters, trueOpens, news]);
+    sessionPrimitive.current?.setSession(
+      quarters,
+      trueOpens,
+      news,
+      killzones,
+      timePd,
+    );
+  }, [quarters, trueOpens, news, killzones, timePd]);
 
   useEffect(() => {
     levelsPrimitive.current?.setLevels(
@@ -832,6 +852,13 @@ export function Chart({
   useEffect(() => {
     ssmtPrimitive.current?.setDivergences(ssmt);
   }, [ssmt]);
+
+  // Its own effect, not folded into the one above, because the two layers
+  // toggle independently: a chart with ssmt off and smt_fill on must still
+  // draw the bands.
+  useEffect(() => {
+    ssmtPrimitive.current?.setFills(smtFill);
+  }, [smtFill]);
 
   useEffect(() => {
     smtPrimitive.current?.setDivergences(smt);

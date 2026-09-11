@@ -162,7 +162,7 @@ from typing import Literal
 
 from .detect.structure import breaks
 from .models import Candle
-from .quarters import Quarter, quarters
+from .quarters import DEGREES, Quarter, quarters
 
 
 @dataclass(frozen=True)
@@ -432,3 +432,144 @@ def manipulation_done(
                 sweep_time=event.time,
             )
     return None
+
+
+@dataclass(frozen=True)
+class TimeRange:
+    """The previous PARENT quarter's range, which is this cycle's premium/discount.
+
+    The rule, from the A-Z guide chapter 19: go one cycle higher than the one
+    you are trading, and mark the range of the PREVIOUS quarter on that higher
+    cycle. Trading the 90-minute cycle, that is the previous 6-hour session.
+    Trading the daily cycle, it is the previous day.
+
+    WHY IT IS WORTH HAVING BESIDE `dealing_range.py`. Both answer "is price at a
+    premium or a discount", and they answer it from different places: the
+    dealing range reads confirmed swings and carries a `swing_n` knob, this
+    reads the clock and carries NO parameter at all. A reading with no knob
+    cannot be tuned into agreement with an outcome, which is the only reason it
+    is interesting - it is falsifiable in a way the tuned one is not.
+
+    KNOWABLE THE MOMENT IT APPLIES, and that is asserted rather than assumed.
+    The band covering quarter q is the range of quarter q-1, which finished at
+    q's start. Nothing here can see forward.
+    """
+
+    degree: str  # the cycle being traded
+    parent: str  # the degree the range was read from
+    start: int  # this band applies from here, inclusive - a parent quarter's start
+    end: int  # to here, exclusive
+    high: float
+    low: float
+    mid: float  # the 50% line: above is premium, below is discount
+    source_start: int  # the parent quarter the range came from
+    source_end: int
+
+
+def _parent_of(degree: str) -> str | None:
+    """The degree one step coarser, or None at the coarsest.
+
+    Read off `quarters.DEGREES` at call time rather than a table written here,
+    so a degree added to the grid needs no edit in this file - the same rule
+    `sequence._ordered` follows.
+    """
+    if degree not in DEGREES:
+        raise ValueError(f"unknown degree {degree!r}, expected one of {DEGREES}")
+    i = DEGREES.index(degree)
+    return DEGREES[i - 1] if i > 0 else None
+
+
+def time_premium_discount(candles: list[Candle], degree: str) -> list[TimeRange]:
+    """One band per parent quarter: the range of the parent quarter before it.
+
+    Empty when `degree` is the coarsest on the grid (nothing above it to read a
+    parent quarter from), when there are no candles, and for any parent quarter
+    whose predecessor had no bars - a band invented over a closed market would
+    be a premium/discount line with no trading behind it.
+
+    The first parent quarter in the window never gets a band, because its
+    predecessor is outside the window and reading a partial range would report a
+    high and a low that the feed did not actually contain.
+    """
+    parent = _parent_of(degree)
+    if parent is None or not candles:
+        return []
+
+    grid = quarters(parent, candles[0].time, candles[-1].time)
+    out: list[TimeRange] = []
+    for before, now in zip(grid, grid[1:]):
+        rows = _bars(candles, before.start, before.end)
+        if not rows:
+            continue
+        high = max(c.high for c in rows)
+        low = min(c.low for c in rows)
+        out.append(
+            TimeRange(
+                degree=degree,
+                parent=parent,
+                start=now.start,
+                end=now.end,
+                high=high,
+                low=low,
+                mid=(high + low) / 2,
+                source_start=before.start,
+                source_end=before.end,
+            )
+        )
+    return out
+
+
+def _selftest_time_pd() -> None:
+    """The band is the previous parent quarter, and it never sees forward."""
+    from datetime import datetime, timedelta, timezone
+
+    assert _parent_of("session") == "day"
+    assert _parent_of("micro") == "session"
+    assert _parent_of("day") == "week"
+    assert _parent_of(DEGREES[0]) is None
+
+    # Two days of hourly bars whose price is a function of the hour, so every
+    # quarter's extremes are known by construction rather than by inspection.
+    start = datetime(2026, 9, 7, tzinfo=timezone.utc)
+    rows = [
+        Candle(
+            time=int((start + timedelta(hours=h)).timestamp()),
+            open=100.0 + h,
+            high=100.5 + h,
+            low=99.5 + h,
+            close=100.0 + h,
+            volume=1.0,
+        )
+        for h in range(48)
+    ]
+    bands = time_premium_discount(rows, "session")
+    assert bands, "two days of hourly bars must produce day-quarter bands"
+    assert all(b.parent == "day" and b.degree == "session" for b in bands)
+
+    for band in bands:
+        # KNOWABILITY, the property everything else here rests on: the range was
+        # complete before the window it describes opened.
+        assert band.source_end <= band.start
+        assert band.low < band.mid < band.high
+        # And the range really is the source quarter's, recomputed here from the
+        # bars rather than trusted from the object.
+        rows_in = _bars(rows, band.source_start, band.source_end)
+        assert band.high == max(c.high for c in rows_in)
+        assert band.low == min(c.low for c in rows_in)
+
+    # Bands tile the parent grid and never overlap.
+    for a, b in zip(bands, bands[1:]):
+        assert a.end <= b.start
+
+    # The coarsest degree has no parent, so it has no band. Not an error.
+    assert time_premium_discount(rows, DEGREES[0]) == []
+    assert time_premium_discount([], "session") == []
+
+
+def _selftest() -> None:
+    """The gate's entry point for this module. See `sequence._selftest`."""
+    _selftest_time_pd()
+
+
+if __name__ == "__main__":
+    _selftest()

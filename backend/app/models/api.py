@@ -17,6 +17,7 @@ from .params import (
     CISDParams,
     ChartGapParams,
     PSPParams,
+    SMTFillParams,
     ChecklistParams,
     ExpectationParams,
     GapParams,
@@ -277,6 +278,16 @@ class DrawRequest(BaseModel):
         description=(
             "Precision swing points after an SSMT. Measured null in "
             "docs/psp_outcomes.json and drawn as a reading."
+        ),
+    )
+    smt_fill: SMTFillParams = Field(
+        default_factory=SMTFillParams,
+        description=(
+            "Gap-fill divergence across correlated instruments. Partners come "
+            "from the checklist block; the only knob here is the ink cap. "
+            "Adopted 11 September 2026 and NOT measured - see the layer's "
+            "evidence, and the two neighbours from the same doctrine that were "
+            "measured null."
         ),
     )
     wyckoff: WyckoffParams = Field(

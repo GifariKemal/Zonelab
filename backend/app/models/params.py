@@ -611,6 +611,33 @@ class SessionParams(ParamBlock):
             "one full round of calibration."
         ),
     )
+    killzones: list[str] = Field(
+        default_factory=list,
+        description=(
+            "Degrees to intersect, OUTERMOST FIRST, drawing the windows where "
+            "all of them are in the same numbered quarter - the source's QT "
+            "Killzone, and the `quarter-sequence` reference's N-stage sequence. "
+            "`[\"day\", \"session\"]` gives the worked example, Q3 of Q3 at "
+            "09:00-10:30 New York. Empty draws none.\n\n"
+            "READ THE BASE RATE BEFORE READING THE WINDOWS. Two degrees align "
+            "on one quarter in four BY CONSTRUCTION and three on one in "
+            "sixteen; the drawing says when they line up, not that lining up "
+            "means anything. Nothing here has been measured."
+        ),
+    )
+    premium_discount: list[str] = Field(
+        default_factory=list,
+        description=(
+            "Degrees to draw time-based premium and discount for: the range of "
+            "the PREVIOUS quarter one degree up, with its 50% line. Empty "
+            "draws none.\n\n"
+            "It carries NO parameter, which is the only reason it is here "
+            "beside the swing-based dealing range rather than instead of it - "
+            "that one has `swing_n` and can be tuned into agreement with an "
+            "outcome, this one is arithmetic on the clock and cannot. Which of "
+            "the two reads price better has not been measured."
+        ),
+    )
 
 
 class DFRParams(ParamBlock):
@@ -1005,6 +1032,19 @@ class ChecklistParams(ParamBlock):
             "one full round of calibration."
         ),
     )
+    ssmt_hidden: bool = Field(
+        default=False,
+        description=(
+            "Also read the sequential SMT on BODY extremes, not just wicks - "
+            "the source's Hidden SSMT. Events from the body pass are stamped "
+            "`basis: body` so the two are never mixed into one count. Off by "
+            "default because every measurement in this project was taken on "
+            "wicks, and because the source itself calls hidden the weaker of "
+            "the pair - a claim with no number behind it, which is exactly why "
+            "it ships as a switch rather than as an always-on widening of the "
+            "population."
+        ),
+    )
     ssmt_provider: str | None = Field(
         default=None,
         description=(
@@ -1052,6 +1092,25 @@ class WyckoffParams(ParamBlock):
             "chosen number, not a measured one - the Wyckoff method names no "
             "window, so this is stated rather than fitted."
         ),
+    )
+
+
+class SMTFillParams(ParamBlock):
+    """Gap-fill divergence across correlated instruments. One knob, the ink cap.
+
+    NO THRESHOLD ANYWHERE ELSE, on purpose. There is no minimum gap size, no
+    lookahead cap and no minimum depth difference: the source is explicit that
+    size does not matter, and the three variants are defined by 0, 0.5 and 1.0,
+    which is the gap's own geometry rather than tuning. The partners come from
+    the SSMT block, because a divergence needs a second instrument and this
+    layer rides the basket that block already fetches.
+    """
+
+    max_events: int = Field(
+        default=40,
+        ge=0,
+        le=500,
+        description="Newest fill divergences drawn, 0 for no cap.",
     )
 
 

@@ -859,15 +859,232 @@ mendarat di `passes`.
 - Tiga degree yang tidak kita punya dan konsep N-stage sequence belum diport,
   dan tidak ada angka apa pun untuk keduanya di sini.
 
+## Referensi Quarterly Theory ketiga, dan grid 90 menit yang akhirnya terjawab
+
+Diserahkan 11 September 2026: `quarterly-theory-a-z-guide-v1-1.pdf`, 80 halaman,
+Oracle Insights (Bucko), disebut v1 dan diposisikan sebagai "Daye's Framework"
+di Bagian Satu plus lapisan penulisnya sendiri di Bagian Dua sampai Sembilan.
+
+> [!IMPORTANT]
+> **Nol angka di 80 halaman.** Dokumen ini memakai "very high probability",
+> "rarely fails" dan "holds up remarkably well" tanpa satu pun n, t, atau
+> tingkat dasar. Ia juga dokumen penjualan: lima indikator berbayar, satu prop
+> firm, satu jurnal AI, satu membership. Itu tidak membuat konsepnya salah, dan
+> tidak boleh membuat satu pun di antaranya lewat gerbang tanpa diukur di sini.
+> Nilainya ada di dua tempat lain: ia **sumber kedua** untuk aturan yang selama
+> ini bersuara satu, dan ia menyelesaikan satu perselisihan yang sudah tercatat
+> di repo ini.
+
+### Temuan tunggal terbesar: grid 90 menit itu bukan perselisihan
+
+`docs/QT-CHECKLIST.md` bagian 2.1 mencatat "enam divergensi", dan menyebut yang
+pertama sebagai yang terbesar: batas kuarter repo ini berbeda 90 menit dari
+grid sumbernya. Konsekuensinya mahal, dan masih berjalan sampai hari ini: kolom
+`qt_sequence` dan `qt_sequence_src` dihitung dua-duanya, dan sisi MQL5 sengaja
+memakai grid yang lain supaya kedua venue mengukur objek yang sama.
+
+Dokumen ini menyelesaikannya, dan aritmetikanya bisa diperiksa siapa pun:
+
+| Sesi | Batas kuarter repo | "Grid sumbernya" di QT-CHECKLIST | Selisih |
+|---|---|---|---|
+| Q1 Asia | 18:00 NY | 19:30 NY | +90 menit |
+| Q2 London | 00:00 NY | 01:30 NY | +90 menit |
+| Q3 NY AM | 06:00 NY | 07:30 NY | +90 menit |
+| Q4 NY PM | 12:00 NY | 13:30 NY | +90 menit |
+
+Keempatnya tepat +90 menit, dan 90 menit adalah panjang satu kuarter dari sesi
+6 jam yang dibagi empat. Jadi keempat angka itu bukan batas sesi, melainkan
+**Q2 dari tiap sesi**, yaitu true open sesi itu. Halaman 9 dokumen ini
+menyatakannya langsung: Asia 19:30 EST "(Q2 of Asia)", London 01:30 "(Q2 of
+London)", NY AM 07:30 "(Q2 of AM session)", dan true open harian 00:00 NY. True
+open harian di 00:00 hanya mungkin kalau Q1 harian berjalan 18:00 sampai 00:00,
+yang persis grid repo ini.
+
+Dan repo sudah menggambar keempatnya. Diukur 11 September 2026 lewat
+`/api/draw` dengan `session.true_opens: ["day","session"]` pada XAUUSD 15m:
+
+| Degree | True open, waktu New York |
+|---|---|
+| `day` | 00:00 |
+| `session` | 01:30, 07:30, 13:30, 19:30 |
+
+Baris kedua itu daftar yang sama persis dengan kolom "grid sumbernya". Jadi
+kedua kolom itu tidak pernah mengukur dua grid; mereka mengukur satu grid dan
+satu set true open di atasnya, dengan satu di antaranya salah nama.
+
+> [!WARNING]
+> Ini BELUM boleh dibaca sebagai "hapus `qt_sequence_src`". Yang terbukti di
+> sini soal penamaan dan aritmetika, bukan soal hasil: kalau kedua kolom itu
+> sudah pernah memberi angka yang berbeda, perbedaannya harus dijelaskan dulu.
+> Yang berubah cuma statusnya: dari "dua grid yang bersaing, pilih setelah
+> mengukur" menjadi "satu grid, plus lapisan true open yang sudah kita punya".
+
+### Aturan pertiga DFR TETAP bersuara satu, dan saya sempat salah menyebutnya
+
+> [!CAUTION]
+> **Koreksi, ditulis di tempat kesalahannya dibuat.** Bacaan pertama saya atas
+> dokumen ini menyebut provenance aturan pertiga naik "dari satu suara jadi
+> dua". Itu salah. Dokumen ini karya **Bucko / Oracle Insights**, dan
+> `app/quarterly.py` sudah menamai persis penulis itu sebagai sumber aturan
+> pertiga, lengkap dengan `oracleinsights.io`. Jadi ini suara yang sama untuk
+> ketiga kalinya, bukan sumber kedua. Butir terbuka di bagian sebelumnya, "satu
+> fetch yang merangkum, dikuatkan hanya oleh situs penulisnya, satu suara dua
+> kali", **masih terbuka** dan sekarang berbunyi satu suara TIGA kali.
+
+Yang dokumen ini benar-benar tambahkan adalah presisi implementasi, bukan
+independensi: tabel durasi per cycle yang sebelumnya harus disimpulkan.
+
+| Cycle | Panjang Q1 | Buang sepertiga pertama | Tandai dari |
+|---|---|---|---|
+| Daily (Asia) | 6 jam | 2 jam | jam ke-2 sampai tengah malam |
+| 90-Min | 90 menit | 30 menit | menit ke-30 sampai habis |
+| Micro | 22,5 menit | 7,5 menit | menit ke-7,5 sampai habis |
+
+Angka-angka itu cocok dengan `app/quarterly.py:defining_range` baris per baris,
+jadi implementasi kita memang membaca aturannya dengan benar. Provenance-nya
+tidak bergerak. Hasil pengukurannya juga tidak berubah: DFR tetap `Terukur null`
+di enam sel, dan `manip_to_distrib` di degree day tetap terbalik pada t = -4,35.
+
+Satu hal yang tetap berguna meski suaranya sama: soal jangkar, dokumen ini
+berbunyi "Q1 is always the first choice. Q2 is the fallback", dipakai hanya
+kalau Q1 ekspansi bukan akumulasi. Repo sudah mengukur jangkar akumulasi KALAH
+dari Q1-selalu (-2,705pp, t = -3,90 di degree day). Jadi penulis aturan dan
+angka kita sepakat, dan referensi KEDUA (`quarter-sequence`, Tango618) yang
+mengusulkan jangkar akumulasi adalah pihak yang tidak didukung keduanya.
+
+### Satu hal yang sudah punya primitifnya dan tinggal satu predikat
+
+Dokumen ini menamai **QT Killzone**: jendela waktu di mana dua kuarter atau
+lebih dari cycle berbeda tumpang tindih DAN bernomor sama. Contoh yang dipakai
+penulisnya: 09:00-10:30 NY adalah Q3 daily sekaligus Q3 dari cycle 90 menit di
+dalamnya, jadi "Q3 of Q3".
+
+Itu konsep yang sama dengan "N-stage sequence" milik referensi kedua, yang
+dicatat sesi lalu sebagai belum diport. Referensi kedua datang dari
+`quarter-sequence.vercel.app` (Tango618), penulis yang berbeda, jadi **untuk
+butir ini** dua suara yang berbeda memang menamai hal yang sama - tidak seperti
+aturan pertiga di atas. Dan primitifnya **sudah ada**: `app/sequence.py:chain()`
+mengembalikan nomor kuarter tiap degree ("2-1-3"), dan `occurrences()` sudah
+menghitung frekuensi tiap rantai plus tingkat dasarnya. Yang belum ada cuma
+predikat "semua digit sama" dan pengukurannya.
+
+Ini kandidat termurah di halaman ini: satu fungsi di atas primitif yang sudah
+diuji, dan rig pengukurnya sudah berdiri.
+
+### Buku besar per butir
+
+| # | Butir | Status | Catatan |
+|---|---|---|---|
+| 1 | Cycle stack fraktal, quadrennial sampai micro | **Ada** | `app/quarters.py`, 9 degree lawan 8 di dokumen ini |
+| 2 | Fungsi kuarter AMDX dan XAMD | **Ada** | `quarterly.profile`, manipulasi Q2 di AMDX dan Q3 di XAMD, cocok baris per baris |
+| 3 | Weekly cycle Senin sampai Kamis, Jumat bukan Q5 | **Ada** | degree `week` panjang kuarter 1,0 hari |
+| 4 | Fungsi Jumat sebagai rebalancing ke true week open | **Belum** | tidak ada aturan Jumat di mana pun |
+| 5 | Distortion week sebagai Q0 | **Belum** | `quarters.py` hanya melabeli Q1 sampai Q4 |
+| 6 | True open sebagai open Q2 | **Ada** | terukur di 00:00 dan 01:30/07:30/13:30/19:30 NY |
+| 7 | Stacked true opens | **Ada** | `qt.py`, `quarters.py`, `checklist.py`, `models/plan.py` |
+| 8 | SSMT, dua kuarter berurutan, ekstrem, berbasis wick | **Ada** | `app/ssmt.py` |
+| 9 | Triad, termasuk triad minyak CL/RBOB/ULSD | **Ada** | `app/triad.py`; ketiga simbol minyak ada di registry |
+| 10 | Filter true open pada SSMT | **Ada** | `qt.true_opens_agree` |
+| 11 | Multi-stage SSMT | **Ada** | `ssmt.two_stage` |
+| 12 | PSP | **Terukur null** | `app/psp.py`; 48 sel nol di `docs/psp_outcomes.json`, termasuk lengan yang mengisolasi kontribusi SSMT-nya |
+| 13 | DFR, aturan pertiga | **Terukur null** | provenance TIDAK naik: dokumen ini penulis yang sama; hasilnya tidak berubah |
+| 14 | tCISD | **Sebagian** | `app/tcisd.py` ada dan cocok dengan aturan dokumen ini; klaim di register pernah salah label baseline, jadi angkanya belum berdiri |
+| 15 | Pita deviasi standar DFR, manipulasi -0,5 dan distribusi +2,0 sampai +2,5 | **Belum** | `dfr_outcomes.py` mengukur ekstensi 0,5 dan 1,0; pita +2,0/+2,5 belum pernah diuji |
+| 16 | QT Killzone, kuarter senomor bertumpuk lintas degree | **Ada** | `sequence.killzones()`, param `session.killzones`. Tingkat dasar 0,25 dan 0,0625 dikunci di selftest. BELUM diukur lawan outcome |
+| 17 | Time-based premium/discount dari range kuarter HTF sebelumnya | **Ada** | `quarterly.time_premium_discount()`, param `session.premium_discount`. Tanpa parameter sama sekali, jadi bisa diadu langsung lawan `dealing_range.py`. BELUM diukur |
+| 18 | Daily bias dari tanda tangan closure, continuation/reversal/inside | **Belum** | `olhc.py` menjawab pertanyaan lain (struktur rejection satu candle) dan sudah terukur identitas |
+| 19 | Draw on liquidity, empat sumber | **Ada** | `draw_on_liquidity` di `/api/draw` |
+| 20 | Hidden SSMT berbasis body | **Ada** | `ssmt(basis="body")`, param `checklist.ssmt_hidden`. Event di-stamp `basis` dan digambar bertitik supaya tak pernah jadi satu populasi dengan wick. BELUM diukur |
+| 21 | SMT Fill, tiga varian | **Ada** | layer `smt_fill`, `app/smt_fill.py`. Menumpang basket aligned yang sudah di-fetch `ssmt`, jadi nol fetch tambahan. BELUM diukur |
+| 22 | itCISD | **Belum** | |
+| 23 | True Order Block | **Belum** | butuh turun satu timeframe di dalam candle PSP |
+| 24 | RTO, revolving true open | **Belum** | true open hanya dari Q2; kuarter tempat SSMT lahir tidak diberi level |
+| 25 | SMT Market Structure Shift | **Belum** | |
+| 26 | First presented FVG setelah SSMT | **Belum** | gap sudah ada, urutan "pertama setelah SSMT" belum |
+| 27 | PSP soup dan aturan aset lebih lemah | **Belum** | `psp.polarity` dan `in_same_candle` ada, pemilihan aset belum |
+| 28 | PSP 6 jam | **Ditolak** | 6h bukan interval yang ditawarkan aplikasi ini, dan menambah satu interval untuk satu bacaan bukan tukar yang sepadan |
+| 29 | Anticipating the 9:30 open | **Belum** | `judas.py` menjawab pertanyaan tetangga, bukan yang ini |
+| 30 | Intermarket rotation, forex konsolidasi lawan indeks ekspansi | **Sebagian** | `triad.truth_asset` sudah menskor konsolidasi; aturan rotasi antar pasar belum |
+| 31 | Model M1 sampai M7 | **Belum** | ketujuhnya komposisi butir di atas; tidak ada yang baru selain urutannya |
+| 32 | Lima indikator TradingView milik penulisnya | **Ditolak** | produk berbayar pihak ketiga; konsepnya sudah dipetakan di baris-baris di atas |
+| 33 | Aturan tidak-trading, no SSMT no trade, chop berita, hari libur tipis | **Sebagian** | layer `news` dan gerbang autotrade ada; aturan jendela dan hari libur belum |
+| 34 | Psikologi, prop firm, roadmap 90 hari | **Ditolak** | di luar lingkup engine pengukuran |
+
+### Keempatnya dibangun, 11 September 2026
+
+Empat teratas dari daftar di bawah dikerjakan pada hari yang sama dokumen ini
+dibedah. Semuanya MATI secara default, tidak satu pun punya gerbang, dan
+praregistrasi pengukurannya ada di `docs/PRAREGISTRASI-QT-AZ.md` - ditulis
+sebelum satu angka pun dihitung.
+
+| Butir | Kode | Saklar | Fetch tambahan |
+|---|---|---|---|
+| QT Killzone | `sequence.killzones()` | `session.killzones` | nol, aritmetika jam |
+| Premium/discount waktu | `quarterly.time_premium_discount()` | `session.premium_discount` | nol, dari bar yang sudah ada |
+| Hidden SSMT | `ssmt(basis="body")` | `checklist.ssmt_hidden` | nol, basket yang sama |
+| SMT Fill | layer `smt_fill` | layer sendiri | nol, menumpang basket `ssmt` |
+
+Nol fetch tambahan untuk keempatnya, dan itu bukan kebetulan: tiga di antaranya
+membaca jam atau bar yang sudah ada, dan yang keempat sengaja ditempelkan ke
+blok async yang sudah membayar basket-nya.
+
+<details><summary>Tiga cacat yang ketahuan saat membangunnya</summary>
+
+1. **Varian `full` tidak pernah bisa menyala.** `depth` di-clamp ke 1,0, dan
+   aturan seragam "sisi dalam harus MELEBIHI ambang" membuat ambang 1,0 mustahil
+   dicapai. Gejalanya nol yang bersih - 17 entered, 23 half, 0 full - di jendela
+   yang penuh gap terisi tembus. Varian yang tak pernah bisa menyala lebih buruk
+   daripada varian yang tidak ada, karena nolnya terbaca sebagai pengukuran.
+   Sekarang 38 dari 99.
+2. **Label `basis` ada di model dan tidak pernah diisi.** Enam divergensi
+   tersembunyi sampai ke chart berlabel `wick`, dihitung benar di `meta` dan
+   salah di objeknya. Label yang ada tapi tak pernah diisi lebih buruk daripada
+   tidak ada label, karena ia terbaca sebagai jaminan.
+3. **Kalimat "kenapa layer ini kosong" jadi bohong.** Rail melaporkan "pilih
+   minimal satu degree" sementara 52 objek ada di kanvas. `e2e/rails.mjs`
+   membaca kalimat itu DARI API lalu memeriksa ia muncul di DOM, jadi kalimat
+   yang salah tidak merah di mana pun - ia cuma bohong.
+
+</details>
+
+### Urutan yang saya sarankan, kalau ada yang mau diadopsi
+
+Diurutkan menurut biaya bangun dibagi nilai bukti, bukan menurut seberapa
+meyakinkan dokumennya.
+
+1. **QT Killzone** (butir 16). Primitif sudah ada, rig sudah ada, dan dua sumber
+   independen menamainya. Bisa diukur sebelum digambar.
+2. **Time-based premium/discount mekanis** (butir 17). Ia MENGHAPUS sebuah knob
+   (`swing_n`) dan menggantinya dengan aturan tanpa parameter, jadi ia bisa
+   diadu langsung lawan dealing range yang sekarang di rig yang sudah ada.
+3. **Hidden SSMT** (butir 20). Perubahan satu baris di dalam `ssmt()`: baca
+   `open`/`close` sebagai ekstrem kedua di samping `high`/`low`. Populasinya
+   naik, dan pertanyaannya persis pertanyaan yang sudah pernah diukur.
+4. **SMT Fill** (butir 21). Paling banyak kode baru dari empat teratas, tapi ia
+   satu-satunya konsep di dokumen ini yang benar-benar tidak punya tetangga di
+   repo, dan ia mekanis penuh.
+5. Sisanya menunggu. **itCISD, TOB, RTO, SMTMSS, first-FVG** semuanya bergantung
+   pada tCISD atau SSMT yang angkanya sendiri belum berdiri (butir 12 dan 14),
+   jadi membangunnya sekarang berarti menumpuk lapisan di atas lantai yang belum
+   diukur.
+
+> [!CAUTION]
+> Butir 12 sudah terukur null dan butir 14 belum punya angka yang berdiri.
+> Dokumen ini menyebut SSMT "the base of every setup" dan tCISD "the single most
+> reliable confirmation in the system". Keduanya klaim tanpa angka, dan salah
+> satunya sudah kita ukur nol di 48 sel. Membangun tujuh model di atas keduanya
+> karena sebuah PDF meyakinkan adalah persis cara sebuah checklist berubah jadi
+> keyakinan.
+
 ## Ringkasan hitungan
 
-| Status | Jumlah butir |
-|---|---|
-| Ada | 29 |
-| Sebagian | 9 |
-| Belum | 25 |
-| Ditolak | 8 |
-| Terukur null | 1 |
+| Status | Sebelum 11 Sep | Referensi QT ketiga | Total |
+|---|---|---|---|
+| Ada | 29 | +14 | 43 |
+| Sebagian | 9 | +3 | 12 |
+| Belum | 25 | +12 | 37 |
+| Ditolak | 8 | +3 | 11 |
+| Terukur null | 1 | +2 | 3 |
 
 Naik dua dari koreksi 20 Agustus: derajat `quadrennial` dengan true open-nya, dan
 bacaan premium/discount pada setiap divergensi SSMT.
@@ -875,5 +1092,12 @@ bacaan premium/discount pada setiap divergensi SSMT.
 Butir "Ditolak" naik dari 7 ke 8 dengan masuknya Three Drives, dan itu satu-satunya
 penolakan di halaman ini yang **punya angkanya sendiri** daripada berhenti di
 provenance.
+
+Kolom ketiga adalah 34 butir dari `quarterly-theory-a-z-guide-v1-1.pdf`. Sepuluh
+di antaranya sudah terpasang sebelum dokumen itu dibaca, yang berarti dokumen ini
+lebih banyak MENYELESAIKAN daripada menambah pekerjaan: satu perselisihan grid
+yang dibawa sebagai dua kolom sejak 5 September ternyata satu grid dengan satu
+kolom salah nama. Provenance aturan pertiga TIDAK naik, karena dokumen ini
+penulis yang sama dengan yang sudah dikutip `app/quarterly.py`.
 
 Copyright 2026 PT Surya Inovasi Prioritas (SURIOTA).

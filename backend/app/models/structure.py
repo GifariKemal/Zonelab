@@ -97,6 +97,53 @@ class SessionQuarter(BaseModel):
     time_to: int = Field(description="Exclusive: the next quarter opens here")
 
 
+class KillzoneWindow(BaseModel):
+    """A window where every requested degree is in the SAME numbered quarter.
+
+    Two independent sources name this object: the A-Z guide calls it a QT
+    Killzone ("Q3 of Q3", 09:00-10:30 New York), and the `quarter-sequence`
+    reference calls it an N-stage sequence. Neither supplies a number for it.
+
+    A FACT ABOUT THE CLOCK. It reads no price and predicts nothing, which is the
+    property that lets it be measured honestly: the windows exist before any
+    outcome does. `depth` is on every row because the base rate depends on it -
+    two degrees align on one quarter in four BY CONSTRUCTION, three on one in
+    sixteen, so a hit rate means nothing until it is read against that.
+    """
+
+    degrees: list[str] = Field(description="Outermost first, as requested")
+    number: Literal[1, 2, 3, 4] = Field(description="The quarter they all share")
+    depth: int = Field(description="How many degrees agreed. See the base rate.")
+    time_from: int
+    time_to: int = Field(description="Exclusive")
+
+
+class TimeRangeBand(BaseModel):
+    """Time-based premium and discount: the previous PARENT quarter's range.
+
+    The rule goes one cycle higher than the one being traded and marks the range
+    of the previous quarter there - so trading the 90-minute cycle, this is the
+    previous 6-hour session. Above `mid` is premium, below is discount.
+
+    IT HAS NO PARAMETER, and that is the reason it sits beside the swing-based
+    dealing range rather than replacing it. The dealing range carries `swing_n`
+    and can be tuned into agreement with an outcome; this one is arithmetic on
+    the clock and cannot. Neither has been measured against the other yet.
+
+    Knowable the moment it applies: the range closed at `time_from`.
+    """
+
+    degree: str = Field(description="The cycle being traded")
+    parent: str = Field(description="The degree the range was read from")
+    time_from: int = Field(description="This band applies from here")
+    time_to: int = Field(description="Exclusive")
+    high: float
+    low: float
+    mid: float = Field(description="The 50% line: premium above, discount below")
+    source_from: int = Field(description="The parent quarter the range came from")
+    source_to: int
+
+
 class TrueOpenLevel(BaseModel):
     """The opening price of a cycle's Q2, which is what a true open IS.
 

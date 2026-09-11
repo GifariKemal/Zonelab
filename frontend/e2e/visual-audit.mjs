@@ -13,6 +13,8 @@
 import { mkdirSync, writeFileSync } from "node:fs";
 import { chromium } from "playwright";
 
+import { pickTimeframe } from "./_layers.mjs";
+
 const OUT = process.argv[2];
 const TIMEFRAMES = ["1m", "5m", "15m", "30m", "1h", "4h", "1d", "1w"];
 const BARS = 500;
@@ -46,8 +48,9 @@ for (const tf of TIMEFRAMES) {
   const dir = `${OUT}/${tf}`;
   mkdirSync(dir, { recursive: true });
 
-  await page.locator(`div[aria-label="Timeframe"] button:text-is("${tf}")`).click();
-  await page.waitForTimeout(5000);
+  // Per timeframe, because the layers are. Photographing 4h with the 15m rail
+  // still in mind would frame boxes the chart is not drawing.
+  await pickTimeframe(page, tf, ["supply_demand"], { settle: 5000 });
 
   const drawn = await page.evaluate(
     async ([api, interval, bars]) => {

@@ -27,6 +27,7 @@
     "e2e:retina": "node e2e/retina.mjs .playwright-shots",
     "e2e:clickthrough": "node e2e/clickthrough.mjs .playwright-shots",
     "e2e:offscreen": "node e2e/offscreen-zones.mjs 1h 500",
+    "e2e:timeframe": "node e2e/timeframe-layers.mjs .playwright-shots",
     "e2e:clock": "node e2e/clock.mjs .playwright-shots",
     "e2e:ribbon": "node e2e/ribbon.mjs .playwright-shots",
     "e2e:labels": "node e2e/labels.mjs .playwright-shots",

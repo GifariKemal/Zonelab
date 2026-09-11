@@ -82,13 +82,25 @@ UNCAPPED: dict[str, dict[str, object]] = {
     "session": {
         "quarters": ["month", "week", "day", "session"],
         "true_opens": ["year", "month", "week", "day"],
+        # ADDED 11 September 2026 with the overlays themselves. Without these
+        # two the run reported "every layer on, every cap lifted" while the
+        # newest two overlays drew nothing at all - a stress test that stresses
+        # a layer's absence. `micro` on the premium/discount list is chosen for
+        # weight, not for taste: its parent is `session`, so on 5000 bars it is
+        # the densest band set the app can be asked for.
+        "killzones": ["day", "session"],
+        "premium_discount": ["session", "micro"],
         "max_quarters": 0,
     },
     "checklist": {
         "ssmt_symbols": ["XAGUSD", "DXY"],
         "ssmt_degrees": ["day", "week"],
         "ssmt_max": 0,
+        # The body pass doubles the SSMT work and is the honest ceiling for
+        # this layer, so the heaviest draw has to carry it.
+        "ssmt_hidden": True,
     },
+    "smt_fill": {"max_events": 0},
 }
 
 failures: list[str] = []

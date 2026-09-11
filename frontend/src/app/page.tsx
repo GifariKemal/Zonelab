@@ -34,7 +34,14 @@ import {
 import { CLOCK_ZONES, type ClockZone } from "@/lib/clock";
 import { priceDecimals } from "@/lib/price";
 import {
-  DEFAULT_LAYERS,
+  BOOT_INTERVAL,
+  setSetupAt,
+  setupAt,
+  subscribeTimeframes,
+  timeframesServerSnapshot,
+  timeframesSnapshot,
+} from "@/lib/timeframes";
+import {
   DEFAULT_LAYER_PARAMS,
   type Candle,
   type DrawResponse,
@@ -178,7 +185,7 @@ function ChartError({
 export default function Page() {
   const [config, setConfig] = useState<ServerConfig | null>(null);
   const [symbol, setSymbol] = useState("XAUUSD");
-  const [interval, setInterval] = useState("15m");
+  const [interval, setInterval] = useState(BOOT_INTERVAL);
   const [provider, setProvider] = useState("binance");
   const [bars, setBars] = useState(500);
   // Supply and demand is top-down: the zone belongs to the higher timeframe,
@@ -203,10 +210,46 @@ export default function Page() {
   // Supply and demand alone by default, and that is measured rather than taste:
   // five detectors alone paint 31.6% of the chart, and past about a third the
   // boxes stop annotating price and become its background.
-  const [layers, setLayers] = useState<string[]>(DEFAULT_LAYERS);
-  // Every layer's knobs in ONE record, keyed by the name the registry gives
-  // each params block. A `DrawRequest` body is then `{ ...params, layers }`.
-  const [params, setParams] = useState<LayerParams>(DEFAULT_LAYER_PARAMS);
+  //
+  // KEYED BY TIMEFRAME, and that is the whole of the per-timeframe rule. A
+  // drawing belongs to the bars it was read off: a supply zone switched on at
+  // 1h is a claim about 1h candles, and carrying that switch to M1 draws a
+  // DIFFERENT set of boxes under the same name - the reader turned one thing on
+  // and got another. Measured before it was changed - `backend/tools/tf_audit.py`,
+  // written up in `docs/TIMEFRAME-AUDIT.md`: every layer the registry carries,
+  // alone, at all eight intervals the app offers, across every symbol, and not
+  // one returned the same price set twice - against a control where the same
+  // request twice at one interval was identical every time. So the geometry was
+  // already the timeframe's own; the SWITCH and its KNOBS were what followed the
+  // reader around, and both are keyed by interval here.
+  //
+  // THE KNOBS TRAVEL WITH THE SWITCH. `impulse_atr`, `base_max_bars` and
+  // `min_gap_atr` are read in bars and ATRs of the chart's own timeframe, so a
+  // threshold tuned until 15m looked right is a threshold nobody chose for 1d.
+  // Splitting the switch while sharing the knobs would have left half the
+  // drawing following the reader around.
+  //
+  // THROUGH A STORE, not `useState`, and that is what makes it survive a reload:
+  // per-timeframe setup that is wiped every refresh is worse than none, because
+  // the reader now has eight of them to rebuild instead of one. Same pattern as
+  // `lib/rails.ts` - reading `localStorage` in an effect is a hydration mismatch
+  // and `react-hooks/set-state-in-effect` refuses it.
+  const perTf = useSyncExternalStore(
+    subscribeTimeframes,
+    timeframesSnapshot,
+    timeframesServerSnapshot,
+  );
+  const { layers, params } = setupAt(perTf, interval);
+
+  /** Turn layers on or off FOR THE TIMEFRAME ON SCREEN, never for all of them.
+   *
+   *  Same signature as the `useState` setter it replaces, so the Toolbox's
+   *  contract is unchanged and no caller had to learn about the map. */
+  const setLayers = useCallback(
+    (next: string[]) => setSetupAt(interval, { layers: next, params }),
+    [interval, params],
+  );
+
   // How many drawn zones the price scale is currently hiding. Reported by the
   // chart, because the scale autoscales to the VISIBLE candles and nothing here
   // can predict where it lands.
@@ -526,10 +569,19 @@ export default function Page() {
   // the memo on Toolbox that the crosshair makes worth having.
   const patchParams = useCallback(
     <K extends keyof LayerParams>(key: K, patch: Partial<LayerParams[K]>) =>
-      setParams((prev) => ({ ...prev, [key]: { ...prev[key], ...patch } })),
-    [],
+      setSetupAt(interval, {
+        layers,
+        params: { ...params, [key]: { ...params[key], ...patch } },
+      }),
+    [interval, layers, params],
   );
-  const resetParams = useCallback(() => setParams(DEFAULT_LAYER_PARAMS), []);
+  // RESETS THIS TIMEFRAME'S KNOBS, not every timeframe's. The layers stay on:
+  // the button is called "Reset parameters" and switching the chart blank is
+  // not what it says.
+  const resetParams = useCallback(
+    () => setSetupAt(interval, { layers, params: DEFAULT_LAYER_PARAMS }),
+    [interval, layers],
+  );
 
   /** A preset lands as ONE state change over both, not two.
    *
@@ -540,10 +592,50 @@ export default function Page() {
    *  one handler is also one fetch rather than two. */
   const applyPresetToState = useCallback(
     (nextLayers: string[], nextParams: LayerParams) => {
-      setLayers(nextLayers);
-      setParams(nextParams);
+      setSetupAt(interval, { layers: nextLayers, params: nextParams });
     },
-    [],
+    // A preset lands on THE TIMEFRAME ON SCREEN, like every other layer switch.
+    // ONE write rather than two, which is also why it no longer needs the
+    // batching argument above: layers and params reach the store together, so
+    // there is no intermediate render with new layers and old params.
+    [interval],
+  );
+
+  /** The other timeframes that already have a set, in the order they were
+   *  first configured - `Object.entries` is insertion order, and no other
+   *  ordering was worth a sort here.
+   *
+   *  Only feeds the empty state's copy buttons, so it is filtered to the ones
+   *  worth copying: the timeframe on screen is excluded because copying a set
+   *  onto itself does nothing, and an empty set is excluded because a button
+   *  offering to switch nothing on is a button that appears to do nothing.
+   *
+   *  MEMOISED because `Toolbox` is wrapped in `memo`, and a fresh array every
+   *  render is all it takes to defeat that - the same argument the patch
+   *  callback above is hoisted for. */
+  const layersElsewhere = useMemo(
+    () =>
+      Object.entries(perTf)
+        .filter(([tf, setup]) => tf !== interval && setup.layers.length > 0)
+        .map(([tf, setup]) => ({ interval: tf, layers: setup.layers })),
+    [perTf, interval],
+  );
+
+  /** Put another timeframe's whole setup on this one: switches AND knobs.
+   *
+   *  A COPY, not a share. The two are separate the moment it lands, which is
+   *  the point of the feature - and it carries the params because a layer set
+   *  without the thresholds it was tuned with is a different drawing, the same
+   *  argument `onPreset` exists for. */
+  const copyFrom = useCallback(
+    (from: string) => {
+      const source = setupAt(perTf, from);
+      setSetupAt(interval, {
+        layers: [...source.layers],
+        params: { ...source.params },
+      });
+    },
+    [perTf, interval],
   );
 
   const allIntervals = useMemo(() => config?.intervals ?? [], [config?.intervals]);
@@ -614,8 +706,12 @@ export default function Page() {
                 registry is the one version of this line that cannot go stale the
                 next time a layer lands. */}
             <span className="text-[10px] uppercase tracking-[0.16em] text-text-faint">
+              {/* NAMES THE TIMEFRAME, because the count is now per timeframe
+                  and a bare "1 of 24 layers on" would read as a global fact
+                  while changing under the reader every time they change the
+                  bar length. */}
               {config
-                ? `${layers.length} of ${config.layers.length} layers on`
+                ? `${layers.length} of ${config.layers.length} layers on ${interval}`
                 : "Layers"}
             </span>
           </div>
@@ -1025,6 +1121,9 @@ export default function Page() {
             config={config}
             layers={layers}
             onLayers={setLayers}
+            interval={interval}
+            layersElsewhere={layersElsewhere}
+            onCopyFrom={copyFrom}
             params={params}
             onParams={patchParams}
             onReset={resetParams}
@@ -1059,6 +1158,9 @@ export default function Page() {
                 vortex={data?.drawing.vortex ?? null}
                 ssmt={data?.drawing.ssmt ?? []}
                 smt={data?.drawing.smt ?? []}
+                smtFill={data?.drawing.smt_fill ?? []}
+                killzones={data?.drawing.killzones ?? []}
+                timePd={data?.drawing.time_pd ?? []}
                 dfr={data?.drawing.dfr ?? []}
                 dfrEquilibrium={params.dfr.equilibrium}
                 expectation={data?.drawing.expectation ?? null}

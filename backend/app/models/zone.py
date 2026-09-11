@@ -5,13 +5,22 @@ from __future__ import annotations
 from pydantic import BaseModel, Field, computed_field
 
 from .primitives import Anatomy, Displacement, Refinement, ZoneKind, ZoneSide, ZoneState
-from .structure import FibonacciAnchor, SessionQuarter, StructureEvent, SwingPoint, TrueOpenLevel
+from .structure import (
+    FibonacciAnchor,
+    KillzoneWindow,
+    SessionQuarter,
+    StructureEvent,
+    SwingPoint,
+    TimeRangeBand,
+    TrueOpenLevel,
+)
 from .gaps import EventHorizonLevel, GapStack, NewsEvent, OpeningGap, TierHorizon
 from .liquidity import LiquidityPool, NamedLevel, RangeProjection
 from .cycle import (
     CISDEvent,
     DefiningRangeBand,
     SMTDivergence,
+    SMTFillDivergence,
     SSMTDivergence,
     VortexDial,
 )
@@ -639,6 +648,33 @@ class Drawing(BaseModel):
             "Liquidity readings rather than trend confirmations: one instrument "
             "took the running extreme, the other failed. Drawn as markers, not "
             "segments. Empty unless the ssmt layer was requested."
+        ),
+    )
+    smt_fill: list[SMTFillDivergence] = Field(
+        default_factory=list,
+        description=(
+            "Gap-fill divergences on this symbol's price: a fair value gap that "
+            "printed on two correlated instruments at the same bar, where one "
+            "returned into its gap further than the other. Empty unless the "
+            "smt_fill layer was requested. Rides the SAME aligned basket the "
+            "ssmt layer fetches, so asking for both costs one fetch."
+        ),
+    )
+    killzones: list[KillzoneWindow] = Field(
+        default_factory=list,
+        description=(
+            "Windows where every requested degree is in the same numbered "
+            "quarter. Pure clock arithmetic, no price. Empty unless "
+            "`session.killzones` names at least one degree."
+        ),
+    )
+    time_pd: list[TimeRangeBand] = Field(
+        default_factory=list,
+        description=(
+            "Time-based premium and discount: the previous PARENT quarter's "
+            "range, with its 50% line. Empty unless `session.premium_discount` "
+            "names a degree. A reading with no free parameter, unlike the "
+            "swing-based dealing range it sits beside."
         ),
     )
     gaps: list[OpeningGap] = Field(

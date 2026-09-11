@@ -36,9 +36,22 @@ import {
 interface Props {
   /** The registry. `config.layers` IS the menu - see `Toolbox` below. */
   config: ServerConfig | null;
-  /** Which layers are on. Membership is the only enable there is. */
+  /** Which layers are on. Membership is the only enable there is.
+   *
+   *  ON THIS TIMEFRAME. The page keys the set by interval, so this prop changes
+   *  when the reader changes the bar length and nothing here has to know that. */
   layers: string[];
   onLayers: (next: string[]) => void;
+  /** The timeframe those layers belong to, and the timeframes that already have
+   *  a set of their own. Both exist for ONE control: the empty state below,
+   *  which has to say which timeframe is empty and offer the set from a
+   *  timeframe that is not. */
+  interval: string;
+  layersElsewhere: { interval: string; layers: string[] }[];
+  /** Copy another timeframe's whole setup onto this one - the switches AND the
+   *  knobs. Separate from `onLayers` for the reason `onPreset` is: a set of
+   *  layers without the thresholds it was tuned with is a different drawing. */
+  onCopyFrom: (interval: string) => void;
   /** Every layer's knobs, keyed by the registry's own `params` name. */
   params: LayerParams;
   onParams: <K extends keyof LayerParams>(
@@ -174,6 +187,9 @@ export const Toolbox = memo(function Toolbox({
   config,
   layers,
   onLayers,
+  interval,
+  layersElsewhere,
+  onCopyFrom,
   params,
   onParams,
   onReset,
@@ -661,6 +677,45 @@ export const Toolbox = memo(function Toolbox({
               value={params.session.approximate_true_opens}
               onChange={(v) => onParams("session", { approximate_true_opens: v })}
             />
+            {/* TWO MORE CLOCK READINGS, both adopted 11 September 2026 and
+                neither measured. They live on this layer rather than on layers
+                of their own because they are the same object the quarter grid
+                is: arithmetic on the clock, no bar read, no fetch. */}
+            <Degrees
+              label="Killzones"
+              selected={params.session.killzones}
+              onChange={(v) => onParams("session", { killzones: v })}
+            />
+            {params.session.killzones.length === 1 ? (
+              <p className="text-[11px] leading-relaxed text-accent">
+                One degree is the degenerate case: every quarter of it qualifies,
+                so the whole chart is banded. Pick two or more.
+              </p>
+            ) : null}
+            <Note>
+              A killzone is a window where every degree picked is in the SAME
+              numbered quarter - the source&apos;s &quot;Q3 of Q3&quot; at
+              09:00-10:30 New York is day plus session. READ THE BASE RATE WITH
+              IT: two degrees agree on one quarter in four BY CONSTRUCTION and
+              three on one in sixteen, and `meta.session.killzones_base_rate`
+              reports the number for the set you picked. Nothing here has been
+              measured against outcomes, which is why the band is the faintest
+              ink on the pane.
+            </Note>
+            <Degrees
+              label="Premium / discount"
+              selected={params.session.premium_discount}
+              onChange={(v) => onParams("session", { premium_discount: v })}
+            />
+            <Note>
+              Time-based premium and discount: the range of the previous quarter
+              ONE DEGREE UP, with its 50% line. Trading the 90-minute cycle that
+              is the previous 6-hour session. It carries no parameter at all,
+              which is the only reason it sits beside the swing-based dealing
+              range rather than instead of it - that one has a swing width and
+              can be tuned into agreement with an outcome, this one cannot.
+              Which of the two reads price better has not been measured.
+            </Note>
             {params.session.true_opens.includes("quadrennial") &&
             !params.session.approximate_true_opens ? (
               <p className="text-[11px] leading-relaxed text-accent">
@@ -1282,6 +1337,22 @@ export const Toolbox = memo(function Toolbox({
               selected={params.checklist.ssmt_degrees}
               onChange={(v) => onParams("checklist", { ssmt_degrees: v })}
             />
+            <Toggle
+              label="Hidden SSMT (bodies)"
+              value={params.checklist.ssmt_hidden}
+              onChange={(v) => onParams("checklist", { ssmt_hidden: v })}
+            />
+            <Note>
+              Also read the divergence on BODY extremes, not just wicks - the
+              source&apos;s Hidden SSMT, for when no wick divergence is visible
+              but the closes diverge. Hidden ones draw DOTTED so the two are
+              never read as one population, and{" "}
+              <span className="num">meta.ssmt.hidden</span> counts them apart.
+              Off by default: every measurement in this project was taken on
+              wicks, and the source itself calls hidden the weaker of the pair
+              because no liquidity is technically swept - a claim with no number
+              behind it.
+            </Note>
             {params.checklist.ssmt_symbols.length &&
             !params.checklist.ssmt_degrees.length ? (
               <p className="text-[11px] leading-relaxed text-accent">
@@ -1570,6 +1641,41 @@ export const Toolbox = memo(function Toolbox({
           </>
         );
 
+      case "smt_fill":
+        return (
+          <>
+            <Slider
+              label="Fills drawn"
+              hint="Newest gap-fill divergences kept on the canvas."
+              note="The only knob this layer has. There is deliberately no minimum gap size, no lookahead cap and no minimum depth difference: the source is explicit that size does not matter, and the three variants are defined by 0, 50% and 100% of the gap, which is its own geometry rather than tuning."
+              suffix="fills"
+              min={0}
+              max={200}
+              step={10}
+              value={params.smt_fill.max_events}
+              onChange={(v) => onParams("smt_fill", { max_events: v })}
+            />
+            <Note>
+              A fair value gap that printed on two correlated instruments at the
+              SAME bar, where one traded back into its gap further than the
+              other. Three variants: <span className="num">in</span> one entered
+              at all and the other never did, <span className="num">50</span> one
+              passed the midpoint, <span className="num">fill</span> one filled
+              through. The band drawn is this chart&apos;s own gap; the
+              partner&apos;s belongs to a different price scale and is
+              deliberately absent. A box tagged{" "}
+              <span className="num">held</span> is one where THIS instrument is
+              the one holding.
+              {" "}Partners come from the SSMT block below - one fetch serves
+              both layers.
+              {" "}ADOPTED 11 September 2026 AND NOT MEASURED. Its two
+              neighbours from the same doctrine, SSMT and PSP, were measured null
+              over 24 and 48 cells; that is the prior this one starts from, not
+              the source&apos;s confidence.
+            </Note>
+          </>
+        );
+
       case "psp":
         return (
           <>
@@ -1766,11 +1872,39 @@ export const Toolbox = memo(function Toolbox({
         </Group>
       ) : null}
 
+      {/* THE EMPTY STATE NAMES THE TIMEFRAME, because since layers became per
+          timeframe this is the state a reader lands in every time they open a
+          bar length they have not used yet - and "no layer is on" full stop
+          would read as the app having forgotten something.
+
+          The copy button exists for the same reason and does exactly one thing:
+          it puts ANOTHER timeframe's set on this one, in one click, and says
+          which timeframe it took it from. Without it the only way across is
+          twenty-four switches. It copies rather than shares - the two sets are
+          separate the moment it lands, which is the point of the feature. */}
       {layers.length === 0 && menu.length ? (
-        <p className="border-b border-accent/40 bg-accent/10 px-3 py-2 text-[11px] leading-relaxed text-accent">
-          No layer is on, so the chart is candles only. That is a valid view and
-          not a failure - switch one on below.
-        </p>
+        <div className="border-b border-accent/40 bg-accent/10 px-3 py-2 text-[11px] leading-relaxed text-accent">
+          <p>
+            No layer is on for <span className="num">{interval}</span>, so the
+            chart is candles only. Layers belong to the timeframe they are read
+            off, so switching one on here leaves every other timeframe alone.
+          </p>
+          {layersElsewhere.length ? (
+            <p className="mt-1.5 flex flex-wrap items-center gap-1">
+              <span className="text-text-faint">Copy the set from</span>
+              {layersElsewhere.map((other) => (
+                <button
+                  key={other.interval}
+                  type="button"
+                  onClick={() => onCopyFrom(other.interval)}
+                  className="num rounded-[2px] border border-accent/50 px-1.5 py-0.5 transition-colors duration-[70ms] hover:bg-accent/20 active:translate-y-px"
+                >
+                  {other.interval} ({other.layers.length})
+                </button>
+              ))}
+            </p>
+          ) : null}
+        </div>
       ) : null}
 
       {/* PRESETS FIRST, above the twenty-one toggles they exist to replace.
@@ -1893,6 +2027,13 @@ export const Toolbox = memo(function Toolbox({
         >
           Reset parameters
         </button>
+        {/* WHICH TIMEFRAME'S, said on the control. Knobs are per timeframe now,
+            so a button labelled "Reset parameters" that quietly reset all eight
+            would be the same class of surprise this whole change removes. */}
+        <p className="text-center text-[10px] leading-relaxed text-text-faint">
+          Resets the knobs for <span className="num">{interval}</span> only, and
+          leaves its layers on.
+        </p>
         {/* Twelve sliders and only two of them are backed by evidence. That is
             not something a hint under each control can say, so the handbook
             says it, and the link sits under the panel it explains. */}
@@ -2644,6 +2785,7 @@ function layerSwatch(): Record<string, readonly string[]> {
     chart_gaps: [ink("levels", 0.95)],
     wyckoff: [ink("structure", 0.85)],
     psp: [ink("ssmt", 0.85)],
+    smt_fill: [ink("ssmt", 0.70)],
     news: ["var(--accent)"],
   };
 }

@@ -886,3 +886,35 @@ def test_triad_bounds_its_bar_count_the_same_way(bars, aligned):
     window got a 50-bar one with no field saying so.
     """
     assert client.get("/api/triad", params={"bars": bars}).status_code == 422
+
+
+def test_ssmt_partner_that_is_the_chart_itself_is_reported_not_a_500():
+    """A collapsed partner list must be a sentence, not an exception.
+
+    `ssmt()` raises ValueError when it is handed fewer than two instruments, and
+    `_draw_ssmt` used to catch only ProviderError - so this exact body answered
+    HTTP 500 and took down a drawing whose own bars had already arrived, against
+    that function's own docstring promise that every failure here is reported
+    and survived.
+
+    REACHABLE WITHOUT A HAND-WRITTEN REQUEST. The partner picker excludes the
+    chart's symbol from its options but does not prune a choice already made, so
+    picking silver as gold's partner and then moving the chart to silver leaves
+    exactly this shape. Found by `tools/tf_audit --all`, which swept every symbol
+    against a fixed partner table and hit it twice in one control.
+    """
+    body = {
+        "symbol": "XAUUSD",
+        "interval": "15m",
+        "bars": 200,
+        "provider": "synthetic",
+        "layers": ["ssmt"],
+        "checklist": {"ssmt_symbols": ["XAUUSD"], "ssmt_degrees": ["day"]},
+    }
+    response = client.post("/api/draw", json=body)
+    assert response.status_code == 200
+    stats = response.json()["meta"]["ssmt"]
+    assert stats["drawn"] == 0
+    # The reason names the symbol, because "no partner" and "the partner IS you"
+    # are different mistakes and only one of them is fixed by picking a degree.
+    assert "XAUUSD" in stats["reason"]

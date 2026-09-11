@@ -25,6 +25,8 @@
 import { mkdirSync, writeFileSync } from "node:fs";
 import { chromium } from "playwright";
 
+import { onlyLayers } from "./_layers.mjs";
+
 const OUT = process.argv[2] ?? ".playwright-shots";
 const INTERVAL = process.argv[3] ?? "15m";
 const BARS = Number(process.argv[4] ?? 500);
@@ -86,38 +88,18 @@ if (!barOptions.includes(String(BARS))) {
 await page.getByRole("combobox", { name: "Bars" }).selectOption(String(BARS));
 await page.waitForTimeout(6000);
 
-/** The switch for one layer, found by the label the REGISTRY gives it.
- *
- *  Not by a label typed here. The menu is built from `/api/config`'s `layers`,
- *  so the only name that is guaranteed to match the DOM is the one the server
- *  sent - a table of short captions in this file was exactly the kind of second
- *  copy the layer registry exists to remove. */
-const layerSwitch = async (id) => {
-  const label = await page.evaluate(
-    async ([api, want]) => {
-      const cfg = await (await fetch(`${api}/api/config`)).json();
-      return cfg.layers.find((l) => l.id === want)?.label ?? null;
-    },
-    [API, id],
-  );
-  if (!label) {
-    console.error(`no layer "${id}" in the registry the API serves`);
-    await browser.close();
-    process.exit(2);
-  }
-  return page.getByRole("switch", { name: label, exact: true });
-};
 
 // Leave exactly ONE detector on, so the boxes painted on the canvas are the
 // same set the fetch below returns. With two on, every box from the other
 // detector is paint the record cannot account for, and each one reads as a
 // drawing that went missing.
-if (DETECTOR !== "supply_demand") {
-  await (await layerSwitch(DETECTOR)).click();
-  await page.waitForTimeout(2500);
-  await (await layerSwitch("supply_demand")).click();
-  await page.waitForTimeout(6000);
-}
+//
+// STATE-CHECKED, NOT TOGGLED. Layers are per timeframe, so which of them is on
+// depends on which timeframe this run was pointed at - at 15m supply and demand
+// is on and at 1h nothing is. The old two clicks assumed the 15m answer, so on
+// any other interval the second one switched supply and demand ON and the rig
+// then measured two detectors' boxes against one detector's record.
+await onlyLayers(page, [DETECTOR]);
 
 const drawn = await page.evaluate(
   async ([api, interval, bars, detector]) => {

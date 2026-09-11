@@ -903,6 +903,7 @@ npm run e2e:ribbon         # jalur kuarter lawan derajat yang dinamainya
 npm run e2e:clock          # 42 asersi: UTC, New York, WIB pada bar yang sama
 npm run e2e:zones          # edge box lawan candle base yang membentuknya
 npm run e2e:offscreen      # zona di luar rentang harga diumumkan, bukan hilang
+npm run e2e:timeframe      # 28 asersi: layer plus knob milik timeframe-nya, persist, store korup
 npm run e2e:visual         # screenshot delapan timeframe
 npm run e2e:chart          # audit chart berbantuan LLM (di luar produk)
 npm run e2e:resilience     # 12 asersi: API mati, pulih, API key salah

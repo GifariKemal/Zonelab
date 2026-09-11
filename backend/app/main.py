@@ -50,6 +50,7 @@ from .models import (
     DrawResponse,
     Drawing,
     PSPModel,
+    SMTFillDivergence,
     RangeLiquidityReport,
     SMTDivergence,
     SSMTDivergence,
@@ -62,6 +63,8 @@ from .plan import build as plan_for
 from .pools import killzones_at
 from .psp import after_ssmt as psp_after_ssmt
 from .psp import in_same_candle
+from .smt_fill import fills as smt_fills
+from .smt_fill import for_symbol as fills_for
 from .ssmt import divergences_for
 from .ssmt import smt as smt_read
 from .ssmt import smt_positions_for
@@ -629,6 +632,27 @@ async def _draw_ssmt(
 
     source = params.ssmt_provider or used
     symbols = list(dict.fromkeys([request.symbol, *params.ssmt_symbols]))
+    # THE PARTNER LIST CAN COLLAPSE TO THE CHART'S OWN SYMBOL, and until now that
+    # was a 500. `ssmt()` raises ValueError when it is handed fewer than two
+    # instruments, this block catches only ProviderError, and the docstring above
+    # promises every failure here is reported and survived - so one unlucky pick
+    # took down a drawing whose own bars had already arrived.
+    #
+    # REACHABLE FROM THE UI, not just from a hand-written request: the partner
+    # picker excludes the chart's symbol from its OPTIONS but does not prune a
+    # choice already made, so picking silver as gold's partner and then moving
+    # the chart to silver leaves `ssmt_symbols == ["XAGUSD"]` on `symbol
+    # "XAGUSD"`. Found by `tools/tf_audit --all`, which swept XAGUSD against the
+    # partner table and got HTTP 500 twice in the control.
+    #
+    # Reported in the same shape as the "nothing picked" case above, because it
+    # is the same fact from the reader's side: there is no second instrument.
+    if len(symbols) < 2:
+        stats["reason"] = (
+            f"{request.symbol} tidak bisa dibandingkan dengan dirinya sendiri - "
+            "pilih instrument lain sebagai partner"
+        )
+        return stats
     try:
         series, load_stats = await load_aligned(
             symbols, request.interval, request.bars, source
@@ -652,6 +676,9 @@ async def _draw_ssmt(
     # basket twice to read the same thing. Filled only when the layer is asked
     # for, so a chart with `ssmt` alone carries no PSP cost at all.
     want_psp = "psp" in set(request.layers)
+    #: Body-basis divergences found across every degree, counted apart from the
+    #: wick ones so `meta` can say how much of the population is hidden.
+    hidden_count = 0
     psp_rows: list[PSPModel] = []
     partners = [series[k] for k in series if k != request.symbol]
     index_of = {c.time: i for i, c in enumerate(rows)}
@@ -689,6 +716,26 @@ async def _draw_ssmt(
                 events, request.symbol, rows, request.structure.swing_n
             )
         )
+
+        # HIDDEN SSMT: the same comparison on BODY extremes, when asked for.
+        #
+        # A second pass rather than a widened first one, because the two are
+        # different claims and the events carry `basis` to keep them apart. The
+        # source says hidden is the weaker of the pair "because no liquidity is
+        # technically being swept"; that is a claim with no number, so it ships
+        # switched off and counted separately rather than folded into the
+        # population every existing measurement was taken on.
+        #
+        # PSP DELIBERATELY DOES NOT READ THIS PASS. `psp_after_ssmt` was
+        # measured against wick divergences, and quietly feeding it a second
+        # kind of event would change what its null result was a null about.
+        if params.ssmt_hidden:
+            hidden_events, _ = ssmt_read(series, degree, basis="body")
+            hidden_found = divergences_for(
+                hidden_events, request.symbol, rows, request.structure.swing_n
+            )
+            hidden_count += len(hidden_found)
+            found.extend(hidden_found)
     if want_psp:
         # One row per bar: two degrees can point at the same sweep, and the same
         # sweep drawn twice is one fact reported as two.
@@ -701,10 +748,70 @@ async def _draw_ssmt(
         stats["psp_found"] = len(seen)
         stats["psp_drawn"] = len(drawing.psp)
 
+    # ---------------------------------------------------------- SMT fill
+    # Same basket, different question: not "which instrument took the previous
+    # quarter's extreme" but "which instrument came back into its gap". Filled
+    # only when the layer is asked for, so a chart with ssmt alone pays nothing
+    # for it.
+    if "smt_fill" in set(request.layers):
+        try:
+            fill_events, fill_stats = smt_fills(series)
+        except ValueError as exc:
+            # An unaligned basket, which `load_aligned` should make impossible.
+            # Reported rather than raised, the same choice everything else in
+            # this function makes.
+            stats["smt_fill_error"] = str(exc)[:160]
+        else:
+            mine = fills_for(fill_events, request.symbol)
+            rendered = [
+                SMTFillDivergence(
+                    variant=event.variant,
+                    partner=(
+                        event.held if event.filled == request.symbol
+                        else event.filled
+                    ),
+                    self_filled=event.filled == request.symbol,
+                    direction=event.direction,
+                    top=(
+                        event.filled_gap.top
+                        if event.filled == request.symbol
+                        else event.held_gap.top
+                    ),
+                    bottom=(
+                        event.filled_gap.bottom
+                        if event.filled == request.symbol
+                        else event.held_gap.bottom
+                    ),
+                    gap_at=event.gap_at,
+                    self_depth=(
+                        event.filled_depth
+                        if event.filled == request.symbol
+                        else event.held_depth
+                    ),
+                    partner_depth=(
+                        event.held_depth
+                        if event.filled == request.symbol
+                        else event.filled_depth
+                    ),
+                    knowable_at=event.knowable_at,
+                )
+                for event in mine
+            ]
+            cap = request.smt_fill.max_events
+            drawing.smt_fill = rendered[-cap:] if cap > 0 else rendered
+            stats["fill_gaps"] = fill_stats["gaps"]
+            stats["fill_simultaneous"] = fill_stats["simultaneous"]
+            stats["fill_found"] = float(len(mine))
+            stats["fill_drawn"] = float(len(drawing.smt_fill))
+            for variant in ("entered", "half", "full"):
+                stats[f"fill.{variant}"] = fill_stats[f"variant.{variant}"]
+
     # Oldest first, so the newest segment is drawn last and sits on top where
     # two divergences share an extreme.
     found.sort(key=lambda d: (d.time_from, d.degree, d.partner))
     stats["found"] = len(found)
+    if params.ssmt_hidden:
+        stats["hidden"] = float(hidden_count)
     # FOUND against DRAWN, both reported, the same shape every other capped
     # overlay uses. The cap trims the tail so the newest survive; see `ssmt_max`
     # for why this layer needs one more than the others do.
@@ -886,7 +993,11 @@ async def draw(request: DrawRequest, http: Request) -> DrawResponse:
     # one dict lookup. The alternative was a second copy of the basket settings.
     # PSP reads the SSMT events, so asking for it asks for the same fetch. The
     # block fills whichever of the two layers was requested and no more.
-    if ("ssmt" in wanted or "psp" in wanted) and rows:
+    # SMT FILL RIDES THE SAME BASKET, which is the whole reason it is not its
+    # own async block: a fill divergence needs the identical aligned series a
+    # sequential SMT needs, and fetching it twice would pay for the same
+    # partners twice. Three layers, one fetch.
+    if ("ssmt" in wanted or "psp" in wanted or "smt_fill" in wanted) and rows:
         meta["ssmt"] = await _draw_ssmt(rows, request, drawing, used)
 
     # Plans and advice are computed for what SURVIVED to the screen, and that is

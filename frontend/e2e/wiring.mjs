@@ -57,6 +57,9 @@ const MINIMUM = {
   // does. Without them it correctly draws nothing, and this harness would then
   // be reporting a missing partner as a dead layer.
   psp: { checklist: { ssmt_symbols: ["XAGUSD"], ssmt_degrees: ["day"] } },
+  // Same reason as psp: a gap-fill divergence needs a second instrument, and
+  // it rides the very basket the ssmt layer fetches.
+  smt_fill: { checklist: { ssmt_symbols: ["XAGUSD"], ssmt_degrees: ["day"] } },
 };
 
 /** Which response array each layer fills. `checklist` is a report, not a shape. */
@@ -84,6 +87,7 @@ const DRAWS = {
   chart_gaps: "chart_gaps",
   wyckoff: "wyckoff",
   psp: "psp",
+  smt_fill: "smt_fill",
 };
 
 const results = [];
@@ -227,6 +231,7 @@ const OWNERS = [
   ["projections", "Deviation projections", "Sessions"],
   ["expectation", "Expectation fan", "Expected path line"],
   ["psp", "Precision swing point", "Swing points drawn"],
+  ["smt_fill", "SMT fill", "Fills drawn"],
   ["wyckoff", "Wyckoff phases", "Trading range width"],
   ["news", "Economic calendar", "Impact"],
 ];

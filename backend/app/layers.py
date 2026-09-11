@@ -1535,6 +1535,44 @@ LAYERS: tuple[Layer, ...] = (
         ),
     ),
     Layer(
+        id="smt_fill",
+        role="Divergensi lintas instrumen",
+        family="ICT",
+        label="SMT fill",
+        kind="overlay",
+        # Its own params block for the ink cap, but the BASKET comes from
+        # `checklist` - the same partners `ssmt` uses, fetched once. A second
+        # copy of the partner list would be two places to set one basket, which
+        # is the argument the ssmt layer above already makes.
+        params="smt_fill",
+        note=(
+            "A fair value gap that printed on two correlated instruments at the "
+            "same bar, where one traded back into its gap further than the other."
+        ),
+        evidence=(
+            "ADOPTED 11 September 2026 from the Quarterly Theory A-Z guide "
+            "(Oracle Insights, by Bucko), chapter 07, and NOT MEASURED. The "
+            "source calls it 'clean confluence, zero downside' and supplies no "
+            "n, no t and no base rate - as it does for every claim in its 80 "
+            "pages. Nothing here is gated on it, nothing is scored by it, and it "
+            "is off by default. "
+            "WHY IT WAS BUILT ANYWAY: it is the one concept in that document "
+            "with no neighbour already in this repo, it is fully mechanical, and "
+            "it costs no extra fetch - it rides the aligned basket the ssmt "
+            "layer already pays for. Three variants, all defined by the gap's "
+            "own geometry rather than by a threshold: `entered` (one returns "
+            "into its gap at all, the other never does), `half` (one passes the "
+            "50% mark, the other does not) and `full` (one fills completely, the "
+            "other does not). No minimum gap size, because the source is "
+            "explicit that size does not matter. "
+            "READ IT BESIDE THE NEIGHBOURS THAT WERE MEASURED. `ssmt` is null "
+            "over 24 cells and `psp` is null over 48; both are cracks in "
+            "correlation from the same doctrine, and both looked equally "
+            "convincing in prose. The prior for this one should be theirs, not "
+            "the guide's confidence."
+        ),
+    ),
+    Layer(
         id="pools",
         role="Likuiditas dan level",
         family="ICT",

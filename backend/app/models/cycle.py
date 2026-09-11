@@ -333,6 +333,60 @@ class SSMTDivergence(BaseModel):
             "kill zone is active."
         ),
     )
+    basis: Literal["wick", "body"] = Field(
+        default="wick",
+        description=(
+            "Which extreme the comparison was made on. `wick` is the ordinary "
+            "sequential SMT and is what every measurement in this project was "
+            "taken under. `body` is the HIDDEN sequential SMT: the same "
+            "comparison on open-to-close extremes, for the case where no wick "
+            "divergence is visible but the closes diverge.\n\n"
+            "ON THE OBJECT, not inferred from a request flag, because a list "
+            "holding both kinds without a label is one fact reported as two. "
+            "The source calls hidden the weaker of the pair 'because no "
+            "liquidity is technically being swept'; that is a claim with no "
+            "number behind it, and this field is what makes it measurable "
+            "instead of assumed."
+        ),
+    )
+
+
+class SMTFillDivergence(BaseModel):
+    """One instrument returned into its gap and a correlated one did not.
+
+    Positioned on the CHART's own price, the same rule `SSMTDivergence` follows:
+    the band drawn is this instrument's gap, and the partner's depth rides along
+    as a number rather than as a second band on the wrong price scale.
+    """
+
+    variant: Literal["entered", "half", "full"] = Field(
+        description=(
+            "Which of the source's three divergences fired. `entered`: one "
+            "traded back inside its gap at all and the other never did. "
+            "`half`: both entered and one passed the 50% mark. `full`: one "
+            "filled completely and the other did not."
+        )
+    )
+    partner: str = Field(description="The other instrument in the pair")
+    self_filled: bool = Field(
+        description=(
+            "True when the CHART's own instrument is the one that went deeper "
+            "into its gap. The whole direction of the reading: the gap is "
+            "HOLDING on whichever instrument did not fill it."
+        )
+    )
+    direction: int = Field(description="+1 both gaps were bullish, -1 bearish")
+    top: float = Field(description="Top of the chart instrument's own gap")
+    bottom: float
+    gap_at: int = Field(description="Bar the pair of gaps formed on")
+    self_depth: float = Field(description="0 untouched to 1 filled through")
+    partner_depth: float
+    knowable_at: int = Field(
+        description=(
+            "The bar the divergence became readable on, and the only timestamp "
+            "anything may gate on. The gap itself is older by construction."
+        )
+    )
 
 
 class SMTDivergence(BaseModel):

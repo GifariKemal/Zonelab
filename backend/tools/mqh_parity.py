@@ -135,6 +135,19 @@ PORTED_WYCKOFF = {
 #: bahwa ia tidak diukur - karena "belum diukur" dan "diukur dan lolos" tidak
 #: boleh terlihat sama dari luar.
 UNPORTED: dict[str, str] = {
+    "smt_fill": (
+        "BELUM DI-PORT, ditambahkan 11 September 2026. Alasannya sama persis "
+        "dengan `ssmt`, dan itu bukan kebetulan: keduanya butuh BASKET aset "
+        "yang ter-align, dan MQL5 tidak punya `load_aligned`. Sebuah gap-fill "
+        "divergence membandingkan dua instrumen bar demi bar pada grid waktu "
+        "yang sama; menyalin itu ke sisi EA berarti menyalin penyelarasan "
+        "waktunya lebih dulu, dan menyalin penyelarasan yang salah lebih buruk "
+        "daripada tidak menyalin sama sekali. Definisi gap-nya sendiri SUDAH "
+        "diport - `FVGDetector.mqh` - jadi yang kurang penyelarasannya, bukan "
+        "objeknya. Dan sebelum itu jadi pekerjaan yang layak: layer ini belum "
+        "diukur di rig mana pun, jadi tidak ada angka yang parity-nya perlu "
+        "dijaga"
+    ),
     "cisd_zone": (
         "BELUM DI-PORT, ditambahkan 8 September 2026. `CISDDetector.mqh` sudah ada dan memeriksa LEVEL-nya - 0 mismatch di 349 event pada feed yang sama - jadi separuh parity-nya sudah terbukti. Yang belum: tepi KEDUA, ekstrem run, yang baru ditambahkan hari ini ke `DeliveryRun`. Port kotaknya berarti menambahkan field yang sama di sisi MQL5 dan membandingkan dua tepi, bukan satu"
     ),

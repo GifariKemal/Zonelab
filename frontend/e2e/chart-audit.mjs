@@ -43,6 +43,8 @@ import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { chromium } from "playwright";
 
+import { onlyLayers } from "./_layers.mjs";
+
 // DIBACA DARI SUMBERNYA, bukan ditulis ulang di sini. Sebuah salinan angka 15
 // di file ini akan hanyut dari `zone-primitive.ts` tanpa satu pun test merah,
 // dan cermin caption yang hanyut sudah tiga kali membuat auditor melaporkan
@@ -112,30 +114,14 @@ await page.locator(`div[aria-label="Timeframe"] button:text-is("${INTERVAL}")`).
 await page.getByRole("combobox", { name: "Bars" }).selectOption(String(BARS));
 await page.waitForTimeout(6000);
 
-/** The switch for one layer, found by the label the REGISTRY gives it, never by
- *  a caption typed here - the menu is built from `/api/config`'s `layers`, and a
- *  second copy of those names in this file is what the registry exists to end. */
-const layerSwitch = async (id) => {
-  const label = await page.evaluate(
-    async ([api, want]) => {
-      const cfg = await (await fetch(`${api}/api/config`)).json();
-      return cfg.layers.find((l) => l.id === want)?.label ?? null;
-    },
-    [API, id],
-  );
-  if (!label) await die(`no layer "${id}" in the registry the API serves`, browser);
-  return page.getByRole("switch", { name: label, exact: true });
-};
-
 // Exactly one detector on, same reason as pixel-truth: with two on, the boxes on
 // the canvas are a superset of the list, and the model correctly reports paint
 // the record cannot account for - a finding about the harness, not the drawing.
-if (DETECTOR !== "supply_demand") {
-  await (await layerSwitch(DETECTOR)).click();
-  await page.waitForTimeout(2500);
-  await (await layerSwitch("supply_demand")).click();
-  await page.waitForTimeout(6000);
-}
+//
+// STATE-CHECKED, NOT TOGGLED, since layers became per timeframe: which layers
+// are on depends on the interval this run was pointed at, so a bare click can
+// switch a detector ON that the two clicks meant to switch off.
+await onlyLayers(page, [DETECTOR]);
 
 const drawn = await page.evaluate(
   async ([api, interval, bars, detector]) => {

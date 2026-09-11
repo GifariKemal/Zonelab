@@ -195,6 +195,16 @@ const P = {
       <path d="M1.5 10L5.5 8L9 10.5L14.5 13" strokeDasharray="2.2 1.6" />
     </>
   ),
+  /** Dua kotak gap sejajar, satu terisi separuh dan satu utuh: yang membedakan
+   *  keduanya adalah SEBERAPA DALAM harga kembali, bukan gap-nya sendiri. */
+  smt_fill: (
+    <>
+      <rect x="1.5" y="3.5" width="5" height="9" />
+      <rect x="9.5" y="3.5" width="5" height="9" />
+      <path d="M1.5 8.5h5" fill="none" />
+      <rect x="9.5" y="3.5" width="5" height="9" fill="currentColor" stroke="none" opacity="0.35" />
+    </>
+  ),
   /** Dua deret yang bertemu tepat di satu bar, dan bar itu yang ditandai. */
   psp: (
     <>
@@ -359,6 +369,7 @@ export const LAYER_ICON: Record<string, IconName> = {
   liquidity: "liquidity",
   projections: "projections",
   ssmt: "ssmt",
+  smt_fill: "smt_fill",
   psp: "psp",
   expectation: "expectation",
   vortex: "vortex",

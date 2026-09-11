@@ -9,7 +9,7 @@ import type {
 } from "lightweight-charts";
 import type { CanvasRenderingTarget2D } from "fancy-canvas";
 
-import type { SSMTDivergence } from "@/lib/types";
+import type { SMTFillDivergence, SSMTDivergence } from "@/lib/types";
 import { claimedLabels, labelFree } from "./structure-primitive";
 import { ink, monoFont, plateInk } from "./ink";
 
@@ -55,10 +55,30 @@ interface Segment {
   took: boolean;
   /** False when the candle direction breaks the practitioner's rule. */
   candleValid: boolean | null;
+  /** `body` is the HIDDEN divergence: the same comparison on closes rather than
+   *  wicks. Drawn dashed, because no liquidity was swept to produce it and a
+   *  solid line would claim the same footing as one where liquidity was. */
+  hidden: boolean;
+}
+
+/** One gap-fill divergence: the CHART instrument's own gap band, drawn from the
+ *  bar the gaps formed on to the bar the divergence became readable. */
+interface FillBox {
+  x1: number;
+  x2: number;
+  yTop: number;
+  yBottom: number;
+  tag: string;
+  /** True when the chart's own instrument is the one that filled. The gap is
+   *  HOLDING on whichever did not, which is the whole direction of the read. */
+  selfFilled: boolean;
 }
 
 class SSMTRenderer implements IPrimitivePaneRenderer {
-  constructor(private readonly segments: readonly Segment[]) {}
+  constructor(
+    private readonly segments: readonly Segment[],
+    private readonly fills: readonly FillBox[] = [],
+  ) {}
 
   draw(target: CanvasRenderingTarget2D): void {
     target.useBitmapCoordinateSpace((scope) => {
@@ -71,6 +91,29 @@ class SSMTRenderer implements IPrimitivePaneRenderer {
       ctx.font = monoFont(9, ky);
       ctx.textBaseline = "middle";
       ctx.lineWidth = Math.max(1, Math.round(kx));
+
+      // --- gap-fill divergences: the chart instrument's own gap band --------
+      // Hollow, never filled: this pane already carries filled boxes for the
+      // five detectors and a sixth filled band would read as one of them. The
+      // band runs from the bar the pair of gaps formed on to the bar the
+      // divergence became readable, so its WIDTH is how long the divergence
+      // took to appear.
+      for (const f of this.fills) {
+        const x1 = Math.round(f.x1 * kx);
+        const x2 = Math.round(f.x2 * kx);
+        const yTop = Math.round(f.yTop * ky);
+        const yBottom = Math.round(f.yBottom * ky);
+        ctx.setLineDash(f.selfFilled ? [] : [3 * kx, 2 * kx]);
+        ctx.strokeStyle = f.selfFilled ? INK_FAINT : INK;
+        ctx.strokeRect(x1, yTop, Math.max(2 * kx, x2 - x1), yBottom - yTop);
+        ctx.setLineDash([]);
+
+        const tw = ctx.measureText(f.tag).width;
+        if (x2 - x1 > tw + 6 * kx) {
+          ctx.fillStyle = f.selfFilled ? INK_FAINT : INK;
+          ctx.fillText(f.tag, x1 + 3 * kx, yTop - 6 * ky);
+        }
+      }
 
       for (const s of this.segments) {
         const x1 = Math.round(s.x1 * kx);
@@ -86,7 +129,15 @@ class SSMTRenderer implements IPrimitivePaneRenderer {
         if (s.candleValid === false) {
           ctx.strokeStyle = INK_FAINT;
         }
-        ctx.setLineDash(s.took ? [] : [4 * kx, 3 * kx]);
+        // THREE TEXTURES, NOT TWO, since the hidden divergence landed. Solid
+        // is a wick divergence the chart symbol took, dashed is one it failed,
+        // and DOTTED is a hidden one - read off closes, with no liquidity
+        // swept to produce it. The source itself calls hidden the weaker of
+        // the pair, and a line that looks identical to a wick divergence would
+        // hand it footing nobody has measured it to have.
+        ctx.setLineDash(
+          s.hidden ? [1 * kx, 3 * kx] : s.took ? [] : [4 * kx, 3 * kx],
+        );
         ctx.beginPath();
         ctx.moveTo(x1, y1);
         ctx.lineTo(x2, y2);
@@ -147,6 +198,8 @@ export class SSMTSeriesPrimitive implements ISeriesPrimitive<Time> {
 
   private divergences: readonly SSMTDivergence[] = [];
   private segments: Segment[] = [];
+  private fillData: readonly SMTFillDivergence[] = [];
+  private fills: FillBox[] = [];
 
   private readonly views: readonly IPrimitivePaneView[] = [
     {
@@ -155,7 +208,7 @@ export class SSMTSeriesPrimitive implements ISeriesPrimitive<Time> {
       // wash. A zone border still wins, because a border's position is verified
       // to the pixel and this one is not load-bearing.
       zOrder: () => "normal",
-      renderer: () => new SSMTRenderer(this.segments),
+      renderer: () => new SSMTRenderer(this.segments, this.fills),
     },
   ];
 
@@ -170,10 +223,18 @@ export class SSMTSeriesPrimitive implements ISeriesPrimitive<Time> {
     this.series = null;
     this.requestUpdate = null;
     this.segments = [];
+    this.fills = [];
   }
 
   setDivergences(divergences: readonly SSMTDivergence[]): void {
     this.divergences = divergences;
+    this.requestUpdate?.();
+  }
+
+  /** Gap-fill divergences. Its OWN setter and its own array, because the two
+   *  layers toggle independently even though one fetch serves both. */
+  setFills(fills: readonly SMTFillDivergence[]): void {
+    this.fillData = fills;
     this.requestUpdate?.();
   }
 
@@ -182,6 +243,7 @@ export class SSMTSeriesPrimitive implements ISeriesPrimitive<Time> {
     const series = this.series;
     if (!chart || !series) {
       this.segments = [];
+      this.fills = [];
       return;
     }
     const scale = chart.timeScale();
@@ -242,10 +304,35 @@ export class SSMTSeriesPrimitive implements ISeriesPrimitive<Time> {
             : ""),
         took: d.self_took,
         candleValid: d.candle_valid,
+        hidden: d.basis === "body",
       });
     }
 
     this.segments = found;
+
+    const boxes: FillBox[] = [];
+    for (const f of this.fillData) {
+      const x1 = scale.timeToCoordinate(f.gap_at as Time);
+      const x2 = scale.timeToCoordinate(f.knowable_at as Time);
+      const yTop = series.priceToCoordinate(f.top);
+      const yBottom = series.priceToCoordinate(f.bottom);
+      // All four or none, the same rule the segments take. A clamped edge is a
+      // band drawn at a price the gap does not have.
+      if (x1 === null || x2 === null || yTop === null || yBottom === null) continue;
+      boxes.push({
+        x1,
+        x2,
+        yTop,
+        yBottom,
+        // The variant, then WHICH SIDE HELD. "held" is the reading: the gap is
+        // holding on the instrument that did not fill it.
+        tag:
+          `${f.variant === "entered" ? "in" : f.variant === "half" ? "50" : "fill"}` +
+          ` ${f.partner}${f.self_filled ? "" : " held"}`,
+        selfFilled: f.self_filled,
+      });
+    }
+    this.fills = boxes;
   }
 
   paneViews(): readonly IPrimitivePaneView[] {

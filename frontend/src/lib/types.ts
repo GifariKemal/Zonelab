@@ -85,6 +85,51 @@ export interface DefiningRangeBand {
   extensions: DFRExtension[];
 }
 
+export interface SMTFillDivergence {
+  /** Which of the source's three divergences fired. `entered`: one traded back
+   *  inside its gap at all and the other never did. `half`: both entered and
+   *  one passed the 50% mark. `full`: one filled completely and the other did
+   *  not. */
+  variant: "entered" | "half" | "full";
+  partner: string;
+  /** True when the CHART's own instrument went deeper. The gap is HOLDING on
+   *  whichever one did not fill it, so this is the whole direction. */
+  self_filled: boolean;
+  direction: number;
+  /** The chart instrument's own gap. The partner's band belongs to a different
+   *  price scale and is deliberately absent. */
+  top: number;
+  bottom: number;
+  gap_at: number;
+  self_depth: number;
+  partner_depth: number;
+  knowable_at: number;
+}
+
+export interface KillzoneWindow {
+  degrees: string[];
+  /** The quarter every degree is in. */
+  number: 1 | 2 | 3 | 4;
+  /** How many degrees agreed. READ THE BASE RATE WITH IT: two align on one
+   *  quarter in four by construction, three on one in sixteen. */
+  depth: number;
+  time_from: number;
+  time_to: number;
+}
+
+export interface TimeRangeBand {
+  degree: string;
+  parent: string;
+  time_from: number;
+  time_to: number;
+  high: number;
+  low: number;
+  /** The 50% line: premium above, discount below. */
+  mid: number;
+  source_from: number;
+  source_to: number;
+}
+
 export interface SSMTDivergence {
   degree: string;
   side: "high" | "low";
@@ -102,6 +147,11 @@ export interface SSMTDivergence {
   /** Close of the second quarter. Drawing the segment back at `time_from` is
    *  correct; ACTING on it before this is hindsight. */
   knowable_at: number;
+  /** Which extreme the comparison was made on. `wick` is the ordinary
+   *  sequential SMT and what every measurement here was taken under; `body` is
+   *  the HIDDEN one, off by default. Drawn differently so the two are never
+   *  read as one population. */
+  basis: "wick" | "body";
   /** Where this divergence's own extreme sat in the dealing range knowable at
    *  the bar it printed on: 0 at the range low, 1 at the high. Null until both
    *  sides of the range have confirmed - never a substituted 0.5.
@@ -590,6 +640,12 @@ export interface TrueOpenLevel {
 export interface SessionParams {
   quarters: string[];
   true_opens: string[];
+  /** Degrees to intersect, outermost first, drawing the windows where all of
+   *  them are in the same numbered quarter. Empty draws none. */
+  killzones: string[];
+  /** Degrees to draw time-based premium and discount for: the previous quarter
+   *  one degree up, with its 50% line. Empty draws none. */
+  premium_discount: string[];
   /** Let a true open be read from the first bar AFTER its boundary when no bar
    *  opened on it, flagged and drawn dashed. Off by default. Required for the
    *  quadrennial degree to produce anything at all. */
@@ -651,6 +707,9 @@ export interface ChecklistParams {
   bias_bars: number;
   ssmt_symbols: string[];
   ssmt_degrees: string[];
+  /** Also read the sequential SMT on BODY extremes - the source's Hidden SSMT.
+   *  Off by default: every measurement here was taken on wicks. */
+  ssmt_hidden: boolean;
   /** Source for the SSMT basket, the chart's own symbol included in it. null is
    *  the chart's source. Set it when the venue you trade and the complex you
    *  read divergence across are not the same one: charting the local MT5
@@ -1040,6 +1099,12 @@ export interface PSPParams {
   max_events: number;
 }
 
+/** Gap-fill divergence. One knob, the ink cap - the partners come from the
+ *  checklist block, and there is deliberately no size or depth threshold. */
+export interface SMTFillParams {
+  max_events: number;
+}
+
 export const LIQUIDITY_PERIODS = ["day", "week", "friday", "monday"] as const;
 export const TIER_REDUCTIONS = ["envelope", "ce_span", "newest", "eh_span"] as const;
 
@@ -1368,6 +1433,9 @@ export interface DrawResponse {
      *  provider call, because a divergence needs a second instrument. */
     ssmt: SSMTDivergence[];
     smt: SMTDivergence[];
+    smt_fill: SMTFillDivergence[];
+    killzones: KillzoneWindow[];
+    time_pd: TimeRangeBand[];
     /** Empty unless the dfr layer was requested. Read off the bars already
      *  fetched, so it costs no provider call. */
     dfr: DefiningRangeBand[];
@@ -1760,6 +1828,7 @@ export interface LayerParams {
   chart_gaps: ChartGapParams;
   wyckoff: WyckoffParams;
   psp: PSPParams;
+  smt_fill: SMTFillParams;
 }
 
 /** THE DEFAULT CHART IS ONE DETECTOR. Everything else is opt-in, and that is a
@@ -1878,6 +1947,8 @@ export const DEFAULT_LAYER_PARAMS: LayerParams = {
   session: {
     quarters: [],
     true_opens: [],
+    killzones: [],
+    premium_discount: [],
     approximate_true_opens: false,
     max_quarters: 200,
   },
@@ -1908,6 +1979,7 @@ export const DEFAULT_LAYER_PARAMS: LayerParams = {
     bias_bars: 400,
     ssmt_symbols: [],
     ssmt_degrees: [],
+    ssmt_hidden: false,
     // null, not "yahoo". The default has to be "whatever the chart is on",
     // because a shipped default of one named venue would silently read the
     // basket somewhere the user never chose - and would break outright on a
@@ -1922,6 +1994,7 @@ export const DEFAULT_LAYER_PARAMS: LayerParams = {
   chart_gaps: {},
   wyckoff: { lookback: 20 },
   psp: { max_events: 40 },
+  smt_fill: { max_events: 40 },
 };
 
 

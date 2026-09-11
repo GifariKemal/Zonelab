@@ -51,6 +51,10 @@ const API = "http://127.0.0.1:8100";
 const LAYERS = [
   "pools", "liquidity", "gaps", "projections", "structure",
   "session", "dfr", "ssmt", "psp",
+  // Ditambahkan bersama layernya, 11 September 2026. Ia kosong dengan default
+  // karena butuh partner, jadi ia masuk `EMPTY_BY_DEFAULT` di bawah juga -
+  // dan justru itu yang membuat jaminan dua arahnya berlaku untuknya.
+  "smt_fill",
 ];
 
 //: Layer yang menggambar NOL dengan setelan default, dan hitungannya diukur -
@@ -64,7 +68,7 @@ const LAYERS = [
 //: masuk ke sini dan gate-nya tetap hijau. Jadi yang di luar daftar HARUS
 //: menggambar, dan yang di dalam daftar harus TETAP kosong: sebuah default yang
 //: berubah tanpa ada yang memutuskannya juga merah.
-const EMPTY_BY_DEFAULT = new Set(["session", "dfr", "ssmt", "psp"]);
+const EMPTY_BY_DEFAULT = new Set(["session", "dfr", "ssmt", "psp", "smt_fill"]);
 
 //: Ambang yang sudah dikutip di repo ini tanpa pernah diukur, dinyatakan di sini
 //: sebagai apa adanya: sebuah RUJUKAN, bukan gerbang. Tidak ada satu pun angka
