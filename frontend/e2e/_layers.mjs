@@ -81,3 +81,43 @@ export async function pickTimeframe(page, interval, ids = [], opts = {}) {
   for (const id of ids) await setLayer(page, id, true, { ...opts, settle: 0 });
   if (ids.length) await page.waitForTimeout(opts.settle ?? 3000);
 }
+
+/** Set one `Chips`/`Degrees` button to `on`, clicking only when it has to.
+ *
+ *  WHY THIS IS NOT `.click()`. Those buttons are TOGGLES carrying
+ *  `aria-pressed`, so a blind click sets the state the caller wanted only when
+ *  the state was already the opposite - and turns it OFF whenever it was
+ *  already on. `setLayer` above was written for exactly this hazard on layer
+ *  switches; the chips were left clicking blind, and the failure they produce
+ *  is silent and state-dependent: `qt-az-ink.mjs` deselected the SSMT partner
+ *  it meant to select, measured a layer with no partner, and reported 0 px
+ *  moved for a body pass that paints 927 when driven correctly.
+ *
+ *  Returns whether anything was clicked, so a caller can skip its settle. */
+export async function setPressed(page, group, value, on = true, opts = {}) {
+  const button = page.locator(
+    `div[role="group"][aria-label="${group}"] button:text-is("${value}")`,
+  );
+  const now = (await button.getAttribute("aria-pressed")) === "true";
+  if (now === on) return false;
+  await button.click();
+  await page.waitForTimeout(opts.settle ?? 3500);
+  return true;
+}
+
+/** Leave exactly `values` pressed in one group, and nothing else.
+ *
+ *  The whole group rather than the named buttons, because a degree left over
+ *  from an earlier case is indistinguishable in the output from one this case
+ *  asked for. */
+export async function onlyPressed(page, group, values, opts = {}) {
+  const buttons = page.locator(`div[role="group"][aria-label="${group}"] button`);
+  const labels = await buttons.allInnerTexts();
+  const want = new Set(values);
+  let moved = false;
+  for (const label of labels.map((t) => t.trim())) {
+    moved = (await setPressed(page, group, label, want.has(label), { settle: 0 })) || moved;
+  }
+  if (moved) await page.waitForTimeout(opts.settle ?? 3500);
+  return moved;
+}

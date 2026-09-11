@@ -18,7 +18,7 @@
  */
 import { chromium } from "playwright";
 
-import { onlyLayers, setLayer } from "./_layers.mjs";
+import { onlyLayers, onlyPressed, setLayer, setPressed } from "./_layers.mjs";
 
 const SHOTS = process.argv[2] ?? ".playwright-shots";
 const results = [];
@@ -98,24 +98,15 @@ await page.evaluate(() => {
   };
 });
 
-/** Click every degree in one `Degrees` group, by the group's own label. */
-const pickDegrees = async (group, degrees) => {
-  for (const degree of degrees) {
-    await page
-      .locator(`div[role="group"][aria-label="${group}"] button:text-is("${degree}")`)
-      .click();
-    await page.waitForTimeout(1200);
-  }
-  await page.waitForTimeout(3500);
-};
+/** Leave exactly these degrees pressed in one `Degrees` group.
+ *
+ *  `onlyPressed` and not a loop of clicks: these are toggles, and clicking one
+ *  that is already on turns it off. That is not hypothetical here - it is what
+ *  made this file report 0 px for a body pass that paints 927. */
+const pickDegrees = (group, degrees) => onlyPressed(page, group, degrees);
 
-/** Click one chip in a `Chips` group. */
-const pickChip = async (group, value) => {
-  await page
-    .locator(`div[role="group"][aria-label="${group}"] button:text-is("${value}")`)
-    .click();
-  await page.waitForTimeout(3500);
-};
+/** Press one chip in a `Chips` group, if it is not pressed already. */
+const pickChip = (group, value) => setPressed(page, group, value, true);
 
 const grab = () => page.evaluate(() => window.__grab());
 const moved = async (a, b) =>
