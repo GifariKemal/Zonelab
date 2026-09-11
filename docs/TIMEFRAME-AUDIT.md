@@ -11,8 +11,8 @@ rusak.
 
 > [!IMPORTANT]
 > Jawabannya: **geometri sudah benar sejak awal, saklarnya yang salah.** Dua
-> puluh empat layer diukur di kedelapan timeframe untuk kedua puluh enam simbol
-> - 4.992 sel - dan tidak satu pun mengembalikan himpunan harga yang sama dua
+> puluh lima layer diukur di kedelapan timeframe untuk kedua puluh enam simbol
+> - 5.200 sel - dan tidak satu pun mengembalikan himpunan harga yang sama dua
 > kali. Yang mengikuti pembaca lintas timeframe adalah pilihan layer-nya beserta
 > knob-nya, dan itu yang diperbaiki.
 
@@ -86,38 +86,39 @@ menulis apa apa kalau kontrolnya kotor.
 ## Hasil per layer
 
 Seluruh registry, di kedelapan interval, untuk **setiap simbol** yang dibawa
-registry: 26 simbol x 24 layer x 8 interval = **4.992 sel terukur**, nol error
-provider.
+registry: 26 simbol x 25 layer x 8 interval = **5.200 sel terukur**, nol error
+provider. Disapu ulang 11 September 2026 sesudah `smt_fill` masuk registry;
+angka sebelumnya 4.992 sel atas 24 layer.
 
 | Simbol | Provider | Sel terukur | Sama di semua TF | Layer kosong |
 |---|---|---|---|---|
-| `BRENT` | mt5 | 192 | **0** | `expectation` |
-| `BTCUSD` | mt5 | 192 | **0** | `expectation` |
-| `COPPER` | mt5 | 192 | **0** | `expectation` |
-| `DE30` | mt5 | 192 | **0** | `expectation` |
-| `DXY` | mt5 | 192 | **0** | `expectation` |
-| `ETHUSD` | mt5 | 192 | **0** | `expectation` |
-| `EURFX` | yahoo | 192 | **0** | `expectation` |
-| `EURUSD` | mt5 | 192 | **0** | - |
-| `GBPFX` | yahoo | 192 | **0** | `expectation` |
-| `GBPJPY` | mt5 | 192 | **0** | `expectation` |
-| `IDX` | yahoo | 192 | **0** | `expectation`, `news` |
-| `NAS100` | mt5 | 192 | **0** | `expectation` |
-| `NGAS` | mt5 | 192 | **0** | `expectation` |
-| `RBOB` | yahoo | 192 | **0** | `expectation` |
-| `RUS2000` | yahoo | 192 | **0** | `expectation` |
-| `SPX500` | mt5 | 192 | **0** | `expectation` |
-| `ULSD` | yahoo | 192 | **0** | `expectation` |
-| `US10Y` | yahoo | 192 | **0** | `expectation` |
-| `US30` | mt5 | 192 | **0** | - |
-| `US30Y` | yahoo | 192 | **0** | `expectation` |
-| `USDJPY` | mt5 | 192 | **0** | - |
-| `WTI` | mt5 | 192 | **0** | `expectation` |
-| `XAGUSD` | mt5 | 192 | **0** | - |
-| `XAUUSD` | mt5 | 192 | **0** | - |
-| `XPDUSD` | mt5 | 192 | **0** | `expectation` |
-| `XPTUSD` | mt5 | 192 | **0** | `expectation` |
-| **26 simbol** | | **4992** | **0** | |
+| `BRENT` | mt5 | 200 | **0** | `expectation` |
+| `BTCUSD` | mt5 | 200 | **0** | `expectation` |
+| `COPPER` | mt5 | 200 | **0** | `expectation` |
+| `DE30` | mt5 | 200 | **0** | `expectation` |
+| `DXY` | mt5 | 200 | **0** | `expectation` |
+| `ETHUSD` | mt5 | 200 | **0** | `expectation` |
+| `EURFX` | yahoo | 200 | **0** | `expectation` |
+| `EURUSD` | mt5 | 200 | **0** | - |
+| `GBPFX` | yahoo | 200 | **0** | `expectation` |
+| `GBPJPY` | mt5 | 200 | **0** | `expectation` |
+| `IDX` | yahoo | 200 | **0** | `expectation` |
+| `NAS100` | mt5 | 200 | **0** | `expectation` |
+| `NGAS` | mt5 | 200 | **0** | `expectation` |
+| `RBOB` | yahoo | 200 | **0** | `expectation` |
+| `RUS2000` | yahoo | 200 | **0** | `expectation` |
+| `SPX500` | mt5 | 200 | **0** | `expectation` |
+| `ULSD` | yahoo | 200 | **0** | `expectation` |
+| `US10Y` | yahoo | 200 | **0** | `expectation` |
+| `US30` | mt5 | 200 | **0** | - |
+| `US30Y` | yahoo | 200 | **0** | `expectation` |
+| `USDJPY` | mt5 | 200 | **0** | - |
+| `WTI` | mt5 | 200 | **0** | `expectation` |
+| `XAGUSD` | mt5 | 200 | **0** | - |
+| `XAUUSD` | mt5 | 200 | **0** | - |
+| `XPDUSD` | mt5 | 200 | **0** | `expectation` |
+| `XPTUSD` | mt5 | 200 | **0** | `expectation` |
+| **26 simbol** | | **5200** | **0** | |
 
 **Nol.** Tidak ada satu pun layer, di satu pun simbol, yang menggambar himpunan
 harga yang sama di semua timeframe.
@@ -139,32 +140,33 @@ tersebut, dari `docs/tf_audit/XAUUSD.json`.
 
 | Layer | 1m | 5m | 15m | 30m | 1h | 4h | 1d | 1w | Vonis |
 |---|---|---|---|---|---|---|---|---|---|
-| `supply_demand` | 4 | 6 | 4 | 5 | 4 | 5 | 6 | 6 | ikut timeframe |
-| `fvg` | 7 | 7 | 6 | 8 | 9 | 10 | 10 | 7 | ikut timeframe |
-| `order_block` | 9 | 7 | 7 | 9 | 8 | 10 | 11 | 8 | ikut timeframe |
-| `ifvg` | 6 | 6 | 6 | 7 | 6 | 11 | 10 | 6 | ikut timeframe |
-| `breaker` | 1 | 6 | 6 | 6 | 6 | 8 | 10 | 7 | ikut timeframe |
-| `ote` | 4 | 7 | 7 | 7 | 5 | 11 | 11 | 7 | ikut timeframe |
-| `cisd_zone` | 7 | 7 | 7 | 8 | 6 | 10 | 11 | 8 | ikut timeframe |
-| `liquidity_pool` | 2 | 2 | 4 | 1 | 1 | 3 | 1 | 1 | ikut timeframe |
-| `structure` | 108 | 94 | 108 | 107 | 108 | 105 | 95 | 103 | ikut timeframe |
-| `session` | 2 | 9 | 36 | 72 | 141 | 281 | 200 | 200 | ikut timeframe |
+| `supply_demand` | 3 | 7 | 4 | 6 | 5 | 5 | 6 | 6 | ikut timeframe |
+| `fvg` | 11 | 12 | 8 | 7 | 8 | 10 | 10 | 7 | ikut timeframe |
+| `order_block` | 12 | 10 | 8 | 8 | 8 | 11 | 11 | 8 | ikut timeframe |
+| `ifvg` | 9 | 11 | 8 | 8 | 7 | 11 | 10 | 6 | ikut timeframe |
+| `breaker` | 10 | 9 | 7 | 8 | 6 | 8 | 10 | 7 | ikut timeframe |
+| `ote` | 10 | 7 | 6 | 8 | 5 | 11 | 11 | 7 | ikut timeframe |
+| `cisd_zone` | 11 | 9 | 7 | 8 | 6 | 10 | 11 | 8 | ikut timeframe |
+| `liquidity_pool` | 1 | 2 | 3 | 1 | 2 | 3 | 1 | 1 | ikut timeframe |
+| `structure` | 108 | 93 | 109 | 108 | 106 | 106 | 95 | 103 | ikut timeframe |
+| `session` | 4 | 11 | 37 | 72 | 143 | 281 | 200 | 200 | ikut timeframe |
 | `vortex` | 1 | 1 | 1 | 1 | 1 | 1 | 1 | 1 | ikut timeframe |
 | `gaps` | 10 | 10 | 10 | 10 | 11 | 11 | 11 | 0 | ikut timeframe |
 | `chart_gaps` | 1 | 2 | 3 | 1 | 1 | 5 | 10 | 4 | ikut timeframe |
-| `psp` | 0 | 4 | 15 | 26 | 60 | 68 | 69 | 73 | ikut timeframe |
-| `wyckoff` | 107 | 123 | 93 | 104 | 113 | 112 | 120 | 120 | ikut timeframe |
+| `psp` | 0 | 3 | 16 | 23 | 57 | 67 | 69 | 73 | ikut timeframe |
+| `wyckoff` | 120 | 115 | 93 | 104 | 111 | 113 | 120 | 120 | ikut timeframe |
 | `cisd` | 40 | 40 | 40 | 40 | 40 | 40 | 40 | 40 | ikut timeframe |
-| `dfr` | 0 | 1 | 4 | 4 | 4 | 4 | 4 | 4 | ikut timeframe |
-| `ssmt` | 0 | 4 | 13 | 22 | 51 | 61 | 69 | 73 | ikut timeframe |
-| `pools` | 0 | 6 | 12 | 12 | 12 | 12 | 12 | 12 | ikut timeframe |
-| `liquidity` | 2 | 4 | 14 | 16 | 16 | 16 | 16 | 16 | ikut timeframe |
-| `projections` | 0 | 4 | 4 | 4 | 4 | 4 | 0 | 0 | ikut timeframe |
+| `dfr` | 0 | 2 | 4 | 4 | 4 | 4 | 4 | 4 | ikut timeframe |
+| `ssmt` | 0 | 3 | 14 | 19 | 48 | 60 | 69 | 73 | ikut timeframe |
+| `smt_fill` | 40 | 40 | 40 | 40 | 40 | 40 | 40 | 40 | ikut timeframe |
+| `pools` | 4 | 8 | 12 | 12 | 12 | 12 | 12 | 12 | ikut timeframe |
+| `liquidity` | 0 | 4 | 12 | 16 | 16 | 16 | 16 | 16 | ikut timeframe |
+| `projections` | 2 | 4 | 4 | 4 | 4 | 4 | 0 | 0 | ikut timeframe |
 | `expectation` | 1 | 1 | 1 | 1 | 1 | 1 | 1 | 1 | ikut timeframe |
-| `news` | 0 | 5 | 5 | 5 | 5 | 5 | 0 | 0 | ikut timeframe |
+| `news` | 1 | 6 | 6 | 6 | 6 | 5 | 0 | 0 | ikut timeframe |
 | `checklist` | 1 | 1 | 1 | 1 | 1 | 1 | 1 | 1 | ikut timeframe |
 
-<details><summary>Lima layer nyaris lolos tanpa terukur</summary>
+<details><summary>Enam layer nyaris lolos tanpa terukur, dan yang keenam dua kali</summary>
 
 Run pertama melaporkan `session`, `dfr`, `ssmt`, `psp` dan `checklist` sebagai
 "kosong di semua TF". Itu BUKAN hasil - itu lima layer yang tidak terjawab,
@@ -178,6 +180,19 @@ Alatnya sekarang membawa `MIN_PARAMS` (tabel yang sama dengan
 alih-alih `drawing`. Kelimanya terukur, dan keempat yang menggambar ternyata
 sangat bergantung timeframe: `session` 2 objek di 1m sampai 281 di 4h, `psp` 0
 sampai 73, `ssmt` 0 sampai 73.
+
+**Dan lubang yang sama terulang untuk layer ke-25.** Sapuan pertama sesudah
+`smt_fill` masuk registry melaporkannya "kosong di semua TF" untuk **kedua
+puluh enam simbol** - karena `MIN_PARAMS` belum memberinya partner, dan sebuah
+gap-fill divergence butuh instrumen kedua. Satu kolom penuh yang terbaca
+sebagai pengukuran padahal nol pertanyaan diajukan. Disapu ulang sesudah
+tabelnya dilengkapi; sekarang `smt_fill` menggambar 38 sampai 40 objek di
+setiap interval dan XAUUSD tidak punya satu pun layer kosong.
+
+Pelajarannya bukan "tambahkan barisnya", melainkan: **di rig ini, nol adalah
+jawaban yang paling mudah didapat karena alasan yang salah.** Setiap kali
+sebuah layer baru masuk, yang pertama harus diperiksa adalah apakah ia bisa
+menggambar sama sekali di dalam rig.
 
 </details>
 
@@ -339,10 +354,10 @@ Yang tersisa, dan tidak ada yang menyangkut pertanyaan timeframe:
   diputuskan apakah rail-nya harus mengatakannya.
 - `expectation` kosong di 21 simbol karena selnya belum pernah diukur. Itu
   pertanyaan kalibrasi, bukan pertanyaan timeframe.
-- **Registry tumbuh jadi 25 layer** pada 11 September 2026 dengan masuknya
-  `smt_fill` (lihat `docs/ADOPSI.md`). Sapuan di halaman ini menyapu 24; layer
-  ke-25 belum termasuk. Hapus `docs/tf_audit/` lalu jalankan
-  `tools.tf_audit --all` lagi kalau angka penuhnya dibutuhkan.
+- Registry bisa tumbuh lagi. Sapuan ini menyapu 25 layer; sesudah layer ke-26
+  masuk, hapus `docs/tf_audit/` lalu jalankan `tools.tf_audit --all` lagi.
+  Sudah dilakukan sekali dengan cara itu pada 11 September 2026, saat
+  `smt_fill` masuk.
 
 ---
 

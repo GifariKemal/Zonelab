@@ -17,39 +17,39 @@
    "per_tf": {
     "1m": {
      "shapes": {
-      "zones": 5
+      "zones": 9
      },
-     "hash": "03f833eaf878"
+     "hash": "c8147ed20d14"
     },
     "5m": {
      "shapes": {
-      "zones": 4
+      "zones": 5
      },
-     "hash": "895bcc8c5f89"
+     "hash": "b6cd9bab9878"
     },
     "15m": {
      "shapes": {
-      "zones": 3
+      "zones": 4
      },
-     "hash": "aa9b94ab976f"
+     "hash": "3f3c28f77973"
     },
     "30m": {
      "shapes": {
-      "zones": 6
+      "zones": 5
      },
-     "hash": "0afcda9d1c38"
+     "hash": "1eaedd0e99b6"
     },
     "1h": {
      "shapes": {
-      "zones": 2
+      "zones": 1
      },
-     "hash": "325a69419d45"
+     "hash": "8a6392272d6e"
     },
     "4h": {
      "shapes": {
       "zones": 7
      },
-     "hash": "7e86df9c0107"
+     "hash": "db0b1a1c0117"
     },
     "1d": {
      "shapes": {
@@ -71,39 +71,39 @@
    "per_tf": {
     "1m": {
      "shapes": {
-      "zones": 9
+      "zones": 12
      },
-     "hash": "7ba9ca829408"
+     "hash": "72e94a9f0a69"
     },
     "5m": {
      "shapes": {
-      "zones": 10
+      "zones": 12
      },
-     "hash": "eeadbd724058"
+     "hash": "2f0bfe051b33"
     },
     "15m": {
      "shapes": {
-      "zones": 8
+      "zones": 9
      },
-     "hash": "54319f5b4614"
+     "hash": "9cb02ab7f82a"
     },
     "30m": {
      "shapes": {
-      "zones": 6
+      "zones": 7
      },
-     "hash": "8f0799c23ea5"
+     "hash": "3e16aa4435be"
     },
     "1h": {
      "shapes": {
       "zones": 4
      },
-     "hash": "a88b389e1abe"
+     "hash": "b9eaa1c9afcd"
     },
     "4h": {
      "shapes": {
       "zones": 6
      },
-     "hash": "eee5d290d676"
+     "hash": "cf86be26d513"
     },
     "1d": {
      "shapes": {
@@ -125,39 +125,39 @@
    "per_tf": {
     "1m": {
      "shapes": {
-      "zones": 10
+      "zones": 12
      },
-     "hash": "32e7040fec0c"
+     "hash": "9b9526f944f9"
     },
     "5m": {
      "shapes": {
-      "zones": 10
+      "zones": 12
      },
-     "hash": "0a1520b4a805"
+     "hash": "669aff91200c"
     },
     "15m": {
      "shapes": {
-      "zones": 8
+      "zones": 12
      },
-     "hash": "bd18f5d2d437"
+     "hash": "105f22a6fd9a"
     },
     "30m": {
      "shapes": {
       "zones": 12
      },
-     "hash": "545f0b5f46a3"
+     "hash": "5657b56b764d"
     },
     "1h": {
      "shapes": {
       "zones": 10
      },
-     "hash": "99af2baed0c9"
+     "hash": "7338b69d9ae9"
     },
     "4h": {
      "shapes": {
       "zones": 8
      },
-     "hash": "adfb389293a5"
+     "hash": "d11e1c8a74c2"
     },
     "1d": {
      "shapes": {
@@ -181,37 +181,37 @@
      "shapes": {
       "zones": 12
      },
-     "hash": "15364ee2ab30"
+     "hash": "9ced2e32b534"
     },
     "5m": {
      "shapes": {
-      "zones": 9
+      "zones": 10
      },
-     "hash": "8f597f40d724"
+     "hash": "5712eab803fb"
     },
     "15m": {
      "shapes": {
-      "zones": 6
+      "zones": 5
      },
-     "hash": "bbd912a834d6"
+     "hash": "17d0721dac18"
     },
     "30m": {
      "shapes": {
-      "zones": 7
+      "zones": 8
      },
-     "hash": "bcd0dfb6cdea"
+     "hash": "9eac2ccab605"
     },
     "1h": {
      "shapes": {
-      "zones": 5
+      "zones": 6
      },
-     "hash": "17c36faa6076"
+     "hash": "c40d4a2717c4"
     },
     "4h": {
      "shapes": {
       "zones": 7
      },
-     "hash": "9c6b5db71a7b"
+     "hash": "e8f1519b80bd"
     },
     "1d": {
      "shapes": {
@@ -233,21 +233,21 @@
    "per_tf": {
     "1m": {
      "shapes": {
-      "zones": 9
+      "zones": 8
      },
-     "hash": "9742e99bc018"
+     "hash": "31a3846901a3"
     },
     "5m": {
      "shapes": {
-      "zones": 6
+      "zones": 7
      },
-     "hash": "1c51b335a431"
+     "hash": "fcbe91a0830d"
     },
     "15m": {
      "shapes": {
-      "zones": 2
+      "zones": 3
      },
-     "hash": "86320d0b7079"
+     "hash": "21a1c840e7d3"
     },
     "30m": {
      "shapes": {},
@@ -255,15 +255,15 @@
     },
     "1h": {
      "shapes": {
-      "zones": 3
+      "zones": 2
      },
-     "hash": "71551f23adae"
+     "hash": "214ed136aedb"
     },
     "4h": {
      "shapes": {
       "zones": 6
      },
-     "hash": "fc7a85f8d45e"
+     "hash": "ccfad5e75fe9"
     },
     "1d": {
      "shapes": {
@@ -285,39 +285,39 @@
    "per_tf": {
     "1m": {
      "shapes": {
-      "zones": 8
+      "zones": 9
      },
-     "hash": "b2ef7884eccf"
+     "hash": "80046e1345d1"
     },
     "5m": {
      "shapes": {
-      "zones": 9
+      "zones": 6
      },
-     "hash": "095be8fe0c9f"
+     "hash": "b9afbfc28fdb"
     },
     "15m": {
      "shapes": {
-      "zones": 5
+      "zones": 6
      },
-     "hash": "406ed91f214b"
+     "hash": "ac9184443bd6"
     },
     "30m": {
      "shapes": {
       "zones": 10
      },
-     "hash": "4bc75a9f08d3"
+     "hash": "0159cf0e15dc"
     },
     "1h": {
      "shapes": {
-      "zones": 5
+      "zones": 4
      },
-     "hash": "7d4de85250c0"
+     "hash": "478427aec09d"
     },
     "4h": {
      "shapes": {
       "zones": 7
      },
-     "hash": "cb7ab4c90ed9"
+     "hash": "745e7dcce717"
     },
     "1d": {
      "shapes": {
@@ -339,39 +339,39 @@
    "per_tf": {
     "1m": {
      "shapes": {
-      "zones": 9
+      "zones": 10
      },
-     "hash": "41b604bde1f8"
+     "hash": "ddb4d332ee8d"
     },
     "5m": {
      "shapes": {
-      "zones": 10
+      "zones": 9
      },
-     "hash": "f2f08e618e5a"
+     "hash": "8d830d2cb608"
     },
     "15m": {
      "shapes": {
-      "zones": 5
+      "zones": 4
      },
-     "hash": "2c9e4bb0debb"
+     "hash": "67feb0a3637e"
     },
     "30m": {
      "shapes": {
       "zones": 7
      },
-     "hash": "db6460b4e4e2"
+     "hash": "09c2bd8d0505"
     },
     "1h": {
      "shapes": {
       "zones": 4
      },
-     "hash": "78a06e67162f"
+     "hash": "e3dd9ac2772b"
     },
     "4h": {
      "shapes": {
       "zones": 8
      },
-     "hash": "9884e7958386"
+     "hash": "072644e52524"
     },
     "1d": {
      "shapes": {
@@ -395,35 +395,37 @@
      "shapes": {
       "zones": 1
      },
-     "hash": "540f21f104b9"
+     "hash": "2bf2828c3403"
     },
     "5m": {
      "shapes": {
-      "zones": 2
+      "zones": 1
      },
-     "hash": "6510829e3135"
+     "hash": "d88a55cf0036"
     },
     "15m": {
      "shapes": {
-      "zones": 1
+      "zones": 2
      },
-     "hash": "3c087095c362"
+     "hash": "dfdb03331739"
     },
     "30m": {
-     "shapes": {},
-     "hash": "97d170e1550e"
+     "shapes": {
+      "zones": 1
+     },
+     "hash": "e5434be043b2"
     },
     "1h": {
      "shapes": {
       "zones": 3
      },
-     "hash": "5bb642f85ac6"
+     "hash": "a2ba60dcd557"
     },
     "4h": {
      "shapes": {
       "zones": 5
      },
-     "hash": "6f153f6e31bc"
+     "hash": "6d80a50c0ce5"
     },
     "1d": {
      "shapes": {
@@ -445,51 +447,51 @@
    "per_tf": {
     "1m": {
      "shapes": {
-      "swings": 64,
-      "structure": 40,
+      "swings": 61,
+      "structure": 35,
       "fibonacci": 1
      },
-     "hash": "355a1b93484e"
+     "hash": "46973884a09e"
     },
     "5m": {
      "shapes": {
-      "swings": 69,
+      "swings": 65,
       "structure": 40,
       "fibonacci": 1
      },
-     "hash": "be84c1ee2f37"
+     "hash": "aa1219ab8208"
     },
     "15m": {
-     "shapes": {
-      "swings": 68,
-      "structure": 40,
-      "fibonacci": 1
-     },
-     "hash": "9c7702c524a0"
-    },
-    "30m": {
-     "shapes": {
-      "swings": 69,
-      "structure": 40,
-      "fibonacci": 1
-     },
-     "hash": "7eca86dd5c8c"
-    },
-    "1h": {
-     "shapes": {
-      "swings": 75,
-      "structure": 40,
-      "fibonacci": 1
-     },
-     "hash": "7ef6d34a633e"
-    },
-    "4h": {
      "shapes": {
       "swings": 66,
       "structure": 40,
       "fibonacci": 1
      },
-     "hash": "077347293e66"
+     "hash": "a60e273ab245"
+    },
+    "30m": {
+     "shapes": {
+      "swings": 70,
+      "structure": 40,
+      "fibonacci": 1
+     },
+     "hash": "c812d7bf129d"
+    },
+    "1h": {
+     "shapes": {
+      "swings": 77,
+      "structure": 40,
+      "fibonacci": 1
+     },
+     "hash": "2410bc9df0a3"
+    },
+    "4h": {
+     "shapes": {
+      "swings": 65,
+      "structure": 39,
+      "fibonacci": 1
+     },
+     "hash": "918d4bfdb84a"
     },
     "1d": {
      "shapes": {
@@ -515,44 +517,45 @@
    "per_tf": {
     "1m": {
      "shapes": {
-      "quarters": 2
+      "quarters": 3,
+      "true_opens": 1
      },
-     "hash": "97d170e1550e"
+     "hash": "4c94353c4bf8"
     },
     "5m": {
      "shapes": {
       "quarters": 8,
-      "true_opens": 1
+      "true_opens": 2
      },
-     "hash": "3630e92e3433"
+     "hash": "c061a9bb1e37"
     },
     "15m": {
      "shapes": {
       "quarters": 22,
       "true_opens": 5
      },
-     "hash": "d8ebfcca79c3"
+     "hash": "907e90d1d4b4"
     },
     "30m": {
      "shapes": {
-      "quarters": 42,
-      "true_opens": 10
+      "quarters": 43,
+      "true_opens": 11
      },
-     "hash": "398915cdc8e7"
+     "hash": "a4b52304d175"
     },
     "1h": {
      "shapes": {
-      "quarters": 84,
-      "true_opens": 20
+      "quarters": 85,
+      "true_opens": 21
      },
-     "hash": "535e38081e2a"
+     "hash": "f704e55e5926"
     },
     "4h": {
      "shapes": {
       "quarters": 200,
-      "true_opens": 83
+      "true_opens": 84
      },
-     "hash": "58b91a36f6ac"
+     "hash": "d86bed080bf4"
     },
     "1d": {
      "shapes": {
@@ -576,37 +579,37 @@
      "shapes": {
       "vortex": 1
      },
-     "hash": "51f1fd924c7b"
+     "hash": "33d69c9f6392"
     },
     "5m": {
      "shapes": {
       "vortex": 1
      },
-     "hash": "51f1fd924c7b"
+     "hash": "33d69c9f6392"
     },
     "15m": {
      "shapes": {
       "vortex": 1
      },
-     "hash": "e1ef20e622ae"
+     "hash": "33d69c9f6392"
     },
     "30m": {
      "shapes": {
       "vortex": 1
      },
-     "hash": "16a1322db417"
+     "hash": "f1e5fbdbb62f"
     },
     "1h": {
      "shapes": {
       "vortex": 1
      },
-     "hash": "16a1322db417"
+     "hash": "f1e5fbdbb62f"
     },
     "4h": {
      "shapes": {
       "vortex": 1
      },
-     "hash": "b6e08a1d0b8c"
+     "hash": "a428360ac41b"
     },
     "1d": {
      "shapes": {
@@ -650,10 +653,10 @@
      "shapes": {
       "gaps": 5,
       "tier_horizons": 2,
-      "gap_stacks": 4,
+      "gap_stacks": 3,
       "event_horizons": 4
      },
-     "hash": "f1b37712b12c"
+     "hash": "9d6d9afd9bbf"
     },
     "1d": {
      "shapes": {
@@ -676,21 +679,21 @@
    "per_tf": {
     "1m": {
      "shapes": {
-      "chart_gaps": 28
+      "chart_gaps": 49
      },
-     "hash": "5cf703fa5c9f"
+     "hash": "d5538884fbeb"
     },
     "5m": {
      "shapes": {
-      "chart_gaps": 3
+      "chart_gaps": 5
      },
-     "hash": "109f61562255"
+     "hash": "eb92bb0c3eb8"
     },
     "15m": {
      "shapes": {
-      "chart_gaps": 2
+      "chart_gaps": 1
      },
-     "hash": "fc8e69c00c3f"
+     "hash": "d0090e3e842e"
     },
     "30m": {
      "shapes": {},
@@ -726,43 +729,43 @@
     },
     "5m": {
      "shapes": {
-      "ssmt": 6,
+      "ssmt": 5,
       "smt": 4,
       "psp": 2
      },
-     "hash": "a7fd10f5188f"
+     "hash": "3bc86d4ab1a4"
     },
     "15m": {
      "shapes": {
-      "ssmt": 11,
-      "smt": 6,
+      "ssmt": 14,
+      "smt": 8,
       "psp": 2
      },
-     "hash": "528de2c90b2a"
+     "hash": "daa9d360cd3a"
     },
     "30m": {
      "shapes": {
-      "ssmt": 26,
-      "smt": 10,
+      "ssmt": 25,
+      "smt": 8,
       "psp": 3
      },
-     "hash": "cd60750ec159"
+     "hash": "ce07cbf43dfc"
     },
     "1h": {
      "shapes": {
       "ssmt": 40,
-      "smt": 20,
+      "smt": 18,
       "psp": 11
      },
-     "hash": "d2b6e12db332"
+     "hash": "ff98086c4a73"
     },
     "4h": {
      "shapes": {
       "ssmt": 40,
-      "smt": 31,
+      "smt": 30,
       "psp": 17
      },
-     "hash": "f6bffac262bf"
+     "hash": "ad6a363ff4cb"
     },
     "1d": {
      "shapes": {
@@ -784,45 +787,45 @@
    "per_tf": {
     "1m": {
      "shapes": {
-      "wyckoff": 114,
+      "wyckoff": 107,
       "wyckoff_range": 1
      },
-     "hash": "c6e6d6bbf450"
+     "hash": "1c8b27cc10a0"
     },
     "5m": {
      "shapes": {
-      "wyckoff": 109,
+      "wyckoff": 98,
       "wyckoff_range": 1
      },
-     "hash": "2dc72a2983c7"
+     "hash": "895d66e7e21f"
     },
     "15m": {
      "shapes": {
-      "wyckoff": 87,
+      "wyckoff": 92,
       "wyckoff_range": 1
      },
-     "hash": "9bff5ccb1b23"
+     "hash": "15e64e3b567b"
     },
     "30m": {
      "shapes": {
-      "wyckoff": 78,
+      "wyckoff": 79,
       "wyckoff_range": 1
      },
-     "hash": "090f34ad492d"
+     "hash": "f4e64ddccff5"
     },
     "1h": {
      "shapes": {
-      "wyckoff": 75,
+      "wyckoff": 76,
       "wyckoff_range": 1
      },
-     "hash": "9136694000e9"
+     "hash": "0d8ddd2da7eb"
     },
     "4h": {
      "shapes": {
-      "wyckoff": 70,
+      "wyckoff": 69,
       "wyckoff_range": 1
      },
-     "hash": "65c6731b2391"
+     "hash": "8fa65ae03192"
     },
     "1d": {
      "shapes": {
@@ -848,31 +851,31 @@
      "shapes": {
       "cisd": 40
      },
-     "hash": "f4ed9cb1733f"
+     "hash": "88249dd44059"
     },
     "5m": {
      "shapes": {
       "cisd": 40
      },
-     "hash": "8a21230d73e1"
+     "hash": "ac9e7a73bb1c"
     },
     "15m": {
      "shapes": {
       "cisd": 40
      },
-     "hash": "8d98a4490925"
+     "hash": "c2f41646d443"
     },
     "30m": {
      "shapes": {
       "cisd": 40
      },
-     "hash": "f4e4d80c6903"
+     "hash": "3f30f0911a2c"
     },
     "1h": {
      "shapes": {
       "cisd": 40
      },
-     "hash": "00570343ed8d"
+     "hash": "d45f63ec9ba6"
     },
     "4h": {
      "shapes": {
@@ -904,33 +907,33 @@
     },
     "5m": {
      "shapes": {
-      "dfr": 1
+      "dfr": 2
      },
-     "hash": "b6fd4b02b70f"
+     "hash": "fe38451382b0"
     },
     "15m": {
      "shapes": {
       "dfr": 4
      },
-     "hash": "e13542d90ad0"
+     "hash": "2916a59fabe8"
     },
     "30m": {
      "shapes": {
       "dfr": 4
      },
-     "hash": "e13542d90ad0"
+     "hash": "2916a59fabe8"
     },
     "1h": {
      "shapes": {
       "dfr": 4
      },
-     "hash": "e13542d90ad0"
+     "hash": "2916a59fabe8"
     },
     "4h": {
      "shapes": {
       "dfr": 4
      },
-     "hash": "e13542d90ad0"
+     "hash": "2916a59fabe8"
     },
     "1d": {
      "shapes": {
@@ -956,38 +959,38 @@
     },
     "5m": {
      "shapes": {
-      "ssmt": 6,
+      "ssmt": 5,
       "smt": 4
      },
-     "hash": "397b8e603862"
+     "hash": "d20c65029e5e"
     },
     "15m": {
      "shapes": {
-      "ssmt": 11,
-      "smt": 6
+      "ssmt": 14,
+      "smt": 8
      },
-     "hash": "f2f6709ac536"
+     "hash": "7019e067ca2e"
     },
     "30m": {
      "shapes": {
-      "ssmt": 26,
-      "smt": 10
+      "ssmt": 25,
+      "smt": 8
      },
-     "hash": "d987f6a4bc52"
+     "hash": "84686891af58"
     },
     "1h": {
      "shapes": {
       "ssmt": 40,
-      "smt": 20
+      "smt": 18
      },
-     "hash": "1cc26ed872b4"
+     "hash": "6ddb58fa8d18"
     },
     "4h": {
      "shapes": {
       "ssmt": 40,
-      "smt": 31
+      "smt": 30
      },
-     "hash": "bd385575cef3"
+     "hash": "3b03e751d1aa"
     },
     "1d": {
      "shapes": {
@@ -1005,41 +1008,97 @@
    "drew_nothing": false,
    "identical_across_tf": false
   },
-  "pools": {
+  "smt_fill": {
    "per_tf": {
     "1m": {
-     "shapes": {},
-     "hash": "97d170e1550e"
+     "shapes": {
+      "smt_fill": 40
+     },
+     "hash": "af2fd3c373a6"
     },
     "5m": {
      "shapes": {
+      "smt_fill": 40
+     },
+     "hash": "2a234c4c44c2"
+    },
+    "15m": {
+     "shapes": {
+      "smt_fill": 37
+     },
+     "hash": "7cc2acbefcf9"
+    },
+    "30m": {
+     "shapes": {
+      "smt_fill": 40
+     },
+     "hash": "927f8138f49d"
+    },
+    "1h": {
+     "shapes": {
+      "smt_fill": 40
+     },
+     "hash": "39340a41ba13"
+    },
+    "4h": {
+     "shapes": {
+      "smt_fill": 40
+     },
+     "hash": "1ed0ff3f57d5"
+    },
+    "1d": {
+     "shapes": {
+      "smt_fill": 40
+     },
+     "hash": "1dd5f039505b"
+    },
+    "1w": {
+     "shapes": {
+      "smt_fill": 33
+     },
+     "hash": "bcedb44d3437"
+    }
+   },
+   "drew_nothing": false,
+   "identical_across_tf": false
+  },
+  "pools": {
+   "per_tf": {
+    "1m": {
+     "shapes": {
       "pools": 4
      },
-     "hash": "f7b0e5807c0d"
+     "hash": "7ba24b23b954"
+    },
+    "5m": {
+     "shapes": {
+      "pools": 8
+     },
+     "hash": "d8cab8d2e38f"
     },
     "15m": {
      "shapes": {
       "pools": 12
      },
-     "hash": "5da720c9a833"
+     "hash": "21fb55cc16f0"
     },
     "30m": {
      "shapes": {
       "pools": 12
      },
-     "hash": "5da720c9a833"
+     "hash": "21fb55cc16f0"
     },
     "1h": {
      "shapes": {
       "pools": 12
      },
-     "hash": "5da720c9a833"
+     "hash": "21fb55cc16f0"
     },
     "4h": {
      "shapes": {
       "pools": 12
      },
-     "hash": "d7442d368b4f"
+     "hash": "814256757447"
     },
     "1d": {
      "shapes": {
@@ -1060,28 +1119,26 @@
   "liquidity": {
    "per_tf": {
     "1m": {
-     "shapes": {
-      "levels": 2
-     },
-     "hash": "7797ea46b5dd"
+     "shapes": {},
+     "hash": "97d170e1550e"
     },
     "5m": {
      "shapes": {
       "levels": 4
      },
-     "hash": "453b01cd961a"
+     "hash": "a45c163e24c7"
     },
     "15m": {
      "shapes": {
       "levels": 12
      },
-     "hash": "cff65ebebb1d"
+     "hash": "08b12c83feb8"
     },
     "30m": {
      "shapes": {
       "levels": 16
      },
-     "hash": "598bdc8da30e"
+     "hash": "b3220e6cb394"
     },
     "1h": {
      "shapes": {
@@ -1093,7 +1150,7 @@
      "shapes": {
       "levels": 16
      },
-     "hash": "2ce9b5178781"
+     "hash": "421be2bb3f65"
     },
     "1d": {
      "shapes": {
@@ -1114,32 +1171,34 @@
   "projections": {
    "per_tf": {
     "1m": {
-     "shapes": {},
-     "hash": "97d170e1550e"
+     "shapes": {
+      "projections": 2
+     },
+     "hash": "9af452cd960b"
     },
     "5m": {
      "shapes": {
       "projections": 4
      },
-     "hash": "a5536a8e52b1"
+     "hash": "163afc19955d"
     },
     "15m": {
      "shapes": {
       "projections": 4
      },
-     "hash": "a5536a8e52b1"
+     "hash": "163afc19955d"
     },
     "30m": {
      "shapes": {
       "projections": 4
      },
-     "hash": "a5536a8e52b1"
+     "hash": "163afc19955d"
     },
     "1h": {
      "shapes": {
       "projections": 4
      },
-     "hash": "a5536a8e52b1"
+     "hash": "163afc19955d"
     },
     "4h": {
      "shapes": {
@@ -1200,32 +1259,34 @@
   "news": {
    "per_tf": {
     "1m": {
-     "shapes": {},
-     "hash": "97d170e1550e"
+     "shapes": {
+      "news": 1
+     },
+     "hash": "3454bbbafed6"
     },
     "5m": {
      "shapes": {
-      "news": 5
+      "news": 6
      },
-     "hash": "b83ccdd78083"
+     "hash": "b4fe323b9998"
     },
     "15m": {
      "shapes": {
-      "news": 5
+      "news": 6
      },
-     "hash": "b83ccdd78083"
+     "hash": "b4fe323b9998"
     },
     "30m": {
      "shapes": {
-      "news": 5
+      "news": 6
      },
-     "hash": "a889bd8a5930"
+     "hash": "49b44b1f7349"
     },
     "1h": {
      "shapes": {
-      "news": 5
+      "news": 6
      },
-     "hash": "d407e81149c0"
+     "hash": "28339f152b19"
     },
     "4h": {
      "shapes": {
@@ -1251,49 +1312,49 @@
      "shapes": {
       "checklist": 1
      },
-     "hash": "74ce50ee1cad"
+     "hash": "49bc7bc3ee61"
     },
     "5m": {
      "shapes": {
       "checklist": 1
      },
-     "hash": "b886e97dfe99"
+     "hash": "694140355425"
     },
     "15m": {
      "shapes": {
       "checklist": 1
      },
-     "hash": "2d8cdf11f110"
+     "hash": "4efefa994ba2"
     },
     "30m": {
      "shapes": {
       "checklist": 1
      },
-     "hash": "78da061f4266"
+     "hash": "adb279976890"
     },
     "1h": {
      "shapes": {
       "checklist": 1
      },
-     "hash": "17dc1017db74"
+     "hash": "ecb51df84fc9"
     },
     "4h": {
      "shapes": {
       "checklist": 1
      },
-     "hash": "3567e8ec75f9"
+     "hash": "1e1efc53cbde"
     },
     "1d": {
      "shapes": {
       "checklist": 1
      },
-     "hash": "4b1d329c3ea0"
+     "hash": "48329ed16603"
     },
     "1w": {
      "shapes": {
       "checklist": 1
      },
-     "hash": "793b58759d64"
+     "hash": "553b231ad92c"
     }
    },
    "drew_nothing": false,

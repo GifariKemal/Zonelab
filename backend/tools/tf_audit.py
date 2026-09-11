@@ -63,6 +63,13 @@ MIN_PARAMS: dict[str, dict] = {
     "dfr": {"dfr": {"degrees": ["day"]}},
     "ssmt": {"checklist": {"ssmt_symbols": ["XAGUSD"], "ssmt_degrees": ["day"]}},
     "psp": {"checklist": {"ssmt_symbols": ["XAGUSD"], "ssmt_degrees": ["day"]}},
+    # `smt_fill` needs the partner and NOTHING ELSE - no degree, because a
+    # gap-fill divergence compares gaps printed on the same bar and has no
+    # quarter degree at all. Added 11 September 2026, and it was missing for one
+    # whole sweep: the layer came back "empty on every tf" for all 26 symbols,
+    # which is the same hole this table was built to close for the other four.
+    # A layer reported empty is a layer NOT MEASURED, dressed as a measurement.
+    "smt_fill": {"checklist": {"ssmt_symbols": ["XAGUSD"]}},
     # A DIVERGENCE NEEDS A SECOND INSTRUMENT, so the partner above cannot be the
     # chart. Sweeping XAGUSD with this table asked silver to diverge from silver
     # and the API answered 500 twice in the control - a real defect, now guarded
