@@ -44,6 +44,8 @@ from app.judas import classify as judas_classify
 from app.m4 import in_judas_window
 from app.poi import confluence, other_boxes
 from app.psp import detect as psp_detect
+from app.quarterly import time_premium_discount
+from app.sequence import chain as qt_chain
 from app.detect.structure import swings
 from app.quarters import ALL_DEGREES, true_opens
 from app.resample import STEP_UP, resample
@@ -75,6 +77,24 @@ COLUMNS = (
 #:
 #: `app/ladder.py` dihapus 4 September 2026. Ia tabel lookup tanpa input pasar
 #: (dinyatakan di praregistrasi), dan nol caller di luar test-nya sendiri.
+#: Kolom praregistrasi KEEMPAT, 11 September 2026, daftarnya di
+#: `docs/PRAREGISTRASI-QT-AZ.md`. Terpisah dari tiga daftar lain untuk alasan
+#: yang sama: menggabungkannya menyembunyikan pertanyaan mana yang diajukan
+#: sebelum jawabannya ada.
+#:
+#: `kz_depth` BUKAN turunan sepele dari `quarter_day` dan `quarter_session` yang
+#: sudah ada di `COLUMNS`. Kedua kolom itu menanyakan "kuarter berapa", dan ini
+#: menanyakan KONJUNGSINYA - dan konjungsi itu punya tingkat dasar yang harus
+#: dibaca bersamanya: dua degree sepakat pada satu dari empat kuarter BY
+#: CONSTRUCTION, tiga pada satu dari enam belas.
+QTAZ_COLUMNS = (
+    "kz_depth",
+    "kz_number",
+    "tpd_band",
+    "tpd_outside",
+)
+
+
 ORPHAN_COLUMNS = (
     "in_judas_window",
     "judas_template",
@@ -238,6 +258,59 @@ def _corr_band(
     return ">=0.80"
 
 
+def _tpd_at(bands: list, at: int):
+    """The premium/discount band covering an instant, or None.
+
+    Linear scan over a list that holds one entry per parent quarter, so on the
+    windows this tool reads it is short. Written as a scan rather than a
+    bisect because the bands are half-open and non-overlapping by construction
+    and a wrong bisect edge here would silently read the neighbouring quarter's
+    range - the one error this column exists to avoid.
+    """
+    for band in bands:
+        if band.start <= at < band.end:
+            return band
+    return None
+
+
+def _tpd_band(band, price: float) -> str:
+    """Premium, discount or equilibrium against the previous parent quarter.
+
+    The SAME quartile convention `range_band` uses, deliberately, because the
+    whole point of this column is to be compared against that one: two readings
+    of the same question on two different bases, and a different bucketing
+    would make the comparison about the buckets.
+    """
+    if band is None:
+        return "none"
+    span = band.high - band.low
+    if span <= 0:
+        return "none"
+    pos = (price - band.low) / span
+    if pos >= 0.75:
+        return "premium"
+    if pos <= 0.25:
+        return "discount"
+    return "equilibrium"
+
+
+def _tpd_outside(band, price: float) -> str:
+    """Outside the previous parent quarter's range entirely, and which side.
+
+    A state of its own rather than a rounding of the band above, because the
+    source calls it "extreme premium/discount" and treats it as the strongest
+    case - so folding it into `premium` would erase the distinction the claim
+    rests on.
+    """
+    if band is None:
+        return "none"
+    if price > band.high:
+        return "above"
+    if price < band.low:
+        return "below"
+    return "inside"
+
+
 def rows_with_state(symbol: str, interval: str, bars: int, flat: bool) -> list[dict]:
     """Every gate-clearing trade, with layer state AND the ICT checklist attached.
 
@@ -320,6 +393,11 @@ def rows_with_state(symbol: str, interval: str, bars: int, flat: bool) -> list[d
     adx_arr = wilder_adx(high_arr, low_arr, close_arr, 14)
     bb_arr = bb_width(close_arr, 20, 2.0)
 
+    # ONE PASS for the whole window, not one per touch. The bands are a pure
+    # function of the clock and the bars, so recomputing them per row would be
+    # the same list rebuilt thousands of times.
+    pd_bands = time_premium_discount(candles, "session")
+
     out = []
     for row in base:
         touch = int(row["at"])
@@ -363,6 +441,25 @@ def rows_with_state(symbol: str, interval: str, bars: int, flat: bool) -> list[d
                 else "4-9" if inside <= 9 else "10+")
             state["ote_band"] = _ote_band(zone.dealing_range_pos,
                                           zone.side.value)
+
+            # ---- kolom praregistrasi 11 September 2026, QT A-Z ----
+            # Semuanya dibaca pada BAR SENTUHAN dan tidak satu pun menyentuh
+            # bar sesudahnya. Killzone murni jam, jadi tidak ada pertanyaan
+            # lookahead sama sekali; band premium/discount berasal dari kuarter
+            # parent SEBELUMNYA, yang sudah tutup saat jendelanya dibuka.
+            here = qt_chain(times[touch], ("day", "session"))
+            aligned_now = (
+                here is not None
+                and len(set(here.quarters)) == 1
+            )
+            state["kz_depth"] = "2" if aligned_now else "0"
+            state["kz_number"] = (
+                f"Q{here.quarters[0]}" if aligned_now and here else "none"
+            )
+            band = _tpd_at(pd_bands, times[touch])
+            price = float(close_arr[touch])
+            state["tpd_band"] = _tpd_band(band, price)
+            state["tpd_outside"] = _tpd_outside(band, price)
             # Bucketed, because "how much of the method was satisfied" is the
             # question a reader asks, and 11 separate counts would each be too
             # thin to judge.
@@ -440,7 +537,7 @@ def main() -> None:
     # groups are judged, so the count has to happen in a first pass or the
     # threshold becomes a function of what the reader has already seen.
     judged = 0
-    for column in COLUMNS + ICT_COLUMNS + ORPHAN_COLUMNS + CORRELATION_COLUMNS + REGIME_COLUMNS:
+    for column in COLUMNS + ICT_COLUMNS + ORPHAN_COLUMNS + CORRELATION_COLUMNS + REGIME_COLUMNS + QTAZ_COLUMNS:
         seen: dict[object, int] = {}
         for row in rows:
             key = row["state"].get(column)
@@ -450,7 +547,7 @@ def main() -> None:
     print(f"{judged} grup layak dinilai, alpha {ALPHA}/{judged} = "
           f"{ALPHA / judged:.5f}, |t| kritis {critical:.2f}\n")
 
-    for column in COLUMNS + ICT_COLUMNS + ORPHAN_COLUMNS + CORRELATION_COLUMNS + REGIME_COLUMNS:
+    for column in COLUMNS + ICT_COLUMNS + ORPHAN_COLUMNS + CORRELATION_COLUMNS + REGIME_COLUMNS + QTAZ_COLUMNS:
         buckets: dict[object, list[dict]] = {}
         for row in rows:
             buckets.setdefault(row["state"].get(column), []).append(row)

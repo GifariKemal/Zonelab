@@ -106,6 +106,34 @@ PORTED_QUARTERLY = {
     "dfr": "zonelab_parity_quarterly.csv",
 }
 
+#: APA YANG "PORTED" TIDAK MENCAKUP, dan ini bentuk kelalaian yang sensus di
+#: file ini tidak bisa lihat sendiri: ia memeriksa setiap ID LAYER ada di salah
+#: satu daftar, bukan setiap OBJEK yang digambar layer itu. Jadi sebuah layer
+#: yang permukaannya tumbuh tetap tercatat ported atas dump yang tidak memuat
+#: objek barunya, dan tidak ada yang merah.
+#:
+#: Dicatat 11 September 2026 bersama dua overlay yang menyebabkannya. Keduanya
+#: aritmetika jam murni, jadi mem-port-nya murah - yang mahal justru
+#: mengasumsikan mereka sudah ikut.
+PARTIAL: dict[str, str] = {
+    "session": (
+        "`zonelab_parity_quarters.csv` menutup GRID KUARTER dan true open saja. "
+        "Dua overlay yang ditambahkan 11 September 2026 tidak ada di sisi MQL5 "
+        "dan tidak ada di dump itu: QT killzone (`sequence.killzones`) dan "
+        "premium/discount berbasis waktu (`quarterly.time_premium_discount`). "
+        "Keduanya aritmetika jam tanpa satu pun pembacaan harga, jadi port-nya "
+        "kecil - tapi belum dikerjakan, dan belum ada angka apa pun untuk "
+        "keduanya di rig mana pun sehingga tidak ada parity yang perlu dijaga "
+        "dulu"
+    ),
+    "ssmt": (
+        "Sudah UNPORTED seluruhnya di bawah. Dicatat lagi di sini karena "
+        "permukaannya tumbuh: basis BODY (Hidden SSMT, `ssmt(basis=\"body\")`) "
+        "ditambahkan 11 September 2026, jadi kalau layer ini nanti di-port, "
+        "yang di-port dua pembacaan dan bukan satu"
+    ),
+}
+
 #: Bentuk KEDELAPAN, dan satu satunya yang punya EA Strategy Tester DAN dump
 #: parity. `wyckoff` tercatat UNPORTED sampai 3 September 2026 dengan alasan
 #: "measured null, bukan family ICT", dan kedua bagian alasan itu benar - yang
