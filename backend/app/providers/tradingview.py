@@ -71,6 +71,17 @@ _RESOLUTION = {
 FETCH_TIMEOUT = 90.0
 _PAGE_BUDGET_MS = 60000
 
+#: Last delay this feed reported per app symbol, so a synchronous caller can
+#: ask without a fetch. Populated by `feed()` and never guessed: a symbol
+#: absent from here has not been fetched yet, which is a different answer
+#: from "live" and is returned as None rather than as zero.
+_SEEN_DELAY: dict[str, int] = {}
+
+
+def delay_of(symbol: str) -> int | None:
+    """Exchange delay last seen for `symbol`, or None if never fetched."""
+    return _SEEN_DELAY.get(symbol.upper())
+
 
 @dataclass(frozen=True)
 class Feed:
@@ -287,6 +298,17 @@ class TradingViewProvider:
 
     name = "tradingview"
 
+    def delay_of(self, symbol: str) -> int | None:
+        """Exchange delay last seen for `symbol`, or None if never fetched.
+
+        A METHOD, not only the module function below it. `exchange_delay` looks
+        this up with `getattr` on the provider INSTANCE, so a module-level
+        function alone answers None forever - which is indistinguishable from
+        "this feed cannot say" and is how the delay silently failed to reach
+        the chart the first time.
+        """
+        return delay_of(symbol)
+
     def available(self) -> bool:
         """Is the desktop app up with a chart page open?
 
@@ -354,9 +376,11 @@ class TradingViewProvider:
             for r in rows
             if r and len(r) >= 5
         ]
+        delay = _delay_seconds(payload.get("mode"))
+        _SEEN_DELAY[symbol.upper()] = delay
         return Feed(
             candles=normalize(candles, bars),
-            delay_seconds=_delay_seconds(payload.get("mode")),
+            delay_seconds=delay,
             resolved=payload.get("symbol"),
         )
 

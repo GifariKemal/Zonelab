@@ -214,6 +214,14 @@ export const Toolbox = memo(function Toolbox({
   // hour-old bar while looking identical to a current one.
   const step = (meta?.bar_closed_at ?? 0) - (meta?.as_of ?? 0);
   const lag = meta?.feed_lag_seconds ?? 0;
+  // THE VENUE'S OWN DELAY, subtracted before the banner decides anything. An
+  // exchange that holds its tape back ten minutes can never produce a bar
+  // newer than that, so measuring against the wall clock leaves the banner lit
+  // on every COMEX chart at 1m and 5m forever - and a banner that is always up
+  // is read as furniture, which is the failure the comment below already warns
+  // about. Null means the feed cannot say and nothing is deducted.
+  const held = Math.max(0, meta?.feed_delay_seconds ?? 0);
+  const overdue = Math.max(0, lag - held);
 
   /** One layer's knobs, chosen by its registry `params` name rather than by its
    *  id, because several layers share a block. Unknown key returns null, so a
@@ -1877,11 +1885,25 @@ export const Toolbox = memo(function Toolbox({
           opaque background, rather than the translucent accent wash the banner
           below uses - controls scrolling under a see-through warning read as
           both at once. */}
-      {step > 0 && lag > step ? (
+      {step > 0 && overdue > step ? (
         <p className="sticky top-0 z-10 border-b border-accent/40 bg-panel px-3 py-2 text-[11px] leading-relaxed text-accent">
           The newest bar closed <span className="num">{elapsed(lag)}</span> ago and
           one bar here is <span className="num">{elapsed(step)}</span>, so
           everything below describes that bar rather than the price now.
+        </p>
+      ) : null}
+
+      {/* THE DELAY IS ITS OWN LINE, and quieter than the banner above, because
+          it is not a fault: the venue is behaving normally and the chart is
+          correct. It is still the first thing a trader needs to know before
+          reading a level off it, so it is stated rather than left to be
+          inferred from a timestamp. Muted, not accent - a warning colour on a
+          permanent condition is how the banner above got its own warning. */}
+      {held > 0 ? (
+        <p className="border-b border-line px-3 py-1.5 text-[11px] leading-relaxed text-muted">
+          This venue delays its tape by{" "}
+          <span className="num">{elapsed(held)}</span>, so the newest bar is that
+          old by entitlement rather than by fault.
         </p>
       ) : null}
 

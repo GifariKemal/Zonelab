@@ -597,3 +597,94 @@ def test_a_pinned_synthetic_clock_survives_the_clock_moving(monkeypatch):
         "a pinned clock still moved with the wall clock, so any harness that "
         "asserts geometry on this provider is still measuring a moving series"
     )
+
+
+# --------------------------------------------------------- the venue's delay
+#
+# Added 12 September 2026 with the TradingView provider. Every assertion here
+# is about the DIRECTION a wrong answer errs in: this whole mechanism exists so
+# a ten-minute-old tape cannot be mistaken for a live one, and the two defects
+# it already shipped both failed by reporting "live".
+
+
+def test_a_delayed_mode_never_reads_as_live():
+    """`0` means the venue said live. A mode we cannot parse must not say that.
+
+    The first version returned 0 for `delayed_streaming_unknown`, and the first
+    version of its selftest asserted that it did.
+    """
+    from app.providers.tradingview import DELAY_UNKNOWN, _delay_seconds
+
+    assert _delay_seconds("delayed_streaming_600") == 600
+    assert _delay_seconds("streaming") == 0
+    assert _delay_seconds("delayed_streaming_unknown") == DELAY_UNKNOWN
+    assert _delay_seconds("delayed_streaming_unknown") != 0
+
+
+def test_exchange_delay_is_none_for_a_feed_that_cannot_say():
+    """None and 0 are different answers and the difference is the point.
+
+    Only TradingView's protocol states a delay. A provider without one has not
+    checked, and inventing 0 for it would render as "verified live" on a chart
+    that verified nothing.
+    """
+    from app.providers import exchange_delay
+
+    assert exchange_delay("mt5", "XAUUSD") is None
+    assert exchange_delay("synthetic", "XAUUSD") is None
+
+
+def test_the_provider_exposes_delay_of_as_a_method():
+    """`exchange_delay` reads it off the INSTANCE with getattr.
+
+    A module-level function alone answers None forever, which is
+    indistinguishable from "this feed cannot say" - and that is exactly how the
+    delay silently failed to reach the chart the first time.
+    """
+    from app.providers.tradingview import TradingViewProvider
+
+    assert callable(getattr(TradingViewProvider(), "delay_of", None))
+
+
+def test_a_delayed_tape_is_not_reported_as_a_broken_feed():
+    """The venue's delay is subtracted before staleness is judged.
+
+    Without this a COMEX chart at 1m is "behind" on every single draw, the
+    warning never goes off, and `tools/execute.py` - which refuses to place an
+    order while `blockers()` is non-empty - refuses every order forever.
+    """
+    from app.actionable import blockers
+
+    now = 1_800_000_000
+    step = 60
+    # The newest bar is as old as the delay allows and not one second older.
+    as_of = now - 600 - step
+    base = {
+        "interval": "1m",
+        "candles": [{"time": as_of - step}, {"time": as_of}],
+        "meta": {"as_of": as_of},
+        "drawing": {},
+    }
+
+    honest = dict(base, meta={"as_of": as_of, "feed_delay_seconds": 600})
+    assert blockers(honest, now=now) == [], "a delayed tape is behaving normally"
+
+    # The same response with no delay declared IS stale, which is what makes
+    # the assertion above a test of the subtraction rather than of nothing.
+    assert blockers(base, now=now), "without the delay this is genuinely behind"
+
+
+def test_an_unstated_delay_blocks_because_the_check_cannot_run():
+    """"I could not check" is a reason to refuse, unlike "the venue is slow"."""
+    from app.actionable import blockers
+    from app.providers.tradingview import DELAY_UNKNOWN
+
+    now = 1_800_000_000
+    as_of = now - 60
+    response = {
+        "interval": "1m",
+        "candles": [{"time": as_of - 60}, {"time": as_of}],
+        "meta": {"as_of": as_of, "feed_delay_seconds": DELAY_UNKNOWN},
+        "drawing": {},
+    }
+    assert any("cannot be judged" in r for r in blockers(response, now=now))

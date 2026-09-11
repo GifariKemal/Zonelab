@@ -69,13 +69,45 @@ def blockers(response: dict, now: int | None = None) -> list[str]:
         # stamped figure is as old as the response and this question is about now.
         as_of = int(meta.get("as_of") or 0)
         at = now if now is not None else int(_time.time())
-        lag = max(0, at - (as_of + step))
-        missed, basis = _missed_bars(candles, as_of, step, at)
+
+        # THE VENUE'S DELAY IS SUBTRACTED BEFORE JUDGING, because it is not a
+        # fault and reporting it as one destroys the check. A tape the exchange
+        # holds back 600 seconds can never have a bar newer than 600 seconds
+        # ago; measured against the wall clock every gold chart at 1m and 5m is
+        # then permanently "behind", the warning fires on every draw, and a
+        # warning that is always on is the same as no warning at all. What is
+        # asked instead is whether the feed is behind the newest bar it was
+        # ALLOWED to have.
+        #
+        # A negative delay is the provider saying "delayed, amount unstated";
+        # it cannot be subtracted, so it is reported and nothing is deducted.
+        delay = meta.get("feed_delay_seconds")
+        held = delay if isinstance(delay, int) and delay > 0 else 0
+        earliest_possible = at - held
+
+        lag = max(0, earliest_possible - (as_of + step))
+        missed, basis = _missed_bars(candles, as_of, step, earliest_possible)
         if missed > 0:
             out.append(
                 f"feed is {lag}s behind on a {step}s interval and {missed} bar"
                 f"{'s have' if missed != 1 else ' has'} closed since this was "
                 f"drawn ({basis})"
+            )
+        # THE PLAIN DELAY IS NOT APPENDED HERE, deliberately. `blockers()` is
+        # not a notice board: `tools/execute.py` refuses to place an order when
+        # this list is non-empty, so a line saying "the exchange holds this tape
+        # back ten minutes" would stop every order on every CME contract, and
+        # stop it with a message that describes normal operation. The fact still
+        # has to reach a human, so it travels as `meta.feed_delay_seconds` and
+        # the chart renders it beside the clock.
+        #
+        # An UNSTATED delay is different and does belong here: it means this
+        # function cannot do its job, and "I could not check" is a reason to
+        # refuse rather than a note about the venue.
+        if isinstance(delay, int) and delay < 0:
+            out.append(
+                "this venue reports its tape as delayed without saying by how "
+                "much, so staleness cannot be judged here"
             )
 
     return out

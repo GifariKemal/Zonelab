@@ -21,7 +21,7 @@ from .models import Candle, DrawRequest, Drawing, FibonacciAnchor, Zone, ZoneSta
 from .overlays import BAR_OVERLAYS, bar_overlays, session_grid
 from .probability import outcome_odds
 from .profit_zone import mark_crowding, mark_profit_zones
-from .providers import INTERVALS
+from .providers import INTERVALS, exchange_delay
 from .refine import refine_zones
 from .resample import resample
 from . import vortex
@@ -253,6 +253,13 @@ def build(
         "bar_closed_at": as_of + step if rows else 0,
         "next_close_at": as_of + 2 * step if rows else 0,
         "feed_lag_seconds": max(0, int(time.time()) - (as_of + step)) if rows else 0,
+        # THE VENUE'S OWN DELAY, which is not the same fact as the lag above
+        # and is the difference between "this tape is ten minutes behind by
+        # entitlement" and "this feed has stopped". Read from the provider
+        # rather than computed, and null when the feed has no way to know -
+        # a zero invented for a provider that never checked would read as
+        # verified-live, which is the one direction worth being careful in.
+        "feed_delay_seconds": exchange_delay(request.provider, request.symbol),
         "fetched_at": int(time.time()),
         # PELUANG TERUKUR, dikirim DI SINI dan bukan di `/api/config`, karena
         # angkanya bergantung simbol dan timeframe dan config tidak tahu

@@ -327,12 +327,30 @@ async def get_candles(
         return candles, provider.name
 
 
+def exchange_delay(provider: str | None, symbol: str) -> int | None:
+    """Seconds this feed's venue delays `symbol`, or None when it cannot say.
+
+    DUCK-TYPED ON PURPOSE. Only TradingView reports a delay today, because only
+    its protocol states one; widening `Provider` to demand the method would
+    make six other providers answer a question they have no source for, and an
+    invented zero from a feed that never checked is exactly the wrong answer -
+    it reads as "verified live".
+
+    None means unknown, 0 means the venue said live, and a negative value means
+    the venue said delayed without saying by how much.
+    """
+    feed = PROVIDERS.get(provider or settings.default_provider)
+    getter = getattr(feed, "delay_of", None)
+    return getter(symbol) if callable(getter) else None
+
+
 __all__ = [
     "INTERVALS",
     "PROVIDERS",
     "SYMBOLS",
     "TradingViewProvider",
     "carries",
+    "exchange_delay",
     "Provider",
     "ProviderError",
     "availability",

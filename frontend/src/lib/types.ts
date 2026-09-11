@@ -1494,6 +1494,10 @@ export interface DrawResponse {
      *  up to 59 minutes - and the two look identical on screen without a number.
      *  A live call returned 3531 here, and the chart said nothing. */
     feed_lag_seconds?: number;
+    /** Seconds this venue holds its tape back, read off the feed's own
+     *  protocol. Null when the provider has no way to say - which is NOT the
+     *  same as zero, and must not be rendered as "live". */
+    feed_delay_seconds?: number | null;
     fetched_at?: number;
     /** Peluang hasil terukur per layer yang BISA DIORDER, untuk simbol dan
      *  timeframe response ini. Dikirim di sini dan bukan di `/api/config`
