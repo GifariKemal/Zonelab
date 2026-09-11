@@ -292,12 +292,50 @@ diberi nama baru.
 > Yang berubah cuma satu: `tpd_outside` sekarang punya angka, dan angkanya
 > terbelah antar instrumen.
 
-### S3 dan S4 belum dijalankan
+## Hasil S3, diukur 12 September 2026
 
-`Hidden SSMT` dan `SMT Fill` membutuhkan rig outcome-nya sendiri
-(`ssmt_outcomes` dengan lengan ketiga, dan bracket baru untuk fill), bukan
-kolom pengkondisi. Keduanya masih persis seperti yang ditulis di atas: mati by
-default, nol gerbang, nol angka.
+Lengan ketiga ditambahkan ke `tools/ssmt_outcomes.py` sebagai `--basis`, jadi
+`wick` menjalankan ulang jangkar yang sama persis. Populasi, `mt5:XAUUSD` dan
+tiga pasangan lain, 1h, 50.000 bar, degree `day`:
+
+| Lengan | Event mentah | Sel lolos |
+|---|---|---|
+| `wick` | 17.930 | 0 |
+| `body` | 19.130 | 0 |
+| `body_only` | 5.176 | 0 |
+
+**Ketiganya null.** Populasinya benar-benar berbeda, jadi ini tiga pengukuran
+dan bukan satu pengukuran tiga kali - hal yang perlu ditulis karena percobaan
+pertama TIDAK berbeda: argumen lengannya tidak pernah sampai ke `measure()`,
+ketiga file keluar byte-identical, dan yang menangkapnya adalah ukuran file
+yang sama persis dan bukan sebuah test.
+
+**Premis sumbernya terbukti**, dan itu hasil tersendiri: 5.176 dari 19.130
+divergensi body terjadi di kuarter yang TIDAK punya divergensi wick. Hidden
+SSMT memang ada dan sering, sekitar 27 persen.
+
+### Klaim berarahnya: tepat kebetulan
+
+Ini satu-satunya klaim berarah di dokumen sumber, jadi satu-satunya yang bisa
+salah dengan cara menarik. Klaimnya, body lebih lemah karena "no liquidity is
+technically being swept".
+
+Dari 24 sel yang layak dinilai di kedua lengan, `body` lebih lemah daripada
+`wick` di **12**. Lima puluh persen, yaitu tepat harapan kebetulan. Median
+delta `wick` +0,0009 lawan `body` +0,0002, keduanya tak terbedakan dari nol.
+
+> [!NOTE]
+> Ini bukan "hampir". Peringkat tepat di kebetulan adalah bentuk null yang sama
+> dengan DFR di `docs/PRAREGISTRASI-YATIM.md`: bukan efek lemah yang butuh
+> sampel lebih besar, melainkan tidak adanya urutan untuk diukur.
+
+**Tidak ada gerbang yang dinyalakan.**
+
+### S4 belum dijalankan
+
+`SMT Fill` masih butuh bracket outcome-nya sendiri; ia bukan kolom pengkondisi
+dan tidak bisa meminjam rig SSMT karena eventnya bukan kuarter. Ia masih persis
+seperti yang ditulis di atas: mati by default, nol gerbang, nol angka.
 
 ## Aturan yang berlaku untuk keempatnya
 

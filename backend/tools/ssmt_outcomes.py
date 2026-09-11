@@ -194,9 +194,37 @@ async def _load(chart, partner, interval, bars, provider):
     return await load_aligned([chart, partner], interval, bars, provider)
 
 
-def measure(chart, partner, series, degree):
+def _events_for(series, degree, arm):
+    """The event list one S3 arm is defined over.
+
+    Three arms, from `docs/PRAREGISTRASI-QT-AZ.md` S3, and the third is the one
+    the source claim is actually about: "kalau tidak terlihat SSMT biasa,
+    langsung cek yang tersembunyi". A body divergence in a quarter that ALSO
+    printed a wick divergence is not hidden - it is the same reading twice - so
+    `body_only` subtracts those and leaves the quarters where the body pass is
+    the only pass that fired.
+
+    Keyed on (degree, side, took, quarter start) rather than on `knowable_at`.
+    Two arms can learn about the same quarter on different bars, because the
+    wick that takes an extreme and the body that takes it need not print
+    together, and keying on the bar would call those two different quarters and
+    subtract nothing.
+    """
+    if arm in ("wick", "body"):
+        return ssmt(series, degree, basis=arm)[0]
+
+    wick, _ = ssmt(series, degree, basis="wick")
+    body, _ = ssmt(series, degree, basis="body")
+    seen = {(e.degree, e.side, e.took, e.quarter.start) for e in wick}
+    return [
+        e for e in body
+        if (e.degree, e.side, e.took, e.quarter.start) not in seen
+    ]
+
+
+def measure(chart, partner, series, degree, arm="wick"):
     """Events and control for one pair, thinned, at every width."""
-    events, _ = ssmt(series, degree)
+    events = _events_for(series, degree, arm)
     rows = series[chart]
     high = np.array([c.high for c in rows], dtype=np.float64)
     low = np.array([c.low for c in rows], dtype=np.float64)
@@ -292,6 +320,10 @@ def main() -> None:
     p.add_argument("--interval", type=str, default="1h")
     p.add_argument("--degree", type=str, default="day")
     p.add_argument("--provider", type=str, default="mt5")
+    # S3's three arms. `wick` reproduces the anchor result exactly,
+    # which is the only reason the other two are comparable to it.
+    p.add_argument("--basis", choices=("wick", "body", "body_only"),
+                   default="wick")
     args = p.parse_args()
 
     _selftest()
@@ -322,7 +354,8 @@ def main() -> None:
             continue
         series, stats = got
         corr = correlations(series, chart)[0]
-        got_cells, counts = measure(chart, partner, series, args.degree)
+        got_cells, counts = measure(chart, partner, series, args.degree,
+                                    args.basis)
         pairs_out[key] = {
             "grid": int(stats["grid"]),
             "fetched_chart": int(stats[f"fetched:{chart}"]),
@@ -385,6 +418,10 @@ def main() -> None:
         "preregistered": "docstring of tools/ssmt_outcomes.py, thresholds before numbers",
         "run": {"bars": args.bars, "interval": args.interval,
                 "degree": args.degree, "provider": args.provider,
+                # STAMPED, because the three arms write the same shape and a
+                # file that does not say which one produced it is a file that
+                # will be compared against the wrong anchor.
+                "basis": args.basis,
                 "widths": list(WIDTHS), "horizon": HORIZON, "folds": FOLDS},  # fmt: skip
         "thresholds": {
             "min_events": MIN_EVENTS, "min_control": MIN_CONTROL,
