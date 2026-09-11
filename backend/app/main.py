@@ -76,6 +76,7 @@ from .providers import (
     SYMBOLS,
     ProviderError,
     availability,
+    carries,
     get_forming,
     resolve,
 )
@@ -495,13 +496,28 @@ async def triad_read(
 
     base = symbol.split(":")[-1]
     symbols = [base, *[p for p in family[1:] if p != base]]
-    # Binance and Yahoo only carry a handful of the twenty instruments. The
-    # triad partners - DXY, EURUSD, WTI, NAS100, etc. - are not among them,
-    # so a triad read on those providers would always fail. MT5 carries all
-    # twenty and is the fallback.
-    triad_provider = provider
-    if provider in ("binance", "yahoo", None):
-        triad_provider = "mt5"
+    # WHICH FEED ACTUALLY SERVES THE TRIAD. A triad needs all three legs or
+    # none, and no feed carries every instrument, so the feed has to be chosen
+    # against the legs before the load rather than discovered by a 502 after it.
+    #
+    # ASKED PER LEG, NOT PER FEED NAME. This was a flat list - "binance, yahoo
+    # or unset means mt5" - and it was wrong in both directions. It sent
+    # `metals` (XAU/XAG/XPT, all three of which Yahoo maps to their COMEX and
+    # NYMEX front months) to MT5 spot CFDs, quietly answering a question about
+    # exchange-traded futures with broker CFDs. And it sent `bonds` to MT5,
+    # which carries neither US10Y nor US30Y, so that triad returned 502 to every
+    # caller on every provider for as long as the list existed - the flat list
+    # could not express "the fallback is the thing that cannot serve this".
+    #
+    # The order is preference, not correctness: the caller's own feed first,
+    # then MT5 because it is the widest and by far the fastest here, then Yahoo
+    # which is the only feed carrying the treasury yields. If NOTHING carries
+    # the triad the caller's provider is kept, so `load_aligned` raises naming
+    # the leg that is actually missing instead of a substitute feed's problem.
+    triad_provider = next(
+        (p for p in (provider, "mt5", "yahoo") if p and carries(p, symbols)),
+        provider or "mt5",
+    )
     try:
         series, load_stats = await load_aligned(
             symbols, interval, bars, triad_provider

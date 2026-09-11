@@ -1301,7 +1301,7 @@ export const Toolbox = memo(function Toolbox({
                 the partner list, so the triad works with any instrument. */}
             <Chips
               label="Triad"
-              options={["monetary", "commodity", "risk", "fx", "bonds", "energy"]}
+              options={["monetary", "commodity", "risk", "fx", "bonds", "energy", "metals"]}
               selected={[]}
               onChange={(v) => {
                 const partners: Record<string, string[]> = {
@@ -1311,6 +1311,10 @@ export const Toolbox = memo(function Toolbox({
                   fx: ["USDJPY", "XPTUSD"],
                   bonds: ["US10Y", "US30Y"],
                   energy: ["WTI", "BRENT"],
+                  // All three legs precious metals. On the `yahoo` source these
+                  // are COMEX GC=F/SI=F and NYMEX PL=F - the same front-month
+                  // contracts TradingView draws as GC1!/SI1!/PL1!.
+                  metals: ["XAGUSD", "XPTUSD"],
                 };
                 const picked = v[v.length - 1];
                 if (!picked || !partners[picked]) return;

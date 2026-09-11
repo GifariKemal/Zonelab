@@ -5,7 +5,7 @@ import { memo, useCallback, useEffect, useState } from "react";
 import { fetchTriad } from "@/lib/api";
 import type { TriadResponse } from "@/lib/types";
 
-/** Four named triads, each with a label and a short description. The keys
+/** The named triads, each with a label and a short description. The keys
  *  match `TRIAD_FAMILIES` in `backend/app/triad.py`, and the descriptions
  *  match the assets listed there. */
 const TRIADS = [
@@ -15,6 +15,7 @@ const TRIADS = [
   { key: "fx", label: "FX", desc: "XAU · JPY · XPT" },
   { key: "bonds", label: "Bonds", desc: "XAU · 10Y · 30Y" },
   { key: "energy", label: "Energy", desc: "XAU · WTI · Brent" },
+  { key: "metals", label: "Metals", desc: "XAU · XAG · XPT" },
 ];
 
 /**

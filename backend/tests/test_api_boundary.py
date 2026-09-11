@@ -424,31 +424,60 @@ def test_triad_reports_the_provider_it_actually_used(aligned):
     assert response.json()["provider"] == "mt5", "and it is now reported"
 
 
-@pytest.mark.parametrize("asked", ["binance", "yahoo", None])
+@pytest.mark.parametrize("asked", ["binance", None])
 def test_every_substituted_provider_is_reported_as_mt5(asked, aligned):
-    """All three inputs the route rewrites, not just the one in the ticket.
+    """The inputs the route rewrites, not just the one in the ticket.
 
     `None` is in this list because it is the DEFAULT, so the unreported
     substitution was happening on the ordinary request rather than on an exotic
     one: a caller who names no provider gets mt5 here and the chart's own
     `settings.default_provider` everywhere else, and those two agreeing today is
     a coincidence of configuration.
+
+    `yahoo` USED TO BE IN THIS LIST and was removed as wrong, not as
+    inconvenient. It was here because the route rewrote it, and the route
+    rewrote it because a hand-written list of provider names claimed Yahoo
+    carried no triad partner. The coverage table says otherwise - Yahoo maps
+    every leg of all seven triads - so the assertion was pinning a substitution
+    that never needed to happen. It now lives in the pass-through test below.
     """
     params = {} if asked is None else {"provider": asked}
     body = client.get("/api/triad", params=params).json()
     assert body["provider"] == "mt5"
 
 
-def test_a_provider_that_carries_the_triad_is_passed_through_unchanged(aligned):
+@pytest.mark.parametrize("asked", ["synthetic", "yahoo"])
+def test_a_provider_that_carries_the_triad_is_passed_through_unchanged(
+    asked, aligned
+):
     """The guard is a substitution, not a hardcode.
 
     Without this, `return "mt5"` unconditionally would satisfy every assertion
     above while breaking the one case a caller most wants: naming a feed and
     getting it.
+
+    `yahoo` is the case with teeth. Its legs resolve to COMEX and NYMEX front
+    months while MT5's resolve to broker spot CFDs, so a silent rewrite here
+    answered a question about exchange-traded futures with something else and
+    said nothing.
     """
-    body = client.get("/api/triad", params={"provider": "synthetic"}).json()
-    assert aligned["provider"] == "synthetic"
-    assert body["provider"] == "synthetic"
+    body = client.get("/api/triad", params={"provider": asked}).json()
+    assert aligned["provider"] == asked
+    assert body["provider"] == asked
+
+
+def test_a_triad_mt5_cannot_serve_is_routed_to_a_feed_that_can(aligned):
+    """`bonds` was 502 for every caller on every provider.
+
+    Not a hypothetical: US10Y and US30Y are carried by Yahoo alone, the old
+    flat list sent every triad read to mt5, and mt5 carries neither - so the
+    route substituted in the one feed guaranteed to fail and the error blamed
+    the instruments. A flat list of provider names cannot express "the fallback
+    is the thing that cannot serve this"; asking the coverage table per leg can.
+    """
+    body = client.get("/api/triad", params={"triad": "bonds"}).json()
+    assert aligned["provider"] == "yahoo"
+    assert body["provider"] == "yahoo"
 
 
 def test_triad_returns_the_full_reading_shape(aligned):

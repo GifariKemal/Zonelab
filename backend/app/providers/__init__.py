@@ -16,6 +16,7 @@ from .sources import (
     PolygonProvider,
     TwelveDataProvider,
     YahooProvider,
+    carries,
 )
 from .synthetic import SyntheticProvider
 
@@ -324,6 +325,7 @@ __all__ = [
     "INTERVALS",
     "PROVIDERS",
     "SYMBOLS",
+    "carries",
     "Provider",
     "ProviderError",
     "availability",

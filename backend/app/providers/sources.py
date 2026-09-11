@@ -23,6 +23,8 @@ from __future__ import annotations
 import math
 from datetime import UTC, datetime
 
+from collections.abc import Iterable
+
 import httpx
 
 from ..config import settings
@@ -148,6 +150,57 @@ SYMBOLS: dict[str, dict[str, str]] = {
     # would break this table's one rule. Until then `vendor_symbol` says "does not
     # carry", which is a true statement about what has been checked.
 }
+
+
+def carries(provider: str, symbols: Iterable[str]) -> bool:
+    """Does `provider` carry EVERY one of `symbols`?
+
+    Asked so callers that need a whole basket at once - a triad is three legs
+    or nothing - can pick a feed before the load instead of catching the 502
+    that `vendor_symbol` raises on the first missing leg.
+
+    A provider absent from the table entirely (`synthetic`) generates whatever
+    name it is handed, so it carries everything; that is why the membership of
+    the provider is checked and not just the membership of the symbol. And an
+    unknown SYMBOL is not a miss for the same reason `vendor_symbol` passes it
+    through: this table does not claim to be the list of tickers that exist.
+    """
+    known = {p for mapping in SYMBOLS.values() for p in mapping}
+    if provider not in known:
+        return True
+    return all(
+        provider in SYMBOLS[s.upper()] for s in symbols if s.upper() in SYMBOLS
+    )
+
+
+def _selftest() -> None:
+    """`carries` against the three answers it can give, on real table rows.
+
+    Written because the routing it feeds was wrong in BOTH directions for as
+    long as it was a hand-written list of provider names, and a hand-written
+    list is exactly what this replaces. The rows below are read from SYMBOLS
+    rather than restated, so the check cannot drift from the table the way the
+    list did - what is asserted is the RULE, not today's coverage.
+    """
+    known = {p for mapping in SYMBOLS.values() for p in mapping}
+
+    # A feed listed against every leg carries the basket.
+    both = sorted(SYMBOLS["XAUUSD"].keys() & SYMBOLS["XAGUSD"].keys())
+    assert both, "table row changed shape"
+    assert carries(both[0], ["XAUUSD", "XAGUSD"])
+
+    # A feed missing ONE leg fails the basket even though it carries the other.
+    missing = next(p for p in SYMBOLS["XAUUSD"] if p not in SYMBOLS["XAGUSD"])
+    assert not carries(missing, ["XAUUSD", "XAGUSD"])
+    assert carries(missing, ["XAUUSD"]), "one leg is still served"
+
+    # A feed absent from the table generates any name, so it carries anything.
+    assert "synthetic" not in known
+    assert carries("synthetic", sorted(SYMBOLS))
+
+    # An unknown ticker is not a miss, for the reason `vendor_symbol` passes it
+    # through: this table is not a claim about which tickers exist.
+    assert carries(both[0], ["XAUUSD", "NOT-A-TICKER"])
 
 
 def vendor_symbol(provider: str, symbol: str) -> str:
