@@ -619,15 +619,31 @@ async def _draw_ssmt(
     """
     params = request.checklist
     stats: dict[str, object] = {"drawn": 0}
-    if not (params.ssmt_symbols and params.ssmt_degrees):
-        # SATU BAHASA DI SATU RAIL. Kalimat ini English sejak layer-nya dikirim,
-        # lalu `session` dan `dfr` menyusul dengan kalimat Bahasa Indonesia pada
-        # 2 September 2026, dan rail-nya menampilkan ketiganya berdampingan.
-        # Diselaraskan ke Bahasa Indonesia karena dua dari tiga sudah begitu.
-        # Aman diubah: `e2e/rails.mjs` membaca string ini DARI API lalu
-        # memeriksa ia muncul di DOM, jadi tidak ada harness yang mengeja
-        # kalimatnya.
-        stats["reason"] = "pilih minimal satu instrument dan satu degree"
+    # DUA SYARAT, DAN HANYA SATU YANG BERLAKU UNTUK SEMUA PENUMPANG BLOK INI.
+    #
+    # Partner wajib bagi ketiganya: tanpa instrumen kedua tidak ada yang bisa
+    # dibandingkan, jadi itu pintu pertama dan ia menutup semuanya.
+    #
+    # DERAJAT TIDAK. `smt_fill` tidak punya derajat kuarter sama sekali - ia
+    # membandingkan gap yang tercetak di bar yang sama, dan kuarter tidak ada
+    # dalam definisinya. Sampai 11 September 2026 ia tetap ter-gate di sini,
+    # jadi menyalakan layer itu sendirian mengharuskan pembaca memilih sebuah
+    # SSMT stage yang tidak dipakainya untuk apa pun. Ditemukan oleh probe
+    # piksel, bukan oleh harness: `wiring.mjs` menyuplai kedua field lewat API
+    # sekaligus, jadi kombinasi "partner ada, degree tidak" tidak pernah diuji.
+    #
+    # SATU BAHASA DI SATU RAIL. Kalimat-kalimat ini English sejak layer-nya
+    # dikirim, lalu `session` dan `dfr` menyusul dengan kalimat Bahasa Indonesia
+    # pada 2 September 2026. Diselaraskan ke Bahasa Indonesia. Aman diubah:
+    # `e2e/rails.mjs` membaca string ini DARI API lalu memeriksa ia muncul di
+    # DOM, jadi tidak ada harness yang mengeja kalimatnya.
+    if not params.ssmt_symbols:
+        stats["reason"] = "pilih minimal satu instrument sebagai partner"
+        return stats
+
+    wanted_layers = set(request.layers)
+    if not params.ssmt_degrees and not ("smt_fill" in wanted_layers):
+        stats["reason"] = "pilih minimal satu degree"
         return stats
 
     source = params.ssmt_provider or used
@@ -682,6 +698,11 @@ async def _draw_ssmt(
     psp_rows: list[PSPModel] = []
     partners = [series[k] for k in series if k != request.symbol]
     index_of = {c.time: i for i, c in enumerate(rows)}
+    if not params.ssmt_degrees:
+        # Reached only when `smt_fill` is the reason this block ran at all. The
+        # fill pass below needs none of the per-degree work, so saying so beats
+        # an empty SSMT count the reader has to diagnose.
+        stats["reason"] = "tidak ada degree, hanya SMT fill"
     for degree in dict.fromkeys(params.ssmt_degrees):
         events, _ = ssmt_read(series, degree)
         if want_psp:

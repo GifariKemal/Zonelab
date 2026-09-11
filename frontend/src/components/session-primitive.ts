@@ -17,7 +17,7 @@ import type {
   TrueOpenLevel,
 } from "@/lib/types";
 import { cycleWeekday, sessionOpenName } from "@/lib/clock";
-import { INKS, monoFont } from "./ink";
+import { ink as inkOf, monoFont } from "./ink";
 import { LABEL_GUTTER, claimedLabels, labelFree } from "./structure-primitive";
 import { strokeLine } from "./pixel";
 
@@ -59,10 +59,10 @@ import { strokeLine } from "./pixel";
  *  hue and false afterwards - a comment carrying a stale rgb triple is the exact
  *  failure mode the rest of this sentence goes on to describe.
  *
- *  Stated here rather than read from a CSS variable, because the two theme
- *  tokens that once named these inks were read by nothing and had already
- *  drifted away from the values actually painted. */
-const INK = INKS.grid;
+ *  Stated in `ink.ts` rather than read from a CSS variable, because the two
+ *  theme tokens that once named these inks were read by nothing and had
+ *  already drifted away from the values actually painted. The family name is
+ *  `grid`; `ink()` below resolves it per call so the palette can change. */
 
 /** A TRUE OPEN IS NOT CONTEXT, so it does not get the context ink.
  *
@@ -84,11 +84,11 @@ const INK = INKS.grid;
  *  Sharing it is the point rather than a coincidence: a true open belongs to
  *  that family of objects, not to the grid. It is still one neutral ink per
  *  family, so nothing about "colour cannot type the object" changed - inside a
- *  family the label is still the only thing that says which object this is. */
-const LEVEL_INK = INKS.levels;
+ *  family the label is still the only thing that says which object this is.
+ *  The family name is `levels`; `levelInk()` below resolves it per call. */
 
 function levelInk(alpha: number): string {
-  return `rgba(${LEVEL_INK[0]}, ${LEVEL_INK[1]}, ${LEVEL_INK[2]}, ${alpha})`;
+  return inkOf("levels", alpha);
 }
 
 /** How loud each degree is. A month box and a micro box are the same object at
@@ -115,8 +115,22 @@ const WEIGHT: Record<string, { line: number; fill: number; label: number }> = {
   nano: { line: 0.15, fill: 0, label: 0 },
 };
 
+/** DELEGATES, and until 11 September 2026 it did not.
+ *
+ *  `const INK = INKS.grid` reads the DARK table once, at module load. `ink.ts`
+ *  swaps palettes through a module variable that `setInkTheme` writes, so a
+ *  colour captured at import time never hears about it: this whole file painted
+ *  dark-theme grid ink on a light background, and it is the one class of defect
+ *  `ink.ts` says outright is hardest to see - "warnanya BASI dan bukan salah".
+ *  Seven other primitives already call the resolver; these two were the
+ *  holdouts, and the two new overlays below would have been the ninth and tenth
+ *  had they kept the literals they were written with.
+ *
+ *  The two module constants this replaced are gone with it: a captured colour
+ *  is the bug, so keeping one around unused would only invite the next caller
+ *  to reach for it. */
 function ink(alpha: number): string {
-  return `rgba(${INK[0]}, ${INK[1]}, ${INK[2]}, ${alpha})`;
+  return inkOf("grid", alpha);
 }
 
 /** Short tags, his own vocabulary. TDO is the true daily open, TWO the weekly,
@@ -420,9 +434,9 @@ class SessionRenderer implements IPrimitivePaneRenderer {
       for (const band of this.zones) {
         const x1 = Math.round(band.x1 * kx);
         const x2 = Math.round(band.x2 * kx);
-        ctx.fillStyle = "rgba(217, 164, 65, 0.05)";
+        ctx.fillStyle = ink(0.05);
         ctx.fillRect(x1, 0, x2 - x1, height);
-        ctx.strokeStyle = "rgba(217, 164, 65, 0.20)";
+        ctx.strokeStyle = ink(0.22);
         ctx.lineWidth = strokeLine(0, kx, 1).width;
         ctx.beginPath();
         ctx.moveTo(strokeLine(band.x1, kx, 1).centre, 0);
@@ -434,7 +448,7 @@ class SessionRenderer implements IPrimitivePaneRenderer {
         const rect = { x: x1 + 3 * kx, y: 3 * ky, w: tw + 4 * kx, h: 12 * ky };
         if (x2 - x1 > tw + 8 * kx && labelFree(rect, claimedLabels)) {
           claimedLabels.push(rect);
-          ctx.fillStyle = "rgba(217, 164, 65, 0.75)";
+          ctx.fillStyle = ink(0.75);
           ctx.fillText(tag, x1 + 5 * kx, 4 * ky);
         }
       }
@@ -448,7 +462,7 @@ class SessionRenderer implements IPrimitivePaneRenderer {
         const x2 = Math.round(band.x2 * kx);
         const top = strokeLine(band.yHigh, ky, 1).centre;
         const bottom = strokeLine(band.yLow, ky, 1).centre;
-        ctx.strokeStyle = "rgba(140, 150, 170, 0.45)";
+        ctx.strokeStyle = ink(0.45);
         ctx.lineWidth = strokeLine(0, kx, 1).width;
         for (const y of [top, bottom]) {
           ctx.beginPath();
@@ -457,7 +471,7 @@ class SessionRenderer implements IPrimitivePaneRenderer {
           ctx.stroke();
         }
         ctx.setLineDash([3 * kx, 3 * kx]);
-        ctx.strokeStyle = "rgba(140, 150, 170, 0.65)";
+        ctx.strokeStyle = ink(0.65);
         ctx.beginPath();
         ctx.moveTo(x1, strokeLine(band.yMid, ky, 1).centre);
         ctx.lineTo(x2, strokeLine(band.yMid, ky, 1).centre);
@@ -469,7 +483,7 @@ class SessionRenderer implements IPrimitivePaneRenderer {
         const rect = { x: x1 + 3 * kx, y: top - 13 * ky, w: tw + 4 * kx, h: 12 * ky };
         if (x2 - x1 > tw + 8 * kx && labelFree(rect, claimedLabels)) {
           claimedLabels.push(rect);
-          ctx.fillStyle = "rgba(140, 150, 170, 0.85)";
+          ctx.fillStyle = ink(0.85);
           ctx.fillText(tag, x1 + 5 * kx, top - 12 * ky);
         }
       }

@@ -1644,6 +1644,27 @@ export const Toolbox = memo(function Toolbox({
       case "smt_fill":
         return (
           <>
+            {/* THE PARTNERS, RENDERED HERE TOO, and that is a fix rather than a
+                duplicate. A layer's knob panel appears only while THAT layer is
+                on, keyed by its own `params` block - so switching SMT fill on by
+                itself showed a rail with no way to pick a partner, and the layer
+                then reported "pilih minimal satu instrument" with no control in
+                sight. Found by a pixel probe, not by any harness: `wiring.mjs`
+                supplies the partners through the API and never looks for the
+                control.
+
+                ONE STATE, TWO VIEWS. Both write `params.checklist`, so this is
+                the same basket shown in a second place rather than a second
+                basket - the distinction the ssmt layer's own note draws when it
+                explains why it shares the block at all. */}
+            <Chips
+              label="SMT fill against"
+              options={(config?.symbols ?? [])
+                .map((s) => s.id)
+                .filter((id) => id !== symbol)}
+              selected={params.checklist.ssmt_symbols}
+              onChange={(v) => onParams("checklist", { ssmt_symbols: v })}
+            />
             <Slider
               label="Fills drawn"
               hint="Newest gap-fill divergences kept on the canvas."
@@ -1666,8 +1687,9 @@ export const Toolbox = memo(function Toolbox({
               deliberately absent. A box tagged{" "}
               <span className="num">held</span> is one where THIS instrument is
               the one holding.
-              {" "}Partners come from the SSMT block below - one fetch serves
-              both layers.
+              {" "}The partner picker above is the SAME value the SSMT layer
+              uses, shown here as well so this layer is usable on its own - one
+              basket, one fetch, two places to set it.
               {" "}ADOPTED 11 September 2026 AND NOT MEASURED. Its two
               neighbours from the same doctrine, SSMT and PSP, were measured null
               over 24 and 48 cells; that is the prior this one starts from, not

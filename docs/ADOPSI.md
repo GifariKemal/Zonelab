@@ -1044,6 +1044,31 @@ blok async yang sudah membayar basket-nya.
    minimal satu degree" sementara 52 objek ada di kanvas. `e2e/rails.mjs`
    membaca kalimat itu DARI API lalu memeriksa ia muncul di DOM, jadi kalimat
    yang salah tidak merah di mana pun - ia cuma bohong.
+4. **`smt_fill` ter-gate oleh derajat yang tidak dipakainya.** Ia menumpang
+   blok `_draw_ssmt`, dan blok itu keluar lebih awal kecuali `ssmt_degrees`
+   terisi - padahal gap-fill divergence membandingkan gap di bar yang SAMA dan
+   tidak punya derajat kuarter sama sekali. Menyalakan layer itu sendirian
+   mengharuskan pembaca memilih SSMT stage yang tidak berpengaruh apa-apa.
+   Sekarang partner yang wajib, derajat tidak.
+5. **Menyalakan `smt_fill` sendirian tidak memberi satu pun kontrol partner.**
+   Panel knob hanya muncul untuk layer yang menyala, dan partner-nya hidup di
+   blok `checklist` milik layer lain. Picker partner sekarang dirender di panel
+   `smt_fill` juga: satu state, dua tampilan.
+
+Nomor 4 dan 5 ditemukan `e2e/qt-az-ink.mjs`, probe piksel yang ditulis untuk
+pertanyaan yang tidak ditanyakan harness mana pun. `wiring.mjs` membuktikan
+layer mengisi array-nya dan punya swatch serta knob; `ink-budget.mjs` mengukur
+tinta HANYA pada params default, dan tiga dari empat adopsi ini memang kosong
+pada default. Di antara keduanya sebuah layer bisa dilaporkan tersambung penuh
+sambil tidak mengecat apa pun. Terukur sekarang: killzone 6.864 piksel,
+premium/discount 1.776, SMT fill 2.550, hidden SSMT 39.077.
+
+> [!WARNING]
+> **Versi pertama probe itu sendiri yang salah, dan ia merah untuk keempatnya -
+> termasuk `ssmt` yang jelas mengecat.** Ia menembak `/api/draw` lewat `fetch`
+> di dalam halaman, jadi React tidak pernah tahu dan chart tidak pernah
+> di-render ulang: nol piksel bergerak, empat kali. Alat ukurnya, bukan
+> layernya. Versi yang benar menggerakkan kontrol di rail.
 
 </details>
 
