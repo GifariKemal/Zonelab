@@ -59,6 +59,7 @@ from __future__ import annotations
 
 import asyncio
 import json
+import time
 from dataclasses import dataclass
 from typing import Any
 
@@ -95,6 +96,16 @@ _PAGE_BUDGET_MS = 60000
 #: absent from here has not been fetched yet, which is a different answer
 #: from "live" and is returned as None rather than as zero.
 _SEEN_DELAY: dict[str, int] = {}
+
+#: How long a reachability answer stands. Short, because the desktop app is
+#: something a person opens and closes, and both wrong answers are cheap: a
+#: stale True costs one named error on the next fetch, a stale False hides the
+#: default feed behind the Source picker.
+PROBE_TTL_SECONDS = 20
+
+#: (measured_at, reachable) from the last probe, module level so it is shared by
+#: every instance the registry might hold.
+_probe: tuple[float, bool] | None = None
 
 
 def delay_of(symbol: str) -> int | None:
@@ -364,21 +375,46 @@ class TradingViewProvider:
         return delay_of(symbol)
 
     def available(self) -> bool:
-        """Is the desktop app up with a chart page open?
+        """Static capability only: could this provider ever work here.
 
-        Synchronous by contract and called on a request path, so it is a
-        connect-and-look rather than a full evaluate: the question is whether
-        this provider can be tried, and a wrong "yes" costs one clear error
-        while a wrong "no" hides the feed entirely.
+        DELIBERATELY NOT A NETWORK CALL any more, and the reason is worth the
+        space. This used to do a synchronous `httpx.get` to the CDP port, and
+        `availability()` gathers every provider on the event loop - so a quarter
+        of a second of blocking I/O ran inside the loop on every `/api/config`,
+        which is the request a page load waits on before it can render anything.
+        Measured 12 September 2026: this call 245.7 ms, every other provider
+        0.0 ms, and `/api/config` a flat 0.26-0.35 s because of it.
+
+        The real question moved to `probe()` below, which is what the registry
+        asks when it wants the truth and what it was built for. `True` here
+        means only "this machine could host a TradingView desktop", which is
+        every machine.
         """
+        return True
+
+    async def probe(self) -> bool:
+        """Is the desktop app up with a chart page open, right now.
+
+        Async and cached, on the same rule as the Dukascopy probe beside it: it
+        runs on every `/api/config`, and a page load must not wait on it twice
+        in a row. `PROBE_TTL_SECONDS` is short because the honest answer changes
+        when the user closes the app, and a stale `True` costs one clear error
+        while a stale `False` hides the default feed.
+        """
+        global _probe
+        if _probe and time.monotonic() - _probe[0] < PROBE_TTL_SECONDS:
+            return _probe[1]
         try:
-            targets = httpx.get(f"http://{CDP_HOST}:{CDP_PORT}/json", timeout=2.0)
-            return any(
+            async with httpx.AsyncClient(timeout=2.0) as client:
+                targets = (await client.get(f"http://{CDP_HOST}:{CDP_PORT}/json")).json()
+            up = any(
                 t.get("type") == "page" and "tradingview.com" in (t.get("url") or "")
-                for t in targets.json()
+                for t in targets
             )
-        except Exception:  # noqa: BLE001
-            return False
+        except Exception:  # noqa: BLE001 - every failure here means the same
+            up = False
+        _probe = (time.monotonic(), up)
+        return up
 
     async def feed(self, symbol: str, interval: str, bars: int) -> Feed:
         """`fetch` plus what the tape said about itself.
