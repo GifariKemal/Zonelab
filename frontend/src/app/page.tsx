@@ -775,8 +775,16 @@ const inflight = useRef<AbortController | null>(null);
             label="Symbol"
             value={symbol}
             onChange={setSymbol}
+            // LABELLED WITH WHAT THE FEED CALLS IT, valued with the app id.
+            // `XAUUSD` on TradingView is COMEX:GC1!, the exchange's front-month
+            // future; on MT5 it is the broker's spot CFD, and the two were
+            // measured 51.7 points apart. Showing one name over both is how a
+            // reader ends up taking a level off a chart of a different
+            // instrument. Falls back to the app id for any feed with no entry,
+            // which is the honest answer for a provider that passes the ticker
+            // through untouched.
             options={(config?.symbols ?? [{ id: "XAUUSD", providers: [] }]).map(
-              (s) => s.id,
+              (s) => ({ value: s.id, label: s.vendor?.[usable] ?? s.id }),
             )}
           />
           <Picker
@@ -1320,7 +1328,10 @@ function Picker({
   label: string;
   value: string;
   onChange: (value: string) => void;
-  options: string[];
+  /** A bare string is its own label. A pair separates the two, which the symbol
+   *  picker needs: the VALUE stays the app id every other part of this app is
+   *  keyed by, while the LABEL says what the chosen feed calls it. */
+  options: (string | { value: string; label: string })[];
 }) {
   return (
     <label className="flex items-center gap-1.5">
@@ -1337,11 +1348,15 @@ function Picker({
         onChange={(e) => onChange(e.target.value)}
         className="num min-w-[60px] border border-line-strong bg-panel px-1.5 py-1 text-[11px] text-text"
       >
-        {options.map((id) => (
-          <option key={id} value={id}>
-            {id}
-          </option>
-        ))}
+        {options.map((option) => {
+          const value = typeof option === "string" ? option : option.value;
+          const text = typeof option === "string" ? option : option.label;
+          return (
+            <option key={value} value={value}>
+              {text}
+            </option>
+          );
+        })}
       </select>
     </label>
   );

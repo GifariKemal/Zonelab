@@ -154,8 +154,17 @@ async def config() -> dict:
         # menu that made every row look equally endorsed would be the most
         # misleading thing on the screen.
         "layers": catalogue(),
+        # `vendor` carries what each feed CALLS this instrument, not just which
+        # feeds have it. The app id is a convenience - `XAUUSD` is the name the
+        # params, presets and snapshots are keyed by - but it is not what the
+        # chart is drawing: on TradingView it resolves to COMEX:GC1!, the
+        # exchange's front-month future, and on MT5 to a broker spot CFD. Those
+        # two were measured 51.7 points apart. A picker that says XAUUSD over
+        # either of them is telling the reader the one thing this repo tries
+        # hardest not to: a real price under a name that is not its own.
         "symbols": [
-            {"id": sid, "providers": sorted(vendors)} for sid, vendors in SYMBOLS.items()
+            {"id": sid, "providers": sorted(vendors), "vendor": dict(vendors)}
+            for sid, vendors in SYMBOLS.items()
         ],
         "intervals": list(INTERVALS),
         # Served so the UI can offer them without a second copy of the list.

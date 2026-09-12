@@ -1797,7 +1797,15 @@ export interface ServerConfig {
    *  was reproducible: at 0 the series moves one bar every time a bar
    *  closes. */
   synthetic_now: number;
-  symbols: { id: string; providers: string[] }[];
+  symbols: {
+    id: string;
+    providers: string[];
+    /** What each feed CALLS this instrument, keyed by provider id. The app id
+     *  above is what params and snapshots are keyed by; this is what the chart
+     *  is actually drawing - `XAUUSD` is `COMEX:GC1!` on TradingView and a
+     *  broker spot CFD on MT5, and those were measured 51.7 points apart. */
+    vendor?: Record<string, string>;
+  }[];
   intervals: string[];
   /** Researched broker profiles the plan can be priced at. Empty pick is the
    *  generic per-instrument row, which is what every plan used until the
