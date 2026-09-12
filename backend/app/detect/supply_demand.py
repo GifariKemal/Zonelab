@@ -203,57 +203,56 @@ def replay_lifecycle(
     chart plainly shows it broken.
     """
     height = max(top - bottom, EPS)
-    touches = 0
-    penetration = 0.0
-    first_test_time: int | None = None
-    arrival_atr: float | None = None
-    break_index: int | None = None
-    was_inside = False
 
-    for i in range(start, len(close)):
-        # SENTUHAN DICATAT SEBELUM PECAH, dan urutannya terbalik sampai
-        # 6 September 2026. Bar yang masuk zona lalu menutup di seberangnya
-        # keluar di `break` sebelum sempat mencatat apa pun, jadi ia melaporkan
-        # `touches=0` dan `first_test_time=None`. Itu bukan detail tampilan:
-        # tiga belas tool memakai `first_test_time` sebagai pemicu entry,
-        # sementara `broker.py` hanya bisa LIMIT dan limitnya duduk di
-        # proximal - yang bar penyayat itu tembus. JADI JALUR HIDUP MENGAMBIL
-        # TRADE YANG JALUR UKUR TIDAK PERNAH HITUNG, dan yang tidak dihitung
-        # itu hampir seluruhnya loser.
-        #
-        # Terukur pada XAUUSD 30m, fvg, gerbang 0,25, target 2R, resolusi 5m:
-        # urutan lama n=1045 PF 1,943, urutan ini n=1657 PF 1,115. Strategy
-        # Tester TradingView pada aturan yang sama melaporkan n=1664 - populasi
-        # urutan INI. `tests/test_sliced_zone_never_tested.py` menjaganya.
-        #
-        # `state` DAN `time_to` TIDAK BERUBAH: bar yang sama tetap
-        # `break_index`, jadi zona tersayat tetap tergambar BROKEN dan tetap
-        # berhenti di bar itu. Yang berubah hanya bahwa ia sekarang mengaku
-        # pernah disentuh, yang memang benar.
-        inside = low[i] <= top and high[i] >= bottom
-        if inside:
-            # Consecutive bars sitting in the zone are one visit, not five.
-            if not was_inside:
-                touches += 1
-                if first_test_time is None:
-                    first_test_time = int(time[i])
-                    # How hard price came back. Measured once, at the first
-                    # touch, because that is the only moment the question is
-                    # actionable. The doctrine disagrees with itself about
-                    # whether fast is good or bad, so it is recorded and left
-                    # unscored.
-                    arr_from = max(0, i - params.arrival_bars)
-                    if atr[i] > EPS and i > arr_from:
-                        arrival_atr = round(
-                            abs(close[i] - close[arr_from]) / float(atr[i]), 3
-                        )
-            depth = (top - low[i]) if is_demand else (high[i] - bottom)
-            penetration = max(penetration, min(1.0, depth / height))
-        was_inside = inside
+    # VECTORISED 12 September 2026. The loop this replaces was 42 percent of a
+    # whole draw - profiled at 0.127s of 0.303s on 5,000 bars with eight layers
+    # on, because it runs once per zone and there are on the order of 1,700 of
+    # them, each walking to the end of the series in Python.
+    #
+    # THE ORDER IS THE PART THAT MATTERS, and it is the part that was wrong once
+    # already: the bar that breaks the zone is still counted as a touch, because
+    # the loop recorded the touch BEFORE testing the break. Getting that
+    # backwards is not cosmetic - it took XAUUSD 30m fvg from n=1657 PF 1.115 to
+    # n=1045 PF 1.943 by silently dropping the trades the live path takes, and
+    # `tests/test_sliced_zone_never_tested.py` guards it. Here that ordering is
+    # expressed by resolving the break first and then INCLUDING its bar in the
+    # window the touches are counted over.
+    #
+    # `tests/test_lifecycle_vectorised.py` keeps the old loop and asserts the two
+    # agree bar for bar, which is the only evidence a rewrite of this is worth.
+    n = len(close)
+    if start >= n:
+        return Lifecycle(ZoneState.FRESH, 0, 0.0, None, None, None)
 
-        if close[i] < distal if is_demand else close[i] > distal:
-            break_index = i
-            break
+    broke = (close[start:] < distal) if is_demand else (close[start:] > distal)
+    hit = np.flatnonzero(broke)
+    break_index = int(start + hit[0]) if hit.size else None
+    stop = (break_index + 1) if break_index is not None else n
+
+    lo, hi = low[start:stop], high[start:stop]
+    inside = (lo <= top) & (hi >= bottom)
+
+    if inside.any():
+        # A visit, not a bar: consecutive bars in the zone are one touch, so the
+        # count is the number of rising edges with the first bar counting as one
+        # because `was_inside` started False.
+        touches = int(inside[0]) + int(np.count_nonzero(inside[1:] & ~inside[:-1]))
+        depth = (top - lo[inside]) if is_demand else (hi[inside] - bottom)
+        penetration = float(np.minimum(depth / height, 1.0).max())
+        first = start + int(np.argmax(inside))
+        first_test_time = int(time[first])
+        # How hard price came back, read once at the first touch because that is
+        # the only moment the question is actionable. The doctrine disagrees with
+        # itself about whether fast is good or bad, so it is recorded unscored.
+        arr_from = max(0, first - params.arrival_bars)
+        arrival_atr = (
+            round(abs(close[first] - close[arr_from]) / float(atr[first]), 3)
+            if atr[first] > EPS and first > arr_from
+            else None
+        )
+    else:
+        touches, penetration = 0, 0.0
+        first_test_time, arrival_atr = None, None
 
     if break_index is not None:
         state = ZoneState.BROKEN
