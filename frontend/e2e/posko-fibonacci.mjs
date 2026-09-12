@@ -95,7 +95,12 @@ for (const [layers, expectPopulated] of [
       symbol: "XAUUSD",
       interval: "15m",
       bars: 800,
-      provider: "mt5",
+      // NO PROVIDER NAMED. Pinning one looked like determinism and is really an
+    // assumption about the machine: `mt5` has no wheel outside Windows, so a
+    // harness that demands it fails on the Linux box this is being deployed
+    // to - for a reason that has nothing to do with what it is testing.
+    // Omitting the key uses the app's own default, which is also the feed the
+    // chart on screen is drawing from.
       layers,
     }),
   }).then((r) => r.json());
@@ -246,8 +251,18 @@ await page.waitForTimeout(2500);
     await page.waitForTimeout(4000);
   }
 
-  // The anchors the chart is actually drawing, fetched with the same series.
-  const fib = await page.evaluate(async (api) => {
+  // The anchors the chart is actually drawing, fetched from the SAME FEED the
+  // chart is on - read off the Source picker rather than named here.
+  //
+  // It was hardcoded `provider: "mt5"`, and that was invisible until the app's
+  // default moved to TradingView: the anchors then came from the broker's spot
+  // CFD while the chart drew COMEX futures, two tapes measured 51.7 points
+  // apart. `priceToCoordinate` still returned a perfectly good y - the MT5
+  // swing sits inside the TradingView price range - so the scan looked at a row
+  // where nothing was drawn and reported 0 percent coverage for both lines.
+  // Nothing was broken; the measurement was taken of the wrong instrument.
+  const feed = await page.locator('select[aria-label="Source"]').inputValue();
+  const fib = await page.evaluate(async ({ api, provider }) => {
     const d = await fetch(`${api}/api/draw`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -255,12 +270,12 @@ await page.waitForTimeout(2500);
         symbol: "XAUUSD",
         interval: "15m",
         bars: 800,
-        provider: "mt5",
+        provider,
         layers: ["structure"],
       }),
     }).then((r) => r.json());
     return d.drawing?.fibonacci ?? null;
-  }, API);
+  }, { api: API, provider: feed });
   check(
     "the on-screen chart has Fibonacci anchors to draw",
     fib !== null && fib.low !== null && fib.high !== null,

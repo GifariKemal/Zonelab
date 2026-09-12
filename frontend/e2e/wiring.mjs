@@ -108,7 +108,12 @@ for (const layer of registry) {
     symbol: "XAUUSD",
     interval: "15m",
     bars: 1500,
-    provider: "mt5",
+    // NO PROVIDER NAMED. Pinning one looked like determinism and is really an
+    // assumption about the machine: `mt5` has no wheel outside Windows, so a
+    // harness that demands it fails on the Linux box this is being deployed
+    // to - for a reason that has nothing to do with what it is testing.
+    // Omitting the key uses the app's own default, which is also the feed the
+    // chart on screen is drawing from.
     layers: [layer.id],
     ...(MINIMUM[layer.id] ?? {}),
   };
@@ -149,7 +154,7 @@ const report = await fetch(`${API}/api/draw`, {
     symbol: "XAUUSD",
     interval: "15m",
     bars: 1500,
-    provider: "mt5",
+    // No provider named, for the reason given at the layer sweep above.
     layers: ["checklist"],
     checklist: { degree: "day" },
   }),
