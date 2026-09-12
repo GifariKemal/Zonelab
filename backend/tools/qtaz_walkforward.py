@@ -74,12 +74,24 @@ def main() -> int:
             "adds anything over it or is the same reading relabelled"
         ),
     )
+    ap.add_argument(
+        "--state-lag", type=int, default=0,
+        help=(
+            "read the conditioning state this many bars BEFORE the fill bar. "
+            "1 is the control for the half-bar of hindsight `rows_with_state` "
+            "carries: the trade fills intrabar at the proximal line while the "
+            "columns read that bar complete. A column that only separates at 0 "
+            "is separating on the bar it was entered on."
+        ),
+    )
     ap.add_argument("--hold", action="store_true")
     args = ap.parse_args()
 
-    rows = rows_with_state(args.symbol, args.interval, args.bars, not args.hold)
+    rows = rows_with_state(args.symbol, args.interval, args.bars, not args.hold,
+                           state_lag=args.state_lag)
     rows.sort(key=lambda r: int(r["at"]))
-    print(f"{args.symbol} {args.interval} {args.bars} bar, n={len(rows)}")
+    print(f"{args.symbol} {args.interval} {args.bars} bar, n={len(rows)}, "
+          f"state_lag={args.state_lag}")
     print(f"walking {args.column} == {args.value!r} over {FOLDS} folds\n")
 
     whole = np.array([r["r"] for r in rows])

@@ -292,6 +292,67 @@ diberi nama baru.
 > Yang berubah cuma satu: `tpd_outside` sekarang punya angka, dan angkanya
 > terbelah antar instrumen.
 
+### DITARIK 12 September 2026: semuanya di atas adalah hindsight setengah bar
+
+> [!CAUTION]
+> Angka-angka S2 di atas dibiarkan berdiri sebagai catatan tentang apa yang
+> terjadi, bukan sebagai hasil. Kolomnya tidak memisahkan apa pun.
+
+Instrumen KETIGA dijalankan lebih dulu, dan justru menguatkan: EURUSD 1h,
+50.000 bar, delta +0,219, t = +3,69, dan 7 dari 7 fold sepakat. Cek tumpang
+tindih lawan `discount_or_premium` juga lolos di kedua strata (+2,44 dan +2,80).
+Dua instrumen dari tiga. Nyaris ditulis sebagai temuan.
+
+**Yang menghentikannya adalah membaca kapan trade-nya benar-benar masuk.**
+`tools/costed.py` mengisi order INTRABAR, pada saat harga pertama menyentuh
+garis proximal:
+
+```python
+for j in range(touch, ...):
+    if low[j] <= zone.proximal <= high[j]:
+        arrived = j
+```
+
+dan komentarnya sendiri berbunyi *"the touch bar counts. Price reached the
+proximal line during it, so the rest of that bar can stop you out"*. Jadi hasil
+trade mulai dihitung di TENGAH bar itu.
+
+Sementara `tools/conditioned.py` membaca bar yang sama secara UTUH:
+`close_arr[touch]` untuk `tpd_band` dan `tpd_outside`, ditambah `adx_arr[touch]`
+dan `bb_arr[touch]` yang jendelanya berakhir di bar itu. Tidak satu pun dari itu
+ada saat fill.
+
+Bukti bahwa ini cacat dan bukan konvensi ada di file yang sama: `costed.py`
+menskala risiko dengan `atr[touch - 1]`, bukan `atr[touch]`. Ia sudah tahu bar
+sentuh belum sepenuhnya diketahui; rig kondisioner melanggar disiplin yang
+ditulis satu file di sebelahnya.
+
+**Kontrolnya, `--state-lag 1`, membaca kolom satu bar lebih awal dan tidak
+mengubah apa pun yang lain:**
+
+| Instrumen | Sebelum | Kontrol lag-1 |
+|---|---|---|
+| EURUSD | t = +3,69, 7 dari 7 | **t = -0,95, 4 dari 8, tanda TERBALIK** |
+| BTCUSD | t = +5,38, 7 dari 8 | **t = +1,53, 5 dari 8** |
+
+Keduanya gagal. Mekanismenya terlihat dari populasinya: jumlah `inside` di
+EURUSD naik dari 347 jadi 562 begitu dibaca satu bar lebih awal. Close bar fill
+sering keluar dari range kuarter sebelumnya - itu sebagian yang menyebabkan
+sentuhannya - jadi `inside` pada bar fill diam-diam memilih bar yang sudah
+berkelakuan baik.
+
+**Cakupannya lebih luas dari S2.** `adx_band` dan `bb_width_regime`
+(praregistrasi 4 September) membaca bar sentuh dengan cara yang sama, meski
+komentarnya mengklaim "anti-lookahead inheren". Angka keduanya di
+`docs/PRAREGISTRASI-REGIME.md` maksimal |t| = 2,18, jauh di bawah ambang 3,53,
+jadi tidak ada temuan yang runtuh di sana - tapi angkanya condong ke atas dan
+harus dibaca begitu. Kontrol tambahan di kotak di atas, yang memakai keduanya
+untuk menutup penjelasan volatilitas, ikut gugur bersama S2.
+
+Default `state_lag` tetap 0 supaya studi lama mereproduksi angka lamanya.
+**Selisih antara 0 dan 1 adalah ukuran hindsight-nya, dan hasil yang cuma
+bertahan di 0 bukan hasil.**
+
 ## Hasil S3, diukur 12 September 2026
 
 Lengan ketiga ditambahkan ke `tools/ssmt_outcomes.py` sebagai `--basis`, jadi

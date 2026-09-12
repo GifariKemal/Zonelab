@@ -1,0 +1,16 @@
+mt5:BTCUSD 1h 50000 bar, n=1421, state_lag=1
+walking tpd_outside == 'inside' over 8 folds
+
+whole sample: n=755 of 1421  exp R -0.101  delta +0.081  t +1.53
+
+  fold 1: n=  93/  84  delta +0.278  t +1.99  agrees
+  fold 2: n=  99/  79  delta +0.181  t +1.07  agrees
+  fold 3: n=  89/  88  delta -0.048  t -0.29  DISAGREES
+  fold 4: n=  91/  87  delta +0.213  t +1.45  agrees
+  fold 5: n=  91/  87  delta -0.195  t -1.45  DISAGREES
+  fold 6: n=  96/  81  delta +0.122  t +0.87  agrees
+  fold 7: n=  98/  80  delta -0.037  t -0.22  DISAGREES
+  fold 8: n=  98/  80  delta +0.108  t +0.79  agrees
+
+5 of 8 usable folds agree with the whole-sample sign
+FAILS it

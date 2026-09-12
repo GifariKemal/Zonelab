@@ -1,0 +1,26 @@
+mt5:EURUSD 1h 50000 bar, n=1177
+walking tpd_outside == 'inside' over 8 folds
+
+whole sample: n=347 of 1177  exp R +0.004  delta +0.219  t +3.69
+
+  fold 1: n=29/118  too small to judge
+  fold 2: n=  50/  97  delta +0.476  t +2.94  agrees
+  fold 3: n=  40/ 107  delta +0.126  t +0.78  agrees
+  fold 4: n=  58/  89  delta +0.137  t +0.74  agrees
+  fold 5: n=  44/ 103  delta +0.190  t +1.25  agrees
+  fold 6: n=  39/ 108  delta +0.101  t +0.70  agrees
+  fold 7: n=  37/ 110  delta +0.267  t +1.16  agrees
+  fold 8: n=  50/  98  delta +0.285  t +2.16  agrees
+
+held against discount_or_premium, stratum by stratum:
+  False        n= 244/ 464  delta +0.158  t +2.44
+  True         n= 102/ 359  delta +0.357  t +2.80
+  None         n=1/7  too small to judge
+
+  overlap:
+  False         244 of  708 are tpd_outside=inside
+  True          102 of  461 are tpd_outside=inside
+  None            1 of    8 are tpd_outside=inside
+
+7 of 7 usable folds agree with the whole-sample sign
+PASSES the pre-registered walk-forward
