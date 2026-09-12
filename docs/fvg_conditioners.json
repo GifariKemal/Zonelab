@@ -1,0 +1,269 @@
+{
+  "preregistered": "tools/fvg_conditioners.py, 2026-09-08",
+  "question": "apakah posisi premium/discount, PSP, atau sapuan likuiditas mengkondisikan resolved R sebuah FVG",
+  "rig": "tools.detectors_costed.resolved_as(fvg), bar halus, biaya",
+  "threshold": {
+    "groups_judged": 10,
+    "critical_t": 2.8070337683438042,
+    "min_group": 30,
+    "requires": [
+      "n>=30 kedua lengan",
+      "|t| Welch >= critical_t",
+      "tanda sama di kedua paruh",
+      "walk-forward >= 7 dari 8",
+      "tanda sama di >= n-1 instrumen"
+    ]
+  },
+  "cells": {
+    "XAUUSD 1h": {
+      "n": 641
+    },
+    "XAGUSD 1h": {
+      "n": 609
+    },
+    "XPTUSD 1h": {
+      "n": 637
+    },
+    "EURUSD 1h": {
+      "n": 706
+    },
+    "GBPUSD 1h": {
+      "n": 716
+    },
+    "USDJPY 1h": {
+      "n": 663
+    },
+    "AUDUSD 1h": {
+      "n": 684
+    },
+    "US30 1h": {
+      "n": 749
+    },
+    "USOIL 1h": {
+      "n": 735
+    }
+  },
+  "population": {
+    "n": 6140
+  },
+  "results": {
+    "favourable_side": {
+      "predicted": "lebih tinggi",
+      "n_true": 3043,
+      "n_false": 3058,
+      "dropped_unmeasurable": 39,
+      "exp_r_true": -0.14602997725597683,
+      "exp_r_false": -0.18682521502836213,
+      "per_cell_delta": {
+        "AUDUSD 1h": -0.023799170238047784,
+        "EURUSD 1h": -0.025344750429126928,
+        "GBPUSD 1h": -0.10626789972721246,
+        "US30 1h": 0.1006707738790443,
+        "USDJPY 1h": 0.11392793929321612,
+        "USOIL 1h": -0.165457720839321,
+        "XAGUSD 1h": 0.30761542142671844,
+        "XAUUSD 1h": 0.057889248527369014,
+        "XPTUSD 1h": 0.18330268104674688
+      },
+      "cells_same_sign": "5/9",
+      "delta": 0.04079523777238531,
+      "welch_t": 1.1406547019237385,
+      "critical_t": 2.8070337683438042,
+      "halves_delta": [
+        0.09950542957979604,
+        -0.018540055871810318
+      ],
+      "halves_same_sign": false,
+      "walk_forward": {
+        "folds": 8,
+        "same_sign": 6,
+        "deltas": [
+          0.2072658014126652,
+          0.16031507166873749,
+          0.022763453307782622,
+          0.008317007768255308,
+          0.11031466375420802,
+          -0.03220873370905983,
+          0.01233817590452091,
+          -0.16125768009718633
+        ]
+      },
+      "degenerate": false,
+      "separates": false
+    },
+    "psp_before_touch": {
+      "predicted": "lebih tinggi",
+      "n_true": 5059,
+      "n_false": 1081,
+      "dropped_unmeasurable": 0,
+      "exp_r_true": -0.17521448207371848,
+      "exp_r_false": -0.11351800488849155,
+      "per_cell_delta": {
+        "AUDUSD 1h": -0.02075688579599827,
+        "EURUSD 1h": -1.0686345344127886,
+        "GBPUSD 1h": 0.03137198392717484,
+        "US30 1h": 0.14733383332341465,
+        "USDJPY 1h": -0.1223592559893042,
+        "XAGUSD 1h": -0.26120746650786025,
+        "XAUUSD 1h": 0.07098083633451205,
+        "XPTUSD 1h": -0.058888702200674686
+      },
+      "cells_same_sign": "5/8",
+      "delta": -0.06169647718522693,
+      "welch_t": -1.2729544201781717,
+      "critical_t": 2.8070337683438042,
+      "halves_delta": [
+        -0.020386081960218266,
+        -0.15074626446652561
+      ],
+      "halves_same_sign": true,
+      "walk_forward": {
+        "folds": 7,
+        "same_sign": 6,
+        "deltas": [
+          -0.07540833295588911,
+          -0.03511026041564322,
+          0.17179533401258668,
+          -0.1426826935948388,
+          -0.10022824974101413,
+          -0.20660188789525666,
+          -0.003796092699343917,
+          NaN
+        ]
+      },
+      "degenerate": false,
+      "separates": false
+    },
+    "purge_before_touch": {
+      "predicted": "lebih tinggi",
+      "n_true": 5199,
+      "n_false": 941,
+      "dropped_unmeasurable": 0,
+      "exp_r_true": -0.17151313638023905,
+      "exp_r_false": -0.12478876945221919,
+      "per_cell_delta": {
+        "EURUSD 1h": 0.4227881625379668,
+        "GBPUSD 1h": -1.2656511549261422,
+        "US30 1h": 0.2408493718155439,
+        "USDJPY 1h": 0.1609828237440199,
+        "XAGUSD 1h": -0.23314222211053526,
+        "XAUUSD 1h": -0.022434812021711863,
+        "XPTUSD 1h": -0.07519867653658494
+      },
+      "cells_same_sign": "4/7",
+      "delta": -0.04672436692801986,
+      "welch_t": -0.9002852682596282,
+      "critical_t": 2.8070337683438042,
+      "halves_delta": [
+        -0.035143111181528616,
+        -0.04674784382567718
+      ],
+      "halves_same_sign": true,
+      "walk_forward": {
+        "folds": 7,
+        "same_sign": 5,
+        "deltas": [
+          -0.09933504597740178,
+          -0.06556236290922986,
+          0.12263860843060603,
+          -0.08611535956152652,
+          -0.1547249300860792,
+          -0.05611483239548204,
+          0.2910916467379691,
+          NaN
+        ]
+      },
+      "degenerate": false,
+      "separates": false
+    },
+    "fav_and_psp": {
+      "predicted": "lebih tinggi",
+      "n_true": 2516,
+      "n_false": 3585,
+      "dropped_unmeasurable": 39,
+      "exp_r_true": -0.16433765239198891,
+      "exp_r_false": -0.16797969175130398,
+      "per_cell_delta": {
+        "AUDUSD 1h": -0.023979640276679343,
+        "EURUSD 1h": -0.015853030229928455,
+        "GBPUSD 1h": -0.09624223061657172,
+        "US30 1h": 0.13977013117708853,
+        "USDJPY 1h": 0.11008722153616107,
+        "USOIL 1h": -0.165457720839321,
+        "XAGUSD 1h": 0.07547039883719582,
+        "XAUUSD 1h": 0.10197559140489693,
+        "XPTUSD 1h": 0.0790751347233859
+      },
+      "cells_same_sign": "5/9",
+      "delta": 0.0036420393593150635,
+      "welch_t": 0.10073993998894847,
+      "critical_t": 2.8070337683438042,
+      "halves_delta": [
+        0.04260489395704638,
+        -0.026682042985704674
+      ],
+      "halves_same_sign": false,
+      "walk_forward": {
+        "folds": 8,
+        "same_sign": 5,
+        "deltas": [
+          0.06844325225602457,
+          0.030744797491431622,
+          0.11557572028911157,
+          -0.05283239451243467,
+          0.08908408704004946,
+          -0.04565940355913098,
+          0.02912328933262509,
+          -0.16125768009718633
+        ]
+      },
+      "degenerate": false,
+      "separates": false
+    },
+    "psp_given_fav": {
+      "predicted": "lebih tinggi",
+      "n_true": 2516,
+      "n_false": 527,
+      "dropped_unmeasurable": 3097,
+      "exp_r_true": -0.16433765239198891,
+      "exp_r_false": -0.058625592735660974,
+      "per_cell_delta": {
+        "AUDUSD 1h": -0.04173719930738276,
+        "EURUSD 1h": 0.5505032604990086,
+        "GBPUSD 1h": 0.8465551039720376,
+        "US30 1h": 0.1241816018213634,
+        "USDJPY 1h": 0.006492354618663654,
+        "XAGUSD 1h": -0.2521389305307316,
+        "XAUUSD 1h": 0.1026062126643438,
+        "XPTUSD 1h": -0.10169472018656875
+      },
+      "cells_same_sign": "3/8",
+      "delta": -0.10571205965632793,
+      "welch_t": -1.5484231818373533,
+      "critical_t": 2.8070337683438042,
+      "halves_delta": [
+        -0.08658355540072256,
+        -0.0657274219649186
+      ],
+      "halves_same_sign": true,
+      "walk_forward": {
+        "folds": 7,
+        "same_sign": 5,
+        "deltas": [
+          -0.15237350821277068,
+          -0.17662883536784393,
+          0.23056899913049336,
+          -0.17635177242315603,
+          -0.06019280130986146,
+          -0.04316617694966032,
+          0.19983520059151333,
+          NaN
+        ]
+      },
+      "degenerate": false,
+      "separates": false
+    }
+  },
+  "separating": [],
+  "verdict": "NULL: tidak satu pun dari 5 lengan memisahkan"
+}

@@ -4,164 +4,164 @@
   "rig": "tools.detectors_costed.resolved_as(order_block), bar 5m, biaya",
   "cells": {
     "XAUUSD 1h": {
-      "n": 869,
-      "n_in": 346,
-      "n_out": 523,
-      "exp_r_in": -0.05617509328114964,
-      "exp_r_out": 0.14151971225865384,
-      "delta": -0.19769480553980348,
-      "welch_t": -3.0894048114641937
+      "n": 608,
+      "n_in": 144,
+      "n_out": 464,
+      "exp_r_in": -0.32788829471600206,
+      "exp_r_out": -0.022460627146111772,
+      "delta": -0.30542766756989026,
+      "welch_t": -2.579123781621188
     },
     "XAGUSD 1h": {
-      "n": 837,
-      "n_in": 367,
-      "n_out": 470,
-      "exp_r_in": -0.02530166781200853,
-      "exp_r_out": 0.12579539874756854,
-      "delta": -0.15109706655957705,
-      "welch_t": -2.4971944872252645
+      "n": 644,
+      "n_in": 153,
+      "n_out": 491,
+      "exp_r_in": -0.2419398329573374,
+      "exp_r_out": -0.06900187805523399,
+      "delta": -0.1729379549021034,
+      "welch_t": -1.592254063698648
     },
     "XPTUSD 1h": {
-      "n": 923,
-      "n_in": 417,
-      "n_out": 506,
-      "exp_r_in": -0.10575260153495174,
-      "exp_r_out": -0.04592888301905017,
-      "delta": -0.05982371851590157,
-      "welch_t": -1.3440583163801911
+      "n": 635,
+      "n_in": 162,
+      "n_out": 473,
+      "exp_r_in": -0.2854651129834004,
+      "exp_r_out": -0.20304395216580387,
+      "delta": -0.08242116081759651,
+      "welch_t": -1.0412490185035284
     },
     "EURUSD 1h": {
-      "n": 912,
-      "n_in": 385,
-      "n_out": 527,
-      "exp_r_in": -0.10130165441127292,
-      "exp_r_out": -0.0804295584369704,
-      "delta": -0.02087209597430252,
-      "welch_t": -0.37765633700426665
+      "n": 688,
+      "n_in": 153,
+      "n_out": 535,
+      "exp_r_in": -0.07386339610568153,
+      "exp_r_out": -0.17206749354965406,
+      "delta": 0.09820409744397253,
+      "welch_t": 0.8355412523510604
     },
     "GBPUSD 1h": {
-      "n": 950,
-      "n_in": 427,
-      "n_out": 523,
-      "exp_r_in": -0.1163093194460513,
-      "exp_r_out": 0.10388976399864666,
-      "delta": -0.22019908344469796,
-      "welch_t": -3.8250582176143073
+      "n": 711,
+      "n_in": 190,
+      "n_out": 521,
+      "exp_r_in": -0.21561723503272243,
+      "exp_r_out": 0.046066491051407366,
+      "delta": -0.2616837260841298,
+      "welch_t": -2.3962013502483663
     },
     "USDJPY 1h": {
-      "n": 893,
-      "n_in": 371,
-      "n_out": 522,
-      "exp_r_in": -0.089979417572839,
-      "exp_r_out": 0.012869070689076528,
-      "delta": -0.10284848826191553,
-      "welch_t": -1.7695193417612245
+      "n": 616,
+      "n_in": 140,
+      "n_out": 476,
+      "exp_r_in": -0.1524218169108499,
+      "exp_r_out": -0.08117361353286769,
+      "delta": -0.07124820337798222,
+      "welch_t": -0.6534205701546199
     },
     "AUDUSD 1h": {
-      "n": 938,
-      "n_in": 434,
-      "n_out": 504,
-      "exp_r_in": -0.15130925143331814,
-      "exp_r_out": 0.06779135491227845,
-      "delta": -0.21910060634559658,
-      "welch_t": -3.884339057076514
+      "n": 653,
+      "n_in": 186,
+      "n_out": 467,
+      "exp_r_in": -0.3228190307313373,
+      "exp_r_out": -0.12059311571101082,
+      "delta": -0.20222591502032644,
+      "welch_t": -1.8552848489667535
     },
     "US30 1h": {
-      "n": 868,
-      "n_in": 390,
-      "n_out": 478,
-      "exp_r_in": -0.14348012391835327,
-      "exp_r_out": -0.014741438306878652,
-      "delta": -0.1287386856114746,
-      "welch_t": -1.928644824477004
+      "n": 713,
+      "n_in": 198,
+      "n_out": 515,
+      "exp_r_in": -0.301196058445727,
+      "exp_r_out": -0.2354671558519736,
+      "delta": -0.06572890259375341,
+      "welch_t": -0.7067694188931489
     },
     "USOIL 1h": {
-      "n": 980,
-      "n_in": 416,
-      "n_out": 564,
-      "exp_r_in": -0.19498356348102985,
-      "exp_r_out": -0.07621798729927724,
-      "delta": -0.11876557618175261,
-      "welch_t": -2.132813164338317
+      "n": 729,
+      "n_in": 176,
+      "n_out": 553,
+      "exp_r_in": -0.3520028580150185,
+      "exp_r_out": -0.1479366981231989,
+      "delta": -0.20406615989181962,
+      "welch_t": -2.0191341516118926
     }
   },
   "population": {
-    "n": 8170,
-    "n_cisd_inside": 3553,
-    "n_no_cisd": 4617,
-    "pct_inside": 43.5,
-    "exp_r_in_band": -0.11190749657529224,
-    "exp_r_no_cisd": 0.024409301888240958
+    "n": 5997,
+    "n_cisd_inside": 1502,
+    "n_no_cisd": 4495,
+    "pct_inside": 25.0,
+    "exp_r_in_band": -0.2568036938160581,
+    "exp_r_no_cisd": -0.1126645415152848
   },
   "result": {
-    "delta": -0.1363167984635332,
-    "welch_t": -7.074728419770016,
+    "delta": -0.14413915230077332,
+    "welch_t": -4.098355024940827,
     "critical_t": 2.241402727604945,
     "walk_forward": {
       "folds": [
         {
           "fold": 1,
-          "n_inside": 457,
-          "n_outside": 638,
-          "purged": 4,
+          "n_inside": 215,
+          "n_outside": 595,
+          "purged": 0,
           "readable": true,
-          "delta": -0.08283844549878659
+          "delta": -0.1081646969751301
         },
         {
           "fold": 2,
-          "n_inside": 454,
-          "n_outside": 565,
-          "purged": 9,
+          "n_inside": 211,
+          "n_outside": 553,
+          "purged": 0,
           "readable": true,
-          "delta": -0.07870303127980291
+          "delta": -0.030065815426215364
         },
         {
           "fold": 3,
-          "n_inside": 409,
-          "n_outside": 538,
-          "purged": 3,
+          "n_inside": 173,
+          "n_outside": 543,
+          "purged": 0,
           "readable": true,
-          "delta": -0.13417401274765303
+          "delta": -0.15634433257686062
         },
         {
           "fold": 4,
-          "n_inside": 481,
-          "n_outside": 566,
+          "n_inside": 207,
+          "n_outside": 539,
           "purged": 1,
           "readable": true,
-          "delta": -0.1792914037935704
+          "delta": -0.10654593251575607
         },
         {
           "fold": 5,
-          "n_inside": 406,
-          "n_outside": 587,
-          "purged": 2,
+          "n_inside": 162,
+          "n_outside": 577,
+          "purged": 6,
           "readable": true,
-          "delta": -0.19437286732029413
+          "delta": -0.06446321083201986
         },
         {
           "fold": 6,
-          "n_inside": 453,
-          "n_outside": 596,
-          "purged": 0,
+          "n_inside": 163,
+          "n_outside": 574,
+          "purged": 1,
           "readable": true,
-          "delta": -0.1641536953641082
+          "delta": -0.15578639238957045
         },
         {
           "fold": 7,
-          "n_inside": 434,
-          "n_outside": 573,
+          "n_inside": 175,
+          "n_outside": 575,
           "purged": 3,
           "readable": true,
-          "delta": -0.1382800137486639
+          "delta": -0.3322238558569016
         },
         {
           "fold": 8,
-          "n_inside": 443,
-          "n_outside": 538,
-          "purged": 10,
+          "n_inside": 192,
+          "n_outside": 520,
+          "purged": 11,
           "readable": true,
-          "delta": -0.10781738623182949
+          "delta": -0.1993384084088353
         }
       ],
       "graded": 8,
@@ -181,26 +181,27 @@
   "degenerate": false,
   "verdict": "MEMISAHKAN",
   "confound": {
-    "median_efficiency": 0.19101984117228207,
+    "median_efficiency": 0.224368499257056,
     "cells": {
       "choppy_cisd": {
-        "n": 2423,
-        "exp_r": -0.1052897554633808
+        "n": 1138,
+        "exp_r": -0.24601727027100945
       },
       "choppy_nocisd": {
-        "n": 1662,
-        "exp_r": 0.05656054716121567
+        "n": 1860,
+        "exp_r": -0.05291130667195403
       },
       "clean_cisd": {
-        "n": 1130,
-        "exp_r": -0.12609757331348814
+        "n": 364,
+        "exp_r": -0.2905260839101937
       },
       "clean_nocisd": {
-        "n": 2955,
-        "exp_r": 0.006326266475826755
+        "n": 2635,
+        "exp_r": -0.1548432955223418
       }
     },
-    "cisd_delta_within_choppy": -0.1618503026245965,
-    "cisd_delta_within_clean": -0.1324238397893149
-  }
+    "cisd_delta_within_choppy": -0.1931059635990554,
+    "cisd_delta_within_clean": -0.1356827883878519
+  },
+  "rerun": "2026-09-08, PASCA perbaikan urutan lifecycle 23773d7. Angka pra-perbaikan 31 Agustus: n=8170, pct_inside 43,5, exp_in -0,1119, exp_out +0,0244, delta -0,1363, t=-7,075. Pemisahannya BERTAHAN; yang berubah kedua lengannya, bukan selisihnya. Kohortnya BUKAN kohort yang sama: lengan tanpa CISD cuma turun 2,6 persen (4.617 ke 4.495) sementara lengan ber-CISD turun 58 persen (3.553 ke 1.502), jadi +0,0244 dan -0,1127 tidak diukur pada trade yang sama dan tidak boleh dibandingkan langsung. Putusan PASCA konsisten secara internal; PERUBAHANNYA tidak. Lihat docs/CALIBRATION.md bagian 6."
 }

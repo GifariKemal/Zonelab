@@ -63,6 +63,36 @@ const P = {
       <path d="M4.5 10.5L11.5 5.5M9.5 5.5h2v2" />
     </>
   ),
+  /** Retracement ke dalam pita: leg naik lalu turun ke pita di antara dua
+   *  garis. Sengaja BUKAN kotak polos - lima detektor lain sudah memakai kotak,
+   *  dan yang membedakan OTE bukan bentuk kotaknya melainkan bahwa ia diukur
+   *  dari sebuah LEG. */
+  /** Run lilin searah lalu satu tutup menembus level pembukanya: dua batang
+   *  lalu garis mendatar yang ditembus panah pendek. */
+  cisd_zone: (
+    <>
+      <path d="M3.5 4v5M6.5 5v5" />
+      <path d="M1.5 4.5h13" />
+      <path d="M10 8.5l2.5-3 2.5 3" />
+    </>
+  ),
+
+  /** Dua puncak setinggi sama dan pita tipis tempat stop beristirahat. */
+  liquidity_pool: (
+    <>
+      <path d="M2 12l3-5 3 5" />
+      <path d="M8 12l3-5 3 5" />
+      <rect x="1.5" y="3" width="13" height="2" strokeDasharray="2.4 1.8" />
+    </>
+  ),
+
+  ote: (
+    <>
+      <path d="M1.5 13L7 3.5L12 9" />
+      <path d="M4.5 8.5h11M4.5 11h11" strokeDasharray="2.4 1.8" />
+    </>
+  ),
+
   /** Level lama yang tertembus: kotak dengan garis menembusnya. */
   breaker: (
     <>
@@ -163,6 +193,16 @@ const P = {
     <>
       <path d="M1.5 5L5.5 8L9 5.5L14.5 3" />
       <path d="M1.5 10L5.5 8L9 10.5L14.5 13" strokeDasharray="2.2 1.6" />
+    </>
+  ),
+  /** Dua kotak gap sejajar, satu terisi separuh dan satu utuh: yang membedakan
+   *  keduanya adalah SEBERAPA DALAM harga kembali, bukan gap-nya sendiri. */
+  smt_fill: (
+    <>
+      <rect x="1.5" y="3.5" width="5" height="9" />
+      <rect x="9.5" y="3.5" width="5" height="9" />
+      <path d="M1.5 8.5h5" fill="none" />
+      <rect x="9.5" y="3.5" width="5" height="9" fill="currentColor" stroke="none" opacity="0.35" />
     </>
   ),
   /** Dua deret yang bertemu tepat di satu bar, dan bar itu yang ditandai. */
@@ -314,6 +354,9 @@ export const LAYER_ICON: Record<string, IconName> = {
   order_block: "order_block",
   ifvg: "ifvg",
   breaker: "breaker",
+  ote: "ote",
+  cisd_zone: "cisd_zone",
+  liquidity_pool: "liquidity_pool",
   structure: "structure",
   wyckoff: "wyckoff",
   cisd: "cisd",
@@ -326,6 +369,7 @@ export const LAYER_ICON: Record<string, IconName> = {
   liquidity: "liquidity",
   projections: "projections",
   ssmt: "ssmt",
+  smt_fill: "smt_fill",
   psp: "psp",
   expectation: "expectation",
   vortex: "vortex",

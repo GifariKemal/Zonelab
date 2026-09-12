@@ -29,6 +29,8 @@
  */
 
 import { chromium } from "playwright";
+
+import { pickTimeframe } from "./_layers.mjs";
 import { mkdir } from "node:fs/promises";
 
 const WEB = "http://127.0.0.1:3100/";
@@ -153,8 +155,11 @@ const scan = () =>
 
 // THE CHART ITSELF must be on the measured interval, or the pixel halves below
 // compare a path that the backend refuses to send.
-await page.getByRole("button", { name: "1h", exact: true }).click();
-await page.waitForTimeout(5000);
+//
+// AND THE LAYER HAS TO BE SWITCHED ON AGAIN HERE. Layers are per timeframe, so
+// the one turned on above belongs to 15m; without this the rail at 1h has no
+// expectation block at all and `pathToggle` below matches nothing.
+await pickTimeframe(page, "1h", ["expectation"], { settle: 5000 });
 
 const before = await scan();
 await page.screenshot({ path: `${SHOTS}/expectation-path-off.png` });

@@ -564,6 +564,15 @@ def test_the_order_path_hands_confluence_its_cisd_levels_and_stamps_the_range(
                           cisd=sum(1 for x in (cisd_levels or [])
                                    if zone_.bottom <= x <= zone_.top))
 
+    # DAFTAR ORDERABLE DI-PATCH DI SINI, dan itu bukan melonggarkan penjaga.
+    # `ORDERABLE_LAYERS` kosong sejak 9 September 2026, jadi `candidates`
+    # menolak setiap layer - lihat `test_the_orderable_list_holds_exactly_the_
+    # measured_one`, yang mengunci daftar sesungguhnya. Test INI menguji WIRING
+    # DI DALAM `candidates` (cisd_in_band ke confluence, dan stempel dealing
+    # range), dan cakupan itu harus tetap hidup selama jalur ordernya masih ada
+    # - kalau tidak, menyalakan sebuah layer kembali nanti akan menyalakan jalur
+    # yang sudah tidak diuji siapa pun.
+    monkeypatch.setattr(execute, "ORDERABLE_LAYERS", ("supply_demand",))
     monkeypatch.setattr(execute.history, "load", lambda s, i, b: rows)
     monkeypatch.setattr(execute, "DETECTORS",
                         {"supply_demand": lambda candles, params: ([box], {})})

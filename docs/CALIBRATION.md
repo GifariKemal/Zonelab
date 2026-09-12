@@ -2453,3 +2453,2355 @@ gerbang berhenti rugi. Ia belum terbukti menghasilkan.
   tetapi kecil dan tidak searah.
 - **Satu venue.** Semua sel dari terminal MT5 Exness, dengan biaya dari
   `app/costs.py` profil broker `exness_raw`.
+
+
+## H12: FVG di dalam leg MSS, 8 September 2026
+
+H9 menguji MSS sebagai arah, H11 menambahkan displacement, dan
+`conditioned_structure.py` mengujinya sebagai gerbang zona. Ketiganya gagal.
+Yang tidak pernah ditanyakan: **doktrinnya sendiri tidak menyuruh masuk DI MSS.**
+Ia menyuruh masuk pada retracement ke dalam FVG yang dibuat leg
+displacement-nya. FVG sudah berbentuk kotak dan sudah terukur, jadi klaim itu
+bisa diuji tanpa mengarang satu koordinat pun.
+
+Rig: `detectors_costed.resolved_as("fvg", ...)`, satu backtest per sel,
+4.901 baris, dipecah POST HOC lewat `zone_id`. Empat sel, XAUUSD dan BTCUSD di
+1 jam dan 4 jam. Ambang didaftarkan lebih dulu: MIN_ARM 30, Bonferroni atas
+enam kontras jadi **|t| > 2,638**, tanda sama di kedua paruh, dan minimal 3 dari
+4 sel positif.
+
+### Sebuah lookahead ditemukan di tengah jalan, dan ia ADALAH seluruh efeknya
+
+Pass penandaan pertama melabeli sebuah zona memakai break yang bisa tercetak
+SESUDAH zona itu tersentuh - sesudah trade-nya dimulai. Mewajibkan bar sentuhan
+lebih baru daripada bar pelabelan memindahkan lengan BREAK_ONLY dari
+
+    +0,3248 R, selisih +0,4102, t = +6,54
+
+menjadi
+
+    +0,0569 R, selisih +0,0822, t = +1,40
+
+**Seluruh efek yang terlihat adalah kebocorannya.** t = +6,54 akan lolos setiap
+ambang di halaman ini. Hanya tabel terkoreksi di bawah yang berlaku.
+
+### Hasil, bebas lookahead, gabungan empat sel
+
+| w | lengan | n | exp R | win | PF | selisih | Welch t |
+|---|---|---|---|---|---|---|---|
+| 5 | IN_MSS | 41 | -0,4033 | 31,7% | 0,336 | -0,3926 | -2,87 |
+| 5 | BREAK_ONLY | 670 | +0,0569 | 46,0% | 1,118 | +0,0822 | +1,40 |
+| 5 | SWEEP_ONLY | 115 | +0,1014 | 44,3% | 1,241 | +0,1182 | +0,90 |
+| 20 | **IN_MSS** | **208** | **-0,0376** | 44,7% | 0,923 | **-0,0247** | **-0,28** |
+| 20 | BREAK_ONLY | 830 | +0,0641 | 45,3% | 1,132 | +0,0940 | +1,73 |
+| 20 | SWEEP_ONLY | 121 | +0,0606 | 43,8% | 1,125 | +0,0765 | +0,51 |
+
+**NULL.** FVG di dalam leg MSS tidak mengungguli FVG biasa. Di w=20 - satu
+satunya jendela dengan baris cukup - selisihnya -0,0247 R di t = -0,28, dan cuma
+1 dari 4 sel positif (XAU 1h +0,1843, sisanya negatif).
+
+Di w=5, default yang di-ship, lengannya -0,4033 di t = -2,87 dan itu secara
+formal menabrak aturan GAGAL - tapi ia 41 baris di empat sel dan **tidak satu
+sel pun mencapai MIN_ARM 30** (n = 12, 9, 7, 13). Itu kelangkaan, bukan temuan.
+
+Kedua kontrolnya sama datarnya: BREAK_ONLY +0,0940 (t = +1,73) dan SWEEP_ONLY
++0,0765 (t = +0,51), tak satu pun mendekati 2,638. **Konjungsinya tidak
+menambahkan apa pun atas bagian-bagiannya.**
+
+### Dua hal yang layak disimpan
+
+**Tinggi celah BUKAN confound-nya.** Celah yang bersebelahan dengan break justru
+LEBIH KECIL (0,431 sampai 0,463 ATR) daripada sisanya (0,502 sampai 0,542), jadi
+tidak ada angka lengan yang merupakan artefak tinggi celah.
+
+**Dinding kelangkaan yang sama, untuk keempat kalinya.** `mss_window` 5 yang
+di-ship memberi 47 break MSS dalam 34.121 bar XAUUSD 1 jam, dan 41 baris yang
+bisa diperdagangkan di seluruh repo sesudah saringan span intrabar. Kelangkaan
+itu sudah membunuh H9 (7 dan 43 peristiwa), H11, dan `conditioned_structure.py`
+(48 dari 2.910; `mss_side_swing` punya 4 baris non-`none` dari 1.855).
+Sensitivitas pivot sudah menyingkirkan definisi fraktal kita sebagai sebabnya.
+
+## Garis MSS akhirnya diverifikasi di kanvas, 8 September 2026
+
+Sampai hari ini **tidak satu piksel pun dari `structure-primitive.ts` pernah
+dibaca balik**: `pixel-truth` membaca box dan hanya box, `nonbox-truth` membaca
+ray yang memanjang ke kanan dan hanya itu. Garis MSS - satu satunya geometri
+yang cuma dimiliki MSS, karena ia mulai di bar SWEEP dan bukan di bar swing -
+tidak pernah diverifikasi ada di harganya.
+
+Tiga hal harus dibangun, dan dua di antaranya cacat di harness-nya sendiri:
+
+**Scanner penempatan-saja.** `__scan` menolak jendela di bawah 20 piksel karena
+duty cycle butuh tiga periode dash. Segmen MSS membentang sweep sampai break
+dan `mss_window` default 5, jadi ia sering 1 sampai 2 bar dan tidak akan pernah
+mencapai 20 piksel pada jumlah bar yang masih memuat sebuah MSS. Memakai
+`__scan` untuknya melaporkan "tidak tergambar" untuk garis yang tergambar
+sempurna. `__scanAt` tidak mengukur duty sama sekali dan berlantai 4 piksel.
+
+**Gate hampa, ditulis lalu dibetulkan di sesi yang sama.** Versi pertama gate ini
+berbunyi `mssMeasured.length === 0 || <galat dalam batas>`, yang LULUS justru
+ketika nol garis bisa diukur - persis bentuk yang seluruh berkas itu ada untuk
+mencegah, beberapa baris di bawah komentar yang memperingatkannya.
+
+**Chart harus digulir ke peristiwanya.** Diagnostik: MSS pertama jatuh di
+y = -168 dengan xa = -526 dan xb = -514 pada pane selebar 750 - di luar layar di
+KEDUA sumbu, karena `RIGHT_OFFSET_BARS` menggeser candle ke kiri supaya ray
+sendirian di kanan, dan geseran itu mendorong segmen masa lalu keluar. Probe
+melaporkan "tidak ada tinta", yang terbaca seperti garis hilang.
+
+Hasil, XAUUSD 1 jam 900 bar:
+
+| garis | harga | duty | galat |
+|---|---|---|---|
+| MSS-internal | 4.681,058 | 1,00 | 0,17 |
+| MSS-internal | 4.571,395 | 1,00 | 0,28 |
+
+Terburuk 0,28 lawan toleransi 2,34, yaitu **0,006 persen**. Garis MSS ada di
+harga yang skala harga menaruhnya.
+
+
+## MSS sebagai DETEKTOR KOTAK, 8 September 2026, dan ia TIDAK BISA DIUKUR di rig ini
+
+Diminta sesudah keberatan strukturalnya disampaikan dan tetap dilanjutkan.
+Dikerjakan penuh: detektor backend, Pine detektor 6, backtest spot dan COMEX,
+gambar. Hasilnya bukan null melainkan **tidak bisa diukur**, dan repo ini
+memperlakukan keduanya berbeda dengan sengaja.
+
+### Geometrinya memperkenalkan NOL bilangan baru
+
+Doktrin MSS tidak menyebut kotak. Dua tepi dipilih dari harga yang konstruknya
+SUDAH sebutkan: `event.level` (harga swing yang JEBOL) dan `sweep.level` (harga
+swing yang DISAPU). Keduanya sudah dipakai `mss_sweeps` untuk memutuskan apakah
+sebuah break adalah MSS.
+
+Sisinya jatuh tanpa pilihan lagi: break TURUN berarti sebuah high disapu dan
+sebuah low jebol, jadi kotaknya dari low-yang-jebol sampai high-yang-disapu dan
+sisinya SUPPLY - proximal di level yang jebol, distal di sapuannya. Itu persis
+trade yang doktrinnya jelaskan. Alternatif yang ditolak masing-masing
+memperkenalkan satu bilangan: kotak k kali ATR di sekitar level, atau kotak dari
+ekstrem leg.
+
+### Angkanya, dan kenapa ia bukan angka
+
+| sel | mode target | cand | fill | n | PF | RR | no wall |
+|---|---|---|---|---|---|---|---|
+| XAU 1d | zona lawan | 11 | 11 | **11** | 0,086 | **7,59** | 5 dari 11 |
+| XAU 1h | zona lawan | 26 | 24 | **24** | 0,269 | **16,19** | **17 dari 26** |
+| XAU 1h | R tetap 2,0 | 26 | 24 | 24 | 0,767 | 1,85 | 0 |
+| COMEX GC1! 1h | R tetap 2,0 | 30 | 27 | **10** | 0,229 | 1,80 | 0 |
+
+**Sebelas trade dalam dua puluh enam tahun emas harian.** Itu bukan sampel.
+
+**Konvensi target bersama tidak muat.** Dua pertiga zona MSS di 1 jam tidak
+punya dinding lawan sama sekali, dan yang punya rata-rata 16,19 risk-unit
+jauhnya - karena dinding lawan sebuah MSS adalah MSS lain, dan MSS langka.
+Mengganti ke R tetap menaikkan PF dari 0,269 ke 0,767 dan membuat `no wall` nol,
+yang mengisolasi kerusakannya: separuhnya konvensi target, bukan geometrinya.
+
+**Dan di COMEX bracketnya gagal menyelesaikan trade-nya.** 27 terisi, 10
+tertutup - tujuh belas posisi tidak pernah mencapai stop maupun target di dalam
+horizon 80 bar, karena kotaknya begitu lebar sehingga 2R dalam satuan harga
+sangat jauh.
+
+### Ini dinding yang KELIMA, dan sebabnya sama
+
+H9, H11, `conditioned_structure.py`, H12, dan sekarang ini. `mss_window` 5
+memberi 47 break MSS dalam 34.121 bar XAUUSD 1 jam. Sensitivitas pivot sudah
+menyingkirkan fraktal simetris kita sebagai sebabnya - itu pasar.
+
+Yang baru dari run ini: kelangkaan itu tidak cuma membuat sampelnya kecil, ia
+membuat **konvensi bracket bersama tidak berlaku**, karena bracket itu memilih
+target dari zona lawan dan sebuah detektor sejarang ini tidak punya tetangga.
+
+### Gerbangnya nol, dan itu pernyataan
+
+Tinggi kotak MSS ADALAH jarak stopnya, jadi menggerbanginya berarti memilih
+antara "cuma leg besar" (lantai) dan "cuma stop rapat" (plafon) - keduanya bisa
+dipertahankan, tidak satu pun bersumber. Definisi MSS sudah membawa TIGA syarat.
+MSS ada di `GATE_UNMEASURED_KINDS`, dan `test_the_floor_kinds_clear_by_being_large`
+sekarang mewajibkan setiap kind berlantai-nol ada di sana - kalau tidak, panel
+akan membaca "lolos gerbang" untuk sesuatu yang tidak pernah digerbangi.
+
+### Gambarnya, sebaliknya, bersih
+
+`pixel-truth` pada `mss`: **7 dari 7**, tepi atas 0,1px, tepi bawah 0,2px, tepi
+kiri 1 dari 1, kotak menutupi basisnya sampai 0,01 bar. Satu zona di jendela itu
+- konsisten dengan kelangkaannya.
+
+### Putusan
+
+Kotaknya digambar benar dan geometrinya tidak mengarang bilangan. Tapi
+**populasinya tidak bisa mendukung kesimpulan apa pun** lewat bracket ini, dan
+angka mana pun yang dikutip dari 10 sampai 24 trade akan menyesatkan. Yang
+dilaporkan di sini bukan "MSS buruk" melainkan "MSS tidak terukur di sini", dan
+itu perbedaan yang halaman ini pertahankan sejak H9 melaporkan 7 dan 43
+peristiwa sebagai ketidakmampuan mengukur, bukan sebagai null.
+
+
+### Benchmark dan tuning MSS, dijalankan atas permintaan dengan angkanya DITANDAI
+
+Bagian di atas menyimpulkan MSS tidak terukur di rig ini. Benchmark dan tuning
+tetap dijalankan atas permintaan, dan setiap angka di bawah membawa tanda yang
+menentukan apakah ia boleh dikutip.
+
+#### Benchmark: pembandingnya bukan MSS, ia CHoCH
+
+Satu-satunya perbandingan di sini yang TIDAK bergantung pada ukuran sampel,
+karena ia menghitung objek yang DIGAMBAR dan bukan trade.
+
+`[TehThomas] - Market Structure Shift (MSS)` di FX:XAUUSD harian: **383 label**
+pada 13.297 bar. Kotak MSS kita di chart yang sama: **11**.
+
+Kepadatan, dibandingkan terhadap keluaran `structure.overlay` kita di MT5
+XAUUSD harian (3.128 bar - MT5 memegang lebih sedikit, jadi kepadatan yang
+dibandingkan, bukan hitungan):
+
+| objek | hitungan | kepadatan |
+|---|---|---|
+| MSS kita | 14 | **0,448%** |
+| CHoCH kita | 114 | **3,64%** |
+| BOS + CHoCH kita | 272 | 8,70% |
+| "MSS" TehThomas | 383 / 13.297 | **2,88%** |
+
+**Kepadatan mereka cocok dengan CHoCH kita, bukan MSS kita** - 6,4 kali lebih
+padat daripada MSS kita, dan dalam 27 persen dari CHoCH kita. Itu mengonfirmasi
+secara independen apa yang sudah dicatat survei 867 script di
+`docs/QA-PRODUKSI.md`: MSS dilabeli persis di tempat sumber lain melabeli CHoCH.
+Definisi kita menuntut TIGA syarat; milik mereka tampaknya satu.
+
+**TANDA: angka ini BOLEH dikutip.** Ia hitungan objek digambar atas ratusan
+peristiwa, bukan sampel trade.
+
+#### Tuning: jendela 20 membuat populasinya terbaca, lalu placebo membunuhnya
+
+Semua di XAUUSD 1 jam, target R TETAP 2,0 - bukan konvensi zona lawan, karena
+di sana dua pertiga zona MSS tidak punya dinding.
+
+| mss_window | cand | n | PF |
+|---|---|---|---|
+| 5 (di-ship) | 26 | 24 | 0,767 |
+| **20** | 164 | **162** | **1,199** |
+| 40 | 356 | 351 | 1,064 |
+
+Puncaknya di 20 dan bukan monoton, jadi ia tidak berbentuk seperti sapuan yang
+menipu di lantai BRK dan OTE. Dan 20 salah satu dari DUA jendela yang H9 pakukan
+lebih dulu, jadi memilihnya bukan cherry-pick dari kontinum.
+
+Hold-out, dibelah di 2025-01-01:
+
+| lengan | IS 2023-2025 | OOS 2025-2026 |
+|---|---|---|
+| w=20 | **1,239** (n=88) | **1,153** (n=74) |
+
+Kedua paruh di atas satu dan berdekatan. Itu hasil MSS pertama dalam lima studi
+yang tidak runtuh.
+
+**Lalu kontrolnya dijalankan, dan ia MENANG:**
+
+| lengan | n | win% | PF | exp_r |
+|---|---|---|---|---|
+| kotak asli | 162 | 41,98 | 1,199 | +0,1004 |
+| **placebo 1 ATR** | **166** | **43,98** | **1,358** | **+0,1588** |
+
+Kotak di tempat yang SALAH mengungguli kotak di tempat yang benar. Apa pun yang
+diukur PF 1,199, ia bukan letak kotaknya - itu drift, dan sebuah kotak di harga
+mana pun di jendela itu akan menangkapnya sama baiknya atau lebih baik.
+
+**TANDA: angka tuning ini TIDAK boleh dikutip sebagai edge.** Ia lolos hold-out
+dan gagal placebo, dan di repo ini placebo yang mengikat - pola yang sama sudah
+mencabut order block (placebo menang di PF DAN win rate) dan FVG di BTC harian.
+
+#### Ringkasan tanda
+
+| angka | boleh dikutip? |
+|---|---|
+| kepadatan 0,448% lawan 2,88% pembanding | **ya** - hitungan objek, ratusan peristiwa |
+| PF 0,086 sampai 0,767 di w=5 | **tidak** - 11 sampai 24 trade |
+| PF 1,199 di w=20, hold-out 1,239 / 1,153 | **tidak** - placebo memberi 1,358 |
+| gambar 7 dari 7, tepi 0,1 dan 0,2 px | **ya** - pengukuran piksel, bukan hasil |
+
+
+### Detektor MSS DICABUT, 8 September 2026
+
+Dibangun, diukur, lalu dicabut atas permintaan pemilik metode. Yang dihapus:
+`app/detect/mss.py`, entri `DETECTORS`, `Layer(id="mss")`, handler di
+`drawing.py`, `ZoneKind.MSS`, `MssParams`, field `DrawRequest`, entri
+`FLOOR_GATE_ATR` dan `GATE_UNMEASURED_KINDS`, kalimat advisor, entri buku besar
+port, dan seluruh sisi frontend (interface, default, panel knob, swatch, ikon).
+Layer kembali 22 tanpa `mss`, detektor kembali enam.
+
+**Alasan pencabutan ada di dua tabel di atas dan bukan di prosa ini:** placebo
+mengalahkan kotak aslinya, 1,358 lawan 1,199, jadi letak kotaknya tidak membawa
+informasi. Dan di jendela yang di-ship populasinya 11 sampai 24 trade.
+
+**YANG TIDAK DIHAPUS, dan itu disengaja.** MSS tetap digambar sebagai GARIS oleh
+overlay `structure` - satu segmen dari bar sapuan sampai bar break, ink
+biru-ungu keluarga `structure`, tanpa klaim arah. Itu perilaku yang sudah ada
+sejak lama dan bukan yang dicabut di sini: yang dicabut KOTAK dan jalur
+detektornya. Garisnya juga satu-satunya objek MSS yang punya pengukuran yang
+boleh dikutip - penempatannya diverifikasi di kanvas hari ini, terburuk 0,28
+pada harga 4.571 (0,006 persen).
+
+Harness Pine `detektor 6=MSS` juga DIPERTAHANKAN, karena ia yang menghasilkan
+angka-angka di atas dan mencabutnya akan membuat tabel ini tidak bisa diulang.
+Ia alat ukur, bukan produk.
+
+Kodenya ada di riwayat git kalau geometrinya perlu dibaca lagi: kotaknya
+dibentang antara `event.level` dan `sweep.level`, nol bilangan baru.
+
+
+## CISD sebagai KOTAK, 8 September 2026: detektor ketujuh, dan placebo menutupnya
+
+Pertanyaan KETIGA tentang CISD. Yang pertama arah tingkat bar (null, dan lihat
+di bawah soal sumbernya); yang kedua kondisioner atas zona detektor LAIN
+(terbalik, t = -7,07); yang ini kotaknya sendiri, dan tak satu pun pengukuran
+sebelumnya menyentuhnya.
+
+### Dua cacat integritas ditemukan saat memetakannya
+
+**Null arah 2026-08-20 TIDAK PUNYA SUMBER.** Angka n=23.270, DELTA -0,0195 ATR
+di t=-0,53, "halves flip in 3 of the 4 series", "spread 13x edge" - semuanya
+hidup HANYA sebagai prosa di `evidence` layer `cisd` di `layers.py`. Tidak ada
+tool, tidak ada JSON, nol kemunculan "CISD" di CALIBRATION.md, dan pencarian
+riwayat git atas `n=23270` cuma menemukan commit `d63b813` yang MENAMBAHKAN
+prosa itu bersama `app/cisd.py`. **Ia tidak bisa direproduksi dari repo ini**,
+dan ia load-bearing: `CISDDetector.mqh` mengutipnya sebagai alasan port MQL5 ada
+"untuk membuktikan presisi, bukan untuk trading", dan `AUDIT-MENYELURUH.md`
+mendaftar `cisd` sebagai null atas otoritasnya.
+
+**Hasil terbalik yang terkuat di repo ini BASI.** `docs/csid_ob_intrabar.json`:
+exp_r -0,1119 dengan CISD fresh di band lawan +0,0244 tanpa, delta -0,1363 R,
+Welch **t = -7,07** (bukan -7,04) lawan kritis 2,241, negatif di SELURUH 8 fold.
+Ia dijalankan 31 Agustus 2026, **PRA** perbaikan urutan lifecycle 7 September,
+dan jalurnya lewat `intrabar.resolved` yang memakai `zone.first_test_time` -
+field yang urutan lama tinggalkan None untuk zona tersayat. Perbaikan itu
+memindahkan fvg 30m dari n=1045 PF 1,943 ke n=1657 PF 1,115. **Angka -0,1363
+harus diukur ulang sebelum dijadikan dasar**, dan ia menggerbangi flag CLI
+`--no-cisd-in-band`.
+
+### Tepi keduanya ditambahkan, bukan dikarang, dan gratis
+
+Konstruknya menyebut TEPAT SATU harga: `open_price`, open lilin PERTAMA run.
+`CISDDetector.mqh` menuliskannya - "INI BUKAN BOX" - dan LuxAlgo setuju: 502
+GARIS di XAUUSD harian, nol kotak.
+
+Distal-nya EKSTREM RUN, dicatat di loop yang `delivery_runs` memang sudah
+jalankan untuk menghitung `end` dan `length`. Tiga kandidat non-karangan
+ditimbang: ekstrem run (dipilih - satu-satunya sifat RUN dan bukan sifat satu
+lilin di dalamnya), close lilin terakhir (ditolak, tepi terdangkal), open lilin
+terakhir (ditolak - itu anchor SALAH yang lima paragraf docstring `cisd.py` ada
+untuk mencegah). Kelipatan ATR ditolak: repo ini sudah punya empat konstanta
+chosen-not-measured.
+
+Proximal SELALU level yang ditembus, distal SELALU ekstrem run. Tanpa cabang.
+
+> [!WARNING]
+> Percobaan pertama membalik tanda ekstremnya - run NAIK dicatat LOW-nya - jadi
+> `level` dan `extreme` jatuh di sisi yang sama dan **SELURUH 377 kotak tinggi
+> nol**. Gagalnya keras dan langsung, bukan kotak salah bentuk yang lolos
+> diam-diam. Fixture `test_cisd.py` sekarang menuliskan `run_extreme` eksplisit
+> alih-alih membacanya dari `runs`, supaya satu tanda terbalik tidak bisa
+> membuat kedua sisi sepakat pada angka yang salah.
+
+### Hasil, dan placebo menutupnya
+
+| sel | n | win% | PF | exp_r |
+|---|---|---|---|---|
+| XAU 1d | 783 | 52,36 | 0,889 | -0,031 |
+| **XAU 1d placebo 1 ATR** | 780 | 48,33 | **1,027** | **+0,0084** |
+| COMEX GC1! 1d | 745 | 51,95 | 0,851 | -0,0408 |
+
+**Placebo menang, +0,138 PF.** Kotak di tempat yang salah lebih baik daripada
+kotak di tempat yang benar, jadi letak kotak CISD tidak membawa informasi di
+arah doktrinnya. Bentuk yang sama dengan placebo order block.
+
+Satu detail yang layak dicatat: kotak asli win rate LEBIH TINGGI (52,36 lawan
+48,33) tapi PF lebih rendah. Ia menang lebih sering dan kalah lebih besar.
+
+Populasinya sehat - **783 trade**, terbanyak dari semua detektor di harian - jadi
+ini bukan kasus tidak-terukur seperti MSS. Ia terukur, dan hasilnya negatif.
+
+### Parity level: keluarga anchor yang sama, selektivitas berbeda
+
+Parity yang benar untuk CISD, dan ia TIDAK bergantung pada pilihan kotak saya:
+kedua sisi memancarkan satu HARGA per peristiwa. 330 candle harian dari chart
+yang menggambar garis LuxAlgo itu.
+
+| | |
+|---|---|
+| level kita | 35 |
+| level LuxAlgo di rentang | 101 |
+| **level kita yang mereka punya juga** | **23 dari 35, 65,7%** |
+| level kita yang benar-benar sebuah OPEN lilin | **35 dari 35** |
+| level LuxAlgo yang sebuah OPEN lilin | 93 dari 101 |
+
+Janji inti konstruk kita berlaku sempurna: **setiap level kita memang open
+sebuah lilin.** Milik mereka 93 persen, jadi 8 level mereka bukan open - anchor
+mereka bukan sepenuhnya sama. Dan mereka memancarkan tiga kali lebih banyak,
+konsisten dengan kepadatan: kita 12,05 persen bar, mereka 3,78 persen di jendela
+penuh mereka.
+
+### Gambar: 7 dari 7
+
+`pixel-truth` pada `cisd_zone`: tepi atas 0,4px, tepi bawah 0,4px, tepi kiri 12
+dari 12, kotak menutupi basisnya sampai 0,01 bar. Overlay `cisd` (garisnya)
+TETAP ADA dan tidak diubah - layer baru ini kotaknya, bukan penggantinya.
+
+### Putusan
+
+Kotaknya digambar benar, geometrinya tidak mengarang bilangan, populasinya
+sehat, dan **placebo mengalahkannya**. Angka PF 0,889 tidak boleh dikutip
+sebagai edge dan 1,027 milik placebo tidak boleh dikutip sebagai apa pun.
+
+Yang paling berharga dari sesi ini untuk CISD bukan detektornya melainkan dua
+temuan integritas di atas: satu angka yang tidak punya sumber, dan satu angka
+terkuat di repo yang basi dan menggerbangi sebuah flag.
+
+
+## `csid_ob_intrabar` DIUKUR ULANG pasca perbaikan lifecycle, 8 September 2026
+
+Angka bertanda terkuat di repo ini berdiri di atas populasi pra-perbaikan sejak
+31 Agustus. Diukur ulang dengan tool yang sama, tanpa satu baris pun diubah.
+
+| | PRA 31 Agustus | PASCA 8 September |
+|---|---|---|
+| n | 8.170 | **5.997** |
+| n CISD di dalam | 3.553 | **1.502** |
+| selektivitas | 43,5% | **25,0%** |
+| exp_r DENGAN CISD | -0,1119 | **-0,2568** |
+| exp_r TANPA CISD | **+0,0244** | **-0,1127** |
+| delta | -0,1363 | **-0,1441** |
+| Welch t | -7,075 | **-4,098** |
+| kritis | 2,241 | 2,241 |
+| fold negatif | 8 dari 8 | **8 dari 8** |
+| sel negatif | 9 dari 9 | **8 dari 9** |
+| putusan | MEMISAHKAN | **MEMISAHKAN** |
+
+**Pemisahannya BERTAHAN.** delta -0,1441 di t=-4,098, masih hampir dua kali
+ambang Bonferroni, seluruh delapan fold negatif, dan confound choppiness tetap
+tersingkir (-0,1931 di dalam choppy, -0,1357 di dalam clean). Satu sel berbalik
+tanda: EURUSD +0,0982 di t=+0,84, tidak signifikan.
+
+### Tapi BACAANNYA berubah, dan itu lebih penting daripada delta-nya
+
+Pra-perbaikan lengan TANPA CISD **untung** (+0,0244), jadi bacaannya "CISD di
+dalam mengubah order block yang menguntungkan jadi merugi", dan flag
+`--no-cisd-in-band` dijelaskan sebagai *"filter ini yang membuat order_block
+layak dipilih sama sekali"*.
+
+Pasca-perbaikan kedua lengan **merugi**: -0,2568 dengan, -0,1127 tanpa. Membuang
+block ber-CISD menyisakan kerugian yang lebih kecil, bukan keuntungan. **Kalimat
+di help CLI itu sekarang salah**, dan sudah dikoreksi di tiga tempat yang
+mengutipnya: `tools/execute.py` (help dan komentar gate), `app/ict.py`
+(`MEASURED_AGAINST`), dan evidence layer `cisd_zone`.
+
+Itu konsisten dengan yang sudah diketahui di tempat lain: pasca-perbaikan
+order_block tidak punya satu sel pun di atas satu, dan `orderable` untuknya
+sudah dimatikan. Sebuah filter tidak bisa menyelamatkan detektor yang setiap
+selnya rugi.
+
+### Selektivitasnya juga berubah, dan itu belum dijelaskan
+
+43,5 persen jadi 25,0 persen. Populasi turun 27 persen sementara lengan
+CISD-di-dalam turun 58 persen, jadi zona yang hilang karena perbaikan itu
+condong ke lengan ber-CISD. Perbaikan lifecycle menambahkan zona yang tersayat
+dan tertutup dalam satu bar - yang commit-nya sebut "hampir seluruhnya loser" -
+jadi arah yang diharapkan justru menambah, bukan mengurangi. **Belum saya
+telusuri**, dan ia layak ditelusuri sebelum angka ini dipakai lagi: perubahan
+selektivitas sebesar itu bisa berarti populasi yang dibandingkan bukan populasi
+yang sama.
+
+## Lima sisa CISD dikerjakan, 8 September 2026
+
+Diminta setelah pengukuran ulang `csid_ob_intrabar`. Satu di antaranya menemukan
+cacat yang berlaku untuk tiga detektor, bukan cuma CISD.
+
+### 1. Sapuan knob, dan janji di evidence layer akhirnya ditepati
+
+Evidence `cisd_zone` berbunyi "the floor is swept in TradingView rather than
+guessed here" sejak layer itu ditulis, dan sapuannya tidak pernah dijalankan.
+Dijalankan sekarang, XAUUSD harian, jendela 2000-2026, lewat kode bracket yang
+sama dengan enam detektor lain.
+
+`min_run`, lantai 0:
+
+| min_run | n | win% | PF |
+|---|---|---|---|
+| 1 | 1.788 | 54,64 | 0,981 |
+| **2 (di-ship)** | 783 | 52,36 | **0,889** |
+| 3 | 362 | 52,76 | 0,932 |
+| 4 | 187 | 52,94 | 1,127 |
+| 5 | 84 | 45,24 | **1,243** |
+
+`run_min_atr`, di min_run 2:
+
+| lantai | n | win% | PF |
+|---|---|---|---|
+| 0,0 | 783 | 52,36 | 0,889 |
+| 0,5 | 739 | 52,64 | 0,941 |
+| 1,0 | 478 | 53,97 | **1,039** |
+| 1,5 | 238 | 51,26 | 0,874 |
+| 2,0 | 109 | 49,54 | 0,996 |
+
+Keduanya TIDAK monoton, dan PF naik persis seiring n runtuh. Lantai naik ke
+1,039 di 1,0 lalu turun ke 0,874 di 1,5 lalu naik lagi ke 0,996 di 2,0 - gerbang
+yang nyata tidak berzigzag begitu.
+
+### 2. Placebo membunuh dua dari tiga, hold-out membunuh sisanya
+
+Ketiga arm di atas satu diuji lawan kotak yang digeser 1 ATR:
+
+| arm | nyata | placebo | putusan |
+|---|---|---|---|
+| lantai 1,0 | 1,039 | **1,207** | kontrol MENANG, mati |
+| min_run 4 | 1,127 | 0,968 | lolos, +0,159 |
+| min_run 5 | 1,243 | 0,922 | lolos, +0,321 |
+
+Lalu seleksi di paruh pertama (2000-2013), jendela diverifikasi di baris `win`:
+
+| min_run | IS n | IS PF | OOS n | OOS PF |
+|---|---|---|---|---|
+| 1 | 876 | 1,069 | 912 | **0,932** |
+| 4 | 93 | 1,105 | 93 | **0,962** |
+| 5 | 40 | **1,357** | 44 | 1,067 |
+
+Pemenang di sampel adalah min_run 5, tapi ia dipilih atas **40 trade** - itu
+bukan seleksi, itu derau. Dan di 4 jam ia gagal:
+
+| min_run 5, XAU 4 jam | n | PF |
+|---|---|---|
+| sampel penuh | 323 | 1,029 |
+| placebo | 322 | 0,739 |
+| IS 2013-2020 | 172 | 1,141 |
+| **OOS 2020-2026** | 151 | **0,953** |
+
+Ia mengalahkan placebo di KEDUA timeframe (+0,321 harian, +0,290 di 4 jam) tapi
+gagal luar sampel di 4 jam, dan sampel yang gagal itu (151) tiga kali lebih besar
+daripada sampel harian yang lolos (44). **Tidak ada arm CISD yang bisa dipilih.**
+Default `min_run=2` tetap, dan alasannya sekarang terukur, bukan diwarisi.
+
+### 3. Sel 4 jam, yang sebelumnya tidak ada
+
+`min_run=2` yang di-ship: PF **0,875** di n=2.436, kedalaman data 2013-2026.
+Di bawah satu, sama seperti harian.
+
+### 4. Hold-out di harness ini BUKAN partisi bersih, dan itu berlaku umum
+
+Ditemukan karena aritmetikanya mustahil: min_run 4 memberi 1,127 di sampel penuh
+sementara kedua paruhnya 1,105 dan 0,962. Rasio dua jumlah tidak bisa jatuh di
+luar rentang komponennya.
+
+Sebabnya terbaca di baris `no wall`. Sampel penuh 26 zona tanpa dinding dari 183;
+IS 20 dari 91 ditambah OOS 14 dari 92 sama dengan **34**. Membelah jendela
+membuat delapan zona kehilangan dinding yang di sampel penuh mereka punya, karena
+`profit_zone_at` mencari zona lawan yang HIDUP dan zona yang lahir di seberang
+batas jendela tidak pernah lahir.
+
+Jadi lengan luar sampel selalu kekurangan dinding di awal jendelanya, target
+trade-nya berubah, dan IS + OOS tidak menjumlah ke sampel penuh. Efeknya kecil di
+sini (8 dari 183, 4,4 persen) tapi ia SISTEMATIS dan searah, dan ia berlaku untuk
+setiap angka hold-out di repo ini, termasuk IFVG dan BRK.
+
+### 5. Parity Python lawan Pine: kotaknya identik, POPULASINYA tidak
+
+Diukur di satu feed, bukan lintas feed: 100 bar FX:XAUUSD harian diambil dari
+TradingView lalu dijalankan lewat `detect/cisd_zone.py`, dan harga limit Pine
+dibaca dari daftar order.
+
+**Geometrinya cocok sampai sen.** Tujuh proximal yang bisa diverifikasi di daftar
+order Pine cocok persis dengan proximal zona Python: 4685,50 / 4455,48 / 4329,40 /
+4071,31 / 4123,35 / 4001,49 / 4349,95.
+
+**Tapi Pine memasang order di tiga harga yang tidak punya zona di Zonelab:**
+4070,41, 4007,65, dan 4048,86. Ketiganya persis zona yang `_dedupe` buang.
+
+| | kandidat | zona | selisih |
+|---|---|---|---|
+| Pine (tanpa dedupe) | 13 | 13 | - |
+| Zonelab (`merge_overlap_pct` 0,6) | 13 | **9** | 4 dibuang |
+
+Pine punya **NOL** kode dedupe - kata `overlap`, `merge_overlap`, dan `dedupe`
+tidak muncul satu kali pun di 49 ribu karakter itu. Jadi setiap angka CISD yang
+diukur di TradingView menggambarkan populasi **44 persen lebih besar** daripada
+yang Zonelab hasilkan.
+
+### Dan itu bukan cuma soal CISD
+
+Tiga detektor memanggil `_dedupe` di Python dan nol di Pine. Diukur di 100 bar
+yang sama:
+
+| detektor | Pine | Zonelab | selisih |
+|---|---|---|---|
+| `cisd_zone` | 13 | 9 | **+44%** |
+| `ote` | 10 | 9 | +11% |
+| `supply_demand` | 6 | 6 | **0** |
+
+`supply_demand` nol di jendela ini, dan itu yang paling penting karena ia
+SATU-SATUNYA detektor dengan `orderable=True`. Kotak S&D dipisahkan basis dan
+impuls sehingga jarang bertumpuk. Tapi nol di 100 bar bukan nol di 26 tahun, dan
+paparan itu belum diukur di rentang penuh.
+
+`fvg`, `order_block`, `ifvg`, dan `breaker` tidak memanggil `_dedupe` sama
+sekali, jadi parity Pine mereka tidak tersentuh cacat ini.
+
+### 6. Anomali selektivitas ditelusuri, dan ia membatalkan satu KALIMAT saya
+
+Ditandai kemarin tanpa penjelasan: selektivitas 43,5 turun ke 25,0 persen
+sementara populasi turun 27 persen. Ditelusuri sekarang, dan yang menentukan
+adalah membandingkan sembilan sel satu per satu, bukan totalnya.
+
+| lengan | 31 Agustus | 8 September | perubahan |
+|---|---|---|---|
+| n TANPA CISD | 4.617 | 4.495 | **-2,6%** |
+| n DENGAN CISD | 3.553 | 1.502 | **-58%** |
+| total | 8.170 | 5.997 | -27% |
+
+**Penyusutannya hampir seluruhnya di satu lengan.** Lengan tanpa CISD praktis
+tidak bergerak; lengan ber-CISD kehilangan 2.051 trade. Sembilan sel semuanya
+turun searah dan sebanding (selektivitas 22,2 sampai 28,5 persen), dan sembilan
+pasar independen tidak bergerak seragam karena data - itu kode.
+
+Yang tersingkir sepanjang penelusuran, masing-masing dengan angkanya:
+
+- **bukan cap tampilan**: `POPULATION` memakai `max_zones_per_side = 0`
+- **bukan jendela riwayat halus memendek**: BTC 5 menit dan 1 jam sama-sama
+  membentang 278 hari
+- **bukan default detektor yang berubah di commit yang sama**: `min_body_ratio`
+  0,0 ke 0,3 dan `filter_mother` ke True memang ada di 23773d7, tapi keduanya di
+  dalam `detect_fvg` dan `detect_order_block` tidak membacanya
+- **bukan zona tanpa dinding**: baris 194 `intrabar.py` membuangnya diam-diam,
+  terukur 57 dari 970 di XAUUSD 1 jam, 5,9 persen
+
+Yang tersisa dan cocok dengan asimetrinya: **sentuhan yang tercatat lebih awal**.
+Perbaikannya mencatat sentuh sebelum pecah, jadi zona yang harganya menyayat
+tembus dalam satu bar sekarang punya `first_test_time` yang lebih dini. Dan
+`intrabar.py` baris 147 membuang setiap zona yang sentuhannya mendahului awal
+riwayat 5 menit - terukur membuang **3.322 dari 4.375**, yaitu 76 persen, di
+XAUUSD 1 jam, karena riwayat halus mentok di cap 99.999 bar (mulai 2025-04-10)
+sementara riwayat kasar mundur sampai 2020-12-03.
+
+Sebuah block yang memuat CISD adalah block yang harganya SUDAH kembali
+memasukinya, jadi sentuhannya memang dini relatif terhadap kelahirannya.
+Menggeser sentuh lebih awal mendorong justru kohort itu melewati batas 5 menit.
+Itu menjelaskan kenapa satu lengan runtuh dan satunya tidak.
+
+**Ini hipotesis dengan bukti, bukan sebab yang terbukti.** Membuktikannya butuh
+menjalankan kode lama, dan itu `git checkout` di pohon kerja dengan 25 file
+belum di-commit, jadi tidak dijalankan.
+
+#### Yang harus ditarik dari laporan kemarin
+
+Putusan PASCA tetap berdiri: delta -0,1441 di t=-4,098, 8 dari 8 fold, keduanya
+diukur pada populasi PASCA yang sama, jadi ia konsisten secara internal.
+
+Yang TIDAK berlaku adalah cara saya menarasikan perubahannya. Saya menulis
+"kedua lengan sekarang negatif" seolah trade yang sama dinilai ulang dan
+hasilnya berbalik. Bukan begitu: 2.051 trade di lengan ber-CISD sudah tidak ada
+di populasinya sama sekali. Angka +0,0244 dan -0,1127 tidak diukur pada kohort
+yang sama, jadi keduanya tidak boleh dibandingkan langsung, dan kalimat itu
+diperbaiki di tempat ia ter-ship.
+
+
+## BSL dan SSL sebagai kotak, detektor kedelapan, 8 September 2026
+
+Diminta dengan alur yang sama seperti enam detektor sebelumnya. Bagian ini
+mencatat yang sudah terukur; sel TradingView dan benchmark publik menyusul di
+bagian berikutnya begitu Pine detektor 7 terpasang.
+
+### Konstruknya sudah ada di repo ini, dan itu harus dibaca lebih dulu
+
+`app/liquidity.py` SUDAH memancarkan `side: BSL/SSL`, untuk ekstrem periode
+(PDH, PDL, PWH, PWL, FRI, MON) dan untuk dua sisi dealing range. Semuanya GARIS,
+dan modul itu menyatakan sendiri bahwa tidak ada isinya yang pernah diukur
+terhadap outcome.
+
+Detektor baru ini pertanyaan yang BERBEDA: bukan "di mana ekstrem periode
+kemarin" melainkan "di mana beberapa pivot sepakat harga", yaitu kluster equal
+highs dan equal lows. Dua konstruk, dua populasi. Mengutip pengukuran salah
+satunya untuk yang lain akan salah.
+
+### Empat keputusan desain, dan alasan masing-masing
+
+**Sisinya terbalik dari namanya, dan itu benar.** BSL adalah likuiditas BELI
+yang beristirahat DI ATAS harga, jadi harga naik menuju kolam itu dan kotaknya
+duduk di sisi SUPPLY. SSL cerminnya, di DEMAND. Menamai sesuatu "buy side" lalu
+memfilekannya di demand akan membuat tiap pembaca salah baca arah.
+
+**Toleransi mengelompokkan, ia tidak menggambar.** Tepi kotak diambil dari
+sebaran pivot yang TERAMATI, bukan dari `equal_tol_atr`. Beberapa script publik
+menggambar pita selebar toleransi yang diangkur di pivot terekstrem; itu ditolak
+karena memindahkan sebuah konstanta ke dalam GEOMETRI, dan tinggi kotak adalah
+jarak stop. Harganya satu kasus tepi nyata: kluster yang pivotnya persis sama
+memberi tinggi nol. Ia ditolak dan dihitung, bukan ditambal dengan lantai
+karangan - dan ia BUKAN hipotetis, muncul 1 kali di XAUUSD 1 jam dan 1 kali di
+BTCUSD 1 jam.
+
+**Kolam mati saat likuiditasnya diambil**, bukan setelah sekian bar. Sebuah
+kolam berhenti jadi kolam ketika harga menembusnya. Aturan matinya karena itu
+datang dari konstruknya sendiri dan tidak menambah konstanta, dan ia yang
+mencegah kluster 2005 menangkap pivot 2026.
+
+**Anchor kluster tetap di anggota pertama, bukan rata-rata berjalan.** Dengan
+rata-rata berjalan, sepuluh pivot yang masing-masing berjarak 0,09 ATR dari
+tetangganya masuk satu kluster yang membentang 0,9 ATR, dan tidak satu pun
+pasangan di ujungnya "sama".
+
+### Dua cacat saya sendiri, keduanya gagal keras
+
+**Versi pertama memberi NOL kandidat.** Ia cuma membandingkan pivot baru dengan
+kluster yang PERSIS sebelumnya, jadi dua equal high yang dipisahkan satu lower
+high tidak pernah bertemu - dan equal highs justru hampir selalu begitu.
+
+**Toleransi awalnya milik pivot yang baru datang, bukan milik kluster.** Itu
+berarti pita sebuah kolam ikut bergerak setiap kali ada pivot baru di mana pun
+di deret. Pita adalah properti kolam, jadi ia dibekukan saat kluster lahir.
+Diperbaiki sebelum ada satu angka pun diukur, jadi tidak ada yang dibatalkan.
+
+### Populasi lawan toleransi, dan ia TIDAK monoton
+
+`max_zones_per_side=0`, `show_broken=True`, riwayat penuh MT5.
+
+| tol (ATR) | XAU 1d | XAU 1h | BTC 1h |
+|---|---|---|---|
+| 0,10 | 49 | 568 | 867 |
+| 0,25 | 99 | 998 | 1.322 |
+| 0,50 | **116** | **1.002** | 1.181 |
+| 1,00 | 112 | 712 | 745 |
+| 2,00 | 80 | 434 | 409 |
+
+Puncaknya di tengah dan turun di kedua ujung, karena toleransi lebar MENGGABUNG
+kluster secepat ia membuatnya. Terbaca langsung di `clusters_grown`, yaitu pivot
+yang bergabung ke kolam yang kotaknya sudah lahir: di XAU 1 jam ia naik dari 57
+di 0,10 ke 4.390 di 2,00. Populasi yang tersembunyi itu dihitung, bukan
+ditebak - konsekuensi aturan satu-kotak-per-kluster.
+
+**BSL dan SSL keluar seimbang di setiap sel** (XAU 1d 0,25 ATR: 48 lawan 51).
+Itu hal pertama yang akan pecah kalau pemetaan sisinya salah.
+
+### Default yang di-ship itu SEPI, dan itu dinyatakan
+
+`equal_tol_atr = 0.1` adalah tebakan yang dinyatakan, bukan angka bersumber, dan
+ia memberi **NOL kolam di 100 bar XAUUSD harian** - pasangan swing high terdekat
+di sampel itu berjarak 0,367 ATR, sementara toleransinya 0,1. Emas harian
+ber-ATR sekitar 100 USD, jadi dua pivot dalam 10 USD memang jarang. Di seluruh
+3.128 bar harian ia memberi 49 kolam.
+
+### Belum ada satu pun pengukuran outcome
+
+Tidak ada backtest, placebo, hold-out, atau walk-forward untuk kotak ini.
+Gerbangnya 0,0 dan kedua kind masuk `GATE_UNMEASURED_KINDS`, karena tinggi kotak
+di sini adalah sebaran yang kebetulan teramati di dalam toleransi - menggerbangi
+ia berarti menggerbangi `equal_tol_atr` lewat pintu belakang, dua knob untuk
+satu keputusan dan yang satu diam-diam. Kalau ada yang layak digerbangi, itu
+`min_touches`, dan itu knob tersendiri.
+
+### Pine detektor 7, dan sebuah cacat futures yang lebih besar dari layernya
+
+Pine detektor 7 ditulis sebagai cermin baris-per-baris, dengan tiga hal yang
+dinyatakan di kepalanya: pivotnya ditulis tangan (bukan `ta.pivothigh`, yang
+tidak menjanjikan aturan seri yang sama dengan `structure.swings`), toleransinya
+milik kluster, dan tidak ada dedupe. Regresi detektor 0 lolos identik sesudah
+push: n=598, PF 1,113, cand 1.479, gate 610.
+
+#### Sapuan XAUUSD harian, dan `min_touches` yang menggerakkan hasil
+
+Evidence layer ini ditulis SEBELUM diukur dan menebak bahwa kalau ada yang layak
+digerbangi, itu `min_touches`. Tebakan itu benar.
+
+| tol (ATR) | t2 | t3 | t4 |
+|---|---|---|---|
+| 0,10 | 0,781 (n=91) | | |
+| 0,25 | 0,852 (n=189) | | |
+| 0,50 | 0,841 (n=280) | **1,170** (n=108) | **1,186** (n=47) |
+| 1,00 | 0,884 (n=276) | **1,193** (n=163) | |
+| 2,00 | 0,893 (n=180) | 0,889 (n=150) | |
+
+Toleransi sendiri hampir tidak menggerakkan apa pun di t2 - semuanya 0,78 sampai
+0,89. Yang membuka pintu ke atas satu adalah menuntut sentuhan ketiga.
+
+Ciri yang konsisten di seluruh sel: **win rate 25-43 persen dengan RR 2,8 sampai
+10,9**. Kotak BSL/SSL sangat tipis, jadi jarak stopnya kecil, jadi R kecil dan
+target zona lawan berjarak banyak R. Detektor ini secara struktural adalah
+lottery-ticket, bukan grinder.
+
+#### Placebo membunuh dua dari tiga, hold-out membunuh sisanya
+
+| arm | nyata | placebo | putusan |
+|---|---|---|---|
+| tol 1,0 t3 | 1,193 | **1,223** | kontrol MENANG, mati |
+| tol 0,5 t3 | 1,170 | 0,990 | lolos, +0,180 |
+| tol 0,5 t4 | 1,186 | 0,852 | lolos, +0,334 |
+
+Lalu seleksi di paruh pertama, jendela diverifikasi di baris `win`:
+
+| arm | IS 2000-2013 | OOS 2013-2026 |
+|---|---|---|
+| tol 0,5 t3 | **1,783** (n=52) | **0,657** (n=56) |
+| tol 0,5 t4 | - | **0,885** (n=26) |
+
+PF 1,170 di sampel penuh itu seluruhnya milik paruh pertama, dan luar sampelnya
+0,657 - jatuh paling keras dari semua detektor yang pernah diuji di rig ini.
+**Tidak ada arm BSL/SSL yang bisa dipilih**, sama seperti CISD dan MSS.
+
+#### COMEX, dan di sinilah cacatnya ketahuan
+
+| GC1! 1d | n | win% | PF |
+|---|---|---|---|
+| tol 0,5 t2 | 230 | 30,43 | 0,810 |
+| tol 0,5 t3 | 96 | 34,38 | 1,016 |
+| tol 0,5 t3 placebo | 99 | 31,31 | **1,031** |
+
+Kontrol menang lagi. Tapi angka pertama yang saya baca di COMEX berbunyi PF
+1,223 dengan **fill 253 lawan n 57**, dan selisih itu yang membuka semuanya.
+
+### CACAT SIZING FUTURES, dan ia mencabut setiap angka COMEX di repo ini
+
+Diperiksa dengan kontrol di simbol yang sama: detektor FVG di GC1! juga
+menunjukkan fill 537 lawan n 132. Jadi ini bukan sifat layer baru, ini sifat
+instrumennya.
+
+Sebabnya di `qsize`. Perbaikan pointvalue 8 September membuat qty benar dalam
+kontrak, dan justru itu yang membuka cacat berikutnya: `risk_usd / (risk * pv)`
+dengan default risk_usd 1.000 dan pv 100 memberi `10 / risk`, jadi setiap stop
+yang lebih lebar dari 10 dolar meminta KURANG DARI SATU kontrak. TradingView
+membulatkannya ke bawah, order itu tidak pernah jadi posisi, dan penghitung
+`fill` di script ini tetap menghitungnya.
+
+Yang hilang bukan angkanya, melainkan populasinya - dan ia tersaring ke arah
+**stop rapat**. Diukur langsung, FVG di GC1! harian:
+
+| risk_usd | fill | n | porsi | PF |
+|---|---|---|---|---|
+| 1.000 (default) | 537 | 132 | 25% | **1,167** |
+| 100.000 | 537 | 496 | 92% | **0,923** |
+
+Angka di atas satu itu dihitung atas seperempat sampelnya sendiri, dan
+seperempat yang dipilih oleh lebar stop. Dengan populasi penuh ia di BAWAH satu.
+
+**Konsekuensinya lebih luas dari layer ini.** Setiap angka futures di repo yang
+lebih tua dari 8 September membawa saringan yang sama, termasuk stress test S&D
+di COMEX yang tercatat 3 dari 8. Angka XAUUSD dan BTCUSD spot TIDAK terpengaruh:
+pointvalue 1 di sana, jadi qty = risk_usd / risk sudah jauh di atas satu dan
+tidak pernah dibulatkan hilang.
+
+**Diperbaiki di sumbernya.** `risk_eff = risk_usd * pointvalue` dipakai di KETIGA
+tempat yang menyentuh satuan R - `qsize`, R per trade, dan baris biaya. Ketiganya
+harus ikut: menaikkan qty tanpa menaikkan pembagi R akan menghidupkan kembali
+cacat pointvalue yang baru diperbaiki, karena profit satu R ikut membesar pv
+kali. Diverifikasi dua arah: GC1! di default sekarang memberi n=496 dan PF 0,923
+(sebelumnya 132 dan 1,167), sementara XAUUSD spot **tidak bergerak satu digit
+pun** - n=598, PF 1,113, biaya 0,015 R, identik.
+
+### Benchmark lawan `Buyside & Sellside Liquidity [LuxAlgo]`
+
+Dibaca lewat `data_get_pine_boxes` di feed yang sama, XAUUSD harian. Dua selisih
+konstruk, dan keduanya persis pilihan yang saya nyatakan sebelum mengukur:
+
+**Empat dari sepuluh kotaknya bertinggi NOL** (4023,49 / 3886,28 / 3435,07 /
+2721,28). Itu level murni yang digambar sebagai kotak degenerate. Detektor ini
+menolak tinggi nol dan menghitungnya, karena tinggi kotak adalah jarak stop dan
+kotak tanpa tinggi bukan kotak.
+
+**Pitanya sekitar dua kali lebih tinggi.** Tinggi non-degenerate mereka 138,77 /
+157,09 / 64,54 / 64,17 / 54,75 / 40,87; kotak kita di instrumen yang sama 47,27 /
+37,11 / 28,24 / 17,11. Median mereka sekitar 64, kita sekitar 33. Sebabnya
+struktural: mereka menggambar pita selebar toleransi yang simetris di sekitar
+level (setengah-lebarnya 69,4 dan 78,5 di dua kotak teratas, jadi ia ATR pada
+saat pembentukan), kita menggambar sebaran pivot yang teramati. Untuk trader itu
+berarti stop mereka dua kali lebih lebar untuk konstruk yang sama.
+
+### Parity Python lawan Pine, dan ia BUKAN satu angka
+
+Karena Pine tidak punya dedupe, populasi Pine PERSIS sama dengan
+`merge_overlap_pct = 1.0` di Python - jadi paparannya bisa diukur tanpa
+menjalankan Pine sama sekali. Riwayat penuh MT5:
+
+| sel | tol 0,10 | tol 0,25 | tol 0,50 |
+|---|---|---|---|
+| XAUUSD 1d | +2,0% | +7,1% | +16,4% |
+| XAUUSD 1h | +4,6% | +24,6% | +65,2% |
+| BTCUSD 1h | +9,7% | +42,1% | **+103,6%** |
+
+Ini satu-satunya dari empat detektor ber-dedupe yang paparannya fungsi dari
+sebuah knob. Di default yang di-ship selisihnya kecil; di toleransi 0,5 populasi
+Pine bisa DUA KALI populasi Zonelab. Jadi angka TradingView untuk layer ini
+hanya sebanding dengan Zonelab pada toleransi yang sama DAN sempit - dan sapuan
+di atas dijalankan di 0,5, tempat selisihnya 16,4 persen di sel yang dipakai.
+
+Geometrinya sendiri diperiksa di satu feed: pada 100 bar TradingView harian,
+dedupe tidak membuang apa pun di tol 0,25 / 0,5 / 1,0 (4 kandidat, 4 zona di
+0,5), jadi di jendela itu Zonelab dan Pine identik kotak per kotak.
+
+### Autodrawing: 3 dari 7, dan pembacaan pertamanya SALAH LAYER
+
+> [!CAUTION]
+> **Bagian di bawah ini dicabut.** Ia melaporkan 7 dari 7, dan run itu mengukur
+> `supply_demand`. `pixel-truth.mjs` menerima detektor di `argv[5]` dan OUT DIR
+> di `argv[2]`, jadi `pixel-truth.mjs liquidity_pool` membuat folder bernama
+> `liquidity_pool` lalu menilai layer default. Jebakan itu sudah tercatat di
+> repo ini dan saya tetap masuk ke dalamnya. Cara memastikannya: baca histogram
+> `kind` dari JSON-nya, bukan percaya konsol.
+>
+> Diukur benar (`kind` terbaca `{BSL: 2, SSL: 2}`): **3 dari 7**. Keempat kotak
+> LEBIH PENDEK DARI 14 PIKSEL, jadi tak satu pun bisa diukur dan empat
+> pemeriksaan gagal karena tidak ada yang tersisa untuk diukur - ditemukan 4
+> dari 4, tapi 0 dari 4 cukup tinggi, dan tepi yang dibaca balik meleset sampai
+> **29,68 persen** dari tinggi kotaknya sendiri. Yang lolos: semua kotak
+> ditemukan, menutupi bar asalnya, dan tepi kiri terbaca di 2 dari 4.
+>
+> Ini KONSEKUENSI DESAIN, bukan cacat, dan ia sisi lain dari benchmark di atas:
+> LuxAlgo menggambar pita dua kali lebih tinggi karena memakai TOLERANSI sebagai
+> tinggi; kita memakai sebaran pivot teramati, yang menjaga konstanta keluar
+> dari geometri dan membeli kotak yang terlalu tipis untuk dibaca. Jujur dan
+> terbaca sedang bertentangan di sini, dan layer ini memilih jujur.
+
+### Autodrawing, catatan lama yang dicabut
+
+`e2e/pixel-truth.mjs liquidity_pool`, 6 zona di 15 menit:
+
+| pemeriksaan | hasil |
+|---|---|
+| zona ditemukan di canvas | 6/6 |
+| berdiri sendiri dan cukup tinggi | 6/6, nol bertumpuk, nol di bawah 14px |
+| tepi terbaca | atas 6/6, bawah 6/6 |
+| tepi ATAS di tempat skala harga menaruhnya | terburuk **0,4px** |
+| tepi BAWAH | terburuk **0,4px** |
+| kotak menutupi bar asalnya | terburuk 0,01 bar |
+| tepi kiri terbaca | 6/6 |
+
+Nol penumpukan, berbeda dari IFVG yang merah karena kotak terbaliknya
+berdesakan. Kolam likuiditas tersebar di harga yang berbeda-beda menurut
+definisinya, jadi masalah legibilitas IFVG tidak muncul di sini.
+
+### Lima sisa dikerjakan berurut, 8 September 2026, dan dua di antaranya membatalkan angka yang baru saja dilaporkan
+
+#### 1. `swing_n` disapu, dan puncaknya terisolasi
+
+XAUUSD harian, tol 0,5, t3:
+
+| swing_n | n | PF |
+|---|---|---|
+| 2 | 196 | 0,999 |
+| **3 (di-ship)** | 108 | **1,170** |
+| 4 | 72 | 0,725 |
+| 5 | 53 | 0,921 |
+| 8 | 28 | 0,238 |
+
+Puncaknya TAJAM dan sendirian: kedua tetangganya 0,999 dan 0,725. Permukaan
+parameter yang nyata tidak melonjak di satu nilai lalu jatuh di kedua sisi. Itu
+memperkuat putusan null, bukan melemahkannya.
+
+#### 2 dan 4. Parity menemukan cacat di detektornya sendiri
+
+Parity lawan Pine terbaca meleset satu (Pine 5 kandidat, Python 4) di jendela
+yang sama. Dua tersangka murah disingkirkan lebih dulu - anchor di luar potongan
+(ternyata ada di dalam, idx 70) dan aturan sapuan (ternyata benar) - lalu yang
+tersisa terbukti: **detektornya sendiri bergantung pada panjang jendela.**
+
+Diukur langsung dengan `wilder_atr`: deret penuh memberi 5 zona yang lahir di 100
+bar terakhir, potongan 100 bar memberi 4, dan HIMPUNANNYA berbeda.
+
+Sebabnya `wilder_atr` adalah RMA yang disemai dari bar pertama. `detect_fvg`
+ditukar ke `mean_true_range` pada 7 September karena itu, dan `liquidity_pool`
+mewarisi masalah yang sama - **lebih buruk di sini**, karena di FVG ATR cuma
+menskalakan sebuah rasio sementara di sini ia menetapkan TOLERANSI
+PENGELOMPOKAN, jadi ia memutuskan pivot mana yang sekolam dan menggeser
+POPULASINYA.
+
+Ditukar di kedua sisi (`mean_true_range` di Python, `atr_v` di Pine). Sesudahnya
+jumlahnya cocok, 4 lawan 4, dan sisa selisih dua id adalah carry-over kluster di
+batas potongan - sifat warm-up yang melekat pada detektor berkeadaan, bukan
+selisih aturan. Regresi detektor 0 tetap identik.
+
+#### Dan pertukaran itu MENGGESER hasilnya, jadi semuanya diukur ulang
+
+| XAUUSD 1d, tol 0,5 t3 | Wilder | bebas-jendela |
+|---|---|---|
+| sampel penuh | 1,170 | **1,482** |
+| placebo | 0,990 | 1,290 |
+| margin | +0,180 | +0,192 |
+| IS 2000-2013 | 1,783 | 1,881 |
+| **OOS 2013-2026** | **0,657** | **0,985** |
+
+Stress test 8 periode ikut berubah, dan pola yang saya laporkan sebelumnya -
+"pembelahan bersih di 2013, empat periode pertama di atas satu dan empat
+terakhir di bawah" - **ternyata artefak skala itu**:
+
+| periode | Wilder | bebas-jendela |
+|---|---|---|
+| 2000-2003 | 2,105 | 2,173 |
+| 2003-2006 | 2,894 | 3,160 |
+| 2006-2010 | 1,123 | **0,589** |
+| 2010-2013 | 1,113 | 1,864 |
+| 2013-2016 | 0,469 | **1,449** |
+| 2016-2020 | 0,815 | 0,841 |
+| 2020-2023 | 0,091 | **1,223** |
+| 2023-2026 | 0,216 | 0,187 |
+
+**5 dari 8** sekarang, bukan 4, dan tanpa pola monoton apa pun. Yang bertahan:
+periode SEKARANG tetap yang terburuk dari delapan, 0,187.
+
+#### 3. Grid lengkap, skala bebas-jendela, tol 0,5 t3 n3
+
+| sel | n | PF | placebo | putusan |
+|---|---|---|---|---|
+| XAUUSD 1d | 107 | **1,482** | 1,290 | lolos +0,192 |
+| COMEX GC1! 1d | 95 | **1,336** | 1,176 | lolos +0,160 |
+| XAUUSD 4h | 423 | 0,956 | - | di bawah satu |
+| BTCUSD 1d | 66 | 0,602 | - | di bawah satu |
+
+Dua sel di atas satu dan keduanya mengalahkan placebo - jauh lebih kuat daripada
+yang saya laporkan sebelum pertukaran skala. **Tapi putusannya tidak berubah**:
+luar sampel 0,985 dan stress test 5 dari 8, jadi ia gagal aturan yang
+menggerbangi `orderable`.
+
+#### 5. Angka COMEX lama diukur ulang, dan PERINGATAN SAYA TERLALU LUAS
+
+Saya menulis bahwa "setiap angka futures di repo ini" membawa saringan qty.
+Dijalankan ulang satu per satu di GC1! harian sesudah perbaikan:
+
+| detektor | tercatat | diukur ulang | |
+|---|---|---|---|
+| FVG | 1,167 (n=132) | **0,923** (n=496) | KENA |
+| supply_demand | 0,797 (n=251) | **0,797** (n=251) | tidak bergerak |
+| OTE | 0,876 (n=622) | **0,876** (n=622) | tidak bergerak |
+
+Hanya FVG yang terpengaruh. Stress test S&D 3 dari 8 di COMEX karena itu TETAP
+BERLAKU, dan baris OTE di `PRAREGISTRASI-YATIM.md` tetap berlaku - keduanya
+sudah dikoreksi di tempatnya, karena peringatan yang salah sama merusaknya
+dengan angka yang salah.
+
+Mekanismenya sendiri dikonfirmasi dengan membalikkannya: menurunkan `risk_usd`
+ke 10 sesudah perbaikan - yang mengembalikan qty ke besaran lama - mereproduksi
+n=132 dan PF 1,167 PERSIS. Jadi yang menggerakkannya besaran qty, dan detektor
+yang stopnya sudah cukup rapat untuk memberi lebih dari satu kontrak tidak
+pernah kehilangan apa pun.
+
+## Tiga klaim praktisi tentang FVG, diukur, 8 September 2026
+
+Diminta sebagai "detektor PSP", lalu diubah bentuknya oleh yang meminta menjadi
+klaim tentang FVG. Dikutip apa adanya supaya yang diukur bisa dibandingkan
+dengan yang ditanyakan:
+
+> "FVG yang high probability udah termasuk dalam premium (buat sells) dan
+> discount (buat buys). Gap itu kalo berbobot sm PSP, termasuk lebih
+> probability. Kalo price udah ngepurge liquidity sebelumnya di timeframe
+> seleksi kita."
+
+### Kenapa ini bukan detektor kotak
+
+Permintaan awalnya PSP sebagai detektor, dan itu bertabrakan dengan
+`tests/test_psp_not_wired_to_decisions.py`: guard itu melarang string `psp` di
+`advisor.py`, sementara setiap `ZoneKind` WAJIB punya kalimat di sana. Jadi
+`ZoneKind.PSP` tidak bisa ada tanpa mematahkan salah satu dari dua tes. Sebagai
+pengkondisi, PSP tidak perlu jadi `ZoneKind` sama sekali - dan itu memang bentuk
+klaimnya.
+
+### Yang sudah diukur sebelumnya, dan kenapa ini tetap pertanyaan baru
+
+Empat rig kondisioner sudah ada dan semuanya null: `conditioned.py` 12 kolom,
+`conditioned_structure.py` (termasuk `sweep_before_touch`, |t| terbesar 2,16
+lawan 3,14), `conditioned_gaps.py` 7 kolom, dan `psp_outcomes.json` 48 sel.
+
+Tapi **keempatnya berjalan di populasi `supply_demand`**. Tak satu pun menguji
+pengkondisi apa pun di atas populasi FVG, dan tak satu pun menguji posisi
+premium/discount. Zona FVG bahkan tidak membawa `dealing_range_pos` - terukur
+None di 6.390 dari 6.390 - jadi posisinya distempel di sini.
+
+### Satu cacat di tool ini, ditemukan sebelum angkanya dipakai
+
+Versi pertama menyalin filter `cleared` dari `csid_ob_intrabar`, dan `cleared`
+itu **gerbang LANTAI 2,0 ATR** - gerbang order block. FVG digerbangi **PLAFON
+0,25**. Filternya membuang 93 persen populasi: 204 zona lolos lantai lawan 2.931
+yang lolos plafon sesungguhnya, di XAUUSD 1 jam. Studi pertama karena itu
+berjalan di n=37, dan null-nya tidak berarti apa-apa. Diperbaiki dengan
+mengambil arah gerbang dari `DEPARTURE_GATE_ATR_CEILING`, bukan menghardcode.
+
+### Dan satu sel meyakinkan yang TIDAK bertahan
+
+XAUUSD 1 jam sendiri, n=641, memberi arah yang persis sesuai klaim: posisi
++0,0579, PSP +0,0710, dan gabungannya +0,1020 - yang terbesar, seperti yang
+diklaim. Di sembilan instrumen, n=6.140, dua dari tiga itu runtuh:
+
+| lengan | XAU 1h saja | 9 instrumen | t | wf |
+|---|---|---|---|---|
+| favourable_side | +0,0579 | +0,0408 | +1,14 | 6/8 |
+| psp_before_touch | +0,0710 | **-0,0617** | -1,27 | 6/7 |
+| purge_before_touch | -0,0224 | -0,0467 | -0,90 | 5/7 |
+| fav_and_psp | +0,1020 | **+0,0036** | +0,10 | 5/8 |
+
+Ambangnya 2,73. Tidak satu pun mendekati. **PSP berbalik tanda** antara satu sel
+dan sembilan, dan gabungannya runtuh dari +0,102 ke +0,004.
+
+Tanda PSP itu stabil ke arah yang SALAH: kedua paruh negatif (-0,020 lalu
+-0,151), makin negatif di paruh kedua. Sementara `favourable_side` positif di
+paruh pertama (+0,0995) lalu berbalik negatif di paruh kedua (-0,0185), jadi
+bahkan arahnya meluruh.
+
+### Dua batas yang membuat dua lengan hampir degenerat karena DEFINISINYA
+
+`purge_before_touch` benar di **84,7 persen** populasi, dan itu konsekuensi
+aturannya: dengan fraktal 50 bar ada puluhan level hidup di tiap titik, jadi
+hampir setiap jendela sepuluh bar menyapu sesuatu. `psp_before_touch` benar di
+**82,4 persen** di sembilan instrumen (di XAUUSD sendiri 55,8). Syarat yang
+dipenuhi 85 persen sampel tidak bisa jadi penyaring selektif walaupun ia
+memisahkan.
+
+Versi yang lebih ketat - level terdekat saja, atau level dalam sekian ATR -
+adalah pertanyaan BERBEDA dan butuh praregistrasi sendiri. Mengetatkannya
+sesudah melihat hasil ini berarti memilih definisi setelah melihat jawabannya.
+
+### Lengan kelima, dan ia klaim yang sesungguhnya
+
+"Gap kalo berbobot sm PSP, termasuk LEBIH probability" berarti PSP menambah DI
+ATAS posisi yang sudah benar - bukan sekadar menang lawan posisi yang salah.
+Menguji gabungan lawan sisa populasi (H4) tidak bisa memisahkan keduanya, jadi
+H5 menguji PSP HANYA di antara FVG yang sudah favourable. Pembedaan yang sama
+yang dipakai `docs/psp_outcomes.json` antara H1 dan H2-nya.
+
+| lengan | n | delta | t | paruh | wf | instrumen |
+|---|---|---|---|---|---|---|
+| favourable_side | 3043/3058 | +0,0408 | +1,14 | berbalik | 6/8 | 5/9 |
+| psp_before_touch | 5059/1081 | -0,0617 | -1,27 | stabil | 6/7 | 5/8 |
+| purge_before_touch | 5199/941 | -0,0467 | -0,90 | stabil | 5/7 | 4/7 |
+| fav_and_psp | 2516/3585 | +0,0036 | +0,10 | berbalik | 5/8 | 5/9 |
+| **psp_given_fav** | 2516/527 | **-0,1057** | **-1,55** | stabil | 5/7 | **3/8** |
+
+Ambangnya 2,807 untuk sepuluh grup yang dinilai. Tidak satu pun mendekati.
+
+### Dan kolom terakhir itu yang mencegah salah baca
+
+H5 punya magnitudo terbesar dari kelimanya dan tandanya negatif, dan pembacaan
+pertama saya adalah "sinyal terkuat, arahnya berlawanan dengan klaim". **Itu
+salah**, dan pemecahan per instrumen yang menunjukkannya:
+
+| instrumen | delta psp_given_fav |
+|---|---|
+| GBPUSD | **+0,8466** |
+| EURUSD | **+0,5505** |
+| US30 | +0,1242 |
+| XAUUSD | +0,1026 |
+| USDJPY | +0,0065 |
+| AUDUSD | -0,0417 |
+| XPTUSD | -0,1017 |
+| XAGUSD | -0,2521 |
+
+**LIMA dari delapan positif**, sementara pooled-nya negatif. Angka gabungan itu
+karena itu artefak pembobotan, bukan arah - beberapa instrumen dengan lengan
+PSP-negatif yang besar menariknya ke bawah sementara mayoritas menunjuk ke arah
+sebaliknya. `cells_same_sign` 3 dari 8, kesepakatan terburuk dari kelima lengan.
+
+Jadi putusannya bukan "PSP memperburuk", melainkan **tidak ada tanda yang
+konsisten sama sekali**. Itu null yang lebih bersih daripada null bertanda, dan
+ia satu-satunya kesimpulan yang datanya dukung.
+
+Pelajaran metodologisnya berlaku di luar studi ini: `psp_given_fav` punya |t|
+terbesar DAN kesepakatan lintas pasar terburuk. Kalau rig ini cuma melaporkan t,
+lengan itulah yang akan terlihat paling menjanjikan.
+
+### Konteks yang mengubah cara membaca seluruh tabel
+
+**Setiap lengan negatif.** exp_r berkisar -0,059 sampai -0,187 R. Populasi FVG
+1 jam di bawah plafon 0,25 memang merugi secara keseluruhan, jadi pertanyaan di
+tabel ini bukan "mana yang menguntungkan" melainkan "mana yang kurang merugi".
+Itu konsisten dengan yang sudah tercatat di `app/layers.py`: titik impas FVG ada di
+1 jam, dan selnya yang di atas satu adalah 4 jam dan harian.
+
+Satu sel XAUUSD sendiri memberi exp_r sekitar nol; delapan instrumen lain lebih
+buruk, dan pooling-nya yang menarik angka ke -0,15.
+
+## PSP diberi perlakuan penuh, 8 September 2026, dan dua koreksi lagi atas sizing COMEX
+
+Diminta: backtest TV, tuning, parity dengan Zonelab, autodrawing, plus benchmark
+lawan script publik. Keempatnya sebelumnya tidak ada.
+
+Konflik guard yang sempat memblokir ini larut sendiri: Pine berdiri sendiri,
+jadi PSP bisa jadi detektor 8 di sana tanpa `ZoneKind.PSP` di Python - dan tanpa
+`psp` masuk `advisor.py`, yang `tests/test_psp_not_wired_to_decisions.py`
+larang.
+
+### Predikat, dan kenapa ia disalin baris per baris
+
+`app/psp.py` menulis peringatannya sendiri: "ONE PREDICATE, USED TWICE...
+A second copy of the arithmetic would have measured the copy." Blok Pine ini
+salinan KETIGA, jadi ia menyalin `at_bar` apa adanya:
+
+    level = open[psp_back]
+    buy   = open >= level and low  < level and close > level
+    sell  = open <= level and high > level and close < level
+
+Kotaknya: proximal di LEVEL, distal di ekstrem sapuan. Tidak ada konstanta baru.
+
+TIDAK IKUT, DINYATAKAN: syarat SSMT dan triad. Keduanya butuh instrumen partner.
+Yang membuat kelalaian itu bisa dipertahankan adalah H2 di `psp_outcomes.json`
+yang mengukur SSMT tidak menambah apa pun.
+
+### Backtest dan tuning
+
+XAUUSD harian, sapuan `level_back`:
+
+| back | n | win% | PF |
+|---|---|---|---|
+| 1 | 1.727 | 50,67 | 0,816 |
+| 2 | 1.317 | 50,72 | 1,008 |
+| **3 (di-ship)** | 1.151 | 52,22 | **1,030** |
+| 5 | 917 | 44,71 | 0,849 |
+| 8 | 746 | 46,92 | 0,798 |
+
+Puncaknya di 3 - nilai yang dipilih dari doktrin ("3 candle last") sebelum ada
+pengukuran apa pun - dan bentuknya bukit, bukan lonjakan.
+
+Placebo 1,016 lawan nyata 1,030: margin +0,014, tipis sekali. Hold-out IS 1,132
+lawan OOS 0,996. COMEX GC1! 1,032. Tidak ada yang memisahkan.
+
+### DUA KOREKSI LAGI ATAS SIZING COMEX, dan keduanya membatalkan laporan kemarin
+
+PSP di COMEX awalnya membaca `fill 1083` lawan `n 731`, dan itu membuka cacat
+KEDUA di jalur sizing yang sama.
+
+Perbaikan `risk_eff` kemarin menutup kegagalan PEMBULATAN (qty di bawah satu
+kontrak dibulatkan hilang). Ia TIDAK menutup kegagalan MODAL: pada pointvalue
+100 satu trade bisa meminta notional sebesar seluruh ekuitas, jadi order
+berikutnya dipotong atau ditolak. Terukur langsung - risk_usd 1.000 memberi
+n=731 dan PF 0,859; risk_usd 200, qty lima kali lebih kecil, memberi n=1.132 dan
+PF 1,011.
+
+Jadi ada DUA saringan berlawanan arah di satu fungsi: terlalu kecil dibulatkan
+nol, terlalu besar dipotong modal. `initial_capital` dinaikkan dari 10 juta ke
+1 triliun; satuan R tidak bergerak karena semuanya dinormalkan terhadap risiko.
+
+**Dan itu membatalkan apa yang saya laporkan kemarin.** Diukur ulang di GC1!
+harian sesudah plafon modal dicabut:
+
+| detektor | asli | pasca risk_eff | pasca modal |
+|---|---|---|---|
+| FVG | 1,167 (n=132) | 0,923 (n=496) | **1,043** (n=560) |
+| supply_demand | 0,797 (n=251) | 0,797 (n=251) | **1,214** (n=241) |
+| OTE | 0,876 (n=622) | 0,876 (n=622) | **1,152** (n=679) |
+| PSP | - | 0,859 (n=731) | **1,032** (n=1151) |
+
+Dua pernyataan saya kemarin karena itu salah dan dicabut di sini: **"FVG di
+COMEX 0,923, di bawah satu"** - ia 1,043 - dan **"S&D dan OTE tidak
+terpengaruh"** - keduanya terpengaruh, hanya lewat plafon modal dan bukan lewat
+pembulatan, jadi sumbu yang saya uji kemarin memang tidak menunjukkannya.
+
+S&D bergerak dari 0,797 ke 1,214 dengan n hampir sama (251 lawan 241). n yang
+tidak berubah sementara PF melompat adalah tanda ukuran posisi DIPOTONG
+SEBAGIAN, bukan order ditolak: PF menjumlah uang, bukan R, jadi penskalaan yang
+tidak seragam merusaknya. Itu mekanisme yang PALING mungkin dan ia belum
+dibuktikan langsung.
+
+Regresi spot diperiksa di tiap langkah dan tidak bergerak satu digit pun:
+n=598, PF 1,113, biaya 0,015 R.
+
+### Parity: yang terbaik dari seluruh sesi ini
+
+Diukur di satu feed, 100 bar TradingView harian. Pine detektor 8 memberi
+**17 kandidat**; `psp.at_bar` di Python atas bar yang sama memberi **17**.
+
+Dan koordinatnya: **12 dari 12** harga entry Pine cocok sampai sen dengan level
+Python, arah ikut cocok - 4539,99 buy / 4504,33 sell / 4495,40 sell / 3998,54
+buy / 4121,86 sell / 4075,27 sell / 4077,43 sell / 4055,42 buy / 4389,28 sell /
+4368,69 buy / 4572,26 sell / 4608,07 sell. Lima sisanya persis kelima zona yang
+tabelnya laporkan `no wall`.
+
+Tidak ada celah dedupe di sini karena PSP bukan detektor Python sama sekali.
+
+### Benchmark: nama yang sama, konstruk yang berbeda
+
+Tiga script PSP publik diperiksa di TradingView. `Quarterly Theory ICT 03
+[TradingFinder] Precision Swing Points` memakai `request.security` DUA simbol
+dan plot-nya bernama "Bullish PinBar in Up Trend", "Bearish PinBar in Down
+Trend" - jadi PSP mereka **pin bar plus SMT**. Dua lainnya menaruh SMT di
+judulnya sendiri: `PSP (Precision Swing Point - CIC SMT)` dan `Precision Swing
+Points (PSP) - Correlated Divergence`.
+
+Ketiganya menaruh SMT lintas instrumen DI DALAM definisi. Predikat `at_bar`
+Zonelab tidak - triad-nya hidup terpisah di `in_same_candle`, yang cuma dipakai
+overlay yang digambar. Jadi yang di-backtest di sini bukan PSP versi publik,
+dan itu selisih konstruk bukan selisih setelan.
+
+Perbandingan kepadatan tidak bisa dilakukan: ketiga script itu memakai
+`plotshape`, yang tidak terbaca oleh alat MCP mana pun.
+
+### Autodrawing: tidak pernah diukur sampai hari ini, dan sebabnya konfigurasi
+
+`nonbox-truth.mjs` - satu-satunya harness geometri untuk objek bukan-kotak -
+tidak menyebut `psp` sama sekali. Yang menyentuhnya cuma `wiring`, `ink-budget`
+dan `rails`, dan ketiganya menguji pipa dan tinta, bukan apakah penanda mendarat
+di harga yang benar.
+
+Dan PSP MENGGAMBAR NOL dengan setelan default: `ssmt_symbols` dan
+`ssmt_degrees` kosong di `DrawRequest`, jadi loop yang memancarkannya tidak
+pernah berjalan. Terukur: `layers:["psp"]` sendirian mengembalikan 0 baris;
+dengan keranjang partner diisi (XAGUSD, XPTUSD, degree day) ia mengembalikan 11.
+
+Pass PSP ditambahkan ke harness, dan hasil pertamanya:
+
+- PSP TIDAK muncul di kegagalan penempatan - ray yang ketemu ada di harga yang
+  API laporkan. Yang meleset cuma `gaps/CE-NDOG`, 4px, dan itu sudah ada
+  sebelumnya.
+- PSP GAGAL uji "stroke bukan fill" dengan kekuatan tinta **0,048**, bersama
+  `gaps/CE-NWOG` yang sudah gagal sebelum pass ini ada.
+- Uji putus-putus tetap merah dan itu pra-ada: duty solid 1,000 lawan dashed
+  1,000.
+
+Jadi jawaban presisi PSP: penempatannya lolos, ketebalannya tidak. Dan yang
+lebih penting - sebelum hari ini tidak ada satu piksel pun dari layer ini yang
+pernah dibaca balik.
+
+### Tinta PSP 0,048 ditelusuri, dan ia bukan tinta PSP
+
+Diminta memperbaiki kekuatan tinta 0,048 yang dilaporkan `nonbox-truth`. Angka
+itu ternyata bukan properti gambar PSP sama sekali, dan menaikkan alpha tidak
+akan menyentuhnya.
+
+`strength = sum / hit / 765` membagi dengan jumlah piksel BER-TINTA, bukan
+dengan lebar jendela, jadi ray pendek tidak diencerkan olehnya. 0,048 kali 765
+sama dengan 37 - satu piksel dengan jarak 37 dari latar. Satu piksel fringe
+antialias, bukan sebuah garis.
+
+**Sebabnya: ray PSP hidup seluruhnya di balik lilin yang ia lintasi.** Level yang
+disapu membentang dari bar yang jadi open-nya sampai bar yang menyapunya - tiga
+bar - dan `psp-primitive` dicat DI BAWAH lilin. Jadi jendela scan di rentang itu
+memang berisi lilin, dan yang terukur lilin. Seorang pembaca manusia menghadapi
+hal yang sama: ia melihat tick-nya dan hampir tidak melihat levelnya.
+
+Dan pass pertama saya memperburuknya dengan dua cara: ia memakai helper generik
+`pass` yang memindai di KANAN candle terakhir (PSP hidup di masa lalu), dan ia
+tidak menyalakan partner SSMT sehingga delapan dari sebelas baris terbaca
+`duty 0` karena memang tidak ada yang digambar.
+
+#### Yang diperbaiki
+
+1. **Ray diberi jangkauan 28 piksel ke kanan tick**, ke ruang yang biasanya
+   kosong. Ini perbaikan legibilitas lebih dulu: level yang seluruhnya terhalang
+   tidak bisa dibaca siapa pun.
+2. **Pelat label dipindah ke ujung jangkauan itu.** Sebelumnya ia duduk tepat di
+   `x`, menutupi ruas yang baru dibuat terbaca dengan sebuah FILL - dan fill di
+   atas stroke adalah persis yang harness laporkan sebagai "terselesaikan
+   sebagai fill".
+3. **Pass PSP ditulis ulang** mengikuti pola `structurePass`: menyalakan partner
+   lewat chip yang sama yang dipakai pembaca (bukan jalan pintas, supaya
+   kontrol yang rusak ikut merah), menggulung chart ke tiap peristiwa, dan
+   memindai ruas BERSIH di kanan tick.
+
+#### Hasil
+
+| | sebelum | sesudah |
+|---|---|---|
+| ray di layar | 0 terukur | 8 dari 11 |
+| di atas lantai stroke 0,15 | **0 dari 8** | **5 dari 8** |
+| sebaran kekuatan | semua 0,048 | 0,207 / 0,299 / 0,299 / 0,479 / 0,622 |
+
+Tiga ray yang masih 0,048: dua terbaca `duty 0,08` di dy -6, yaitu scan tidak
+menemukan apa pun di barisnya dan mengambil fringe enam piksel jauhnya; satu
+terbaca `duty 1,00` di dy 0, yaitu seluruh barisnya tertutup sesuatu yang lain.
+Ketiganya belum ditelusuri.
+
+Tiga peristiwa sisanya jatuh di luar jendela bahkan sesudah digulir, dan itu
+juga belum ditelusuri.
+
+Jadi uji "stroke bukan fill" TETAP merah, dan itu jujur: ia merah untuk tiga
+ray PSP dan untuk `gaps/CE-NWOG` yang sudah merah sebelum pass ini ada. Yang
+berubah adalah lima ray yang sebelumnya tidak terukur sama sekali sekarang
+terukur dan lolos.
+
+### `ink-budget` dan `wiring` bertentangan soal `session`, dan itu bukan dari pekerjaan PSP
+
+Ditemukan 8 September 2026 saat memverifikasi perbaikan tinta PSP tidak merusak
+harness lain. `e2e/ink-budget.mjs` merah:
+
+    FAIL  layer yang kosong-default tetap kosong :: session 41012 px
+
+`EMPTY_BY_DEFAULT` di berkas itu memuat `session`, `dfr`, `ssmt` dan `psp`, dan
+komentarnya menyatakan hitungan itu diukur lewat `e2e/wiring.mjs`. Tapi
+`wiring.mjs` di run yang sama melaporkan **`session=91` objek tergambar**.
+
+Dua harness memegang dua fakta yang berlawanan tentang layer yang sama, dan
+yang satu hijau justru karena ia tidak menegaskan apa pun soal kekosongan.
+
+**Bukan dari pekerjaan hari ini.** `session=91` sudah terbaca di run `wiring`
+PERTAMA hari ini, sebelum satu baris pun kode PSP ditulis. Dan hipotesis bahwa
+harness lain mencemarinya lewat state tersimpan sudah diuji dan gugur:
+`localStorage` terbaca NOL kunci di konteks bersih, dan Playwright memakai
+konteks baru tiap proses, jadi klik di satu harness tidak bisa merembes ke
+harness berikutnya.
+
+Yang tersisa dua kemungkinan, dan keduanya belum dipisahkan: `session` memang
+mulai menggambar dengan setelan default di suatu titik dan `EMPTY_BY_DEFAULT`
+jadi basi, atau `ink-budget` menyalakan sesuatu di setup-nya sendiri yang
+`wiring` tidak. Menebak di antara keduanya tanpa mengukur adalah cara catatan
+ini jadi salah, jadi ia ditinggalkan sebagai temuan.
+
+### Satu kerapuhan nyata yang ikut ketemu dan sudah diperbaiki
+
+Pass PSP versi pertama memilih chip dengan
+`getByRole("button", { name }).first()`. Toolbox punya ENAM widget `Degrees`,
+jadi `.first()` untuk "day" mendarat di panel yang salah. Itu tidak menyebabkan
+kegagalan di atas - konteks Playwright terisolasi - tapi ia tetap salah: sebuah
+pass yang menyalakan kontrol layer lain mengukur chart yang bukan chart yang
+dimaksud. Ketiga widget chip mengekspos `role="group" aria-label={label}`, jadi
+klik-nya sekarang di-scope ke grupnya dan dibuat idempoten lewat `aria-pressed`
+- chip itu toggle, dan mengkliknya saat sudah menyala akan mematikannya.
+
+## Kotak BSL/SSL dilebarkan, diukur ulang, dan edge-nya hilang
+
+Diminta 8 September 2026 sesudah `pixel-truth` membaca 3 dari 7 dengan keempat
+kotak lebih pendek dari 14 piksel.
+
+### Pelebarannya bukan sekadar demi harness
+
+Kluster menyatakan "harga-harga ini sama DALAM `equal_tol_atr`", jadi pita
+tempat stop beristirahat adalah pita toleransinya - sebaran pivot yang teramati
+cuma sampel dari pita itu dan MENGECILKAN kolamnya. Jadi proximal tidak
+bergerak (equal high terendah, harga pertama yang disentuh) dan distal didorong
+`tol` melewati yang tertinggi, ke tempat stop benar-benar duduk.
+
+Harganya dinyatakan: `equal_tol_atr` kini menyentuh GEOMETRI, yang versi pertama
+sengaja hindari. Itu bisa dipertahankan hanya karena gerbang kind ini 0,0 dan
+tidak mengikat; kalau ia pernah digerbangi, dua knob akan mengendalikan satu
+keputusan.
+
+Efek samping yang menyenangkan: kasus tinggi-nol hilang sendiri. Kluster yang
+seluruh pivotnya persis sama kini bertinggi `tol`.
+
+### Dan ia langsung memicu repaint, yang tesnya tangkap
+
+`test_no_repaint` gagal dengan `grew left: BSL-1772064000-1772107200`.
+Sebabnya: `mean_true_range` merata-rata TEPAT `atr_period` suku, jadi di
+bar-bar pertama sebuah potongan ia merata-rata lebih sedikit suku dan memberi
+angka lain. Selama toleransi cuma menentukan KEANGGOTAAN itu tak terlihat - ia
+ambang, dan ambang tahan geseran kecil. Begitu ia jadi geometri, selisih itu
+langsung jadi tepi yang bergerak saat riwayat ditambahkan di kiri.
+
+Diperbaiki dengan menolak kluster yang anchornya belum punya `atr_period` bar
+penuh di depannya, dihitung di `rejected_warmup`. Skala yang belum jadi lebih
+baik tidak dipakai daripada dipakai lalu berubah.
+
+### Gambarnya membaik delapan kali lipat
+
+| | kotak sempit | kotak lebar |
+|---|---|---|
+| pixel-truth | 3 dari 7 | **7 dari 7** |
+| tepi dibaca balik meleset | 29,68% tinggi kotak | **3,83%** |
+| tepi atas | tak terukur | 0,1px |
+| tepi bawah | tak terukur | 0,0px |
+| cukup tinggi untuk diukur | 0 dari 4 | 1 dari 3 |
+
+Diverifikasi lewat histogram `kind` dari JSON-nya, `{BSL: 2, SSL: 1}`, bukan
+lewat baris "lolos" di konsol - jebakan argumen `pixel-truth` sudah menipu saya
+sekali di sesi ini.
+
+**Tapi dua dari tiga kotak MASIH di bawah 14 piksel** pada toleransi default
+0,1. Pelebaran menolong, ia tidak menyelesaikan; di toleransi sekecil itu
+pitanya memang tipis.
+
+### Dan backtest-nya ikut berubah, ke arah yang tidak menguntungkan
+
+XAUUSD harian, tol 0,5 t3 n3, populasi identik (n=107) karena pelebaran tidak
+mengubah kolam MANA yang ada, hanya tingginya:
+
+| | kotak sempit | kotak lebar |
+|---|---|---|
+| PF | 1,482 | 1,364 |
+| win% | 35,5 | 41,1 |
+| RR | 4,59 | 3,17 |
+| biaya per trade | 0,0107 R | 0,0078 R |
+| **placebo** | 1,290 | **1,444** |
+| **margin atas kontrol** | **+0,192** | **-0,080** |
+| IS 2000-2013 | 1,881 | 1,510 |
+| **OOS 2013-2026** | 0,985 | **1,074** |
+
+Konsisten secara mekanis: stop lebih lebar berarti lebih jarang kena (win% naik)
+tapi target lebih dekat dalam satuan R (RR turun), dan biaya jadi fraksi lebih
+kecil dari R.
+
+**Yang penting margin atas kontrolnya BERBALIK.** Dengan kotak sempit ia
+mengalahkan placebo +0,192; dengan kotak lebar ia KALAH -0,080. Bacaannya:
+sebagian keunggulan kotak sempit datang dari stop yang rapat, bukan dari lokasi
+kolamnya - dan placebo yang digeser 1 ATR pun ikut untung dari stop rapat yang
+sama. Luar sampel justru membaik (0,985 ke 1,074), tapi placebo kontrol yang
+lebih tajam, jadi kalah darinya lebih memberatkan daripada lolos hold-out
+memberi ringan.
+
+Putusannya tidak berubah: `liquidity_pool` tetap `orderable=False`. Yang berubah,
+alasannya sekarang lebih kuat.
+
+## Sensus autodrawing kedelapan detektor, 9 September 2026
+
+Pertama kalinya kedelapan diukur dalam satu duduk DAN tiap run diverifikasi
+lewat histogram `kind` dari `pixel-truth.json`, bukan lewat baris "lolos" di
+konsol. Verifikasi itu ada karena jebakan argumen sudah menipu saya sehari
+sebelumnya: `pixel-truth.mjs liquidity_pool` membuat FOLDER bernama itu dan
+menilai `supply_demand`, dan hasil 7 dari 7 sempat dilaporkan sebagai milik
+BSL/SSL.
+
+| detektor | pixel-truth | kind terverifikasi |
+|---|---|---|
+| supply_demand | 7 dari 7 | DBR 2, RBR 1, RBD 1, DBD 1 |
+| fvg | 7 dari 7 | FVG 9 |
+| order_block | 7 dari 7 | OB 12 |
+| ote | 7 dari 7 | OTE 8 |
+| cisd_zone | 7 dari 7 | CISD 8 |
+| liquidity_pool | 7 dari 7 | BSL 2, SSL 1 |
+| **ifvg** | **6 dari 7** | IFVG 9 |
+| **breaker** | **6 dari 7** | BRK 12 |
+
+Enam hijau, dua merah, dan keduanya gagal di pemeriksaan yang SAMA: tepi tidak
+cukup terbaca untuk diukur. BRK terbaca tepi atas 1 dari 6 dan bawah 2 dari 6,
+dengan 5 kotak bertumpuk dan 4 terlalu tipis.
+
+Sebabnya struktural dan sudah tercatat di evidence `ifvg`: kotak terbalik duduk
+tepat di tempat induknya pecah, dan induk berkerumun, jadi tepi-tepinya saling
+menimbun. Itu satu-satunya kegagalan gambar yang tersisa di repo ini, dan ia
+milik dua kind yang berbagi mekanisme yang sama.
+
+### Sisi backtest, di baris yang sama
+
+Tidak satu pun dari delapan lolos aturan yang menggerbangi `orderable`:
+mengalahkan placebo DAN bertahan luar sampel DAN 8 dari 8 walk-forward.
+
+| detektor | posisi terbaik yang terukur |
+|---|---|
+| supply_demand | satu-satunya `orderable=True`, tapi 5 dari 8 |
+| liquidity_pool | dua sel di atas satu, placebo menang sesudah kotak dilebarkan |
+| cisd_zone | tiga arm di atas satu, semua gugur di placebo atau luar sampel |
+| fvg | 1,112 di 4 jam, 6 dari 8 |
+| ifvg | 1,067, 6 dari 8, dan periode sekarang yang gagal |
+| ote | 1,066 di harian, 4 dari 8 |
+| breaker | PF tertinggi 1,181 tapi 3 dari 8, seluruhnya milik paruh kedua |
+| order_block | 0,972, dan t=-5,07 di bracket yang benar-benar trading |
+
+**Enam punya gambar terverifikasi, nol berhasil di backtest.** `supply_demand`
+menyentuh jalur order sebagai warisan keputusan lama; ia sendiri tidak memenuhi
+aturan yang menggerbangi jalur itu.
+
+## `orderable` dimatikan, dan tepi IFVG/BRK dicoba diperbaiki lalu dicabut
+
+### `orderable` kosong, 9 September 2026
+
+Atas keputusan pemilik: "kita masih membangun detector". `supply_demand` adalah
+satu-satunya yang menyala, jadi `ORDERABLE_LAYERS` di `tools/execute.py`
+sekarang KOSONG dan tidak ada layer yang bisa mencapai jalur order.
+
+Angkanya mendukung keputusan itu: layer tersebut sendiri 5 dari 8 di aturan yang
+menggerbangi status ini, jadi `orderable=True` berdiri di atas keputusan lama
+dan bukan di atas aturan yang berlaku. Nol dari DELAPAN detektor lolos aturan
+itu.
+
+**Field-nya sengaja tidak dihapus.** Sebuah flag yang False di mana-mana adalah
+jaminan yang lebih kuat daripada mekanisme yang dihapus: penyaring di
+`drawing._odds_for`, penolakan keras di `execute.candidates`, dan penjaga
+daftarnya tetap hidup, jadi menyalakan satu layer kembali harus lewat pintu yang
+sama dan tetap menghadapi tes yang sama.
+
+Dua tes ikut berubah dan keduanya sengaja:
+- penjaga daftar kini menuntut daftarnya KOSONG, dan menyebut kedelapan nama
+  secara eksplisit;
+- tes jalur order mem-patch `ORDERABLE_LAYERS` di dalam dirinya, karena ia
+  menguji WIRING di dalam `candidates` (cisd ke confluence, stempel dealing
+  range) dan cakupan itu harus tetap hidup selama jalur ordernya masih ada.
+
+### Tepi IFVG dan BRK: penyebabnya DUA, dan cuma satu yang bisa diperbaiki
+
+Keduanya membaca 6 dari 7 di `pixel-truth`, gagal di pemeriksaan yang sama -
+tepi tidak cukup terbaca. Diukur di XAUUSD 15 menit, 500 bar:
+
+| | zona | beririsan harga sesisi | tinggi median | tinggi min |
+|---|---|---|---|---|
+| ifvg | 86 | **63** | 2,14 USD | **0,01 USD** |
+| breaker | 47 | 33 | 3,24 USD | 0,38 USD |
+
+Dua sebab bertumpuk. **Kerumunan**: kotak terbalik lahir tepat di tempat
+induknya pecah, dan induk berkerumun. **Ketipisan**: IFVG mewarisi geometri
+induk FVG, dan gerbang FVG itu PLAFON - jadi induk yang lolos justru gap
+TERKECIL, dan kotak satu sen adalah konsekuensi langsungnya.
+
+Kerumunan tidak bisa diperbaiki lewat gambar. Dua kotak yang harganya memang
+berimpit tidak bisa dipisahkan tanpa memindahkan tepinya dari harga sebenarnya,
+dan justru itu yang `pixel-truth` ada untuk menjaga.
+
+### Jadi dedupe dicoba di jalur inversi, dan hasilnya DICABUT
+
+`_dedupe` dipasang HANYA untuk `ifvg` dan `breaker` - `fvg` dan `order_block`
+diverifikasi nol dibuang, jadi populasi mereka tidak bergerak.
+
+Kerumunannya memang selesai: ifvg 86 ke 56 zona, beririsan 63 ke 23, dan di
+sampel gambar `0 share a price band`. **Tapi tesnya tetap 6 dari 7**, karena
+kegagalannya pindah ke sebab kedua: 4 dari 9 kotak masih di bawah 14 piksel.
+
+Dan ongkosnya besar. Cermin Pine tidak punya dedupe, jadi:
+
+| sel | detektor | Pine | Zonelab | selisih |
+|---|---|---|---|---|
+| XAUUSD 1d | ifvg | 616 | 238 | +158,8% |
+| XAUUSD 1d | breaker | 387 | 201 | +92,5% |
+| XAUUSD 1h | ifvg | 6.132 | 1.055 | +481,2% |
+| XAUUSD 1h | breaker | 4.414 | 1.229 | +259,2% |
+| BTCUSD 1h | ifvg | 7.719 | 873 | **+784,2%** |
+| BTCUSD 1h | breaker | 5.787 | 1.391 | +316,0% |
+
+Parity IFVG dan BRK yang tadinya BERSIH jadi meleset 2,6 sampai 8,8 kali, dan
+setiap angka TradingView untuk keduanya akan menggambarkan populasi yang bukan
+populasi Zonelab. Untuk perbandingan: paparan `cisd_zone` +44 persen sudah
+dianggap cukup serius untuk dikunci tes.
+
+Tujuan tidak tercapai, ongkos nyata dan terukur. Dicabut seluruhnya.
+
+### Yang TETAP dipertahankan dari percobaan itu
+
+`tests/test_shared_param_block.py` sekarang ikut memindai `inversion.py` saat
+mencari pembaca knob. Itu perbaikan yang berdiri sendiri: sebelum baris itu,
+knob apa pun yang HANYA dibaca di `inversion.py` akan dilaporkan yatim padahal
+ia dibaca. Ditemukan karena `merge_overlap_pct` jadi kasus pertamanya.
+
+### Kesimpulan yang jujur untuk tepi IFVG/BRK
+
+Kerumunan bisa dihilangkan tapi tidak menyelesaikan tesnya; ketipisan yang
+menyelesaikannya, dan ketipisan itu ADALAH definisi detektornya - ia mewarisi
+kohort gap terkecil dari gerbang plafon FVG. Memperbaikinya berarti mengubah apa
+itu IFVG, bukan mengubah cara ia digambar. Dibiarkan 6 dari 7, dengan sebabnya
+sekarang terukur dan terpisah dua.
+
+## SMT dan SSMT: benchmark publik, lalu backtest, 9 September 2026
+
+### Yang ada di TradingView, dan selisihnya bukan setelan
+
+Pencarian mengembalikan **25 script SMT** dan **SATU** script SSMT. Itu sendiri
+temuan: varian SEQUENTIAL yang jadi konfirmasi utama di engine ini hampir tidak
+ada di ekosistem publik.
+
+`SMT Divergences [LuxAlgo]`, yang berperingkat, menggambar **25 garis diagonal**
+di XAUUSD harian dan NOL level horizontal - konektor antara dua swing yang
+berdivergensi. Bentuk yang sama dengan `ssmt` kita, yang memancarkan
+`time_from/price_from` ke `time_to/price_to`.
+
+`SSMT_ES/NQ/YM Sequential SMT Divergence Indicator`, satu-satunya SSMT publik,
+menggambar **LABEL BERTEKS** dan hanya **4 buah** di seluruh chart ES 1 jam,
+dengan teks "ES/NQ Weekly SSMT" dan "ES/NQ Ln/Am SSMT".
+
+| | publik (satu-satunya SSMT) | Zonelab |
+|---|---|---|
+| pasangan | DIPATOK ES/NQ/YM | parameter, pasangan apa pun |
+| derajat | Weekly dan London/Am | seluruh derajat `quarters` |
+| bentuk gambar | label berteks | garis swing ke swing |
+| kepadatan | 4 di ES 1 jam | 40 (mentok cap) di XAU 1 jam |
+
+### Dan satu perbedaan yang cuma terlihat saat dijalankan
+
+Di XAUUSD HARIAN dengan derajat `day`, `ssmt` kita mengembalikan **NOL** baris
+sementara `smt` mengembalikan 120. Sebabnya bukan cacat: grid kuartal derajat
+`day` tidak bisa terurai di dalam satu bar harian. Di 1 jam ia memberi 40 SSMT
+dan 16 SMT. Jadi SSMT menuntut bar intraday, dan itu tidak tertulis di mana pun
+sebelum baris ini.
+
+### Backtest: SMT di-port ke Pine sebagai detektor 9
+
+Yang di-port **SMT biasa, bukan SSMT**, dan alasannya dinyatakan di knob-nya:
+SSMT menuntut grid kuartal yang hidup di `app/quarters.py` dengan derajat, true
+open dan batas 18:00 New York. Menyalin permukaan itu ke Pine berarti
+menyalinnya SALAH sampai terbukti sama. `docs/ssmt_outcomes.json` sudah mengukur
+SSMT sendiri - 24 sel, nol lolos, |z| terbesar 2,070 lawan ambang 3,078.
+
+Kotaknya: level referensi (swing sebelumnya) ke ekstrem baru - bentuk yang sama
+dengan CISD dan PSP, dua harga yang barnya sudah punya. `lookahead_off` ditulis
+EKSPLISIT di `request.security`, karena satu argumen yang hilang di sana memberi
+harga partner dari masa depan dan setiap angka di bawah jadi fiksi tanpa satu
+tes pun berubah warna.
+
+### Hasilnya negatif, dan konsisten
+
+XAUUSD, partner XAGUSD:
+
+| sel | swing_n | n | win% | PF |
+|---|---|---|---|---|
+| 1d | 3 | 263 | 32,7 | 0,869 |
+| 1d | 5 | 160 | 29,4 | **0,393** |
+| 1d | 10 | 72 | 20,8 | **0,254** |
+| 1h | 5 | 621 | 30,6 | 0,720 |
+| 1h | 10 | 297 | 31,3 | 0,546 |
+
+Seluruhnya di bawah satu, dan **menurun monoton seiring swing melebar**: makin
+signifikan divergensinya, makin buruk hasilnya.
+
+**Dan placebonya MENANG telak.** Di XAU 1d n=5: nyata 0,393 lawan placebo
+**0,986**, margin **-0,593** - kontrol terkuat melawan sebuah detektor di
+seluruh sesi ini, dan arahnya melawan. Kotak yang digeser 1 ATR dari lokasi SMT
+jauh lebih baik daripada kotak DI lokasi SMT.
+
+### Cara membacanya, dengan batasnya
+
+Bracket ini memasang limit di proximal dan stop di luar distal - untuk SMT sisi
+high itu berarti MEMUDARKAN high, yang persis yang doktrin minta. Jadi yang
+diukur memang pembacaan doktrinal, bukan kebalikannya.
+
+Batasnya dinyatakan: SATU pasangan (XAU/XAG) dan dua sel. Studi SSMT di repo ini
+memakai empat pasangan dan 24 sel untuk mencapai putusan null-nya. Yang di sini
+lebih sempit tapi lebih tajam tandanya - dan dua-duanya menunjuk ke arah yang
+sama.
+
+`smt` dan `ssmt` tetap overlay yang digambar, tidak jadi `ZoneKind`, dan tidak
+menyentuh jalur order - yang sejak 9 September 2026 kosong untuk semua layer.
+
+## Gambar SSMT diukur untuk pertama kalinya, 9 September 2026
+
+Sebelum ini tidak ada satu piksel pun dari `ssmt-primitive.ts` yang pernah
+dibaca balik. `pixel-truth` membaca KOTAK; pass-pass di `nonbox-truth` membaca
+RAY HORIZONTAL; sebuah segmen yang menghubungkan dua harga di dua waktu tidak
+masuk keduanya. SSMT adalah satu-satunya objek diagonal di engine ini.
+
+### Alat barunya, dan kenapa alat lama tidak bisa dipakai
+
+Kedua pemindai yang ada menyapu satu BARIS piksel dan menjawab "di baris mana
+tinta terkuat berada". Sebuah diagonal meninggalkan baris itu setelah beberapa
+piksel, jadi menanyainya dengan alat baris akan melaporkan "tidak tergambar"
+untuk garis yang tergambar sempurna.
+
+Yang bisa diukur dari diagonal adalah KEDUA UJUNGNYA - dan itu memang klaimnya:
+sebuah divergensi mengatakan "harga INI di waktu itu lawan harga ITU di waktu
+ini", jadi garis yang ujungnya meleset menggambarkan perbandingan yang tidak
+pernah terjadi. `ssmt-primitive.ts` sudah menggambar tick vertikal di tiap ujung
+justru supaya dua harga itu terlihat sebagai titik.
+
+`window.__scanCol` karena itu ditambahkan: sentroid tinta berbobot di satu
+kolom. Sentroid, bukan piksel terkuat, karena tick 1 piksel di offset setengah
+piksel terbelah di dua baris dan memilih salah satunya memberi galat setengah
+piksel yang bukan milik gambarnya.
+
+### Dan probe-nya sendiri hampir jadi temuan palsu
+
+Versi pertama memakai span 8 piksel dan melaporkan galat terburuk **4,36px**
+lawan toleransi 2,00 - GAGAL. Tapi tick SSMT cuma membentang 3 piksel ke tiap
+arah, sementara di x yang sama ADA LILIN yang sumbunya bertinta jauh lebih
+lebar. Jendela yang terlalu lebar ikut menimbang tinta lilin, dan sentroidnya
+tertarik menjauh dari tick.
+
+Tiga span dicoba dan ketiganya dicatat supaya pembaca bisa menilai sendiri:
+
+| span | galat terburuk | |
+|---|---|---|
+| 8 | 4,36px | gagal |
+| 4 | 2,06px | gagal, tipis |
+| **3** | **1,56px** | **lolos** |
+
+Penurunan yang monoton itu justru mekanismenya, bukan tanda penyetelan sampai
+hijau. Yang berprinsip lebar tick-nya sendiri - dan itu 3, diambil dari
+primitive-nya. Span 8 dan 4 sama-sama memberi kelonggaran yang tidak punya dasar
+di gambar.
+
+**Ini kedua kalinya di sesi ini sebuah "kegagalan gambar" ternyata milik
+probe-nya**, sesudah kekuatan tinta PSP 0,048 yang ternyata satu piksel fringe.
+
+### Hasilnya
+
+40 segmen, 80 ujung, **63 di layar**, dan galat terburuk **1,56px** lawan
+toleransi 2,00. Contoh: 1,56 / 0,79 / 0,58 / 0,23 piksel.
+
+Pass ini juga menyalakan partnernya lewat chip yang sama yang dipakai pembaca -
+bukan jalan pintas - jadi kalau kontrol itu rusak, gate-nya ikut merah. Dan
+gate-nya menuntut minimal dua ujung terukur: yang di luar layar TIDAK dihitung
+sebagai lolos, karena "tidak terlihat" dan "benar" adalah dua hal berbeda dan
+menggabungkannya adalah cara gate ini bisa hijau tanpa mengukur apa pun.
+
+`nonbox-truth` sekarang 6 dari 7. Yang tersisa merah penempatan ray PSP
+(-3px dan -6px), yang sudah merah sebelum pass SSMT ada.
+
+## Gambar SMT diukur, dan klaim Pine detektor 9 dicabut
+
+### Koreksi lebih dulu: detektor 9 BUKAN SMT-nya Zonelab
+
+Blok Pine yang saya tulis kemarin menyebut dirinya "cermin `app/ssmt.py` pada
+bagian SMT-nya". Itu salah, dan dicabut.
+
+| | konstruk |
+|---|---|
+| `app/ssmt.smt` | kuartal sekarang lawan ekstrem BERJALAN di jendela, diangkur ke grid kuartal |
+| Pine detektor 9 | pivot swing sekarang lawan pivot swing SEBELUMNYA |
+
+Dua objek berbeda. Jadi angka yang dilaporkan - PF 0,393 di XAU harian, placebo
+menang -0,593 - mengukur SMT **berbasis swing**, yang justru bentuk yang dipakai
+script publik: `SMT Divergences [LuxAlgo]` menggambar konektor antar SWING
+POINT. Itu benchmark konstruk publik lewat bracket repo ini, **bukan** pengukuran
+SMT yang Zonelab gambar. Memport konstruk Zonelab-nya berarti memport grid
+kuartal, alasan yang sama kenapa SSMT tidak ikut.
+
+Dikoreksi di dua tempat yang bisa dibaca orang: kepala blok Pine dan evidence
+layer `ssmt`.
+
+### Marker SMT diukur untuk pertama kalinya
+
+`smt-primitive.ts` menggambar WAJIK ber-radius 4 piksel di titiknya, dengan
+plate label di sebelah KANAN. Di kolom tengah wajik, tinta muncul tepat di dua
+verteks - atas dan bawah - jadi sentroid kolom jatuh di pusatnya, dan plate-nya
+tidak ikut terpindai. Span 5, yaitu radius ditambah satu piksel untuk lebar
+stroke, diambil dari primitive-nya.
+
+17 marker digambar, **11 di layar**:
+
+| galat | jumlah |
+|---|---|
+| di bawah 1,0px | **9** |
+| 1,76px | 1 |
+| 2,12px | 1 |
+
+Median 0,66px, terbaik 0,04px. **Gate-nya MERAH**: 2,12 lawan toleransi 2,00.
+
+### Dan ia dibiarkan merah, sengaja
+
+Dua pencilan itu, bukan pergeseran sistematis - sembilan dari sebelas di bawah
+satu piksel. Mempersempit span dari 5 ke 4 hampir pasti akan menghijaukannya,
+dan saya tidak melakukannya: gerakan itu sudah dipakai sekali di SSMT dengan
+alasan berprinsip (span = lebar tick, diambil dari primitive), dan memakainya
+lagi semata untuk membalik merah jadi hijau adalah penyetelan-sampai-lulus.
+
+Dugaan sebabnya, belum ditelusuri: kedua pencilan adalah marker `high` TANPA
+`took`, yang primitive-nya gambar dengan `INK_FAINT` 0,55 alih-alih 0,85. Tinta
+yang lebih pudar membuat sentroid lebih mudah tertarik oleh tinta lilin di
+kolom yang sama. Tapi satu marker non-took lain terbaca 0,45px, jadi alpha saja
+tidak menjelaskannya.
+
+### Yang ikut diperbaiki
+
+Baris `ssmt` dan `smt` sekarang ditulis ke `nonbox-truth.json` sebagai
+`ssmt_rows`. Sebelumnya ia dicetak ke konsol lalu hilang - dan angka yang tidak
+bisa diperiksa ulang tidak bisa dipertanggungjawabkan. Sebaran di atas cuma bisa
+dibaca karena baris itu ada.
+
+Dua gate dipisah, `ssmt` dan `smt` sendiri-sendiri, karena keduanya dua klaim
+berbeda: satu segmen yang menghubungkan dua harga, satu marker di satu harga.
+Menggabungkannya akan membiarkan yang satu menutupi kegagalan yang lain -
+dan memang itu yang terjadi di sini: SSMT lolos di 1,56px sementara SMT merah.
+
+`nonbox-truth` sekarang 6 dari 8.
+
+## DFR, dan kontrol yang menutup empat pertanyaan sekaligus (9 September 2026)
+
+Layer `dfr` dikirim dengan evidence yang berbunyi "SINGLE-SOURCED AND UNVERIFIED".
+Empat hal dikerjakan di sini: benchmark lawan script TradingView berperingkat yang
+memakai nama sama, pita itu sendiri lewat bracket delapan detektor lain, backtest
+COMEX lewat Pine, dan pengukuran piksel pertama atas gambarnya.
+
+### 1. Benchmark, dari kutipan jadi angka
+
+`quarterly.py` sudah menyatakan konstruk kita bukan `Quarterly DFR [Dango]`
+(4.378 boost). Tapi dasarnya DESKRIPSI VENDOR, bukan pengukuran. Sekarang diukur:
+dari 1.233 klaim level di 411 pita derajat hari, **1,5 persen** jatuh dalam satu
+tick dari salah satu 500 level yang script itu gambar.
+
+Angka itu tidak bisa dibaca sendirian, karena level Dango menumpuk persis di
+tempat harga banyak singgah, yang juga tempat DFR kita berada. Kontrol jitter,
+klaim yang sama digeser 0,31 sampai 1,7 poin:
+
+| | asli | rerata kontrol | kontrol tertinggi |
+|---|---|---|---|
+| derajat hari | 1,46% | 0,91% | **1,70%** |
+| derajat minggu | 2,01% | 0,60% | 1,61% |
+
+Sel kontrol tertinggi di derajat hari MELEBIHI angka aslinya. Kecocokannya adalah
+kepadatan level, bukan kesamaan konstruk.
+
+### 2. Pita sebagai zona, dan kontrol kuartal yang membunuhnya
+
+`tools/dfr_zone.py`. Tiap pita dibelah di ekuilibriumnya sendiri jadi paruh
+supply dan paruh demand, empat instrumen 1 jam, 20.000 bar, dua geometri bracket.
+
+Lawan placebo geser-harga hasilnya terlihat kuat: **+8,0pp** (ATR, n=6.462) dan
+**+7,7pp** (tinggi kotak, n=6.460), 8 dari 8 fold, z di atas 8.
+
+> Angka di seksi ini AWALNYA mencampur tiga run yang jendelanya berbeda, dan
+> sudah disamakan ke `--as-of 2026-09-08`. Kesimpulannya tidak berubah di run
+> mana pun; magnitudonya berubah, dan itu sebabnya jendela harus disebut. Tapi placebo geser-harga
+hanya menjawab "apakah kotaknya menandai sebuah tempat". Ia tidak menjawab
+"apakah Q1 istimewa" - dan itu pertanyaan yang menentukan, karena dua paruh pita
+BERBAGI TEPI EKUILIBRIUM, jadi keduanya masuk bracket di harga yang sama, di
+tengah rentang yang harga baru saja lewati.
+
+Konstruk yang sama dijalankan ulang dengan anchor Q2, Q3, Q4:
+
+| kuartal | ATR | tinggi kotak |
+|---|---|---|
+| **Q1 (konstruknya)** | **+7,9pp** | **+6,9pp** |
+| Q2 | +10,3pp | +8,6pp |
+| Q3 | +9,9pp | +8,9pp |
+| Q4 | +6,3pp | +8,2pp |
+
+Q1 nomor tiga dari empat di ATR dan paling lemah di tinggi kotak, dan keempatnya
+lolos 8 dari 8. Yang terukur
+bukan Q1 dan bukan aturan pertiga: masuk bracket di ekuilibrium rentang kuartal
+mana pun mengalahkan masuk di harga yang digeser 1,5 sampai 5 ATR. Itu fakta
+tentang placebonya.
+
+Aturan pertiganya sendiri juga tidak didukung. Membuang 0, 1/3, 1/2 dan 2/3 dari
+Q1 semuanya mengalahkan placebo, 1/3 tidak pernah yang terbaik, dan PERINGKATNYA
+TERBALIK antara dua geometri - ATR memilih membuang nol, tinggi kotak memilih
+membuang dua pertiga. Peringkat yang berbalik mengikuti bracket adalah bracketnya.
+Tidak ada yang bisa di-tune di sini.
+
+### 3. COMEX, replikasi di venue lain
+
+Pine detektor 10, GC1! 1 jam, 21.793 bar (2023-01-02 sampai 2026-09-09), tanpa
+gerbang, biaya broker menyala.
+
+| kuartal | supply PF | demand PF |
+|---|---|---|
+| Q1 | 0,607 | 1,250 |
+| Q2 | 0,659 | **1,482** |
+| Q3 | 0,702 | 1,412 |
+| Q4 | 0,532 | 0,692 |
+
+Q1 nomor tiga dari empat di sisi demand. Dan pola yang lebih besar: SEMUA lengan
+supply rugi, semua lengan demand kecuali Q4 untung, seragam di keempat kuartal.
+Bentuk itu drift arah, bukan zona - emas naik sepanjang jendela 2023-2026, jadi
+membeli dip ke tengah rentang kuartal MANA PUN untung dan menjual reli ke sana
+rugi.
+
+Satu cacat ditemukan dan diperbaiki di tengah jalan: detektor 10 mewarisi gerbang
+CEILING 0,25 milik FVG dan menolak 950 dari 950 kandidat. Tabelnya terlihat sehat
+- `cand 950`, `gate 0`, `n 0` - dan tidak mengukur apa pun.
+
+### 4. Gambarnya, diukur pertama kali
+
+Sampai hari ini tidak satu piksel pun `dfr-primitive.ts` pernah dibaca balik.
+`pixel-truth` membaca kotak detektor, `nonbox-truth` membaca ray yang hidup di
+kanan candle terakhir, dan pita ini kotak TERTUTUP yang digambar DI ATAS bar-bar
+pembentuknya.
+
+Ia butuh probe warna. Pemindai buta-warna memilih baris terpadat dalam radius 6
+piksel, dan baris terpadat di dalam pita hampir selalu badan lilin. `__scanBlue`
+memakai `biru - max(merah, hijau)`: tinta dfr `[118,126,178]` pada alpha 0,55
+memberi sekitar +30, lilin hijau -12.
+
+Hasil: 4 pita, **11 dari 12 tepi terukur, terburuk 0,74px** lawan toleransi 2,00.
+
+Yang kedua belas nol, dan tulisan pertama saya menyalahkan penahanan MIN_BOX_PX = 8
+milik primitive-nya. ITU SALAH, dan kolom `band_px` yang baru saya tambahkan
+sendiri yang membantahnya dalam hitungan menit: pita itu setinggi 227,6 piksel.
+Sebabnya OKLUSI - `dfr-primitive.ts` memakai zOrder "bottom", jadi ia mengecat di
+bawah lilin. Angka duty-nya adalah mekanisme itu terbaca langsung:
+
+| yang digambar | duty |
+|---|---|
+| tepi high dan low | 0,99 |
+| garis 50% yang terbaca | 0,38 (lawan 0,50 untuk dash 3-on-3-off tanpa oklusi) |
+| garis 50% yang tertutup ujung ke ujung | 0,00 |
+
+Garisnya digambar benar dan tidak bisa dilihat di situ. Itu pertanyaan
+keterbacaan, bukan geometri.
+
+### DFR, enam sisa yang ditutup (9 September 2026, lanjutan)
+
+Enam hal masih terbuka setelah tulisan di atas. Semuanya dikerjakan; dua
+mengubah kesimpulan, satu menemukan cacat probe untuk ketiga kalinya.
+
+#### 1. Parity Pine lawan Python, tidak pernah diukur, sekarang eksak
+
+Dua implementasi dibangun dan angkanya dilaporkan sebelum ada yang membuktikan
+keduanya sepakat. Diukur pada bar yang IDENTIK - OANDA:XAUUSD 1 jam ditarik dari
+TradingView, bukan dari MT5, karena perbandingan lintas feed tidak bisa
+memisahkan "aturannya beda" dari "datanya beda":
+
+**Lima pita, sepuluh harga, cocok sampai sen.** Jendela yang disimpan empat jam
+di setiap pita. Dikunci di `tests/test_dfr_pine_parity.py`.
+
+Satu-satunya ketidaksepakatan adalah komparatornya sendiri: `round()` Python
+membulatkan setengah ke genap, `str.tostring(x, "#.##")` Pine membulatkan
+setengah menjauh dari nol, dan tiga dari sepuluh harga kebetulan kasus
+tepat-setengah. Tes gagal sampai keduanya memakai konvensi yang sama.
+
+#### 2. Kontrol drift arah, dari dibaca jadi diukur
+
+Tabel COMEX menunjukkan semua lengan supply rugi dan semua demand kecuali Q4
+untung. Saya menyebut itu drift arah dari pola tabelnya - dan tabel COMEX tidak
+punya placebo, jadi memang tidak bisa memisahkannya.
+
+Placebo rig Python SE-ARAH: placebo long adalah kotak demand di harga yang
+salah, jadi ia menikmati tren naik yang sama. Dipecah per sisi, lengan yang
+dikirim:
+
+| geometri | supply | demand |
+|---|---|---|
+| ATR | +7,3pp | +8,7pp |
+| tinggi kotak | +7,3pp | +8,2pp |
+
+Kedua sisi mengalahkan placebo se-arahnya sendiri dengan selisih sebanding.
+Asimetri COMEX itu drift instrumennya, bukan zonanya. Pembacaan saya benar, dan
+sekarang terukur alih-alih ditebak.
+
+#### 3. Verifikasi sumber, sebagian terselesaikan
+
+Dua pertanyaan yang selama ini tercampur, dan jawabannya berbeda.
+
+**Apakah kode ini mengimplementasikan aturan Bucko?** Ya, dan sekarang
+terkorobrasi lewat kanal kedua yang independen dari situs tempat aturan itu
+pertama sampai. Script TradingView-nya sendiri, `Quarterly Theory Toolkit
+[Oracle+]`, menyatakannya satu baris: *"The Defining Range marks the high and low
+of the 2nd and 3rd thirds of Q1"*, dan menggambarkan implementasinya sebagai
+mencari titik sepertiga antara awal Q1 dan awal Q2 lalu memindai dari situ.
+
+**Apakah aturannya sendiri dikorobrasi orang lain?** Tidak. Masih SATU PENULIS.
+Halaman referensi Quarterly Theory milik LuxAlgo, yang independen dan cukup
+rinci, tidak menyebut Defining Range sama sekali. Dan script berperingkat
+tertinggi yang memakai nama itu, `Quarterly DFR [Dango]`, deskripsinya sendiri
+menyatakan logikanya proprietary dan menyebut momentum, volatilitas dan volume -
+bukan aturan pertiga. Ia berbagi nama dan bentuk ekuilibrium-titik-tengah saja.
+
+#### 4. Level ekstensi, dan cacat probe ketiga
+
+Proyeksi -0,5 dan -1 MENYALA SECARA DEFAULT begitu derajat dipilih, dan pass
+gambar pertama melewatinya sama sekali - jadi garis yang paling sering ada di
+layar pembaca justru yang tidak pernah diukur.
+
+16 level di 4 pita: 6 di luar pane dan memang dibuang primitive-nya, 9 terukur,
+**terburuk 0,43px** lawan toleransi 2,00.
+
+Satu dilaporkan TAK TERPISAHKAN, bukan lolos dan bukan gagal. Versi pertama
+melaporkan galat 2,04px pada `ext -0.5` di 4456,59 - dan itu ternyata titik
+tengah antara garis itu dan proyeksi pita LAIN di 4457,75, sekitar 4,4 piksel
+jauhnya, di dalam jendela sentroid ber-radius 6. Kedua garis tergambar benar.
+
+Perbaikannya bukan mempersempit jendela sampai hijau: radius sekarang dihitung
+sebagai separuh jarak ke klaim terdekat lainnya, dibatasi 6 di atas dan 2 di
+bawah, dan baris yang tetangganya lebih dekat dari 4 piksel ditandai
+`unresolvable` lalu DIKELUARKAN dari gate. Mengaku tidak bisa mengukur lebih
+jujur daripada melaporkan titik tengah dua garis sebagai galat.
+
+**Ini ketiga kalinya sebuah "kegagalan gambar" ternyata milik probe-nya**,
+sesudah tinta PSP 0,048 dan span 8 SSMT.
+
+#### 5. Dua belas sel, dan Q1 tepat di peringkat kebetulan
+
+Run pertama cuma satu derajat di satu timeframe, padahal sumbernya menyatakan
+DFR berlaku di setiap derajat. Diulang di day, week dan month, di 1 jam dan 4
+jam, dua geometri masing-masing:
+
+| sel | ATR | tinggi kotak |
+|---|---|---|
+| day/1h | 3 dari 4 | 4 dari 4 |
+| day/4h | 3 dari 4 | 3 dari 4 |
+| week/1h | 3 dari 4 | 3 dari 4 |
+| week/4h | **1 dari 4** | **1 dari 4** |
+| month/1h | 2 dari 4 | **1 dari 4** |
+| month/4h | 2 dari 4 | 4 dari 4 |
+
+Rerata peringkat Q1 **2,50** lawan harapan kebetulan **2,50**, terbaik di 3 dari
+12 sel. Satu kombinasi tempat ia memimpin di kedua geometri: week di 4 jam.
+
+Sel TIDAK independen - dua geometri berbagi populasi, instrumennya sama di semua
+sel - jadi rerata itu ringkasan, bukan uji. `session` dan `micro` sengaja
+dikecualikan: kuartalnya 90 dan 22,5 menit, jadi sepertiga yang dibuang lebih
+pendek dari satu bar dan aturan pertiganya tidak akan pernah benar-benar jalan.
+
+#### 6. Oklusi garis 50%, diperiksa lalu SENGAJA tidak diubah
+
+`dfr-primitive.ts` memakai zOrder `bottom`, dan komentarnya sudah menyatakan
+alasannya: evidence-nya waktu itu "satu paragraf, tidak cukup untuk merebut
+tinta dari sumbu lilin". Menaikkannya akan membuat garis 50% terbaca.
+
+Ditolak, dan pengukuran hari ini justru alasannya. Evidence itu sekarang bukan
+tipis melainkan terukur NULL. Layer yang buktinya memburuk tidak naik ke atas
+lilin; itu membayar tinta untuk hasil yang bergerak ke arah salah.
+
+Yang diubah harness-nya: `band_px` dan duty dicatat per baris, jadi garis 50%
+yang absen bisa dibedakan dari yang meleset. Diamnya soal biaya itu cacat yang
+sebenarnya di sini, bukan z-order-nya.
+
+#### Reproduksibilitas, satu lubang yang ikut ketemu
+
+Dua run tool yang sama, terpisah beberapa jam, memberi Q1 +7,1pp lalu +7,8pp
+pada lengan dan geometri yang sama. Sebabnya `load(..., 20000)` mengambil 20.000
+bar TERAKHIR, jadi jendelanya maju ikut jam dinding; zona di ujung bergeser,
+berapa placebo yang tersentuh bergeser, dan karena `shift()` menarik dari RNG
+bersama, SETIAP offset placebo sesudahnya ikut bergeser. Sekarang ada `--as-of`
+dan jendela tiap deret dicetak. Semua angka di seksi ini memakai
+`--as-of 2026-09-08`.
+
+#### `pixel-truth.mjs` yang saya kira rusak, dan ternyata argumen saya
+
+DICABUT DAN DIKOREKSI. Versi pertama seksi ini melaporkan `e2e/pixel-truth.mjs`
+merah karena cacat yang sudah ada di repo. Itu salah.
+
+Gejalanya: `locator.selectOption: Timeout 30000ms`, dengan log "waiting for
+element to be visible and enabled" pada combobox `Bars`. Backend menjawab dalam
+90 milidetik, `e2e/wiring.mjs` lolos 94 dari 94 di frontend yang sama, dan
+restart dev server bersih tidak menolong. Saya jalankan kontrol `git stash` -
+baseline gagal identik - dan menyimpulkan merahnya sudah ada sebelumnya.
+
+SEBABNYA: `Picker` "Bars" hanya menawarkan 200, 500, 1000, 2000 dan 5000, dan
+saya memanggil harness dengan **900**. `selectOption` untuk nilai yang tidak ada
+di daftar tidak melempar "opsi tidak ada"; ia menunggu sampai timeout dan
+melaporkan kegagalan actionability, yang terbaca seperti aplikasi yang mati.
+
+DAN KONTROL `git stash` TIDAK BISA MENANGKAPNYA, karena yang saya variasikan
+cuma kode - argumen yang salah ikut dipertahankan di kedua lengan. Sebuah
+kontrol hanya memisahkan hal yang benar-benar berbeda di antara dua lengannya.
+Dijalankan dengan 500, harness itu lolos 7 dari 7.
+
+Diperbaiki di harness-nya: jumlah bar sekarang diperiksa terhadap opsi picker
+sebelum dipilih, dan yang tidak ada di daftar keluar dengan pesan yang
+menyebutkan argumen, bukan menunggu 30 detik lalu menuduh aplikasinya.
+
+#### Lubang di tes parity itu sendiri, ditutup
+
+Versi pertama `tests/test_dfr_pine_parity.py` hanya menguji Q1 - dan Q1 adalah
+SATU-SATUNYA kuartal yang jendelanya melewati tengah malam. `inKept` di Pine
+bercabang ke bentuk gabungan untuk Q1 dan ke bentuk selang untuk sisanya, jadi
+lolosnya Q1 tidak mengatakan apa pun tentang cabang yang lain - padahal seluruh
+kontrol kuartal COMEX, angka yang menutup pertanyaan DFR, berdiri di atas cabang
+itu.
+
+Q2 diukur pada bar yang sama: **lima pita, sepuluh harga, cocok sampai sen**,
+jendela 06:00-10:00 UTC. Q3 dan Q4 memakai cabang yang persis sama dan cuma
+berbeda konstanta jam pembukanya, jadi satu kuartal non-wrap menutup cabang itu.
+Ditambah satu tes bahwa daftar pita Q1 dan Q2 tidak pernah beririsan, karena
+pemetaan kuartal yang salah akan membuat kontrolnya membandingkan sesuatu dengan
+dirinya sendiri.
+
+### Empat gate merah yang tersisa, dan tiga di antaranya alat ukurnya (9 September 2026)
+
+Setelah DFR selesai, empat merah masih menggantung. Semuanya ditutup. Yang
+mengejutkan bukan perbaikannya melainkan sebarannya: dari empat, TIGA adalah
+cacat pengukuran dan hanya satu perilaku aplikasi - dan yang satu itu pun bukan
+gambar melainkan kebocoran keadaan antar harness.
+
+#### 1. `pixel-truth.mjs`, dan kontrol yang tidak mengontrol apa pun
+
+Lihat koreksi di seksi sebelumnya. Ringkasnya: picker "Bars" cuma punya 200,
+500, 1000, 2000, 5000, dan saya memanggilnya dengan 900. `selectOption` untuk
+nilai yang tidak ada menunggu 30 detik lalu melapor kegagalan actionability,
+yang terbaca seperti aplikasi mati.
+
+Yang paling perlu diingat bukan itu, tapi kenapa kontrol `git stash` saya gagal
+menangkapnya: **saya memvariasikan kode dan mempertahankan argumen yang salah di
+KEDUA lengan.** Sebuah kontrol hanya memisahkan hal yang benar-benar berbeda di
+antara lengan-lengannya. Dijalankan dengan 500, harness itu lolos 7 dari 7.
+
+Diperbaiki di harness: jumlah bar diperiksa terhadap opsi picker lebih dulu, dan
+yang tidak ada keluar dengan pesan yang menyebut argumennya.
+
+#### 2. Marker SMT 2,12px, dan dugaan lama yang salah
+
+Catatan sebelumnya menduga penyebabnya alpha `INK_FAINT` 0,55 pada marker
+non-took. Dugaan itu tidak pernah menjelaskan apa pun - marker non-took lain
+terbaca 0,45px.
+
+Sebab sebenarnya: wajik SMT digambar TEPAT di swing high atau swing low, yaitu
+persis tempat ujung sumbu lilin berada, di kolom yang sama. Sentroid buta-warna
+di kolom itu menimbang tinta wajik bersama tinta sumbu.
+
+Diperbaiki lewat HUE, bukan lewat mempersempit span. Tinta `ssmt`
+`[204,141,181]` itu magenta - merah dan biru sama-sama di atas hijau:
+
+| objek | `min(r-g, b-g)` |
+|---|---|
+| tinta SMT alpha 0,85 | +34 |
+| tinta SMT alpha 0,55 | +24 |
+| lilin merah | -3 |
+| latar | -2 |
+| lilin hijau | -128 |
+
+Ambang 12 duduk di antara keduanya dengan jarak lebar di kedua sisi. Hasil
+**1,90px**, lolos. Masih dekat toleransi, dan itu dilaporkan apa adanya.
+
+#### 3. Ray PSP, dua artefak dan satu tinta layer lain
+
+Tiga ray dilaporkan meleset -3 sampai -6px. Dua di antaranya melaporkan TEPAT
+-6px, yaitu batas jendela pencarian ±6 - pencarian yang mentok di batasnya bukan
+pengukuran, itu pengakuan bahwa yang dicari tidak ada di dalam jendela.
+
+Dengan probe magenta yang sama, penempatan langsung hijau untuk 31 ray. Tersisa
+satu: `PSP buy` di 4641,55, meleset 12px. Profil duty per baris menjawabnya:
+
+```
+dy  -2 -1  0 +1        +8  +9 +10 +11 +12 +13 +14
+   .50 .50 .50 .50 ... .08 .17 .50 .83 .83 .83 .79
+```
+
+Ray dashed-nya ADA, tepat di dy 0, duty 0,50 seperti seharusnya. Blok kedua di
+dy +10..+14 lebih pekat, dan level PSP terdekat 69,7 piksel jauhnya - jadi itu
+bukan ray lain, melainkan tinta layer `ssmt`, yang memakai warna yang sama
+persis dan ikut menyala di pass ini.
+
+`__scanAt` memilih baris ber-duty TERTINGGI, padahal pertanyaan gate-nya "apakah
+ada tinta di harga yang API laporkan". Jawaban yang benar baris TERDEKAT yang
+bertinta. Diubah ke itu, dengan ambang separuh duty puncak supaya piksel fringe
+tunggal tidak lolos hanya karena lebih dekat.
+
+Ini TIDAK melonggarkan gate: ray yang benar-benar meleset tidak punya tinta di
+dekat targetnya sama sekali. Yang berubah cuma siapa yang menang di antara
+beberapa baris yang SAMA-SAMA bertinta. Efek sampingnya MSS ikut membaik dari
+0,28px ke 0,07px - ia juga sedikit tertarik.
+
+Hasil: **40 ray, semuanya dalam 2px**, dan `nonbox-truth` 10 dari 10.
+
+Satu langkah antara sempat merusak dua gate tetangga: versi pertama probe
+mengembalikan nilai magenta sebagai `strength`, dan itu skala lain - tiap baris
+ber-tint jatuh ke 0,033, jadi lantai stroke 0,15 dan uji duty dash langsung
+merah. Tint harus MENYARING piksel mana yang dihitung, bukan mengganti
+satuannya. Sebuah probe yang memperbaiki satu gate sambil merusak dua lainnya
+belum selesai.
+
+#### 4. `ink-budget`, dan janji dua arah yang cuma berlaku untuk satu nama
+
+`EMPTY_BY_DEFAULT` memuat empat nama - `session`, `dfr`, `ssmt`, `psp` - dan
+komentarnya menjanjikan jaminan dua arah. Tapi `LAYERS`, daftar yang
+benar-benar dirender dan diukur, cuma memuat `session` dari keempatnya. Jadi
+kalau default `dfr` berubah dan ia mulai menggambar, tidak ada gate yang merah.
+Gate-nya melaporkan "1 layer" dan itu terbaca seperti hasil, bukan seperti
+cakupan yang bocor.
+
+Ketiganya ditambahkan. Sekarang "4 layer", keempatnya 0 piksel.
+
+DAN PENAMBAHAN ITU LANGSUNG MENEMUKAN SESUATU. Dijalankan tepat sesudah
+`nonbox-truth`, keempatnya melaporkan **40.893 piksel yang IDENTIK** - angka
+yang sama untuk empat layer berbeda mustahil sebagai gambar, dan `structure`
+ikut melonjak dari 2,29% ke 10,63%. Dijalankan sendirian, keempatnya 0.
+
+Sebabnya kebocoran keadaan antar harness: pass SSMT dan PSP menyalakan partner
+`XAGUSD`/`XPTUSD` dan derajat `day` lewat chip, params disimpan di
+`localStorage`, dan tidak satu pun pass mematikannya lagi. Harness berikutnya
+mengambil baseline dari chart yang sudah menggambar layer-layer itu.
+
+Diperbaiki dengan satu blok cleanup terpusat di akhir `nonbox-truth`, bukan di
+tiap pass - chip-nya dipakai bersama dua pass, jadi mematikannya di pass pertama
+akan merusak pass kedua. Dirantai ulang sesudahnya: `nonbox-truth` 10 dari 10,
+lalu `ink-budget` hijau dengan keempat layer di 0 piksel.
+
+### Derajat minggu diport ke Pine, dan sel yang menjanjikan itu tidak bertahan
+
+Dari dua belas sel Python, SATU kombinasi menempatkan Q1 di peringkat pertama di
+kedua geometri: week di 4 jam. Itu satu-satunya angka yang berpihak pada aturan
+pertiga di seluruh pekerjaan ini, dan karena itu satu-satunya yang layak diuji
+di venue kedua.
+
+Detektor 10 sekarang membawa derajatnya. Cerminnya `app/quarters.py`: siklus
+minggu buka MINGGU 18:00 New York dan tiap kuartalnya satu hari penuh - Q1
+Senin, Q2 Selasa, Q3 Rabu, Q4 Kamis, dan Jumat bukan kuartal. Sepertiga pertama
+dari 24 jam adalah 8 jam, jadi jendela yang disimpan 02:00-18:00 New York,
+seluruhnya di dalam satu hari kalender - tidak perlu penanganan
+lintas-tengah-malam sama sekali, tidak seperti Q1 derajat hari.
+
+COMEX GC1! 4 jam, 15.449 bar, 2016-09-04 sampai 2026-09-09:
+
+| kuartal | supply PF | demand PF |
+|---|---|---|
+| **Q1** | **0,761** | **0,881** |
+| Q2 | 0,828 | 0,908 |
+| Q3 | **1,026** | 0,778 |
+| Q4 | 0,842 | **1,302** |
+
+Q1 paling buncit di sisi supply dan nomor dua di sisi demand, dan tidak satu pun
+paruhnya melewati 1,0. Dua lengan yang melewatinya justru Q3 supply, tipis, dan
+Q4 demand. Sel yang berpihak di Python tidak terkonfirmasi di venue kedua, pada
+jendela yang hampir tiga kali lebih panjang.
+
+Satu hal lagi yang terbaca dari tabel ini: di rentang sepuluh tahun, asimetri
+supply lawan demand yang mendominasi tabel 1 jam (3,7 tahun) hampir hilang. Itu
+yang diramalkan pembacaan drift.
+
+#### Parity sekarang mencakup empat kuartal dan kedua derajat
+
+Versi sebelumnya mengukur Q1 dan Q2 lalu MENGARGUMENTASIKAN Q3 dan Q4 dari fakta
+bahwa keduanya memakai cabang non-wrap yang sama. Argumennya benar dan itu bukan
+pengukuran. Keduanya sekarang terukur, sepuluh harga masing-masing, eksak.
+
+Q4 membuktikan kenapa itu perlu. Salah satu pitanya **lahir dua hari sesudah
+jendelanya tutup**: jendela 4 September 18:00-22:00 UTC terisi tiga bar, lalu
+emas tutup akhir pekan dan bar berikutnya baru ada Minggu 6 September 22:00.
+Python melakukan hal yang sama lewat `bar_at(end)`, jadi keduanya sepakat - tapi
+hanya setelah tesnya dikunci ke WAKTU BAR KELAHIRAN, bukan ke waktu tutup
+jendela nominal. Konvensi itu sekarang dipakai di seluruh berkas tes.
+
+Derajat minggu juga diukur, dan ia satu-satunya cabang yang tidak tersentuh
+kasus derajat hari mana pun: derajat hari memilih jendela lewat JAM New York,
+derajat minggu lewat HARI dalam minggu.
+
+**Yang tersisa dan dinyatakan, bukan didiamkan:** `month` tidak diport. Siklusnya
+diangkur ke Senin PERTAMA bulan itu, yang butuh aritmetika kalender mahal di
+Pine, sementara konstruknya sudah terukur null di derajat itu. Kalau suatu hari
+diport, `_month_cycle_start_for` di `app/quarters.py` yang harus dicerminkan -
+bukan tebakan bahwa empat minggu sama dengan sebulan.
+
+### `sweep.mjs` merah delapan gate, dan tak satu pun cacat aplikasi
+
+Dijalankan untuk pertama kalinya dalam pekerjaan ini, `e2e/sweep.mjs` melaporkan
+139 dari 147. Delapan merah, dua sebab, keduanya di harness.
+
+**Tujuh dari delapan: label slider yang kembar.** Harness mengalamatkan slider
+lewat `getByRole("slider", {name})` dan menuntut TEPAT SATU kecocokan. Tapi
+`Merge overlap` ada tiga - `ote`, `cisd_zone`, `liquidity_pool` masing-masing
+punya knob itu - `Max zones per side` dua, `Shortest run` dua. Label kembar
+bukan cacat: ia dibaca manusia DI DALAM panel layernya, tempat ia tidak ambigu.
+
+Diperbaiki dengan menggerakkan slider ke-i lewat ELEMEN, bukan lewat nama, dan
+memeriksa ulang label di indeks itu sebelum dipakai. Peringatan lama di berkas
+itu - jangan menyimpan indeks lalu memakainya lagi setelah panel me-render ulang
+- tetap dipatuhi: kalau labelnya bergeser, gate-nya merah sambil menyebut
+pergeserannya, bukan timeout 30 detik yang menyebut ordinal.
+
+**Yang kedelapan: daftar emas yang basi.** Sensusnya membandingkan label yang
+terlihat dengan daftar `REVEALED_SLIDERS` yang di-hardcode, dan tiga layer -
+`ote`, `cisd_zone`, `liquidity_pool` - mendarat sesudah daftar itu terakhir
+disentuh. Hasilnya dua belas "extra", yang terbaca seperti UI membocorkan knob
+liar padahal knob-knobnya benar.
+
+Daftar emas yang di-hardcode memang disengaja: gunanya menangkap knob yang
+DIAM-DIAM HILANG, dan itu tidak bisa dilakukan daftar yang diturunkan otomatis.
+Tapi daftar emas yang tidak pernah diperbarui berhenti jadi gate dan mulai jadi
+derau. **Ini ketiga kalinya pola yang sama di berkas itu** - dua sebelumnya
+sudah tertulis di komentarnya sendiri, tertanggal 29 dan 31 Agustus.
+
+Sensusnya sekalian diubah dari perbandingan HIMPUNAN jadi perbandingan
+JUMLAH KEMUNCULAN. Perbandingan himpunan tidak bisa menyatakan "harus ada tiga
+`Merge overlap`": ia melaporkan yang kedua sebagai extra, dan ia akan DIAM kalau
+salah satu dari tiga hilang. Menghitung menangkap keduanya.
+
+Hasil: **154 dari 154**.
+
+### `click-everything.mjs`, dan sebuah 422 yang butuh dua percobaan gagal untuk terbaca
+
+Harness itu melaporkan 237 dari 241, dengan tiga gate berbunyi hanya:
+
+```
+console: Failed to load resource: the server responded with a status of 422
+```
+
+Tanpa URL, tanpa body, tanpa alasan validasi. Dua percobaan reproduksi gagal
+justru karena tidak ada satu pun dari tiga hal itu untuk dikejar: dikirim
+sendiri lewat curl, request yang dicurigai menjawab 200; probe Playwright yang
+menekan dua toggle itu langsung tidak menemukan satu pun 422.
+
+**Diperbaiki pelaporannya dulu, baru cacatnya.** Harness sekarang membaca body
+respons berstatus galat dan melaporkan status, jalur, `detail` FastAPI, dan
+potongan request. Sekali itu ada, sebabnya terbaca di percobaan pertama:
+
+```
+422 /api/draw :: imbalance.require_structure_break hanya dibaca `order_block`
+dan `breaker`, dan tak satu pun dari keduanya ada di layers=[...]
+```
+
+**Guard backend-nya BENAR dan sengaja.** `DrawRequest._no_inert_imbalance_knob`
+menolak knob order-block yang digeser dari default saat tidak ada layer yang
+membacanya, supaya sebuah setelan tidak terlihat berlaku sambil menggambar
+chart default. Yang salah UI: ia tetap menawarkan saklarnya, jadi menekannya
+mengirim body yang pasti ditolak.
+
+Dan satu tekanan itu merusak lebih dari satu gate: knob itu tetap ada di body
+sesudahnya, jadi dua tombol berikutnya - "Show mitigated boxes" dan "Show broken
+boxes" - ikut merah tanpa ada hubungannya. Tiga gate, satu akar.
+
+Diperbaiki di UI: saklarnya `disabled` saat `order_block` dan `breaker`
+sama-sama mati, dengan satu baris yang menyebut prasyaratnya. Dimatikan, bukan
+disembunyikan - komentar panel itu sendiri sudah menulis bahwa menyebut sebuah
+saklar tanpa mengirimkannya lebih buruk daripada tidak menyediakan keduanya.
+
+Hasil: **240 dari 241**.
+
+**Yang satu tersisa bukan cacat kode.** Tombol triad "Bonds" menjawab 502 dengan
+`nothing left to compare XAUUSD with: US10Y: mt5 does not carry US10Y; US30Y:
+mt5 does not carry US30Y`. Itu keterbatasan feed, dan `/api/triad` memang
+dirancang 502 saat tidak ada pembanding yang tersisa. Menutupnya berarti salah
+satu dari dua hal yang lebih besar daripada cacatnya: mengubah kontrak endpoint
+jadi 200-dengan-alasan lalu mengajari frontend merendernya, atau mengajari
+frontend cakupan simbol tiap provider supaya tombolnya tidak ditawarkan. Tidak
+dikerjakan, dan dicatat di sini supaya merahnya punya sebab tertulis.

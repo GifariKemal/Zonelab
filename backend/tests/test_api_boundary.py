@@ -25,6 +25,8 @@ one of the defects fixed alongside this file.
 from __future__ import annotations
 
 import pytest
+
+from app.providers import carries
 from fastapi.testclient import TestClient
 
 from app import agent as agent_mod
@@ -410,45 +412,87 @@ def test_triad_reports_the_provider_it_actually_used(aligned):
     """The silent substitution, now audible.
 
     `binance` carries three of the twenty instruments and none of the triad
-    partners, so this route quietly rewrote the provider to mt5 and answered 200
-    with MT5 prices under a request that said binance. Nothing in the body said
-    so, and correlations computed on a broker's CFD tape are not the same
-    numbers as correlations computed on an exchange's spot tape.
+    partners, so this route quietly rewrote the provider and answered 200 with
+    another tape's prices under a request that said binance. Nothing in the body
+    said so, and correlations computed on a broker's CFD tape are not the same
+    numbers as correlations computed on an exchange's.
 
-    Both halves are asserted: that the fetch really went to mt5, and that the
-    RESPONSE says mt5. Asserting only the fetch would pass against the old code.
+    Both halves are asserted: that the fetch really was substituted, and that the
+    RESPONSE says what it was substituted with. Asserting only the fetch would
+    pass against the old code.
     """
     response = client.get("/api/triad", params={"provider": "binance"})
     assert response.status_code == 200, response.text
-    assert aligned["provider"] == "mt5", "the substitution itself"
-    assert response.json()["provider"] == "mt5", "and it is now reported"
+    assert aligned["provider"] != "binance", "the substitution itself"
+    assert response.json()["provider"] == aligned["provider"], "and it is reported"
 
 
-@pytest.mark.parametrize("asked", ["binance", "yahoo", None])
-def test_every_substituted_provider_is_reported_as_mt5(asked, aligned):
-    """All three inputs the route rewrites, not just the one in the ticket.
+@pytest.mark.parametrize("asked", ["binance", None])
+def test_a_substituted_provider_is_one_that_can_actually_serve(asked, aligned):
+    """The substitute has to CARRY the triad, whatever it is called today.
 
-    `None` is in this list because it is the DEFAULT, so the unreported
-    substitution was happening on the ordinary request rather than on an exotic
-    one: a caller who names no provider gets mt5 here and the chart's own
-    `settings.default_provider` everywhere else, and those two agreeing today is
-    a coincidence of configuration.
+    This asserted the literal `"mt5"` until 11 September 2026, and its own
+    docstring had already named why that was fragile: a caller who names no
+    provider got mt5 here and `settings.default_provider` everywhere else, "and
+    those two agreeing today is a coincidence of configuration". The default
+    moved to the exchange tape and the coincidence ended, so all this test had
+    been pinning was the config.
+
+    The invariant underneath it does not move: whatever feed the route picks, it
+    must carry every leg, and the body must say which one it picked. That holds
+    whichever way the default is set, which is the point.
+
+    `None` stays in the list because it is the DEFAULT path - the substitution
+    happens on the ordinary request rather than an exotic one.
     """
     params = {} if asked is None else {"provider": asked}
     body = client.get("/api/triad", params=params).json()
-    assert body["provider"] == "mt5"
+    legs = [body["base"], *body["partners"]]
+    assert carries(body["provider"], legs), "the substitute must serve the triad"
+    assert body["provider"] == aligned["provider"], "and the body must say so"
 
 
-def test_a_provider_that_carries_the_triad_is_passed_through_unchanged(aligned):
+@pytest.mark.parametrize("asked", ["synthetic", "yahoo"])
+def test_a_provider_that_carries_the_triad_is_passed_through_unchanged(
+    asked, aligned
+):
     """The guard is a substitution, not a hardcode.
 
     Without this, `return "mt5"` unconditionally would satisfy every assertion
     above while breaking the one case a caller most wants: naming a feed and
     getting it.
+
+    `yahoo` is the case with teeth. Its legs resolve to COMEX and NYMEX front
+    months while MT5's resolve to broker spot CFDs, so a silent rewrite here
+    answered a question about exchange-traded futures with something else and
+    said nothing.
     """
-    body = client.get("/api/triad", params={"provider": "synthetic"}).json()
-    assert aligned["provider"] == "synthetic"
-    assert body["provider"] == "synthetic"
+    body = client.get("/api/triad", params={"provider": asked}).json()
+    assert aligned["provider"] == asked
+    assert body["provider"] == asked
+
+
+def test_a_triad_mt5_cannot_serve_is_routed_to_a_feed_that_can(aligned):
+    """`bonds` was 502 for every caller on every provider.
+
+    Not a hypothetical: US10Y and US30Y were carried by Yahoo alone, the old
+    flat list sent every triad read to mt5, and mt5 carries neither - so the
+    route substituted in the one feed guaranteed to fail and the error blamed
+    the instruments. A flat list of provider names cannot express "the fallback
+    is the thing that cannot serve this"; asking the coverage table per leg can.
+
+    NAMING THE FEED HERE WAS WRONG TWICE. This asserted "yahoo" for one day,
+    for the same reason the tests above asserted "mt5" for months - it was the
+    only feed that could serve bonds at the moment of writing. A day later
+    TradingView was added, it carries the treasuries too, and the assertion
+    failed on behaviour that was correct. What is promised is that mt5 cannot
+    serve this triad and that whatever is chosen can.
+    """
+    body = client.get("/api/triad", params={"triad": "bonds"}).json()
+    legs = [body["base"], *body["partners"]]
+    assert not carries("mt5", legs), "the premise: mt5 cannot serve bonds"
+    assert carries(body["provider"], legs), "so it was routed somewhere that can"
+    assert body["provider"] == aligned["provider"], "and the body says where"
 
 
 def test_triad_returns_the_full_reading_shape(aligned):
@@ -886,3 +930,35 @@ def test_triad_bounds_its_bar_count_the_same_way(bars, aligned):
     window got a 50-bar one with no field saying so.
     """
     assert client.get("/api/triad", params={"bars": bars}).status_code == 422
+
+
+def test_ssmt_partner_that_is_the_chart_itself_is_reported_not_a_500():
+    """A collapsed partner list must be a sentence, not an exception.
+
+    `ssmt()` raises ValueError when it is handed fewer than two instruments, and
+    `_draw_ssmt` used to catch only ProviderError - so this exact body answered
+    HTTP 500 and took down a drawing whose own bars had already arrived, against
+    that function's own docstring promise that every failure here is reported
+    and survived.
+
+    REACHABLE WITHOUT A HAND-WRITTEN REQUEST. The partner picker excludes the
+    chart's symbol from its options but does not prune a choice already made, so
+    picking silver as gold's partner and then moving the chart to silver leaves
+    exactly this shape. Found by `tools/tf_audit --all`, which swept every symbol
+    against a fixed partner table and hit it twice in one control.
+    """
+    body = {
+        "symbol": "XAUUSD",
+        "interval": "15m",
+        "bars": 200,
+        "provider": "synthetic",
+        "layers": ["ssmt"],
+        "checklist": {"ssmt_symbols": ["XAUUSD"], "ssmt_degrees": ["day"]},
+    }
+    response = client.post("/api/draw", json=body)
+    assert response.status_code == 200
+    stats = response.json()["meta"]["ssmt"]
+    assert stats["drawn"] == 0
+    # The reason names the symbol, because "no partner" and "the partner IS you"
+    # are different mistakes and only one of them is fixed by picking a degree.
+    assert "XAUUSD" in stats["reason"]

@@ -17,7 +17,7 @@ from app import clock
 from app.clock import market_shut, trades_when_shut
 from app.ict import evaluate
 
-from test_ict import stack, state, zone
+from tests.test_ict import stack, state, zone
 
 #: Minggu 30 Agustus 2026, 08:00 NY. Di dalam jendela tutup CME, dan hari
 #: ketika keempat order BTCUSD dikirim.

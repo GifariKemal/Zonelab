@@ -637,3 +637,81 @@ def test_a_reported_divergence_never_carries_two_equal_prices():
             assert e.took_price > e.failed_price
         else:
             assert e.took_price < e.failed_price
+
+
+# --------------------------------------------------------------- hidden SSMT
+
+
+def _body_candle(time: int, top: float, bottom: float) -> Candle:
+    """A bar whose BODY is `top`..`bottom` and whose wicks reach two FIXED levels.
+
+    The wicks are absolute, not an offset from the body, and that is the whole
+    point of the fixture. A wick drawn as "body minus 50" inherits the body's
+    ordering, so a body divergence shows up in the wicks too and the test proves
+    nothing - which is exactly how the first version of this fixture failed.
+    Pinned at 0 and 1000, no quarter's wick ever beats another's, `_took` is
+    strict about equality, and the wick basis is therefore structurally blind
+    here. Anything the body basis finds is something the wick basis cannot see.
+    """
+    return Candle(
+        time=time, open=top, high=1000.0, low=0.0, close=bottom, volume=1.0
+    )
+
+
+def _body_series(bodies: list[tuple[float, float]]) -> list[Candle]:
+    """One bar per hour, six per day quarter, bodies given per quarter."""
+    out: list[Candle] = []
+    for q, (top, bottom) in enumerate(bodies):
+        for h in range(6):
+            t = START + (q * 6 + h) * HOUR
+            mid = (top + bottom) / 2
+            out.append(
+                _body_candle(t, top, bottom) if h == 3 else _body_candle(t, mid, mid)
+            )
+    out.append(_body_candle(START + len(bodies) * 6 * HOUR, 100.0, 100.0))
+    return out
+
+
+def test_body_basis_finds_a_divergence_the_wick_basis_cannot_see():
+    """Hidden SSMT: closes diverge while the wicks say nothing at all.
+
+    Both instruments carry wicks pinned at the same two absolute levels, so no
+    quarter's wick low is ever below another's and the wick basis is
+    structurally blind - it must report nothing on either side.
+
+    The BODIES are built so exactly one instrument closes below the previous
+    quarter's lowest close:
+
+        Q1 bodies   A 100..90    B 100..90
+        Q2 bodies   A 95..85     B 95..92   <- A's close 85 is below 90, B's is not
+    """
+    a = _body_series([(100.0, 90.0), (95.0, 85.0)])
+    b = _body_series([(100.0, 90.0), (95.0, 92.0)])
+    both = {"A": a, "B": b}
+
+    wick_events, _ = ssmt(both, "day")
+    lows = [e for e in wick_events if e.side == "low"]
+    assert lows == [], f"the wick basis must see nothing here, saw {lows}"
+
+    body_events, stats = ssmt(both, "day", basis="body")
+    body_lows = [e for e in body_events if e.side == "low"]
+    assert len(body_lows) == 1, f"expected one hidden divergence, got {body_lows}"
+    found = body_lows[0]
+    assert found.took == "A" and found.failed == "B"
+    assert found.basis == "body"
+    # The four prices are the BODY extremes, so the arithmetic is redoable by
+    # hand from the event: 85 beat 90, and 92 did not.
+    assert found.took_prior == 90.0 and found.took_now == 85.0
+    assert found.failed_prior == 90.0 and found.failed_now == 92.0
+    assert stats["basis.body"] == 1.0
+
+
+def test_the_wick_basis_is_untouched_and_still_the_default():
+    """The default is the reading every existing measurement was taken under."""
+    a = series([(110.0, 90.0), (108.0, 80.0)])
+    b = series([(110.0, 90.0), (108.0, 95.0)])
+    default_events, default_stats = ssmt({"A": a, "B": b}, "day")
+    named_events, _ = ssmt({"A": a, "B": b}, "day", basis="wick")
+    assert default_events == named_events
+    assert all(e.basis == "wick" for e in default_events)
+    assert default_stats["basis.body"] == 0.0

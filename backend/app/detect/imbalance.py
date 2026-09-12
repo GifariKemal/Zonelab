@@ -15,6 +15,20 @@ wicks on either side never met, so a band of prices was skipped. The box is that
 band. Nothing is chosen, nothing is fitted, and two implementations that read
 the definition will produce identical output.
 
+**A knob that was removed, and why it is written down here.** `body_gap` took
+the box edges from the candle bodies instead of the wicks. It shipped off and
+was deleted on 6 September 2026 because it could only ever be wrong: bodies sit
+INSIDE wicks, so a body band spans FURTHER than the wick band in both
+directions. Its own Field said "stricter: only counts gaps between candle
+bodies" and it filtered nothing at all - 2,018 boxes before and 2,018 after on
+XAUUSD 4h - while 2,017 of them got WIDER, median height doubling and one doji
+third bar producing a box 7,997 times its wick height. It was measured twice and
+lost twice: `docs/fvg_filter_compare.json` variant F is the worst of seven
+(exp_r 0.1399 against 0.4263, Welch t 0.67, and the only variant to fail
+walk-forward at 6 of 8), and re-measured on TradingView it cut the population
+from 848 to 100 because a ceiling gate reads the widened height. Reintroducing
+it needs a new measurement, not this paragraph.
+
 **Order block.** Contested, and the contest matters. The common statement is
 "the last opposite-coloured candle before a strong impulsive move". Sources
 disagree about (a) whether the move must break structure, (b) whether the box is
@@ -28,6 +42,11 @@ is a different detector and would need its own measurement.
 The first two of those changed on 6 September 2026 and both were measured
 before they were written: profit factor 0.984 to 1.320 over twelve cells,
 docs/QA-OB-GATE.md. This paragraph said WHOLE RANGE until then.
+RETRACTED 7 September 2026: those twelve cells ran through the
+lifecycle that checked the break BEFORE the touch. On the corrected rig NO
+cell sits above one - XAU 0.972/0.926/0.798 at 1d/4h/1h, BTC
+0.939/0.859/0.872. Kept as the argument that justified the geometry change,
+not as current performance.
 
 WHY THEY REUSE `Zone`
 Both are boxes with a near edge, a far edge and a lifecycle, which is what
@@ -86,6 +105,9 @@ two of them were settled by measurement instead of opinion.
                           a quantity with no relationship to the signal. Measured
                           over twelve cells: profit factor 0.984 to 1.247 on this
                           alone, 1.320 together with the close-measured impulse.
+                          RETRACTED 7 September 2026, same reason as the module
+                          docstring: pre-lifecycle-fix numbers. The corrected rig
+                          puts no order block cell above one.
                           Read it as GEOMETRY: the win rate FELL, 53.7% to 43.1%,
                           and what rose is R per win.
 
@@ -175,7 +197,7 @@ from __future__ import annotations
 
 import numpy as np
 
-from ..indicators import EPS, wilder_atr
+from ..indicators import EPS, mean_true_range, wilder_atr
 from ..models import (
     Anatomy,
     Candle,
@@ -328,7 +350,27 @@ def detect_fvg(
         return [], stats
 
     time, opn, high, low, close = _arrays(candles)
-    atr = wilder_atr(high, low, close, params.atr_period)
+    # `mean_true_range`, BUKAN `wilder_atr`, sejak 7 September 2026, dan hanya
+    # di sini - `detect_order_block` di bawah masih Wilder karena impulsnya
+    # dikalibrasi terhadap Wilder dan menukarnya butuh pengukurannya sendiri.
+    #
+    # Wilder adalah RMA yang disemai dari bar pertama, jadi nilainya di satu bar
+    # absolut bergantung berapa bar yang dimuat pemanggil. Itu masuk ke DUA
+    # tempat lewat `scale` di bawah: rasio `departure_atr` yang jadi gerbang, dan
+    # ATR yang dipakai penelepon untuk menaruh stop. Terukur di XAUUSD 4h lawan
+    # acuan 99.999 bar, Wilder memberi rasio berbeda untuk 46 dari 96 zona
+    # bersama di jendela 500 bar dan 45 dari 630 di 3.000; fungsi baru memberi
+    # 0 dari semuanya. `departure_atr` membulat tiga desimal dan menyembunyikan
+    # sebagian besar drift itu, tapi stopnya tidak membulat dan ekornya 8,57 USD.
+    #
+    # BESARAN DAN SATUANNYA SAMA, jadi ambangnya pindah: cocok-kuantil pada deret
+    # itu memindahkan plafon 0,2496 ke 0,2556, di dalam pembulatan konstanta yang
+    # ter-ship. Diukur berpasangan atas 497 trade bersama, penukarannya berbiaya
+    # -0,0534 R dengan t = -1,46, yang bukan selisih. Dua skala bebas-jendela lain
+    # diuji dan keduanya lebih mahal: tinggi Donchian 14 bar -0,0472 R (t=-0,74)
+    # dan rentang lilin tengah -0,1357 R (t=-1,75). Yang terakhir itu yang
+    # diminta saat perubahan ini dipesan, dan ia yang paling buruk dari tiga.
+    atr = mean_true_range(high, low, close, params.atr_period)
 
     found: list[Zone] = []
     for i in range(1, n - 1):
@@ -352,24 +394,10 @@ def detect_fvg(
                 stats["rejected_body_ratio"] += 1
                 continue
 
-        if params.body_gap:
-            # Zone edges dari body (close/open), bukan wick (high/low).
-            # Deteksi tetap wick-to-wick, tapi zona lebih ketat.
-            body_top_1 = float(max(opn[first], close[first]))
-            body_bot_3 = float(min(opn[third], close[third]))
-            body_bot_1 = float(min(opn[first], close[first]))
-            body_top_3 = float(max(opn[third], close[third]))
-            if up:
-                top, bottom = body_bot_3, body_top_1
-            else:
-                top, bottom = body_bot_1, body_top_3
-            if top <= bottom:
-                continue
-        else:
-            top, bottom = (
-                (float(low[third]), float(high[first])) if up
-                else (float(low[first]), float(high[third]))
-            )
+        top, bottom = (
+            (float(low[third]), float(high[first])) if up
+            else (float(low[first]), float(high[third]))
+        )
         scale = float(atr[max(0, first - 1)])
         if scale <= EPS or (top - bottom) < params.min_gap_atr * scale:
             stats["rejected_too_small"] += 1
@@ -487,6 +515,11 @@ def detect_order_block(
         # bergerak, 53,66 ke 53,03 persen. Win rate yang diam sementara PF naik
         # adalah tanda tangan filter yang membuang trade rugi, bukan yang
         # memperketat stop.
+        #
+        # DICABUT 7 September 2026: dua belas sel itu lewat lifecycle yang
+        # memeriksa pecah sebelum sentuh. Di rig terkoreksi tak ada satu sel OB
+        # pun di atas satu. Dipertahankan sebagai alasan perubahan geometri,
+        # bukan sebagai performa berlaku.
         if bearish:
             move = (float(close[window].max()) - float(close[i])) / scale
             side = ZoneSide.DEMAND
@@ -567,6 +600,8 @@ def detect_order_block(
         # menjadi 1,247 sendirian, dan 1,320 bersama impuls-dari-close di atas.
         # Empat dari enam timeframe melewati PF 1, termasuk 4h yang 0,761 dengan
         # walk-forward 0 dari 8 dan kini 1,168.
+        # DICABUT 7 September 2026, sebab yang sama. Angka-angka ini pra-perbaikan
+        # lifecycle dan tidak boleh dibaca sebagai performa sekarang.
         #
         # BACA MEKANISMENYA, JANGAN CUMA ANGKANYA: win rate TURUN, 53,66 ke
         # 43,14 persen. Kotak yang lebih pendek adalah stop yang lebih rapat,

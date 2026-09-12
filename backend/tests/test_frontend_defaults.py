@@ -40,6 +40,9 @@ from app.models import (
     DFRParams,
     GapParams,
     ImbalanceParams,
+    OteParams,
+    CisdZoneParams,
+    LiquidityPoolParams,
     LiquidityParams,
     NewsParams,
     PoolParams,
@@ -51,6 +54,7 @@ from app.models import (
     ChartGapParams,
     WyckoffParams,
     PSPParams,
+    SMTFillParams,
 )
 
 TYPES_TS = Path(__file__).resolve().parents[2] / "frontend" / "src" / "lib" / "types.ts"
@@ -59,6 +63,9 @@ TYPES_TS = Path(__file__).resolve().parents[2] / "frontend" / "src" / "lib" / "t
 OWNERS = {
     "supply_demand": SupplyDemandParams,
     "imbalance": ImbalanceParams,
+    "ote": OteParams,
+    "cisd_zone": CisdZoneParams,
+    "liquidity_pool": LiquidityPoolParams,
     "structure": StructureParams,
     "dfr": DFRParams,
     "session": SessionParams,
@@ -73,6 +80,7 @@ OWNERS = {
     "chart_gaps": ChartGapParams,
     "wyckoff": WyckoffParams,
     "psp": PSPParams,
+    "smt_fill": SMTFillParams,
 }
 
 

@@ -1,0 +1,1504 @@
+//@version=6
+// Zonelab Imbalance Strategy - cermin `app/detect/imbalance.py` dan
+// `app/detect/inversion.py` plus geometri trade `app/plan.py:build`. Urutan
+// lifecycle sudah benar di kedua sisi: SENTUH DICATAT SEBELUM PECAH.
+//
+// TARGET DARI ZONA LAWAN, cermin `app/profit_zone.py:profit_zone_at`, dipilih
+// saat order TERISI. Sampai 7 September 2026 harness ini memakai target R TETAP
+// sementara `execute.py` memakai zona lawan, jadi gerbang GAMBAR dan gerbang
+// ORDER memvalidasi dua hal berbeda.
+//
+// use_bar_magnifier WAJIB. Tanpa itu Strategy Tester menyelesaikan setiap bar
+// yang memuat stop DAN target sebagai kalah. Terukur XAUUSD 30m tanpa gerbang:
+// PF 0,9396 tanpa lawan 0,9568 dengan, pada 6.409 lawan 6.408 trade.
+strategy("Zonelab Imbalance Strategy", overlay=true,
+     pyramiding = 500,
+     // DINAIKKAN 8 September 2026, dan ini cacat KEDUA di jalur sizing yang
+     // sama. Perbaikan `risk_eff` menutup kegagalan PEMBULATAN (qty di bawah
+     // satu kontrak dibulatkan hilang); ia tidak menutup kegagalan MODAL.
+     // Pada pointvalue 100 satu trade bisa meminta notional sebesar seluruh
+     // ekuitas - qty 50 kontrak emas di 2.000 dolar adalah 10 juta - jadi
+     // order berikutnya ditolak dan `fill` menghitungnya sementara `n` tidak.
+     // Terukur di GC1! harian, detektor PSP: risk_usd 1.000 memberi n=731 dari
+     // 1.083 fill dan PF 0,859; risk_usd 200 - qty lima kali lebih kecil -
+     // memberi n=1.132 dan PF 1,011. Dua saringan berlawanan arah di satu
+     // fungsi: terlalu kecil dibulatkan nol, terlalu besar ditolak modal.
+     //
+     // Menaikkan modal menghapus plafonnya tanpa menyentuh satuan R, karena
+     // setiap angka yang dilaporkan dinormalkan terhadap risiko.
+     initial_capital = 1000000000000,
+     default_qty_type = strategy.fixed,
+     default_qty_value = 1,
+     commission_type = strategy.commission.percent,
+     commission_value = 0.0,
+     process_orders_on_close = false,
+     use_bar_magnifier = true,
+     // DINYATAKAN karena detektor 4 membaca dengan offset VARIABEL
+     // (`high[off_from]`, `atr_w[off_from + 1]`), dan analisis statis Pine
+     // tidak selalu bisa menyimpulkan panjang referensinya sendiri. Nilai
+     // ini hanya mengatur ukuran buffer, tidak mengubah hasil hitungan.
+     max_bars_back = 500,
+     calc_on_every_tick = false)
+
+// SATU SCRIPT, EMPAT DETEKTOR, dan itu keputusan yang dibuat untuk benchmark.
+// Keempatnya diukur lewat kode bracket yang IDENTIK - dinding, biaya, horizon,
+// tabel, semuanya satu jalur - jadi selisih angka keempatnya milik detektornya.
+// Empat file akan membiarkan bracketnya hanyut, dan perbandingan empat bracket
+// yang berbeda tidak mengukur detektor apa pun.
+//
+// ARAH GERBANGNYA BERLAWANAN antar keluarga dan itu bukan detail. FVG dan IFVG
+// digerbangi PLAFON pada tinggi gap; OB dan BRK digerbangi LANTAI pada kekuatan
+// impuls. Satu pembaca yang cuma melihat angka gerbangnya tidak bisa tahu mana
+// yang berlaku.
+detector      = input.int(0, "detektor 0=FVG 1=OB 2=IFVG 3=BRK 4=SD 5=OTE 6=CISD 7=LIQ 8=PSP 9=SMT 10=DFR", group="Detector",
+     minval=0, maxval=9)
+atr_len       = input.int(14,    "atr_period",         group="Detector")
+min_gap_atr   = input.float(0.0, "min_gap_atr",        group="Detector", step=0.05)
+gate_ceiling  = input.float(0.25,"gate ceiling (ATR)", group="Detector", step=0.05)
+filter_mother = input.bool(true, "filter_mother",      group="Detector")
+min_body      = input.float(0.3, "min_body_ratio",     group="Detector", step=0.05)
+
+// KNOB CISD. `interrupt_tolerance` TIDAK diekspos, dan itu batas yang harus
+// dinyatakan: `delivery_runs` di Python melanjutkan pemindaian di `end + 1`,
+// jadi lilin yang jadi interupsi diperiksa ULANG untuk run berikutnya. Pada
+// toleransi 0 - default yang di-ship dan satu-satunya nilai yang dipakai angka
+// mana pun di repo - `end + 1` SELALU bar sekarang, jadi tidak ada yang perlu
+// diperiksa ulang dan cermin ini eksak. Di atas nol ia tidak akan eksak, jadi
+// knob-nya tidak ditawarkan alih-alih ditawarkan dengan diam-diam salah.
+cz_run        = input.int(2,     "min_run",            group="CISD", minval=1)
+cz_floor      = input.float(0.0, "run_min_atr",        group="CISD", step=0.1)
+
+// KNOB LIKUIDITAS BSL/SSL. Cermin `LiquidityPoolParams`. `equal_tol_atr`
+// MENGELOMPOKKAN dan tidak menggambar: tepi kotak diambil dari sebaran pivot
+// yang teramati, jadi tidak ada konstanta yang masuk ke geometri.
+lq_n          = input.int(3,     "swing_n (liq)",      group="Liquidity", minval=2)
+lq_tol        = input.float(0.1, "equal_tol_atr",      group="Liquidity", step=0.05)
+lq_touch      = input.int(2,     "min_touches",        group="Liquidity", minval=2)
+
+// KNOB PSP. Cermin `app/psp.py`, dan cuma SATU knob karena predikatnya cuma
+// punya satu: level yang disapu adalah OPEN bar sekian ke belakang. `WINDOW`
+// tidak diekspos - ia milik `after_ssmt`, yang menuntut SSMT dan karena itu
+// menuntut instrumen partner yang backtest ini tidak muat.
+psp_back      = input.int(3,     "level_back (PSP)",   group="PSP", minval=1)
+
+// KNOB SMT. Yang di-port SMT BIASA, bukan SSMT.
+//
+// SSMT menambahkan kata SEQUENTIAL, dan urutannya adalah grid kuartal: ekstrem
+// yang dipersoalkan adalah milik KUARTAL SEBELUMNYA dan dibaca pada derajat
+// yang sama di kedua instrumen. Grid itu hidup di `app/quarters.py` dengan
+// derajat, true open dan aturan batas 18:00 New York - permukaan yang jauh
+// lebih besar daripada satu detektor, dan menyalinnya ke Pine berarti
+// menyalinnya SALAH sampai terbukti sama. Jadi yang di-backtest di sini SMT
+// biasa: dua instrumen tidak sepakat soal sebuah ekstrem SWING.
+//
+// Konsekuensinya dinyatakan: angka di bawah TIDAK berlaku untuk SSMT, dan
+// `docs/ssmt_outcomes.json` sudah mengukur SSMT sendiri - 24 sel, nol lolos,
+// |z| terbesar 2,070 lawan ambang 3,078.
+smt_sym       = input.symbol("OANDA:XAGUSD", "partner (SMT)", group="SMT")
+
+// KNOB DEFINING RANGE. Cermin `app/quarterly.defining_range` pada derajat hari:
+// kuartal 6 jam, sepertiga pertama dibuang, ekstrem dua pertiga sisanya.
+//
+// DUA KNOB DI SINI ADALAH KONTROL, BUKAN PARAMETER YANG BOLEH DI-TUNE, dan
+// keduanya ada karena `tools/dfr_zone.py` sudah mengukur konstruk ini di Python
+// dan menemukan bahwa yang menghasilkan angka BUKAN Q1 dan BUKAN aturan
+// pertiga. Rincinya di evidence layer `dfr`; ringkasnya:
+//
+//   - `dfr_q` memilih kuartal sumbernya. Aturan Bucko memakai Q1. Diukur di
+//     empat instrumen 1 jam, 20.000 bar, Q1 justru PALING LEMAH dari empat
+//     kuartal di KEDUA geometri bracket. Jadi kalau lengan Q2 di sini keluar
+//     lebih baik daripada Q1, itu REPLIKASI, bukan penemuan.
+//   - `dfr_side` memilih paruh mana yang diperdagangkan. Pita adalah rentang,
+//     bukan zona berarah, jadi ia harus dibelah sebelum masuk bracket berarah,
+//     dan ia dibelah di ekuilibriumnya sendiri supaya tidak ada satu pun
+//     parameter baru yang masuk lewat pilihan titik belah.
+dfr_q         = input.int(1, "kuartal DFR 1..4 (KONTROL)", group="DFR", minval=1, maxval=4)
+dfr_side      = input.string("supply", "paruh DFR", options=["supply", "demand"], group="DFR")
+// DERAJAT SIKLUS. Cermin `app/quarters.py`, dan dua dari enam derajatnya saja.
+//
+//   day    siklus buka 18:00 New York, kuartal 6 jam
+//   week   siklus buka MINGGU 18:00 New York, kuartal SATU HARI penuh -
+//          Q1 Senin, Q2 Selasa, Q3 Rabu, Q4 Kamis. Jumat bukan kuartal.
+//
+// `month` TIDAK diport, dan itu keputusan yang dinyatakan bukan kelalaian:
+// siklusnya diangkur ke Senin PERTAMA bulan itu, yang butuh aritmetika kalender
+// yang mahal di Pine, sementara konstruknya sudah terukur null di Python di
+// derajat itu. Kalau suatu hari ia perlu diport, `_month_cycle_start_for` di
+// `app/quarters.py` yang harus dicerminkan, bukan tebakan "empat minggu".
+dfr_degree    = input.string("day", "derajat DFR", options=["day", "week"], group="DFR")
+smt_n         = input.int(5,     "swing_n (SMT)",      group="SMT", minval=2)
+
+// KNOB OPTIMAL TRADE ENTRY. Cermin `OteParams`. Pitanya 0,618-0,786 dan kedua
+// rasio itu TIDAK jadi input: mereka diambil dari `fibonacci-primitive.ts`,
+// satu-satunya tempat grid ini digambar, jadi kotak dan grid tidak bisa hanyut.
+ote_n         = input.int(5,     "swing_n",            group="OTE", minval=2)
+ote_gate      = input.float(2.0, "leg_min_atr",        group="OTE", step=0.1)
+
+// KNOB SUPPLY & DEMAND. Default sama dengan `SupplyDemandParams`. Detektor ini
+// beda kelas dari empat lainnya: basenya PANJANGNYA BERAGAM (1 sampai
+// base_max_bars) dan gerbangnya bukan dinilai saat lahir - lihat blok
+// deteksinya di bawah.
+sd_body       = input.float(0.5, "impulse_body_ratio", group="Supply demand", step=0.05)
+sd_impulse    = input.float(1.0, "impulse_atr",        group="Supply demand", step=0.1)
+sd_base_bars  = input.int(6,     "base_max_bars",      group="Supply demand", minval=1)
+sd_base_max   = input.float(2.5, "base_max_atr",       group="Supply demand", step=0.1)
+sd_gate       = input.float(2.0, "departure_min_atr",  group="Supply demand", step=0.1)
+sd_lookahead  = input.int(20,    "departure_lookahead",group="Supply demand", minval=1)
+sd_zone_min   = input.float(0.05,"zone_min_atr",       group="Supply demand", step=0.01)
+sd_drift_max  = input.float(0.6, "max_base_drift",     group="Supply demand", step=0.05)
+
+// KNOB ORDER BLOCK. Default sama dengan `ImbalanceParams`: impuls minimum 1,5
+// ATR diukur atas 5 bar, lalu gerbangnya lantai 2,0 ATR pada besaran yang SAMA.
+disp_atr      = input.float(1.5, "displacement_atr",   group="Order block", step=0.1)
+disp_bars     = input.int(5,     "displacement_bars",  group="Order block", minval=1)
+gate_floor    = input.float(2.0, "gate floor (ATR)",   group="Order block", step=0.1)
+// Lantai tinggi kotak sebagai fraksi RENTANG LILIN, bukan ATR - cermin
+// `MIN_OB_BOX_RANGE`. Satu rentang lilin dihitung dari satu bar, jadi ia sama di
+// jendela mana pun, sementara Wilder ATR bergeser saat jendelanya tumbuh.
+ob_box_floor  = input.float(0.15,"lantai tinggi kotak (rentang lilin)",
+     group="Order block", step=0.01)
+
+// 1 = zona lawan (cermin produksi, default), 0 = R tetap (harness lama).
+target_mode   = input.int(1, "target 1=zona lawan 0=R tetap", group="Trade",
+     minval=0, maxval=1)
+reward_r      = input.float(1.0, "reward (R), mode 0",  group="Trade", step=0.5)
+stop_buf_atr  = input.float(1.0, "stop buffer ATR",    group="Trade", step=0.05)
+horizon       = input.int(80,    "horizon bars",       group="Trade")
+risk_usd      = input.float(1000,"risk per trade USD", group="Trade")
+
+// DIDEKLARASIKAN DI SINI, BUKAN DI DEKAT `qsize`, karena Pine menuntut
+// deklarasi mendahului pemakaian dan loop closedtrades yang menghitung R ada
+// jauh di atas fungsi itu. Versi pertama menaruhnya di bawah dan gagal
+// kompilasi dengan dua "Undeclared identifier" - gagal keras, bukan diam-diam
+// memakai nilai lain.
+pv_of() =>
+    na(syminfo.pointvalue) or syminfo.pointvalue <= 0 ? 1.0 : syminfo.pointvalue
+
+//: Risiko dalam satuan uang instrumen. Untuk spot ia sama dengan `risk_usd`;
+//: untuk futures ia dikali pointvalue supaya `qsize` mengembalikan kuantitas
+//: yang tidak dibulatkan hilang. Lihat catatan panjang di `qsize`.
+risk_eff = risk_usd * pv_of()
+max_pending   = input.int(80,    "max pending zones",  group="Trade")
+// Terukur 7 September 2026: 30 memberi PF 1,079, 300 memberi 1,091, dan 1000
+// memberi angka yang IDENTIK dengan 300, jadi batas ini sudah jenuh.
+wall_memory   = input.int(300, "zona lawan yang diingat", group="Trade", minval=20)
+cost_pct      = input.float(0.0113, "biaya % per sisi", group="Trade", step=0.001,
+     tooltip = "XAU 0,0113 - BTC 0,01329, dari app/costs.py. UNTUK FUTURES MODEL INI SALAH KELAS, bukan cuma salah angka: bursa menagih komisi per KONTRAK, bukan persen dari notional. Di COMEX GC satu kontrak bernilai sekitar 350.000 dolar, jadi 0,0113 persen memberi 1.300 dolar per sisi padahal biaya nyatanya belasan dolar. Untuk GC dipakai 0,002 sebagai perkiraan dari komisi plus satu tick, dan angka itu perkiraan yang DINYATAKAN, bukan turunan dari app/costs.py. TIDAK lewat commission_value karena Pine menuntut const di sana, dan TIDAK lewat dialog Strategy Properties karena dialog itu kembali ke nol setiap TradingView di-restart. Angka di tabel sudah bersih biaya; Strategy Tester bawaan tidak.")
+placebo_atr   = input.float(0.0, "placebo shift ATR",  group="Control", step=0.5)
+win_from      = input.time(timestamp("2000-01-01T00:00:00+0000"), "mulai",  group="Control")
+win_to        = input.time(timestamp("2038-01-01T00:00:00+0000"), "sampai", group="Control")
+
+// DUA KELUARGA ATR, KARENA PRODUKSI MEMAKAI DUA. Bukan pilihan gaya dan bukan
+// duplikasi yang bisa dibersihkan:
+//
+//   `detect_fvg`         -> `mean_true_range`, rata rata TR atas tepat N suku
+//   `detect_order_block` -> `wilder_atr`, RMA disemai dari bar pertama
+//
+// FVG dipindah ke rata rata TR karena Wilder membuat nilainya bergantung berapa
+// bar yang dimuat pemanggil. OB TIDAK dipindah, karena ambang impulsnya
+// dikalibrasi terhadap Wilder - alasan itu di `imbalance.py` baris 345.
+//
+// Sampai pemeriksaan parity 7 September 2026 file ini memakai SATU deret untuk
+// keduanya, jadi setiap angka OB di harness ini diukur dengan keluarga ATR yang
+// SALAH, dan koreksinya MEMBALIK tanda di XAUUSD 4 jam (1,019 jadi 0,926).
+// `ta.atr` ADALAH RMA Wilder, jadi cerminnya ada dan cuma tidak dipakai.
+atr_v = ta.sma(ta.tr(true), atr_len)
+atr_w = ta.atr(atr_len)
+in_win = time >= win_from and time <= win_to
+
+// Order yang masih menunggu terisi.
+var array<float> p_prox = array.new_float()
+var array<float> p_dist = array.new_float()
+var array<int>   p_dir  = array.new_int()
+var array<string> p_id  = array.new_string()
+var array<float> p_h    = array.new_float()
+var array<float> p_stop = array.new_float()
+
+// SETIAP zona yang pernah lahir dan belum pecah, sebagai calon dinding.
+// Terpisah dari daftar pending: zona yang sudah terisi berhenti jadi order tapi
+// TIDAK berhenti jadi dinding bagi zona lain.
+var array<float> w_prox = array.new_float()
+var array<float> w_dist = array.new_float()
+var array<int>   w_dir  = array.new_int()
+
+// INDUK YANG DITUNGGU PECAH, hanya dipakai mode IFVG dan BRK.
+//
+// `_invert` di `app/detect/inversion.py` menolak setiap induk yang `state`-nya
+// bukan BROKEN, lalu memakai kotak yang SAMA dengan sisi DIBALIK: untuk induk
+// demand (proximal=top) inversinya supply, jadi proximal barunya BOTTOM induk
+// dan distalnya TOP induk. Harga baru saja tutup di bawah bottom itu, jadi zona
+// supply barunya duduk di ATAS harga dan limit jualnya menunggu harga kembali.
+//
+// `v_gate` MEMBAWA nilai gerbang induk, tidak menghitungnya ulang - `_invert`
+// meneruskan `zone.departure_atr` dengan alasan tertulis bahwa angka itu
+// menggambarkan KOTAKNYA, dan kotaknya milik induk.
+var array<float> v_top  = array.new_float()
+var array<float> v_bot  = array.new_float()
+var array<int>   v_dir  = array.new_int()
+var array<float> v_gate = array.new_float()
+var array<float> v_h    = array.new_float()
+
+var int c_cand = 0
+var int c_gate = 0
+var int c_fill = 0
+var int c_cancel = 0
+var int c_evict = 0
+var int c_nowall = 0
+var int seen = 0
+var int n_tr = 0
+var int n_win = 0
+var float sum_win = 0.0
+var float sum_loss = 0.0
+var float sum_rr = 0.0
+var float sum_fee = 0.0
+
+vdrop(int k) =>
+    array.remove(v_top,  k)
+    array.remove(v_bot,  k)
+    array.remove(v_dir,  k)
+    array.remove(v_gate, k)
+    array.remove(v_h,    k)
+
+drop(int k) =>
+    array.remove(p_prox, k)
+    array.remove(p_dist, k)
+    array.remove(p_dir,  k)
+    array.remove(p_id,   k)
+    array.remove(p_h,    k)
+    array.remove(p_stop, k)
+
+// Dinding yang harganya sudah tembus BUKAN dinding lagi - baris `state is
+// BROKEN and time_to <= when` di `profit_zone_at`. Dibersihkan tiap bar SEBELUM
+// zona baru mencari dindingnya, supaya yang ditemukan hanya yang hidup.
+if array.size(w_prox) > 0
+    for k = array.size(w_prox) - 1 to 0
+        if (array.get(w_dir, k) == 1 ? close < array.get(w_dist, k) : close > array.get(w_dist, k))
+            array.remove(w_prox, k)
+            array.remove(w_dist, k)
+            array.remove(w_dir,  k)
+
+// SENTUH DIPERIKSA SEBELUM PECAH, sama dengan `replay_lifecycle`.
+//
+// TARGET DIPILIH DI SINI, saat order TERISI - bukan saat zona lahir. Itu yang
+// `intrabar.resolved` lakukan: `profit_zone_at(zone, zones, time[touch])`.
+// Limitnya bisa menunggu berhari-hari, dan dinding yang lahir selama penantian
+// itu NYATA bagi pedagang yang baru terisi sekarang.
+//
+// TIDAK ADA REPAINT DI JALUR INI, diuji SESUDAH target dipindah ke sini.
+// Riwayat dipotong Bar Replay di 2025-06-02 lalu dimajukan dua hari bar:
+// `gross_profit` tetap 868.416,778 sampai sen, `winning_trades` tetap 849 - yang
+// berubah hanya satu trade baru yang tutup sebagai pecundang senilai 998,40.
+if array.size(p_prox) > 0
+    for k = array.size(p_prox) - 1 to 0
+        dir  = array.get(p_dir,  k)
+        dist = array.get(p_dist, k)
+        prox = array.get(p_prox, k)
+        filled = dir == 1 ? low <= prox  : high >= prox
+        broken = dir == 1 ? close < dist : close > dist
+        if filled
+            c_fill += 1
+            fid = array.get(p_id,   k)
+            fh  = array.get(p_h,    k)
+            fst = array.get(p_stop, k)
+            frisk = math.abs(prox - fst)
+            rr = 0.0
+            if target_mode == 1
+                best = 0.0
+                if array.size(w_prox) > 0
+                    for j = 0 to array.size(w_prox) - 1
+                        if array.get(w_dir, j) != dir
+                            gap = dir == 1 ? array.get(w_prox, j) - prox : prox - array.get(w_prox, j)
+                            if gap > 0 and (best == 0.0 or gap < best)
+                                best := gap
+                rr := best > 0 and fh > 0 ? best / fh : 0.0
+            if (target_mode == 0 or rr > 0) and frisk > 0
+                targ = target_mode == 1 ? (dir == 1 ? prox + rr * fh : prox - rr * fh) : (dir == 1 ? prox + reward_r * frisk : prox - reward_r * frisk)
+                sum_rr += target_mode == 1 ? rr * fh / frisk : reward_r
+                strategy.exit("x" + fid, from_entry = fid, stop = fst, limit = targ)
+            else
+                // Produksi TIDAK mengambil trade ini - `plan.target` None dan
+                // barisnya dilewati. Di sini posisinya sudah terlanjur terisi,
+                // jadi ditutup segera dan dihitung terpisah.
+                c_nowall += 1
+                strategy.close(fid)
+            drop(k)
+        else if broken
+            strategy.cancel(array.get(p_id, k))
+            c_cancel += 1
+            drop(k)
+
+// Terukur DATAR dan knob ini tidak pernah mengikat: 20 bar memberi PF 1,088,
+// 80 memberi 1,091, dan 300 juga 1,091. Trade selesai di stop atau target jauh
+// sebelum 20 bar, jadi horizon di sini jaring pengaman, bukan parameter.
+if strategy.opentrades > 0
+    for t = strategy.opentrades - 1 to 0
+        if bar_index - strategy.opentrades.entry_bar_index(t) >= horizon
+            strategy.close(strategy.opentrades.entry_id(t))
+
+if strategy.closedtrades > seen
+    for i = seen to strategy.closedtrades - 1
+        // NOTIONAL JUGA HARUS LEWAT pointvalue, cacat kembar dari `qsize`.
+        // `size()` dihitung dalam KONTRAK, jadi nilai uangnya harga kali
+        // kontrak kali pointvalue. Tanpa itu biaya futures 100 kali terlalu
+        // kecil, dan pada COMEX GC baris biaya membaca 0,0001 R padahal XAU
+        // spot di sel yang sebanding membaca 0,015 R.
+        pvc = pv_of()
+        notional = strategy.closedtrades.entry_price(i) * math.abs(strategy.closedtrades.size(i)) * pvc
+        fee = 2.0 * notional * cost_pct / 100.0
+        sum_fee += fee
+        r = (strategy.closedtrades.profit(i) - fee) / risk_eff
+        n_tr += 1
+        if r > 0
+            n_win += 1
+            sum_win += r
+        else
+            sum_loss += -r
+    seen := strategy.closedtrades
+
+// UKURAN POSISI HARUS LEWAT `syminfo.pointvalue`, dan sampai 8 September 2026
+// tidak. `qty = risk_usd / risk` diam-diam mengasumsikan satu unit bergerak satu
+// dolar per poin - benar untuk CFD spot seperti FX:XAUUSD (pointvalue 1), SALAH
+// untuk futures: satu kontrak COMEX GC adalah 100 troy ounce, jadi pointvalue
+// 100 dan setiap R membesar seratus kali.
+//
+// Terlihat begitu COMEX:GC1! dijalankan pertama kali: PF 0,800 yang masuk akal
+// berdampingan dengan exp_r -9,6389 R, mustahil untuk win 51,79% dengan RR 0,92.
+// -9,6389 / 100 = -0,0964, dan itu besaran yang wajar. PF SELAMAT karena ia
+// rasio dan pengalinya hilang; exp_r, biaya dalam R, dan sum_rr TIDAK.
+//
+// Jadi setiap angka exp_r di rig ini pada instrumen ber-pointvalue bukan 1 salah
+// dengan faktor pointvalue. Seluruh angka XAUUSD dan BTCUSD sebelumnya TIDAK
+// terpengaruh - keduanya pointvalue 1 - jadi ini tidak mencabut apa pun yang
+// sudah diukur, ia membuka instrumen yang sebelumnya tidak bisa dipakai.
+// CACAT KEDUA DI FUNGSI YANG SAMA, ditemukan 8 September 2026, dan ia LEBIH
+// buruk daripada yang pertama karena ia tidak menggeser angka melainkan
+// MEMILIH sampelnya.
+//
+// Perbaikan pointvalue di atas membuat qty benar dalam kontrak, dan justru itu
+// yang membuka cacatnya: pada GC, `risk_usd / (risk * 100)` dengan default
+// risk_usd 1000 memberi `10 / risk`, jadi setiap stop yang lebih lebar dari 10
+// dolar memberi kurang dari SATU kontrak. TradingView membulatkan kuantitas
+// pecahan ke bawah, jadi order-order itu tidak pernah jadi posisi - sementara
+// penghitung `fill` di berkas ini tetap menghitungnya.
+//
+// Akibatnya bukan angka yang meleset, melainkan populasi yang tersaring diam
+// diam ke arah STOP RAPAT. Terukur di COMEX:GC1! harian, detektor FVG:
+//
+//     risk_usd 1.000    fill 537, n 132 (25%), PF 1,167
+//     risk_usd 100.000  fill 537, n 496 (92%), PF 0,923
+//
+// Mekanismenya dikonfirmasi dengan membalikkannya: menurunkan risk_usd ke 10
+// sesudah perbaikan - yang mengembalikan qty ke besaran lama - mereproduksi
+// n=132 dan PF 1,167 PERSIS. Jadi yang menggerakkannya besaran qty, bukan
+// tebakan.
+//
+// SIAPA YANG KENA, DIUKUR BUKAN DIASUMSIKAN. Versi pertama catatan ini menulis
+// "setiap angka futures di repo ini" dan itu TERLALU LUAS. Diperiksa satu per
+// satu di GC1! harian sesudah perbaikan:
+//
+//     FVG   1,167 -> 0,923   KENA, populasi 132 -> 496
+//     SD    0,797 -> 0,797   TIDAK, n=251 identik
+//     OTE   0,876 -> 0,876   TIDAK, n=622 identik
+//
+// Jadi ia bergantung pada sebaran lebar stop tiap detektor: kalau qty lama
+// sudah di atas satu kontrak, tidak ada yang dibulatkan hilang. Angka XAUUSD
+// dan BTCUSD spot juga tidak terpengaruh - pointvalue 1 di sana.
+//
+// PERBAIKANNYA MENSKALAKAN RISIKO, BUKAN KUANTITAS, dan `risk_eff` dipakai di
+// KETIGA tempat yang menyentuh satuan R. Itu bukan kerapian: menaikkan qty
+// tanpa menaikkan pembagi R akan menghidupkan kembali cacat pointvalue yang
+// baru saja diperbaiki di atas, karena profit satu R ikut membesar pv kali.
+// Karena pembilang dan pembagi bergerak bersama, tidak satu pun angka spot
+// bergerak - diperiksa: biaya per trade 0,0022 R sebelum, 0,0023 R sesudah.
+qsize(float risk_price) =>
+    risk_eff / (risk_price * pv_of())
+
+// ---- KANDIDAT FAIR VALUE GAP ----
+f_scale  = atr_v[3]
+f_bull   = high[2] < low[0]
+f_bear   = low[2]  > high[0]
+f_mother = high[1] >= high[2] and high[1] >= high[0] and low[1] <= low[2] and low[1] <= low[0]
+f_rng    = high[1] - low[1]
+f_body   = math.abs(close[1] - open[1])
+f_doji   = min_body > 0 and f_rng > 0 and f_body / f_rng < min_body
+f_top0   = f_bull ? low[0]  : low[2]
+f_bot0   = f_bull ? high[2] : high[0]
+f_ok     = (f_bull or f_bear) and not na(f_scale) and f_scale > 0 and
+             not (filter_mother and f_mother) and not f_doji
+
+// ---- KANDIDAT ORDER BLOCK ----
+//
+// LANJUTAN BARIS DI PINE TIDAK BOLEH DIINDENT KELIPATAN 4. Indent seperti itu
+// dibaca sebagai blok baru, dan pesan compilernya menunjuk kolom terakhir baris
+// pertama ("expecting set ':'") alih-alih menyebut indentasinya. Tiga ternary di
+// bawah pernah kena; sekarang ditulis satu baris supaya tidak bisa terulang.
+//
+// LILIN BLOCK ADALAH `disp_bars` BAR YANG LALU, bukan bar ini. Kotaknya baru
+// bisa diketahui setelah jendela impuls selesai tercetak - `born = i +
+// displacement_bars` di `detect_order_block`.
+//
+// `ta.highest`/`ta.lowest` DI TOP LEVEL, bukan di dalam cabang: compiler
+// memperingatkan keduanya harus dipanggil di setiap kalkulasi supaya konsisten.
+o_hi_close = ta.highest(close, disp_bars)
+o_lo_close = ta.lowest(close, disp_bars)
+o_scale    = atr_w[disp_bars + 1]
+o_bear     = close[disp_bars] < open[disp_bars]
+o_bullc    = close[disp_bars] > open[disp_bars]
+// "TERAKHIR" ditegakkan tanpa diskresi: lilin BERIKUTNYA harus tutup ke arah
+// lain, karena lilin itu adalah impulsnya yang mulai. Doji jadi bukan keduanya.
+o_turned   = o_bear ? close[disp_bars - 1] > open[disp_bars - 1] : close[disp_bars - 1] < open[disp_bars - 1]
+// IMPULS KE CLOSE EKSTREM, BUKAN KE SUMBU. Terukur di produksi: 30,6 persen
+// block lolos ambang HANYA karena sebuah wick yang tak pernah dikonfirmasi.
+o_raw      = o_bear ? (o_hi_close - close[disp_bars]) / o_scale : (close[disp_bars] - o_lo_close) / o_scale
+// DIBULATKAN TIGA DESIMAL, karena `_finish` menyimpan
+// `departure_atr=round(displacement, 3)` dan GERBANGNYA membandingkan angka
+// yang sudah dibulatkan itu. Impuls 1,9996 lolos lantai 2,0 di produksi.
+o_move     = math.round(o_raw * 1000) / 1000
+// KOTAKNYA BADAN LILIN, bukan rentang penuh: stop duduk di luar distal, jadi
+// risk per unit ADALAH tinggi kotak, dan rentang penuh menyerahkan besaran itu
+// ke panjang sumbu - kuantitas yang tak berhubungan dengan sinyalnya.
+o_bt0      = math.max(open[disp_bars], close[disp_bars])
+o_bb0      = math.min(open[disp_bars], close[disp_bars])
+// Lantai tinggi kotak, dimekarkan SIMETRIS lalu DIGESER KEMBALI KE DALAM
+// lilinnya kalau badannya menempel di high atau low. Digeser dan bukan
+// dikecilkan, karena tingginya harus tetap sama dengan yang diukur.
+o_need     = (high[disp_bars] - low[disp_bars]) * ob_box_floor - (o_bt0 - o_bb0)
+o_bt1      = o_need > 0 ? o_bt0 + o_need / 2.0 : o_bt0
+o_bb1      = o_need > 0 ? o_bb0 - o_need / 2.0 : o_bb0
+o_bt2      = o_bt1 > high[disp_bars] ? high[disp_bars] : o_bt1
+o_bb2      = o_bt1 > high[disp_bars] ? o_bb1 - (o_bt1 - high[disp_bars]) : o_bb1
+o_bb       = o_bb2 < low[disp_bars] ? low[disp_bars] : o_bb2
+o_bt       = o_bb2 < low[disp_bars] ? o_bt2 + (low[disp_bars] - o_bb2) : o_bt2
+o_ok       = (o_bear or o_bullc) and o_turned and not na(o_scale) and o_scale > 0 and
+               o_move >= disp_atr
+
+// ---- SUPPLY & DEMAND, detektor 4 -----------------------------------------
+//
+// BENTUKNYA BEDA DARI EMPAT LAINNYA, dan bukan cuma rumusnya. Empat detektor di
+// atas tahu nilai gerbangnya di bar zona itu lahir. S&D TIDAK: `departure_atr`
+// di `supply_demand.py` diukur atas jendela yang DIPOTONG DI SENTUHAN PERTAMA,
+// dan komentar di sana mencatat kenapa - tanpa potongan itu 34 persen zona yang
+// digambar produk akan GAGAL gerbang bila dinilai pada saat seorang trader
+// benar-benar bisa bertindak.
+//
+// Terjemahan kausalnya, dan itu yang dipakai di sini: gerbang LOLOS kalau
+// excursion mencapai `sd_gate` ATR SEBELUM harga kembali menyentuh kotaknya,
+// dan dalam `sd_lookahead` bar. Jadi ordernya tidak dipasang saat lahir
+// melainkan saat ambangnya tercapai - persis informasi yang tersedia saat itu,
+// tanpa melihat ke depan. Kalau harga menyentuh lebih dulu, kandidatnya mati
+// tanpa pernah jadi order.
+//
+// Konsekuensi yang harus dibaca bersama angkanya: sebuah zona S&D yang GAGAL
+// gerbang di sini tidak pernah memasang limit, sementara di FVG/OB limitnya
+// terpasang lalu barisnya disaring. Populasi "cand" karena itu tidak sebanding
+// antar detektor pada baris tabel yang sama.
+sd_prev_atr = atr_w[1]
+sd_rng      = high - low
+sd_bodyr    = math.abs(close - open) / math.max(sd_rng, 1e-12)
+sd_excite   = sd_bodyr >= sd_body and sd_rng >= sd_impulse * sd_prev_atr
+sd_lab      = not sd_excite ? 0 : (close > open ? 1 : close < open ? -1 : 0)
+// Lantai tinggi kotak memakai RATA-RATA SEDERHANA true range, bukan Wilder, dan
+// itu disengaja di `flat_atr`: RMA tidak pernah sepenuhnya melupakan seed-nya,
+// jadi harga yang DIGAMBAR dari lantai berbasis RMA bergeser saat tepi kiri
+// jendela bergeser. Terukur: satu zona sama melaporkan bottom 3518,24852106
+// lawan 3518,24600835 untuk panjang riwayat berbeda.
+sd_flat     = ta.sma(ta.tr(true), atr_len)
+
+var int sd_rlab  = 0
+var int sd_rstart = 0
+var int sd_p1lab = 0
+var int sd_p1start = 0
+var int sd_p1end = 0
+var int sd_p2lab = 0
+var int sd_seq   = 0
+
+var array<float> s_top   = array.new_float()
+var array<float> s_bot   = array.new_float()
+var array<int>   s_dir   = array.new_int()
+var array<float> s_atr   = array.new_float()
+var array<float> s_ext   = array.new_float()
+var array<int>   s_born  = array.new_int()
+var array<int>   s_seq   = array.new_int()
+
+sdDrop(int k) =>
+    array.remove(s_top, k)
+    array.remove(s_bot, k)
+    array.remove(s_dir, k)
+    array.remove(s_atr, k)
+    array.remove(s_ext, k)
+    array.remove(s_born, k)
+    array.remove(s_seq, k)
+
+isSD = detector == 4
+isOTE = detector == 5
+isCZ = detector == 6
+isLQ = detector == 7
+isPSP = detector == 8
+isSMT = detector == 9
+isDFR = detector == 10
+
+// ---- OPTIMAL TRADE ENTRY, detektor 5 --------------------------------------
+//
+// PITA 0,618-0,786 DI ATAS SATU LEG STRUKTUR, dan ia mengukur apa yang SUDAH
+// digambar: grid Fibonacci sembilan level di `fibonacci-primitive.ts` sudah
+// tampil di chart sejak lama, tapi tidak pernah jadi KOTAK yang bisa diukur.
+//
+// DUA DEFINISI OTE HIDUP DI REPO INI DAN MEREKA TIDAK SETUJU. Yang dipakai di
+// sini SWING STRUKTUR - yang digambar. Klausa `ote` di `app/ict.py` memakai
+// DEALING RANGE dengan swing_n 50 dan dibaca di sentuhan pertama. Praregistrasi
+// yang gagal nol-dari-dua-belas menguji yang KEDUA, bukan yang ini.
+//
+// ATR DISIMPAN SAAT PIVOT CONFIRM, bukan dibaca mundur ke bar pivotnya. Python
+// memakai `atr[origin]` dengan indeks absolut; di Pine offset itu bisa ratusan
+// bar kalau sebuah swing bertahan lama, dan `max_bars_back` akan menggigit
+// diam-diam. Di bar konfirmasi, pivotnya tepat `ote_n` bar di belakang, jadi
+// `atr_w[ote_n]` ADALAH ATR di bar pivot - sama persis, tanpa offset besar.
+var float e_hiP = na
+var int   e_hiI = na
+var float e_hiA = na
+var float e_loP = na
+var int   e_loI = na
+var float e_loA = na
+var int   e_lastHi = -1
+var int   e_lastLo = -1
+
+e_ph = ta.pivothigh(high, ote_n, ote_n)
+e_pl = ta.pivotlow(low, ote_n, ote_n)
+
+e_ok    = false
+e_bull  = false
+e_top   = 0.0
+e_bot   = 0.0
+e_scale = 0.0
+e_dep   = 0.0
+
+if isOTE
+    if not na(e_ph)
+        e_hiP := e_ph
+        e_hiI := bar_index - ote_n
+        e_hiA := atr_w[ote_n]
+    if not na(e_pl)
+        e_loP := e_pl
+        e_loI := bar_index - ote_n
+        e_loA := atr_w[ote_n]
+    // Satu kotak per PASANGAN anchor, bukan per bar. Tanpa penjaga ini setiap
+    // bar sesudah konfirmasi akan melahirkan ulang kotak yang sama.
+    baru = not na(e_hiI) and not na(e_loI) and (e_hiI != e_lastHi or e_loI != e_lastLo)
+    if baru
+        e_lastHi := e_hiI
+        e_lastLo := e_loI
+        leg = e_hiP - e_loP
+        if leg > 0
+            // Anchor mana yang lebih baru menentukan arah leg, dan arah leg
+            // menentukan sisi. Leg NAIK di-retrace turun, jadi pitanya demand.
+            up = e_hiI > e_loI
+            e_bull  := up
+            e_scale := up ? e_loA : e_hiA
+            e_top   := up ? e_hiP - 0.618 * leg : e_loP + 0.786 * leg
+            e_bot   := up ? e_hiP - 0.786 * leg : e_loP + 0.618 * leg
+            // Dibulatkan tiga desimal, sama dengan `round(departure, 3)` di
+            // `detect/ote.py`, supaya gerbangnya membandingkan angka yang sama.
+            e_dep   := na(e_scale) or e_scale <= 0 ? 0.0 : math.round(leg / e_scale * 1000) / 1000
+            // GERBANGNYA TIDAK DI SINI, dan itu perbaikan 8 September 2026.
+            // Versi pertama menaruh `e_dep >= ote_gate` di dalam `e_ok`,
+            // jadi `c_cand` naik hanya untuk zona yang SUDAH lolos dan
+            // tabel membaca cand 679 gate 679 - kolom kandidat berhenti
+            // sebanding dengan lima detektor lain, yang menghitung sebelum
+            // gerbang. Trade-nya tidak berubah; yang berubah corongnya
+            // bisa dibaca. Gerbang dijalankan `gatePass` di jalur bersama.
+            e_ok    := not na(e_scale) and e_scale > 0
+
+// ---- CISD SEBAGAI KOTAK, detektor 6 --------------------------------------
+//
+// TEPI KEDUANYA EKSTREM RUN, dan konstruknya sendiri cuma menyebut satu harga:
+// open lilin PERTAMA run. `CISDDetector.mqh` menuliskannya - "INI BUKAN BOX" -
+// dan LuxAlgo setuju: 502 GARIS di XAUUSD harian, nol kotak. Ekstremnya dicatat
+// di loop yang memang sudah berjalan, jadi ia tambahan gratis dan bukan
+// konstanta baru.
+//
+// SATU TANDA YANG TERBALIK MEMBUNUH SELURUH DETEKTOR, dan itu terjadi di
+// percobaan pertama sisi Python: run NAIK dicatat LOW-nya, jadi `level` dan
+// `extreme` jatuh di sisi yang sama dan SELURUH 377 kotak tinggi nol. Gagalnya
+// keras dan langsung terlihat, bukan kotak salah bentuk yang diam-diam lolos.
+// Di sini arahnya ditulis sekali: run naik mengantar ke HIGH, run turun ke LOW.
+//
+// Level dipersenjatai SAAT RUN-nya PUTUS, bukan saat ia mulai, dan pemeriksaan
+// tembus datang SESUDAH persenjataan di bar yang sama - urutan yang persis sama
+// dengan `cisds`, tempat `by_confirm` mengarmiskan lalu `close` diperiksa.
+cz_d = close > open ? 1 : close < open ? -1 : 0
+
+var int   z_dir  = 0
+var int   z_len  = 0
+var float z_open = na
+var float z_far  = na
+var float z_atr  = na
+
+var float z_upO = na
+var float z_upF = na
+var float z_upA = na
+var float z_dnO = na
+var float z_dnF = na
+var float z_dnA = na
+
+y_ok    = false
+y_bull  = false
+y_top   = 0.0
+y_bot   = 0.0
+y_scale = 0.0
+y_dep   = 0.0
+
+if isCZ
+    if z_dir != 0 and cz_d == z_dir
+        z_len += 1
+        z_far := z_dir > 0 ? math.max(z_far, high) : math.min(z_far, low)
+    else
+        // Run putus. Kalau cukup panjang ia mempersenjatai level di sisinya.
+        if z_dir > 0 and z_len >= cz_run
+            z_upO := z_open
+            z_upF := z_far
+            z_upA := z_atr
+        if z_dir < 0 and z_len >= cz_run
+            z_dnO := z_open
+            z_dnF := z_far
+            z_dnA := z_atr
+        // Toleransi 0: `end + 1` selalu bar sekarang, jadi run berikutnya mulai
+        // di sini kalau bar ini mengantar, dan tidak ada yang terlewat.
+        if cz_d != 0
+            z_dir  := cz_d
+            z_len  := 1
+            z_open := open
+            z_far  := cz_d > 0 ? high : low
+            // ATR di bar SEBELUM run mulai, cermin `atr[run_start - 1]`.
+            z_atr  := atr_w[1]
+        else
+            z_dir := 0
+            z_len := 0
+
+    // Tembus, dan NAIK diperiksa lebih dulu - sama dengan urutan di `cisds`.
+    if not na(z_dnO) and close > z_dnO
+        y_bull  := true
+        y_top   := z_dnO
+        y_bot   := z_dnF
+        y_scale := z_dnA
+        z_dnO   := na
+    else if not na(z_upO) and close < z_upO
+        y_bull  := false
+        y_top   := z_upF
+        y_bot   := z_upO
+        y_scale := z_upA
+        z_upO   := na
+    if y_top > y_bot and not na(y_scale) and y_scale > 0
+        y_dep := math.round((y_top - y_bot) / y_scale * 1000) / 1000
+        y_ok  := y_dep >= cz_floor
+
+// ---- LIKUIDITAS BSL/SSL SEBAGAI KOTAK, detektor 7 -------------------------
+//
+// Cermin `detect/liquidity_pool.py`. Tiga hal yang harus dibaca sebelum
+// angkanya dipakai:
+//
+// 1. PIVOTNYA DITULIS TANGAN, BUKAN `ta.pivothigh`. Aturan seri di
+//    `structure.swings` adalah maksimum KETAT di kiri dan tidak-terlampaui di
+//    kanan; `ta.pivothigh` tidak menjanjikan aturan seri yang sama, dan satu
+//    beda seri memindahkan pivot ke bar lain sehingga seluruh kluster bergeser.
+// 2. TOLERANSI MILIK KLUSTER, dibekukan saat kluster lahir - bukan diambil dari
+//    ATR di bar pivot yang baru datang. Pita sebuah kolam adalah properti kolam.
+// 3. SKALANYA `atr_v`, BUKAN `atr_w`. Wilder disemai dari bar pertama, jadi
+//    nilainya bergantung berapa bar yang dimuat - dan di sini ATR menetapkan
+//    TOLERANSI PENGELOMPOKAN, jadi ia memutuskan pivot mana yang sekolam dan
+//    menggeser POPULASI, bukan cuma rasio. Terukur dengan Wilder: deret penuh
+//    memberi 5 zona di 100 bar terakhir, potongan 100 bar memberi 4.
+// 4. TIDAK ADA DEDUPE DI SINI, sama seperti enam detektor lain di berkas ini,
+//    sementara Python memanggil `_dedupe`. Jadi populasi di sini LEBIH BESAR.
+//    Itu cacat parity yang sudah diketahui dan diukur untuk cisd_zone (+44%),
+//    ote (+11%) dan supply_demand (0%); untuk layer ini angkanya belum diukur.
+//
+// SATU SLOT PER BAR. Sebuah pivot high dan pivot low bisa terkonfirmasi di bar
+// yang SAMA, dan Python memancarkan keduanya. Jalur bersama di berkas ini cuma
+// punya satu slot zona per bar, jadi BSL diperiksa lebih dulu dan SSL kalah di
+// bar itu. Itu batas harness, bukan aturan detektor, dan ia dinyatakan di sini
+// supaya selisih populasi tidak dibaca sebagai selisih deteksi.
+var float[] bAnc  = array.new_float()
+var float[] bTolA = array.new_float()
+var float[] bLo   = array.new_float()
+var float[] bHi   = array.new_float()
+var float[] bExt  = array.new_float()
+var float[] bScl  = array.new_float()
+var int[]   bLast = array.new_int()
+var int[]   bCnt  = array.new_int()
+var bool[]  bEmit = array.new_bool()
+
+var float[] sAnc  = array.new_float()
+var float[] sTolA = array.new_float()
+var float[] sLo   = array.new_float()
+var float[] sHi   = array.new_float()
+var float[] sExt  = array.new_float()
+var float[] sScl  = array.new_float()
+var int[]   sLast = array.new_int()
+var int[]   sCnt  = array.new_int()
+var bool[]  sEmit = array.new_bool()
+
+l_ok    = false
+l_bull  = false
+l_top   = 0.0
+l_bot   = 0.0
+l_scale = 0.0
+l_dep   = 0.0
+l_got   = false
+
+if isLQ and bar_index > lq_n * 2 + 2
+    // EKSTREM BERJALAN DILIPAT SATU BAR PER BAR, bukan dihitung ulang dengan
+    // loop offset variabel. Bar yang dilipat di sini berindeks
+    // `bar_index - lq_n - 1`, yang persis bar TERAKHIR di rentang Python
+    // [last + 1, pivot). Jadi saat sebuah pivot terkonfirmasi, ekstremnya sudah
+    // memuat tepat rentang itu dan tidak satu bar pun lebih.
+    fidx = bar_index - lq_n - 1
+    if array.size(bAnc) > 0
+        for i = 0 to array.size(bAnc) - 1
+            if fidx > array.get(bLast, i)
+                array.set(bExt, i, math.max(array.get(bExt, i), high[lq_n + 1]))
+    if array.size(sAnc) > 0
+        for i = 0 to array.size(sAnc) - 1
+            if fidx > array.get(sLast, i)
+                array.set(sExt, i, math.min(array.get(sExt, i), low[lq_n + 1]))
+
+    okh = true
+    okl = true
+    for k = 1 to lq_n
+        if high[lq_n] <= high[lq_n + k]
+            okh := false
+        if high[lq_n] < high[lq_n - k]
+            okh := false
+        if low[lq_n] >= low[lq_n + k]
+            okl := false
+        if low[lq_n] > low[lq_n - k]
+            okl := false
+
+    pidx = bar_index - lq_n
+    // ATR di bar SEBELUM pivot, offset TETAP - cermin `atr[origin - 1]`.
+    pscl = atr_v[lq_n + 1]
+    ptol = lq_tol * atr_v
+
+    if okh and atr_v > 0
+        // Buang kluster yang likuiditasnya sudah diambil.
+        if array.size(bAnc) > 0
+            for i = array.size(bAnc) - 1 to 0
+                if array.get(bExt, i) > array.get(bAnc, i) + array.get(bTolA, i)
+                    array.remove(bAnc, i)
+                    array.remove(bTolA, i)
+                    array.remove(bLo, i)
+                    array.remove(bHi, i)
+                    array.remove(bExt, i)
+                    array.remove(bScl, i)
+                    array.remove(bLast, i)
+                    array.remove(bCnt, i)
+                    array.remove(bEmit, i)
+        hit = -1
+        if array.size(bAnc) > 0
+            for j = 0 to array.size(bAnc) - 1
+                if hit < 0 and math.abs(high[lq_n] - array.get(bAnc, j)) <= array.get(bTolA, j)
+                    hit := j
+        if hit < 0
+            array.push(bAnc, high[lq_n])
+            array.push(bTolA, ptol)
+            array.push(bLo, high[lq_n])
+            array.push(bHi, high[lq_n])
+            array.push(bExt, -1e30)
+            array.push(bScl, pscl)
+            array.push(bLast, pidx)
+            array.push(bCnt, 1)
+            array.push(bEmit, false)
+        else
+            array.set(bCnt, hit, array.get(bCnt, hit) + 1)
+            array.set(bLo, hit, math.min(array.get(bLo, hit), high[lq_n]))
+            array.set(bHi, hit, math.max(array.get(bHi, hit), high[lq_n]))
+            array.set(bLast, hit, pidx)
+            array.set(bExt, hit, -1e30)
+            if not array.get(bEmit, hit) and array.get(bCnt, hit) >= lq_touch
+                array.set(bEmit, hit, true)
+                // BSL duduk di SUPPLY: stop beli beristirahat DI ATAS harga.
+                // PITA TOLERANSI DITAMBAHKAN DI SISI STOP, cermin perubahan
+                // 8 September 2026 di `detect/liquidity_pool.py`: proximal
+                // tetap equal high TERENDAH, distal didorong `tol` melewati
+                // yang tertinggi ke tempat stop benar-benar duduk. Sebaran
+                // teramati saja mengecilkan kolamnya - dan menghasilkan kotak
+                // yang lebih pendek dari 14 piksel di chart.
+                l_bull  := false
+                l_top   := array.get(bHi, hit) + array.get(bTolA, hit)
+                l_bot   := array.get(bLo, hit)
+                l_scale := array.get(bScl, hit)
+                l_got   := true
+
+    if okl and atr_v > 0 and not l_got
+        if array.size(sAnc) > 0
+            for i = array.size(sAnc) - 1 to 0
+                if array.get(sExt, i) < array.get(sAnc, i) - array.get(sTolA, i)
+                    array.remove(sAnc, i)
+                    array.remove(sTolA, i)
+                    array.remove(sLo, i)
+                    array.remove(sHi, i)
+                    array.remove(sExt, i)
+                    array.remove(sScl, i)
+                    array.remove(sLast, i)
+                    array.remove(sCnt, i)
+                    array.remove(sEmit, i)
+        hitl = -1
+        if array.size(sAnc) > 0
+            for j = 0 to array.size(sAnc) - 1
+                if hitl < 0 and math.abs(low[lq_n] - array.get(sAnc, j)) <= array.get(sTolA, j)
+                    hitl := j
+        if hitl < 0
+            array.push(sAnc, low[lq_n])
+            array.push(sTolA, ptol)
+            array.push(sLo, low[lq_n])
+            array.push(sHi, low[lq_n])
+            array.push(sExt, 1e30)
+            array.push(sScl, pscl)
+            array.push(sLast, pidx)
+            array.push(sCnt, 1)
+            array.push(sEmit, false)
+        else
+            array.set(sCnt, hitl, array.get(sCnt, hitl) + 1)
+            array.set(sLo, hitl, math.min(array.get(sLo, hitl), low[lq_n]))
+            array.set(sHi, hitl, math.max(array.get(sHi, hitl), low[lq_n]))
+            array.set(sLast, hitl, pidx)
+            array.set(sExt, hitl, 1e30)
+            if not array.get(sEmit, hitl) and array.get(sCnt, hitl) >= lq_touch
+                array.set(sEmit, hitl, true)
+                // SSL duduk di DEMAND, cermin dari catatan di cabang BSL.
+                l_bull  := true
+                l_top   := array.get(sHi, hitl)
+                l_bot   := array.get(sLo, hitl) - array.get(sTolA, hitl)
+                l_scale := array.get(sScl, hitl)
+                l_got   := true
+
+    if l_got and l_top > l_bot and l_scale > 0
+        l_dep := math.round((l_top - l_bot) / l_scale * 1000) / 1000
+        l_ok  := true
+
+// ---- PSP SEBAGAI KOTAK, detektor 8 ----------------------------------------
+//
+// Cermin `psp.at_bar`, dan itu disengaja sampai ke pemilihan fungsinya.
+// `app/psp.py` menulis peringatannya sendiri: "ONE PREDICATE, USED TWICE -
+// `psp_outcomes.py` measured the object with this function and `app/main.py`
+// draws it with this function... A second copy of the arithmetic would have
+// measured the copy." Blok ini adalah salinan ketiga, jadi ia menyalin
+// `at_bar` baris per baris dan bukan gagasan tentang PSP.
+//
+//     level  = open bar `psp_back` ke belakang
+//     buy    = open >= level and low  < level and close > level
+//     sell   = open <= level and high > level and close < level
+//
+// GUARD `open` ITU BUKAN HIASAN. Tanpa `open <= level` cabang sell juga
+// menyala pada bar yang BUKA di atas level lalu tutup di bawahnya, dan itu
+// penembusan biasa yang tidak memurnikan apa pun. Docstring Python mencatat
+// cacat itu ditemukan oleh tes yang fixture-nya sengaja dibuat non-event.
+//
+// KOTAKNYA: proximal di LEVEL, distal di ekstrem sapuan. Tidak ada konstanta
+// baru - keduanya harga yang barnya sudah punya, bentuk yang sama dengan
+// `cisd_zone`. Buy PSP menyapu ke BAWAH, jadi kotaknya level..low dan sisinya
+// DEMAND; sell cerminnya.
+//
+// YANG TIDAK IKUT, DINYATAKAN: syarat SSMT dan syarat triad `in_same_candle`.
+// Keduanya butuh instrumen partner. Yang membuat kelalaian itu bisa
+// dipertahankan adalah H2 di `docs/psp_outcomes.json`, yang khusus menanyakan
+// apakah SSMT di depan PSP menambah sesuatu dan menjawab TIDAK, dengan laju
+// crack triad identik di kedua lengan (0,2644 lawan 0,2644). Jadi yang
+// di-backtest di sini adalah PSP tanpa gerbang triadnya, dan itu bukan PSP
+// doktrinal secara utuh.
+p_lvl   = open[psp_back]
+p_buy   = open >= p_lvl and low  < p_lvl and close > p_lvl
+p_sell  = open <= p_lvl and high > p_lvl and close < p_lvl
+
+p_ok    = false
+p_bull  = false
+p_top   = 0.0
+p_bot   = 0.0
+p_scale = 0.0
+p_dep   = 0.0
+
+if isPSP and (p_buy or p_sell)
+    p_bull  := p_buy
+    p_top   := p_buy ? p_lvl : high
+    p_bot   := p_buy ? low   : p_lvl
+    // Skala di bar SEBELUM barnya sendiri, sama dengan lima detektor lain.
+    p_scale := atr_v[1]
+    if p_top > p_bot and p_scale > 0
+        p_dep := math.round((p_top - p_bot) / p_scale * 1000) / 1000
+        p_ok  := true
+
+// ---- SMT SEBAGAI KOTAK, detektor 9 ---------------------------------------
+//
+// Dua instrumen tidak sepakat soal sebuah ekstrem: yang satu membuat high yang
+// lebih tinggi dari swing high SEBELUMNYA, yang lain gagal.
+//
+// INI BUKAN CERMIN `app/ssmt.smt`, DAN VERSI PERTAMA BLOK INI MENGKLAIM BEGITU.
+// Klaim itu salah dan dicabut 9 September 2026. Dua konstruk yang berbeda:
+//
+//     app/ssmt.smt   kuartal sekarang lawan ekstrem BERJALAN di jendela,
+//                    diangkur ke grid kuartal `app/quarters.py`
+//     blok ini       pivot swing sekarang lawan pivot swing SEBELUMNYA
+//
+// Yang di sini adalah bentuk yang dipakai script publik - `SMT Divergences
+// [LuxAlgo]` menggambar konektor antar SWING POINT - jadi angka yang keluar
+// dari sini adalah benchmark KONSTRUK PUBLIK lewat bracket repo ini, bukan
+// pengukuran SMT yang Zonelab gambar. Jangan mengutipnya untuk layer `smt`.
+//
+// Memport konstruk Zonelab-nya berarti memport grid kuartal, yaitu alasan yang
+// sama kenapa SSMT tidak ikut - lihat catatan di knob.
+//
+// LOOKAHEAD MATI, dan itu bukan default yang bisa diandalkan diam-diam:
+// `request.security` tanpa `lookahead` memakai `barmerge.lookahead_off`, tapi
+// ia ditulis EKSPLISIT di sini karena satu argumen yang hilang di baris ini
+// akan memberi harga partner dari masa depan dan setiap angka di bawah jadi
+// fiksi tanpa satu pun tes berubah warna.
+smt_ph = request.security(smt_sym, timeframe.period, high,
+     lookahead = barmerge.lookahead_off)
+smt_pl = request.security(smt_sym, timeframe.period, low,
+     lookahead = barmerge.lookahead_off)
+
+var float m_prevHi = na
+var float m_prevLo = na
+var float m_pPrevHi = na
+var float m_pPrevLo = na
+
+m_ok    = false
+m_bull  = false
+m_top   = 0.0
+m_bot   = 0.0
+m_scale = 0.0
+m_dep   = 0.0
+
+if isSMT and bar_index > smt_n * 2 + 2
+    // Pivot ditulis tangan, aturan seri yang sama dengan `structure.swings`.
+    okh = true
+    okl = true
+    for k = 1 to smt_n
+        if high[smt_n] <= high[smt_n + k]
+            okh := false
+        if high[smt_n] < high[smt_n - k]
+            okh := false
+        if low[smt_n] >= low[smt_n + k]
+            okl := false
+        if low[smt_n] > low[smt_n - k]
+            okl := false
+
+    px  = high[smt_n]
+    pl  = low[smt_n]
+    ppx = smt_ph[smt_n]
+    ppl = smt_pl[smt_n]
+
+    if okh
+        if not na(m_prevHi) and not na(m_pPrevHi)
+            // DIVERGENSI: satu menembus swing high sebelumnya, satunya tidak.
+            self_took = px > m_prevHi
+            part_took = ppx > m_pPrevHi
+            if self_took != part_took
+                // Kotaknya: level referensi (swing high sebelumnya) ke ekstrem
+                // yang baru. Bentuk yang sama dengan CISD dan PSP - dua harga
+                // yang barnya sudah punya, tanpa konstanta baru.
+                m_bull  := false
+                m_top   := math.max(px, m_prevHi)
+                m_bot   := math.min(px, m_prevHi)
+                m_scale := atr_v[smt_n + 1]
+        m_prevHi  := px
+        m_pPrevHi := ppx
+
+    if okl and m_top == 0.0
+        if not na(m_prevLo) and not na(m_pPrevLo)
+            self_took = pl < m_prevLo
+            part_took = ppl < m_pPrevLo
+            if self_took != part_took
+                m_bull  := true
+                m_top   := math.max(pl, m_prevLo)
+                m_bot   := math.min(pl, m_prevLo)
+                m_scale := atr_v[smt_n + 1]
+        m_prevLo  := pl
+        m_pPrevLo := ppl
+
+    if m_top > m_bot and not na(m_scale) and m_scale > 0
+        m_dep := math.round((m_top - m_bot) / m_scale * 1000) / 1000
+        m_ok  := true
+
+// ---- DETEKTOR 10, DEFINING RANGE ----
+//
+// Kuartal derajat HARI dalam waktu New York, sesuai `app/quarters.py`:
+// Q1 18:00-00:00, Q2 00:00-06:00, Q3 06:00-12:00, Q4 12:00-18:00. Sepertiga
+// pertama dibuang, jadi jendela yang disimpan mulai dua jam setelah kuartalnya
+// buka dan tutup saat kuartalnya tutup.
+//
+// PITANYA LAHIR SAAT JENDELA TUTUP, bukan saat ia terbentuk. Itu bukan
+// kerapian: sebelum jendela berakhir ekstremnya masih bisa berubah, jadi kotak
+// yang digambar lebih awal akan BERGERAK. `defining_range` di Python menolak
+// mengembalikan apa pun sebelum Q1 provably closed karena alasan yang sama.
+ny_h  = hour(time, "America/New_York")
+ny_d  = dayofweek(time, "America/New_York")
+
+// DERAJAT HARI. Kuartal 6 jam, sepertiga pertama dibuang, jadi jendela yang
+// disimpan mulai dua jam setelah kuartalnya buka.
+q_open = dfr_q == 1 ? 18 : dfr_q == 2 ? 0 : dfr_q == 3 ? 6 : 12
+k_from = (q_open + 2) % 24
+k_to   = (q_open + 6) % 24
+// Jendela yang melewati tengah malam harus diuji sebagai gabungan, bukan
+// sebagai selang. Q1 adalah satu-satunya yang begitu di derajat hari, dan
+// menuliskannya umum lebih murah daripada mengkhususkan Q1.
+keptDay = k_to > k_from ? (ny_h >= k_from and ny_h < k_to) : (ny_h >= k_from or ny_h < k_to)
+
+// DERAJAT MINGGU. Siklusnya buka Minggu 18:00 New York dan tiap kuartalnya satu
+// hari penuh, jadi Q1 adalah siklus-hari SENIN: 18:00 Minggu sampai 18:00
+// Senin. Sepertiga pertama dari 24 jam adalah 8 jam, jadi jendela yang disimpan
+// 02:00 sampai 18:00 SENIN - seluruhnya di dalam satu hari kalender New York,
+// yang membuatnya tidak perlu penanganan lintas-tengah-malam sama sekali.
+//
+// Q2 Selasa, Q3 Rabu, Q4 Kamis, dengan pola yang sama. JUMAT BUKAN KUARTAL, dan
+// itu doktrin `app/quarters.py`, bukan off-by-one: minggu punya empat kuartal.
+wd_want = dfr_q == 1 ? dayofweek.monday
+     : dfr_q == 2 ? dayofweek.tuesday
+     : dfr_q == 3 ? dayofweek.wednesday
+     : dayofweek.thursday
+keptWeek = ny_d == wd_want and ny_h >= 2 and ny_h < 18
+
+inKept = dfr_degree == "week" ? keptWeek : keptDay
+
+var float d_hi  = na
+var float d_lo  = na
+var bool  d_was = false
+
+d_ok    = false
+d_bull  = false
+d_top   = 0.0
+d_bot   = 0.0
+d_scale = 0.0
+d_dep   = 0.0
+
+if isDFR
+    if inKept
+        d_hi := d_was and not na(d_hi) ? math.max(d_hi, high) : high
+        d_lo := d_was and not na(d_lo) ? math.min(d_lo, low)  : low
+    else if d_was and not na(d_hi) and d_hi > d_lo
+        // Jendela baru saja tutup di bar SEBELUM ini, jadi pitanya knowable
+        // sekarang dan tidak satu pun harga di bawah datang dari masa depan.
+        eq = (d_hi + d_lo) / 2
+        d_bull  := dfr_side == "demand"
+        d_top   := dfr_side == "demand" ? eq   : d_hi
+        d_bot   := dfr_side == "demand" ? d_lo : eq
+        d_scale := atr_v[1]
+        if not na(d_scale) and d_scale > 0 and d_top > d_bot
+            d_dep := math.round((d_top - d_bot) / d_scale * 1000) / 1000
+            d_ok  := true
+    d_was := inKept
+
+// LIMA PITA TERAKHIR DISIMPAN UNTUK UJI PARITY, dan hanya untuk itu. Tidak ada
+// satu pun keputusan dagang yang membacanya.
+//
+// Parity Pine lawan Python untuk DFR TIDAK PERNAH DIUKUR sampai 9 September
+// 2026 - dua implementasi dibangun dan tidak satu pun membuktikan keduanya
+// menghasilkan pita yang sama. Yang paling mungkin berbeda adalah batas
+// kuartal dalam waktu New York dan pemotongan sepertiga; keduanya terbaca dari
+// waktu dan harga pita, jadi lima pita yang dicetak apa adanya cukup untuk
+// menjawabnya secara eksak PADA FEED YANG SAMA, yang tidak bisa dilakukan
+// dengan membandingkan lintas feed.
+var array<string> d_log = array.new_string()
+if isDFR and d_ok
+    array.push(d_log, str.format_time(time, "yyyy-MM-dd HH:mm", "UTC") + " " +
+         str.tostring(d_hi, "#.##") + " " + str.tostring(d_lo, "#.##"))
+    if array.size(d_log) > 5
+        array.shift(d_log)
+
+// ---- YANG DIPAKAI, satu jalur setelah ini ----
+//
+// 0=FVG 1=OB 2=IFVG 3=BRK. IFVG induknya FVG dan BRK induknya OB, jadi jalur
+// deteksinya sama dan yang berbeda apa yang terjadi SESUDAH induknya pecah.
+isOB      = detector == 1 or detector == 3
+// BATASNYA DUA SISI SEJAK 8 September 2026. `detector >= 2` benar selama
+// detektor tertinggi 3; begitu SD dan OTE masuk, keduanya ikut terbaca
+// sebagai mode inversi dan blok induk-pecah akan menembak untuk mereka.
+inverting = detector == 2 or detector == 3
+scale = isDFR ? d_scale : isSMT ? m_scale : isPSP ? p_scale : isLQ ? l_scale : isCZ ? y_scale : isOTE ? e_scale : isOB ? o_scale : f_scale
+// Lilin BEARISH sebelum gerakan NAIK adalah block DEMAND, jadi sisi long di
+// sini datang dari lilin turun - kebalikan dari intuisi warna lilinnya.
+bull  = isDFR ? d_bull : isSMT ? m_bull : isPSP ? p_bull : isLQ ? l_bull : isCZ ? y_bull : isOTE ? e_bull : isOB ? o_bear : f_bull
+top0  = isDFR ? d_top : isSMT ? m_top : isPSP ? p_top : isLQ ? l_top : isCZ ? y_top : isOTE ? e_top : isOB ? o_bt   : f_top0
+bot0  = isDFR ? d_bot : isSMT ? m_bot : isPSP ? p_bot : isLQ ? l_bot : isCZ ? y_bot : isOTE ? e_bot : isOB ? o_bb   : f_bot0
+// S&D punya jalur sendiri di bawah, jadi jalur bersama ini DIMATIKAN untuknya.
+// Kalau tidak, detektor 4 akan menjalankan aturan FVG sekaligus aturannya
+// sendiri dan tabelnya akan mencampur dua populasi tanpa terlihat.
+ok    = isSD ? false : isDFR ? d_ok : isSMT ? m_ok : isPSP ? p_ok : isLQ ? l_ok : isCZ ? y_ok : isOTE ? e_ok : isOB ? o_ok   : f_ok
+
+if ok and in_win
+    h    = top0 - bot0
+    if h > 0
+        c_cand += 1
+        // Placebo digeser SEBELUM percabangan gerbang supaya dinding dan order
+        // memakai koordinat yang sama. `calibrate.shift` menggeser SETIAP zona;
+        // menggeser yang diperdagangkan saja diam-diam membandingkan kotak
+        // palsu terhadap dinding asli.
+        off  = placebo_atr == 0 ? 0.0 : placebo_atr * scale * (bar_index % 2 == 0 ? 1 : -1)
+        top  = top0 + off
+        bot  = bot0 + off
+        prox = bull ? top : bot
+        dist = bull ? bot : top
+
+        // SETIAP zona jadi calon dinding, LOLOS GERBANG ATAU TIDAK. Produksi
+        // memanggil `profit_zone_at(zone, zones, ...)` dengan `zones` = seluruh
+        // keluaran detektor; gerbang baru menyaring BARIS HASIL, jauh setelah
+        // target dipilih.
+        array.push(w_prox, prox)
+        array.push(w_dist, dist)
+        array.push(w_dir,  bull ? 1 : -1)
+        if array.size(w_prox) > wall_memory
+            array.remove(w_prox, 0)
+            array.remove(w_dist, 0)
+            array.remove(w_dir,  0)
+
+        // GERBANGNYA BERLAWANAN ARAH ANTAR KELUARGA. FVG dan IFVG: plafon pada
+        // tinggi gap dalam ATR, lolos berarti DI BAWAH. OB dan BRK: lantai pada
+        // kekuatan impuls, lolos berarti DI ATAS.
+        //
+        // BRK GERBANGNYA BELUM PERNAH DIUKUR UNTUK DIRINYA SENDIRI. Ia mewarisi
+        // departure induknya lalu dinilai dengan lantai 2,0 yang dikalibrasi
+        // untuk order block - GATE_UNMEASURED_KINDS di models/zone.py menyatakan
+        // itu, dan gate_measured mengembalikan False untuk BRK justru supaya
+        // permukaan yang menampilkan verdict bisa menahan diri. Angka BRK di
+        // bawah karena itu mengukur gerbang PINJAMAN.
+        gateVal  = isSMT ? m_dep : isPSP ? p_dep : isLQ ? l_dep : isCZ ? y_dep : isOTE ? e_dep : isOB ? o_move : h / scale
+        fvgPass  = h >= min_gap_atr * scale and (gate_ceiling <= 0 or gateVal < gate_ceiling)
+        // OTE digerbangi LANTAI pada panjang leg, bukan plafon pada tinggi
+        // kotak. Doktrinnya sendiri tidak membawa gerbang apa pun - ia
+        // aturan tempat masuk - jadi lantai ini padanan yang DIPILIH agar
+        // sebanding dengan OB dan SD, dan itu dinyatakan di layers.py.
+        // DFR TIDAK PUNYA GERBANG, dan itu bukan kelalaian: kotaknya tidak
+        // punya leg-out, jadi `departure` di sini cuma tinggi kotak dibagi
+        // ATR dan menyaring dengannya berarti menyaring TINGGI PITA, bukan
+        // kekuatan apa pun. Rig Python-nya juga jalan tanpa gerbang.
+        //
+        // Tanpa baris ini detektor 10 mewarisi CEILING 0,25 milik FVG dan
+        // menolak 950 dari 950 kandidat - `gate 0`, `n 0`, tabel yang
+        // terlihat sehat dan tidak mengukur apa pun.
+        gatePass = isDFR ? true : isSMT ? true : isPSP ? true : isLQ ? true : isCZ ? gateVal >= cz_floor : isOTE ? gateVal >= ote_gate : isOB ? gateVal >= gate_floor : fvgPass
+
+        if inverting
+            // TIDAK ADA ORDER DI INDUK. Induk cuma ditunggu pecah, dan
+            // gerbangnya diuji nanti pada nilai yang dibawa - sama seperti
+            // _invert yang meneruskan departure_atr induk apa adanya.
+            array.push(v_top,  top)
+            array.push(v_bot,  bot)
+            array.push(v_dir,  bull ? 1 : -1)
+            array.push(v_gate, gateVal)
+            array.push(v_h,    h)
+            if array.size(v_top) > wall_memory
+                vdrop(0)
+        else if gatePass
+            c_gate += 1
+            stop = bull ? dist - stop_buf_atr * scale : dist + stop_buf_atr * scale
+            risk = math.abs(prox - stop)
+            // Stop DAN qty dikunci di sini karena strategy.entry mengunci qty
+            // saat order dipasang. Produksi memakai ATR di bar SENTUHAN
+            // (scale_at touch), yang belum ada saat limit ini dipasang, jadi
+            // harness ini setara scale_at birth - bandingkan ke sana, bukan ke
+            // default produksi.
+            if risk > 0
+                qty = qsize(risk)
+                id  = "z" + str.tostring(bar_index)
+                strategy.entry(id, bull ? strategy.long : strategy.short, qty = qty, limit = prox)
+                // Stop aktif sejak detik pertama; limitnya menyusul saat
+                // terisi, waktu dindingnya baru bisa dipilih.
+                strategy.exit("x" + id, from_entry = id, stop = stop)
+                array.push(p_prox, prox)
+                array.push(p_dist, dist)
+                array.push(p_dir,  bull ? 1 : -1)
+                array.push(p_id,   id)
+                array.push(p_h,    h)
+                array.push(p_stop, stop)
+                if array.size(p_prox) > max_pending
+                    strategy.cancel(array.get(p_id, 0))
+                    c_evict += 1
+                    drop(0)
+
+// INDUK YANG PECAH JADI ZONA TERBALIK, dan blok ini yang membuat mode 2 dan 3
+// ada. Dijalankan SESUDAH blok kelahiran supaya induk yang lahir di bar ini
+// tidak bisa langsung terbalik di bar yang sama.
+//
+// _invert memulai lifecycle inversi di broke+1, bukan di bar pecahnya: lilin
+// yang membunuh kotak lama tidak boleh dihitung sebagai sentuhan pertama kotak
+// baru. Di sini itu otomatis - ordernya didaftarkan di akhir bar pecah, dan
+// loop pending memeriksa fill di bar BERIKUTNYA.
+//
+// `in_win` DIPERIKSA DI SINI JUGA, dan tanpa itu jendela tidak mengikat apa pun.
+// Blok kelahiran di atas digerbangi `in_win`, tapi blok INI yang memasang order
+// untuk IFVG dan BRK - jadi sampai 7 September 2026 induk didaftarkan hanya di
+// dalam jendela sementara inversinya menembak kapan saja SESUDAHNYA, termasuk
+// belasan tahun di luar `win_to`. Terlihat begitu satu fold diminta: 1990-1994
+// memberi n=968 sementara sampel penuh 56 tahun cuma 1.311, dan satu fold 4,6
+// tahun tidak bisa memuat 74 persen trade.
+//
+// Setiap angka BERJENDELA untuk IFVG dan BRK yang lebih tua dari baris ini
+// salah - hold-out, isolasi jendela, sapuan per periode. Angka jendela-penuh
+// tidak terpengaruh, karena di sana `win_from`/`win_to` memuat seluruh deret.
+if inverting and in_win and array.size(v_top) > 0
+    for k = array.size(v_top) - 1 to 0
+        pdir = array.get(v_dir, k)
+        ptop = array.get(v_top, k)
+        pbot = array.get(v_bot, k)
+        // Induk pecah kalau close melewati DISTAL-nya: bawah bottom untuk induk
+        // demand, atas top untuk induk supply.
+        if (pdir == 1 ? close < pbot : close > ptop)
+            c_cand += 1
+            gv = array.get(v_gate, k)
+            ph = array.get(v_h,    k)
+            // SISI DIBALIK, kotaknya sama. Induk demand jadi inversi supply,
+            // jadi proximal barunya bottom induk dan distalnya top induk.
+            ibull = pdir != 1
+            iprox = ibull ? ptop : pbot
+            idist = ibull ? pbot : ptop
+            ipass = isDFR ? true : isOB ? gv >= gate_floor : (gate_ceiling <= 0 or gv < gate_ceiling)
+            // Zona terbalik jadi calon dinding bagi zona terbalik lain, karena
+            // profit_zone_at dipanggil dengan daftar keluaran detektor INI.
+            array.push(w_prox, iprox)
+            array.push(w_dist, idist)
+            array.push(w_dir,  ibull ? 1 : -1)
+            if array.size(w_prox) > wall_memory
+                array.remove(w_prox, 0)
+                array.remove(w_dist, 0)
+                array.remove(w_dir,  0)
+            if ipass
+                c_gate += 1
+                istop = ibull ? idist - stop_buf_atr * scale : idist + stop_buf_atr * scale
+                irisk = math.abs(iprox - istop)
+                if irisk > 0 and not na(scale) and scale > 0
+                    iqty = qsize(irisk)
+                    iid  = "v" + str.tostring(bar_index) + "_" + str.tostring(k)
+                    strategy.entry(iid, ibull ? strategy.long : strategy.short, qty = iqty, limit = iprox)
+                    strategy.exit("x" + iid, from_entry = iid, stop = istop)
+                    array.push(p_prox, iprox)
+                    array.push(p_dist, idist)
+                    array.push(p_dir,  ibull ? 1 : -1)
+                    array.push(p_id,   iid)
+                    array.push(p_h,    ph)
+                    array.push(p_stop, istop)
+                    if array.size(p_prox) > max_pending
+                        strategy.cancel(array.get(p_id, 0))
+                        c_evict += 1
+                        drop(0)
+            vdrop(k)
+
+// ---- S&D: RUN, KANDIDAT, DAN GERBANG YANG MENUNGGU SENTUHAN ---------------
+//
+// `runs` di `indicators.py` memadatkan label jadi (label, mulai, selesai) dan
+// tidak pernah mengeluarkan dua run berlabel sama berturut-turut, jadi base
+// SELALU diapit dua run exciting. Di sini itu ditegakkan lewat bentuk: sebuah
+// kandidat cuma lahir di bar pertama sebuah run exciting yang run sebelumnya
+// base dan sebelum itu exciting.
+if isSD
+    if bar_index == 0
+        sd_rlab   := sd_lab
+        sd_rstart := bar_index
+    else if sd_lab != sd_rlab
+        sd_p2lab   := sd_p1lab
+        sd_p1lab   := sd_rlab
+        sd_p1start := sd_rstart
+        sd_p1end   := bar_index - 1
+        sd_rlab    := sd_lab
+        sd_rstart  := bar_index
+        sd_seq     += 1
+
+    // --- kandidat baru: leg-in exciting, base, leg-out mulai HARI INI ---
+    if sd_lab != 0 and sd_p1lab == 0 and sd_p2lab != 0 and sd_p1end == bar_index - 1 and in_win
+        base_to   = sd_p1end
+        base_from = math.max(sd_p1start, base_to - sd_base_bars + 1)
+        off_from  = bar_index - base_from
+        sd_hi = high[1]
+        sd_lo = low[1]
+        if off_from > 1
+            for k = 2 to off_from
+                sd_hi := math.max(sd_hi, high[k])
+                sd_lo := math.min(sd_lo, low[k])
+        abase = atr_w[off_from + 1]
+        fscale = sd_flat[off_from]
+        if not na(abase) and abase > 0 and not na(fscale)
+            // SISI DITENTUKAN LEG-OUT SAJA. RBR dan DBR sama-sama demand, RBD
+            // dan DBD sama-sama supply, jadi leg-in cuma membedakan NAMA
+            // formasinya - bukan sisinya, bukan geometrinya.
+            sbull = sd_lab == 1
+            stop0 = sd_hi
+            sbot0 = sd_lo
+            // Lantai tumbuh dari sisi PROXIMAL saja. Menumbuhkan simetris akan
+            // memindahkan distal, dan stop duduk di luar distal.
+            fl = sd_zone_min * fscale
+            h0 = stop0 - sbot0
+            stop1 = h0 < fl and sbull ? sbot0 + fl : stop0
+            sbot1 = h0 < fl and not sbull ? stop0 - fl : sbot0
+            sh = stop1 - sbot1
+            sdrift = sh > 0 ? math.abs(close[1] - open[off_from]) / sh : 1.0
+            // PLACEBO DIGESER DI SINI, sebelum apa pun memakai koordinatnya,
+            // supaya dinding, gerbang dan order semuanya melihat kotak yang
+            // sama - persis alasan yang ditulis di blok kelahiran bersama.
+            //
+            // BACA KONTROL S&D DENGAN SATU CATATAN, dan catatannya lebih keras
+            // daripada di FVG: menggeser kotak S&D menggeser PROXIMAL, dan
+            // excursion diukur DARI proximal. Jadi geseran mengubah nilai
+            // gerbang itu sendiri, bukan cuma harga limitnya. Lengan placebo
+            // memakai peristiwa yang berbeda, bukan kotak yang sama di tempat
+            // yang salah - sama seperti yang sudah dicatat untuk IFVG.
+            soff = placebo_atr == 0 ? 0.0 : placebo_atr * abase * (bar_index % 2 == 0 ? 1 : -1)
+            stop2 = stop1 + soff
+            sbot2 = sbot1 + soff
+            if sh > 0 and sh <= sd_base_max * abase and sdrift <= sd_drift_max
+                c_cand += 1
+                array.push(s_top,  stop2)
+                array.push(s_bot,  sbot2)
+                array.push(s_dir,  sbull ? 1 : -1)
+                array.push(s_atr,  abase)
+                // Excursion DIMULAI DARI BAR INI: slice-nya `[leg_out[1] : ...]`
+                // dan `leg_out[1]` adalah bar pertama leg-out, yaitu hari ini.
+                array.push(s_ext,  sbull ? high : low)
+                array.push(s_born, bar_index)
+                array.push(s_seq,  sd_seq)
+                // DINDING DIDAFTARKAN SAAT LAHIR, lolos gerbang atau tidak,
+                // karena `profit_zone_at` di produksi dipanggil dengan SELURUH
+                // keluaran detektor. Gerbang menyaring baris hasil, bukan
+                // himpunan dinding.
+                array.push(w_prox, sbull ? stop2 : sbot2)
+                array.push(w_dist, sbull ? sbot2 : stop2)
+                array.push(w_dir,  sbull ? 1 : -1)
+                if array.size(w_prox) > wall_memory
+                    array.remove(w_prox, 0)
+                    array.remove(w_dist, 0)
+                    array.remove(w_dir,  0)
+
+    // --- kandidat menunggu: gerbang, sentuhan, atau kehabisan jendela ---
+    if array.size(s_top) > 0
+        for k = array.size(s_top) - 1 to 0
+            sdir  = array.get(s_dir, k)
+            stopk = array.get(s_top, k)
+            sbotk = array.get(s_bot, k)
+            satr  = array.get(s_atr, k)
+            sext  = array.get(s_ext, k)
+            sbull2 = sdir == 1
+            sprox = sbull2 ? stopk : sbotk
+            sdist = sbull2 ? sbotk : stopk
+            sh2   = stopk - sbotk
+            dep   = math.max(0.0, sbull2 ? sext - sprox : sprox - sext) / satr
+            elapsed = bar_index - array.get(s_born, k)
+            // Leg-out sudah selesai kalau run baru sudah dimulai sesudahnya.
+            // Sentuhan SELAMA leg-out bukan sentuhan - `first_touch` dicari
+            // mulai `leg_out[2] + 1`.
+            legover = sd_seq > array.get(s_seq, k)
+            touched = legover and low <= stopk and high >= sbotk
+            if dep >= sd_gate
+                c_gate += 1
+                sstop = sbull2 ? sdist - stop_buf_atr * satr : sdist + stop_buf_atr * satr
+                srisk = math.abs(sprox - sstop)
+                if srisk > 0
+                    sqty = qsize(srisk)
+                    sid  = "s" + str.tostring(bar_index) + "_" + str.tostring(k)
+                    strategy.entry(sid, sbull2 ? strategy.long : strategy.short, qty = sqty, limit = sprox)
+                    strategy.exit("x" + sid, from_entry = sid, stop = sstop)
+                    array.push(p_prox, sprox)
+                    array.push(p_dist, sdist)
+                    array.push(p_dir,  sdir)
+                    array.push(p_id,   sid)
+                    array.push(p_h,    sh2)
+                    array.push(p_stop, sstop)
+                    if array.size(p_prox) > max_pending
+                        strategy.cancel(array.get(p_id, 0))
+                        c_evict += 1
+                        drop(0)
+                sdDrop(k)
+            else if touched or elapsed >= sd_lookahead - 1
+                sdDrop(k)
+            else
+                array.set(s_ext, k, sbull2 ? math.max(sext, high) : math.min(sext, low))
+
+var int first_t = na
+if barstate.isfirst
+    first_t := time
+// `barstate.islast` SENDIRIAN SALAH di sini: dengan `calc_on_every_tick = false`
+// script hanya jalan di bar yang sudah tutup, jadi di bar realtime yang belum
+// tutup `islast` tidak pernah menyala dan tabelnya TIDAK ADA.
+//
+// TAPI `islastconfirmedhistory` SENDIRIAN MEMBEKUKAN TABEL DI BAR REPLAY:
+// dipotong di 2025-06-02 lalu dimajukan tiga bar, `bars` tetap 20.698 dan
+// `span` tetap berakhir 2025-05-30. Replay menambah bar sebagai realtime, bukan
+// sebagai riwayat terkonfirmasi. Angka yang identik sesudah melangkah lalu
+// terbaca sebagai "tidak ada repaint" padahal tabelnya cuma tidak menghitung
+// ulang - test yang hampa dan terlihat seperti test yang lolos.
+//
+// Keduanya digabung dengan `or`, yang hanya bisa MENAMBAH bar tempat tabel
+// digambar dan tidak pernah mengurangi, jadi ia tidak bisa menghidupkan lagi
+// cacat pertama.
+if barstate.islastconfirmedhistory or barstate.islast
+    var table t = table.new(position.top_right, 2, 19, border_width=1)
+    table.cell(t, 0, 0, "cfg",   bgcolor=color.new(color.gray, 80), text_size=size.small)
+    // DETEKTOR DAN ARAH GERBANGNYA DIECHO, kalau tidak dua run dengan detektor
+    // berbeda terbaca kembar di baris ini - dan angka gerbangnya sendiri tidak
+    // bisa membedakannya, karena yang satu plafon dan yang lain lantai.
+    table.cell(t, 1, 0, syminfo.ticker + " " + timeframe.period +
+         " " + (detector == 0 ? "FVG" : detector == 1 ? "OB" : detector == 2 ? "IFVG" : detector == 3 ? "BRK" : detector == 4 ? "SD" : detector == 5 ? "OTE" : (detector == 6 ? "CISD" : detector == 7 ? "LIQ" : detector == 8 ? "PSP" : detector == 9 ? "SMT" : "DFR-" + dfr_degree + "-Q" + str.tostring(dfr_q) + "-" + dfr_side)) +
+         (isSMT ? " n" + str.tostring(smt_n)
+               : isPSP ? " back" + str.tostring(psp_back)
+               : isLQ ? " tol" + str.tostring(lq_tol) + " n" + str.tostring(lq_n) +
+                  " t" + str.tostring(lq_touch)
+               : isCZ ? " flr" + str.tostring(cz_floor) + " r" + str.tostring(cz_run)
+               : isOTE ? " legflr" + str.tostring(ote_gate) + " n" + str.tostring(ote_n)
+               : isDFR ? " nogate"
+               : isOB ? " flr" + str.tostring(gate_floor) +
+                 " d" + str.tostring(disp_atr) + "/" + str.tostring(disp_bars) +
+                 " bf" + str.tostring(ob_box_floor) + " W"
+               : " ceil" + str.tostring(gate_ceiling) +
+                 (filter_mother ? " M" : "") +
+                 (min_body > 0 ? " B" + str.tostring(min_body) : "")) +
+         " a" + str.tostring(atr_len) +
+         (target_mode == 1 ? " Twall" : " R" + str.tostring(reward_r)) +
+         " s" + str.tostring(stop_buf_atr) +
+         " p" + str.tostring(placebo_atr) + " c" + str.tostring(cost_pct) +
+         " pv" + str.tostring(syminfo.pointvalue), text_size=size.small)
+    // "data" DAN BUKAN "span", karena baris ini SELALU rentang deret dan bukan
+    // jendela yang aktif - dan membacanya sebagai jendela sudah salah dua kali.
+    // Di XAUUSD harian ia mencetak 1970 karena TradingView memberi satu bar tua
+    // di sana, lalu tabel yang sama dipakai menyebut sampelnya "56 tahun"
+    // padahal `win_from` default 2000-01-01 memotongnya jadi 26.
+    table.cell(t, 0, 1, "data",  bgcolor=color.new(color.gray, 80), text_size=size.small)
+    table.cell(t, 1, 1, str.format_time(first_t, "yyyy-MM-dd", "UTC") + " " +
+         str.format_time(time, "yyyy-MM-dd", "UTC"), text_size=size.small)
+    // JENDELANYA DIECHO. Tanpa baris ini tabel BASI sesudah `win_from` diubah
+    // tidak bisa dibedakan dari tabel yang sudah dihitung ulang, dan itu terjadi:
+    // [1970,2038] terbaca n=1.311 sementara sub-jendelanya [1970,2000] memberi
+    // n=5.585 - mustahil, dan yang basi bacaan pertamanya. Setiap knob lain sudah
+    // ada di baris cfg justru untuk alasan ini; jendelanya yang tertinggal.
+    table.cell(t, 0, 2, "win",   bgcolor=color.new(color.gray, 80), text_size=size.small)
+    table.cell(t, 1, 2, str.format_time(win_from, "yyyy-MM-dd", "UTC") + " " +
+         str.format_time(win_to, "yyyy-MM-dd", "UTC"), text_size=size.small)
+    table.cell(t, 0, 3, "bars",  bgcolor=color.new(color.gray, 80), text_size=size.small)
+    table.cell(t, 1, 3, str.tostring(bar_index + 1), text_size=size.small)
+    table.cell(t, 0, 4, "cand",  bgcolor=color.new(color.gray, 80), text_size=size.small)
+    table.cell(t, 1, 4, str.tostring(c_cand), text_size=size.small)
+    table.cell(t, 0, 5, "gate",  bgcolor=color.new(color.gray, 80), text_size=size.small)
+    table.cell(t, 1, 5, str.tostring(c_gate), text_size=size.small)
+    table.cell(t, 0, 6, "no wall", bgcolor=color.new(color.gray, 80), text_size=size.small)
+    table.cell(t, 1, 6, str.tostring(c_nowall), text_size=size.small)
+    table.cell(t, 0, 7, "fill",  bgcolor=color.new(color.gray, 80), text_size=size.small)
+    table.cell(t, 1, 7, str.tostring(c_fill), text_size=size.small)
+    table.cell(t, 0, 8, "canc/ev", bgcolor=color.new(color.gray, 80), text_size=size.small)
+    table.cell(t, 1, 8, str.tostring(c_cancel) + "/" + str.tostring(c_evict), text_size=size.small)
+    table.cell(t, 0, 9, "n",     bgcolor=color.new(color.gray, 80), text_size=size.small)
+    table.cell(t, 1, 9, str.tostring(n_tr), text_size=size.small)
+    table.cell(t, 0, 10, "win%", bgcolor=color.new(color.gray, 80), text_size=size.small)
+    table.cell(t, 1, 10, str.tostring(100.0 * n_win / math.max(n_tr, 1), "#.##"), text_size=size.small)
+    table.cell(t, 0, 11, "PF",   bgcolor=color.new(color.gray, 80), text_size=size.small)
+    table.cell(t, 1, 11, str.tostring(sum_win / math.max(sum_loss, 0.000001), "#.###"), text_size=size.small)
+    table.cell(t, 0, 12, "biaya (R)", bgcolor=color.new(color.gray, 80), text_size=size.small)
+    table.cell(t, 1, 12, str.tostring(sum_fee / risk_eff / math.max(n_tr, 1), "#.####") +
+         " x" + str.tostring(n_tr), text_size=size.small)
+    table.cell(t, 0, 13, "exp_r / RR", bgcolor=color.new(color.gray, 80), text_size=size.small)
+    table.cell(t, 1, 13, str.tostring((sum_win - sum_loss) / math.max(n_tr, 1), "#.####") +
+         " / " + str.tostring(sum_rr / math.max(c_gate - c_nowall, 1), "#.##"), text_size=size.small)
+    // BARIS PARITY, kosong untuk setiap detektor selain 10. Waktu di sini adalah
+    // waktu bar tempat pita jadi knowable, yaitu bar pertama SESUDAH jendela
+    // yang disimpan tutup - bukan bar penutup jendelanya. Python harus dibaca
+    // dengan konvensi yang sama atau selisihnya cuma beda definisi.
+    if isDFR
+        for i = 0 to 4
+            table.cell(t, 0, 14 + i, "band" + str.tostring(i),
+                 bgcolor=color.new(color.gray, 80), text_size=size.small)
+            table.cell(t, 1, 14 + i,
+                 i < array.size(d_log) ? array.get(d_log, i) : "-", text_size=size.small)

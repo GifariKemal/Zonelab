@@ -581,6 +581,718 @@ menaikkan `top`), titik tengah bergeser ke 100,0775 dari 99,975 dan test merah
 lagi. Arm kedua itu ada karena lantai yang cuma menaikkan `top` akan memindahkan
 entry demand sambil terlihat benar di arm pertama.
 
+## Order block di harness yang sudah disamakan, 7 September 2026
+
+Seluruh dokumen di atas ini diukur SEBELUM dua perbaikan yang mengubah dasarnya:
+urutan `replay_lifecycle` (pecah diperiksa sebelum sentuh, jadi setiap zona yang
+harga sayat dalam satu bar dibuang - dan limit yang menganggur di proximal terisi
+persis di bar-bar itu) dan tiga selisih bracket harness TradingView
+(`docs/QA-FVG-TV.md` bagian 17). Jadi angka-angka di atas dipertahankan sebagai
+rekaman, bukan sebagai klaim yang berlaku.
+
+### Apa yang tidak bertahan
+
+Dokumen ini menyebut 30 menit satu-satunya timeframe tempat OB bekerja, dengan
+lantai 2,0 memberi PF 1,255 dan walk-forward 8 dari 8, dan sapuan varian memberi
+exp_r +0,2057 dengan PF 1,392 dan t=+4,85 untuk konfigurasi ter-ship. Diukur
+ulang di bracket yang `execute.py` benar-benar jalankan:
+
+| sel | buffer | n | exp_r | t | PF | win% | rentang baris | wf |
+|---|---|---|---|---|---|---|---|---|
+| XAU 30m | 1,00 | 1.238 | +0,0077 | +0,26 | **1,017** | 50,7 | 2025-04..2026-09 | 4/8 |
+| XAU 30m | 0,25 | 1.238 | -0,0402 | -0,84 | 0,937 | 33,9 | | 1/8 |
+| BTC 30m | 1,00 | 1.228 | -0,0112 | -0,37 | 0,975 | 50,1 | 2025-09..2026-09 | 4/8 |
+| XAU 4h | 0,25 | 513 | -0,2522 | **-4,98** | 0,565 | 30,6 | 2022-06..2026-08 | **0/8** |
+| XAU 1h | 1,00 | 608 | -0,0584 | -1,50 | 0,866 | 47,7 | 2025-04..2026-09 | 3/8 |
+| BTC 1h | 0,25 | 642 | +0,0340 | +0,49 | 1,056 | 35,4 | 2025-09..2026-09 | 4/8 |
+
+exp_r di sel rumahnya turun dari +0,2057 ke +0,0077. Dan tanda negatif 4 jam yang
+mematikan layer ini di `layers.py` BUKAN artefak: ia reproduksi di t=-4,98 lawan
+-5,07 yang tercatat.
+
+Rentang tanggal baris DICETAK di tabel itu, dan itu praktik baru. `intrabar.resolved`
+melewati setiap zona yang sentuhannya jatuh sebelum bar halus pertama tersedia dan
+tidak pernah mencetak batas itu, jadi baris 30 menit di atas cuma 1,4 tahun.
+
+### Harness TradingView, dan ia memberi jawaban lain di 4 jam
+
+Detektor OB ditambahkan ke script Pine yang sama dengan FVG lewat saklar
+`detector`, BUKAN sebagai file kedua - supaya benchmarknya lewat kode bracket
+yang identik. Diverifikasi setelah refactor: jalur FVG memberi PF 1,091 pada
+n=1.709 di XAUUSD 4 jam, sama digit demi digit dengan sebelum saklar ada.
+
+Target zona lawan dipilih saat terisi, seluruh zona jadi calon dinding, Bar
+Magnifier menyala, biaya dipotong di dalam script, `max_pending` 500 supaya
+antrean tidak jadi tersangka.
+
+| sel | rentang | n | win% | PF | placebo PF |
+|---|---|---|---|---|---|
+| **XAU 4h** | 13,7 th | 1.880 | 39,10 | **1,019** | 0,922 |
+| XAU 1d | 56 th | 585 | 41,54 | 0,985 | - |
+| XAU 1h | 3,7 th | 1.977 | 36,72 | 0,737 | - |
+| BTC 1d | 15 th | 410 | 33,66 | 1,200 | **2,010** |
+| BTC 1h | 2,7 th | 2.369 | 38,41 | 0,887 | - |
+| BTC 4h | 9,7 th | 1.767 | 36,56 | 0,840 | - |
+| 30m dan 15m | - | tidak terukur, chart TV mati | | | |
+
+XAU 4 jam memberi 1,019 di 13,7 tahun sementara rig produksi memberi 0,663 di
+jendela 4,2 tahun - tanda yang berlawanan. Jendela panjangnya tiga kali lebih
+lebar, jadi selisihnya kemungkinan besar rezim, bukan cacat; itu belum diisolasi.
+
+**BTC harian DIBUANG oleh kontrolnya sendiri.** PF 1,200 terlihat baik sampai
+kotak digeser 1 ATR memberi **2,010** pada exp_r +0,564 R. Yang terukur di sana
+drift Bitcoin, dan kotak yang diletakkan benar justru menghasilkan LEBIH SEDIKIT.
+Pola yang sama sudah terukur untuk FVG di sel itu (1,402 lawan placebo 1,468),
+tapi di sini jaraknya jauh lebih lebar.
+
+### Kontrol placebo di XAU 4 jam menyortir dengan MEKANISME LAIN dari FVG
+
+| | n | win% | PF | exp_r |
+|---|---|---|---|---|
+| kotak asli | 1.880 | 39,10 | 1,019 | +0,0149 |
+| kotak digeser 1 ATR | 1.842 | **41,04** | 0,922 | -0,0577 |
+
+Win rate placebo LEBIH TINGGI, dan PF-nya lebih rendah. Jadi letak kotak OB tidak
+menyortir hit rate sama sekali - ia menyortir UKURAN BAYARAN. Kebalikan dari FVG
+di sel yang sama, tempat kotak asli menang 11,84 poin win rate. Dua detektor yang
+lewat bracket identik dan menyortir lewat kanal yang berbeda.
+
+n-nya cocok di sini (1.880 lawan 1.842) karena placebo Pine digeser SEBELUM
+gerbang, jadi kedua lengan melihat himpunan kandidat yang sama. Placebo versi
+Python tidak begitu (1.238 lawan 1.052) - menggeser limit mengubah apakah ia
+pernah terisi - dan karena itu margin dari lengan Python tidak dikutip di sini.
+
+### Tuning, dan ia gagal di hold-out
+
+Lantai gerbang disapu di XAU 4 jam, sampel penuh:
+
+| lantai | n | win% | PF |
+|---|---|---|---|
+| mati | 3.103 | 42,96 | 0,995 |
+| 2,0 (ter-ship) | 1.880 | 39,10 | 1,019 |
+| **3,0** | 628 | 35,51 | **1,068** |
+| 4,0 | 230 | 32,17 | 0,981 |
+
+Bentuknya masuk akal - naik ke 3,0 lalu turun - bukan lompatan derau. Lalu diuji
+dengan disiplin pilih-di-paruh-pertama:
+
+| lantai | IS 2013-2020 | OOS 2020-2026 |
+|---|---|---|
+| 2,0 | 0,912 | **1,131** |
+| 3,0 | **1,312** | **0,822** |
+
+**Dua lengan itu bersilangan.** Pilih di paruh pertama dan yang menang 3,0, lalu
+luar-sampelnya 0,822. Yang ter-ship 2,0 justru terbalik: paruh pertama rugi, paruh
+kedua 1,131. Tidak ada satu nilai lantai yang stabil di kedua paruh, jadi tuning
+lantai bukan cuma tidak menolong - ia jalan yang sudah terbukti menyesatkan.
+
+Buffer stop DIULANG dengan ATR benar (angka 1,002 / 1,019 / 1,003 yang sempat
+tercatat di sini milik ATR salah): 0,5 memberi 0,923, 1,0 memberi 0,926, 1,5
+memberi 0,922. Datar di bawah satu, bukan datar di impas - dan datarnya tiga
+digit, jadi lebar stop tidak menggerakkan OB sama sekali.
+
+### Benchmark lawan FVG, bracket identik
+
+| sel | FVG | OB |
+|---|---|---|
+| XAU 1d | **1,112** | 0,985 |
+| XAU 4h | **1,091** | 1,019 |
+| XAU 1h | **1,006** | 0,737 |
+| BTC 1h | **0,995** | 0,887 |
+| BTC 4h | **0,900** | 0,840 |
+| BTC 1d | 1,402 (kontrol menang) | 1,200 (kontrol menang) |
+
+**FVG mengalahkan OB di setiap sel yang bisa diukur.** Selisihnya bukan tipis di
+1 jam, tempat OB 0,737 lawan 1,006.
+
+### Putusan
+
+`order_block.orderable` TETAP MATI, dan sekarang atas dasar yang lebih luas dari
+satu sel. Yang berubah alasannya:
+
+- alasan lama: t=-5,07 di XAU 4 jam. Itu bertahan (-4,98), tapi ia jendela pendek
+- alasan sekarang: di jendela panjang XAU 4 jam justru 1,019, DI ATAS satu - tapi
+  cuma 0,019 di atasnya, dengan hold-out yang bersilangan dan tanpa satu nilai
+  lantai yang stabil
+- dan FVG mengalahkannya di enam sel dari enam
+
+Yang TIDAK boleh disimpulkan: bahwa detektornya tidak menyortir. Ia menyortir -
+kontrol placebo kalah 0,097 PF di XAU 4 jam. Yang tidak ada adalah margin yang
+cukup untuk melewati biaya dan bertahan lintas rezim.
+
+### Yang belum dikerjakan untuk OB
+
+- **30 menit, dua instrumen, di harness TradingView.** Ini sel yang dokumen ini
+  sendiri sebut rumahnya, dan chart TradingView Desktop mati setiap kali timeframe
+  itu dipilih - tiga kali dicoba, di FX:XAUUSD maupun BITSTAMP:BTCUSD, termasuk
+  langsung sesudah restart bersih. Angka 30 menit yang ada cuma dari rig produksi
+  di jendela 1,4 tahun. Lubang alat, bukan lubang analisis.
+- **Kenapa XAU 4 jam berlawanan tanda antara dua rig** (0,663 lawan 1,019).
+  Jendela produksi 4,2 tahun ada di dalam 13,7 tahun TradingView, jadi ini bisa
+  diisolasi dengan memotong harness ke jendela yang sama - belum dilakukan.
+- **Varian `require_structure_break`** tidak ada di harness Pine. Ia diukur di
+  produksi pra-perbaikan (PF 1,007, wf 4/8) dan tidak pernah sejak.
+- **`ifvg` dan `breaker`** masih memakai `departure_atr` warisan dari OB induknya,
+  jadi setiap angka gerbang keduanya bergerak bersama tabel di atas.
+
+## Parity Pine lawan produksi, dan angka OB di atas DIKOREKSI
+
+Bagian sebelumnya melaporkan XAUUSD 4 jam PF 1,019 di harness TradingView dan
+menyebut selisih tandanya dengan rig produksi (0,663) sebagai pertanyaan terbuka
+tentang rezim. Itu salah, dan sebabnya ada di harness ini sendiri.
+
+### Keluarga ATR-nya berbeda, dan tidak ada yang memeriksanya
+
+`app/detect/imbalance.py` memakai DUA deret ATR dan itu disengaja:
+
+| baris | detektor | ATR |
+|---|---|---|
+| 365 | `detect_fvg` | `mean_true_range`, rata rata TR atas tepat N suku |
+| 465 | `detect_order_block` | `wilder_atr`, RMA disemai dari bar pertama |
+
+FVG dipindah ke rata rata TR karena Wilder membuat nilainya bergantung berapa bar
+yang dimuat. OB TIDAK dipindah, karena ambang impulsnya dikalibrasi terhadap
+Wilder - alasan itu tertulis di `imbalance.py` baris 345.
+
+Pine memakai SATU deret, `ta.sma(ta.tr)`, untuk keduanya. Impuls DAN lantai
+gerbang dua-duanya rasio terhadap ATR, jadi yang bergeser bukan cuma lebar stop
+melainkan blok mana yang lolos sama sekali. `ta.atr` adalah RMA Wilder, jadi
+cerminnya ada dan cuma tidak dipakai.
+
+Ditambah satu selisih kecil yang ikut ditutup: `_finish` menyimpan
+`departure_atr=round(displacement, 3)` dan gerbang membandingkan angka yang sudah
+dibulatkan itu, jadi impuls 1,9996 lolos lantai 2,0 di produksi. Pine sekarang
+membulatkan sama.
+
+### Efeknya membalik tanda
+
+| sel | ATR salah (SMA-TR) | ATR benar (Wilder) |
+|---|---|---|
+| XAU 4h | 1,019 | **0,926** |
+| XAU 1d | 0,985 | 0,972 |
+| XAU 1h | 0,737 | 0,798 |
+| BTC 4h | 0,840 | 0,859 |
+| BTC 1h | 0,887 | 0,872 |
+| BTC 1d | 1,200 | **0,939** |
+
+Di XAU 4 jam PF turun dari 1,019 ke 0,926 dan exp_r dari +0,0149 ke -0,0579. Di
+BTC harian 1,200 jadi 0,939, jadi artefak drift di sel itu ikut hilang.
+
+**Dan pertanyaan terbuka itu tertutup.** Harness dan rig produksi sekarang
+sepakat di XAU 4 jam - keduanya negatif, 0,926 lawan 0,663. Tidak ada rezim yang
+perlu dijelaskan; yang ada cacat parity di harness saya sendiri.
+
+### Tabel OB yang berlaku
+
+Semua di bracket produksi, Bar Magnifier menyala, biaya dipotong di dalam script,
+`max_pending` 500, ATR Wilder di sisi OB:
+
+| sel | rentang | n | win% | PF |
+|---|---|---|---|---|
+| XAU 1d | 56 th | 560 | 41,79 | 0,972 |
+| XAU 4h | 13,7 th | 1.757 | 39,33 | 0,926 |
+| XAU 1h | 3,7 th | 1.837 | 38,27 | 0,798 |
+| BTC 1d | 15 th | 382 | 34,82 | 0,939 |
+| BTC 4h | 9,7 th | 1.647 | 37,77 | 0,859 |
+| BTC 1h | 2,7 th | 2.152 | 38,48 | 0,872 |
+
+**Tidak satu pun di atas satu.** Sapuan lantai, kontrol placebo dan hold-out di
+bagian sebelumnya semuanya diukur dengan ATR yang salah dan karena itu TIDAK
+berlaku; yang dipertahankan cuma bentuk temuannya, bukan angkanya.
+
+### Benchmark lawan FVG, bracket identik
+
+| sel | FVG | OB |
+|---|---|---|
+| XAU 1d | **1,112** | 0,972 |
+| XAU 4h | **1,091** | 0,926 |
+| XAU 1h | **1,006** | 0,798 |
+| BTC 1h | **0,995** | 0,872 |
+| BTC 4h | **0,900** | 0,859 |
+| BTC 1d | 1,402 (kontrol menang) | 0,939 |
+
+FVG menang di enam dari enam, dan sesudah koreksi ATR jaraknya lebih lebar.
+
+## Banding lawan Pine OB publik yang ter-ranking
+
+Diminta 7 September 2026, dan hasilnya bukan perbandingan PnL - karena
+perbandingan itu tidak tersedia, dan alasannya perlu ditulis.
+
+`indicator_search "order block"` memberi 25 hasil dan SEMUANYA indikator, bukan
+strategy. Sebuah indikator tidak punya bracket, jadi tidak punya PnL untuk
+dibandingkan. Membandingkan performa berarti menulis ulang aturan mereka ke dalam
+harness ini, dan hasilnya jadi BACAAN SAYA atas kode mereka, bukan kode mereka -
+sumbernya juga terproteksi. Jadi yang diukur geometrinya, dan itu dinyatakan
+sebagai geometri.
+
+`Order Block Detector [LuxAlgo]` ditambahkan ke XAUUSD 4 jam dan kotaknya dibaca
+lewat `data_get_pine_boxes`:
+
+| kotak LuxAlgo | tinggi USD |
+|---|---|
+| 4782,540 - 4739,735 | 42,81 |
+| 4630,700 - 4545,500 | 85,20 |
+| 4476,400 - 4421,010 | 55,39 |
+| 4380,990 - 4364,430 | 16,56 |
+| 4234,210 - 4203,230 | 30,98 |
+| 4069,645 - 4045,530 | 24,12 |
+
+Kotak Zonelab yang lolos gerbang di instrumen dan timeframe yang sama, 9.286 bar
+MT5, n=851:
+
+| | tinggi USD |
+|---|---|
+| median | **3,96** |
+| rata rata | 7,79 |
+| persentil 10 | 0,88 |
+| persentil 90 | 16,68 |
+
+**Kotak terkecil LuxAlgo (16,56) duduk di persentil 90 kita.** Besarnya 5 sampai
+10 kali. Ini bukan dua versi dari objek yang sama - ia objek yang berbeda.
+
+Dan konsekuensinya langsung ke tradenya, bukan cuma ke tampilan: stop duduk di
+luar distal, jadi **risk per unit ADALAH tinggi kotak**. Kotak 42 dolar di emas 4
+jam berarti stop sekitar 42 dolar jauhnya; kotak kita 4 sampai 8. Dua bracket
+yang berbeda satu orde besaran, jadi membandingkan PnL keduanya akan mengukur
+lebar stop sama banyak dengan mengukur letak zona.
+
+Yang TIDAK boleh disimpulkan dari sini: bahwa versi lebar itu lebih buruk. Yang
+bisa dikatakan cuma bahwa repo ini sudah mengukur pilihan geometri itu dan
+menolaknya - kotak rentang penuh memberi PF 0,984 lawan 1,247 untuk kotak badan,
+dua belas sel, di bagian atas dokumen ini. Angka itu sendiri pra-perbaikan
+lifecycle, jadi ia juga menunggu pengukuran ulang.
+
+### Yang masih belum untuk banding publik
+
+- Menulis ulang satu aturan OB publik ke dalam harness ini supaya ada
+  perbandingan PnL yang bracketnya sama. Bisa dilakukan, tapi hasilnya harus
+  dilabeli sebagai implementasi ulang, bukan sebagai script mereka.
+- Kotak Zonelab BELUM digambar di Pine, jadi perbandingan di atas memakai tinggi
+  dari feed MT5 lawan kotak LuxAlgo dari feed FXCM. Instrumen dan timeframe sama,
+  ordenya jauh lebih besar dari selisih feed, tapi ia tetap bukan bar yang sama.
+
+## OB diukur ulang dengan ATR benar, plus IFVG dan BRK, 7 September 2026
+
+Bagian di atas melaporkan sapuan lantai, kontrol placebo dan hold-out OB yang
+diukur dengan keluarga ATR yang salah. Semuanya diulang di sini, dan dua detektor
+turunan ikut diukur di harness yang sama.
+
+### Sapuan lantai OB, ATR Wilder, XAUUSD 4 jam
+
+| lantai | n | win% | PF |
+|---|---|---|---|
+| mati | 3.048 | 43,54 | 0,946 |
+| 2,0 (ter-ship) | 1.757 | 39,33 | 0,926 |
+| 2,5 | 1.013 | 36,33 | 0,924 |
+| 3,0 | 597 | 35,85 | **1,002** |
+| 4,0 | 209 | 31,10 | 0,850 |
+
+Terbaik 1,002 pada n=597, yaitu titik impas persis. Dengan ATR salah puncaknya
+1,068 dan bentuknya naik-lalu-turun yang saya sebut "masuk akal, bukan lompatan
+derau" - penilaian itu juga artefak.
+
+### Kontrol placebo OB: KONTROLNYA MENANG
+
+| | n | win% | PF |
+|---|---|---|---|
+| kotak asli, lantai 2,0 | 1.757 | 39,33 | 0,926 |
+| kotak digeser 1 ATR | 1.751 | **41,06** | **0,940** |
+
+Placebo menang di PF DAN di win rate. Jadi klaim sebelumnya - "OB menyortir
+ukuran bayaran, bukan hit rate" - juga milik ATR yang salah. Dengan ATR benar,
+letak kotak OB tidak membawa informasi di sel ini.
+
+Hold-out lantai 2,0: paruh pertama 0,893, paruh kedua 0,965. Dua-duanya di bawah
+satu dan tidak bersilangan - OB cuma rugi secara konsisten.
+
+### IFVG dan BRK masuk harness yang sama
+
+Ditambahkan sebagai mode detektor 2 dan 3, bukan file baru. Keduanya turunan:
+`_invert` menolak induk yang belum BROKEN, memakai kotak yang SAMA dengan sisi
+dibalik, dan MEMBAWA `departure_atr` induk apa adanya. Di Pine itu jadi daftar
+pengawas induk terpisah - induk tidak dapat order, cuma ditunggu pecah - dan
+ordernya didaftarkan di akhir bar pecah, jadi loop pending memeriksa fill di bar
+berikutnya. Itu mencerminkan `broke + 1` di produksi tanpa kode tambahan.
+
+> [!WARNING]
+> Gerbang BRK adalah lantai 2,0 yang DIPINJAM dari order block dan belum pernah
+> dikalibrasi untuk BRK. `GATE_UNMEASURED_KINDS` menyatakan itu dan
+> `gate_measured` mengembalikan False untuknya. Setiap angka BRK di bawah
+> mengukur gerbang pinjaman.
+
+### Rig produksi, dan BRK terlihat kuat di sini
+
+| lengan / sel | n | exp_r | t | PF | win% | rentang | wf |
+|---|---|---|---|---|---|---|---|
+| IFVG XAU 4h | 460 | -0,0811 | -2,40 | 0,747 | 45,4 | 2022-06..2026-08 | 2/8 |
+| IFVG XAU 1h | 636 | -0,0717 | -1,80 | 0,839 | 45,4 | 2025-04..2026-09 | 3/8 |
+| IFVG XAU 30m | 1.433 | +0,0340 | +1,16 | 1,081 | 51,3 | 2025-04..2026-09 | 4/8 |
+| IFVG BTC 1h | 699 | -0,0194 | -0,52 | 0,952 | 51,2 | 2025-09..2026-09 | 3/8 |
+| BRK XAU 4h | 410 | +0,0361 | +0,97 | 1,143 | 49,8 | 2022-06..2026-08 | 5/8 |
+| **BRK XAU 1h** | 552 | **+0,2163** | **+4,74** | **1,697** | 60,3 | 2025-04..2026-09 | **7/8** |
+| BRK XAU 30m | 1.146 | +0,0837 | +2,60 | 1,216 | 54,5 | 2025-04..2026-09 | 6/8 |
+| BRK BTC 1h | 647 | +0,0444 | +1,14 | 1,122 | 52,2 | 2025-09..2026-09 | 6/8 |
+
+BRK positif di keempat sel dan XAU 1 jam memberi t=+4,74 dengan walk-forward 7
+dari 8. Itu angka terkuat yang muncul di sesi ini untuk detektor mana pun.
+
+### Dan ia tidak bertahan di jendela panjang
+
+| BRK XAUUSD 1 jam | n | win% | PF |
+|---|---|---|---|
+| TradingView, penuh 3,7 tahun | 1.709 | 52,84 | **0,939** |
+| TradingView, dipotong ke jendela produksi | 620 | 55,16 | **1,128** |
+| Python, jendela produksi 1,4 tahun | 552 | 60,3 | **1,697** |
+
+n-nya cocok (620 lawan 552), jadi perbandingannya sah. **Jendela sendirian
+memindahkan 0,939 ke 1,128**; sisanya feed plus resolusi intrabar (magnifier 1
+menit lawan 5 menit). Jadi t=+4,74 itu artefak jendela 1,4 tahun ditambah
+resolusi kasar - pola yang sama persis dengan BTC 1 jam di FVG, dan sekarang
+terbukti dua kali.
+
+### Harness TradingView, jendela penuh, dengan kontrolnya
+
+| sel | rentang | n | win% | PF | placebo PF | placebo win% |
+|---|---|---|---|---|---|---|
+| IFVG XAU 4h | 13,7 th | 1.613 | 53,69 | 0,965 | **0,811** | 45,20 |
+| BRK XAU 4h | 13,7 th | 1.652 | 54,48 | 0,958 | **1,010** | 52,06 |
+| BRK XAU 1h | 3,7 th | 1.709 | 52,84 | 0,939 | 0,888 | 50,99 |
+
+**IFVG menyortir**: +0,154 PF dan +8,49 poin win rate atas kontrolnya di 4 jam -
+margin terbesar dari keempat detektor di sel itu. Tapi PF-nya 0,965, di bawah
+satu, jadi yang disortirnya tidak cukup membayar biaya.
+
+**BRK di 4 jam KALAH dari kontrolnya** (0,958 lawan 1,010). Di 1 jam ia menang
+tipis (0,939 lawan 0,888) dan tetap di bawah satu.
+
+### Benchmark empat detektor, bracket identik, XAUUSD 4 jam 13,7 tahun
+
+| detektor | n | win% | PF | placebo PF | margin |
+|---|---|---|---|---|---|
+| **FVG** | 1.709 | 50,56 | **1,091** | 1,014 | +0,077 |
+| IFVG | 1.613 | 53,69 | 0,965 | 0,811 | **+0,154** |
+| BRK | 1.652 | 54,48 | 0,958 | 1,010 | -0,052 |
+| OB | 1.757 | 39,33 | 0,926 | 0,940 | -0,014 |
+
+Satu-satunya yang di atas satu tetap FVG. Yang paling banyak menyortir justru
+IFVG, dan itu pemisahan yang berguna: menyortir dan menguntungkan bukan hal yang
+sama, dan tabel ini menunjukkan keduanya bisa berpisah.
+
+### Putusan keempatnya
+
+`fvg`, `order_block`, `ifvg` dan `breaker` semuanya `orderable=False`, dan
+sekarang keempatnya punya alasan yang diukur di bracket yang sama:
+
+- FVG satu-satunya di atas satu (1,091 di XAU 4 jam), gagal di 6 dari 8
+- IFVG menyortir paling tajam tapi 0,965
+- BRK kalah dari kontrolnya di sel terpanjang, dan angka kuatnya di 1 jam artefak jendela
+- OB kalah dari kontrolnya, tanpa nilai lantai yang stabil
+
+### Yang belum, dan satu di antaranya soal disiplin catatan
+
+- **30 menit dan 15 menit** tidak terukur di harness untuk keempat detektor -
+  chart TradingView Desktop mati setiap kali salah satu dipilih. Ini menyakitkan
+  khusus untuk IFVG, yang satu-satunya sel positifnya di rig produksi justru 30
+  menit (1,081).
+- ~~File Pine lokal punya lebih banyak komentar daripada yang tersimpan di
+  TradingView.~~ **DIBUKTIKAN 7 September 2026, dan klaimnya salah.** File
+  lokal diambil ulang lewat `pine_get_source` lalu ditimpa: 26.449 karakter
+  lawan 26.449 yang TradingView laporkan, 304 baris eksekusi di kedua sisi.
+  Tapi sebelum ditimpa keduanya TIDAK identik - tepat satu baris eksekusi
+  berbeda, dan bukan komentar melainkan STRING: tooltip `cost_pct` di lokal 362
+  karakter dan di TradingView 299, kehilangan klausa "run tanpa biaya lalu
+  terbaca persis seperti run dengan biaya" yang terpotong saat naskah 500 baris
+  dirakit. Cosmetik, tapi ia membatalkan asumsi "kode eksekusinya sama" yang
+  ditulis di sini sebelumnya. Pelajarannya bukan tentang tooltip: naskah yang
+  dirakit ulang dari ingatan BISA hilang isinya tanpa satu pun compile merah,
+  jadi setiap kali file lokal dibangun lewat paste, buktikan dengan mengambil
+  ulang - jangan diasumsikan.
+- **Kontrol placebo IFVG dan BRK di luar XAU 4 jam**, dan sapuan lantai BRK yang
+  gerbangnya sendiri - bukan pinjaman dari OB.
+
+## Gerbang BRK disapu untuk dirinya sendiri, 7 September 2026
+
+Sampai hari ini BRK dinilai dengan lantai 2,0 ATR yang dikalibrasi untuk order
+block induknya. `GATE_UNMEASURED_KINDS` menyatakan itu dan `gate_measured`
+mengembalikan False untuknya justru supaya panel bisa menahan diri. Di sini
+lantainya disapu untuk BRK, di harness yang sama, XAUUSD 4 jam 13,7 tahun.
+
+### Sapuannya naik monoton
+
+| lantai | n | win% | PF |
+|---|---|---|---|
+| mati | 2.882 | 54,68 | 0,953 |
+| 2,0 (pinjaman) | 1.652 | 54,48 | 0,958 |
+| 2,5 | 953 | 53,62 | 0,994 |
+| 3,0 | 562 | 53,74 | 1,025 |
+| **4,0** | 198 | 52,53 | **1,158** |
+
+Naik di setiap langkah, bukan lompatan tunggal - bentuk yang biasanya menandakan
+mekanisme, bukan derau. Dan lantai pinjaman 2,0 ternyata nilai kedua TERBURUK di
+seluruh sapuan.
+
+### Kontrolnya memberi margin terbesar di seluruh sesi ini
+
+Lantai 4,0, XAUUSD 4 jam:
+
+| | n | win% | PF | exp_r |
+|---|---|---|---|---|
+| kotak asli | 198 | **52,53** | **1,158** | +0,0718 |
+| kotak digeser 1 ATR | 199 | **41,21** | 0,752 | -0,1418 |
+
+**+0,406 PF dan +11,32 poin win rate.** Untuk perbandingan, FVG di sel yang sama
+memberi +0,077 dan IFVG +0,154. Ini margin terbesar yang muncul di keempat
+detektor, di sel mana pun.
+
+### Dan ia roboh luar-sampel
+
+| lantai 4,0 | n | win% | PF |
+|---|---|---|---|
+| 2013-01 .. 2020-01 | 110 | 55,45 | **1,412** |
+| 2020-01 .. 2026-09 | 88 | 47,73 | **0,861** |
+
+Pilih 4,0 di paruh pertama - dan itu yang akan dipilih siapa pun, 1,412 lawan
+0,912-nya OB dan 0,958-nya lantai pinjaman - lalu luar-sampelnya 0,861.
+
+**Pola yang sama sudah tiga kali di sesi ini:** lantai 3,0 OB (1,312 lalu 0,822),
+plafon 0,15 FVG (0,991 lalu 1,354, arah lain tapi sama-sama tidak stabil), dan
+sekarang lantai 4,0 BRK. Sapuan yang naik rapi di sampel penuh, dengan n yang
+menyusut ke ratusan di ujung ketatnya, lalu tidak bertahan. n=198 di sampel penuh
+dan n=110 lawan 88 di dua paruh - itu bukan sampel yang bisa memutuskan apa pun.
+
+### Putusan BRK
+
+Lantai pinjaman 2,0 TETAP, dan bukan karena ia baik: di sana kontrolnya MENANG
+(1,010 lawan 0,958). Ia tetap karena tidak ada nilai lain yang terbukti - yang
+terlihat lebih baik (4,0) adalah yang paling tidak bertahan.
+
+Yang berubah dari hari ini: `gate_measured` untuk BRK sekarang False atas dasar
+sapuan yang PERNAH DILAKUKAN dan gagal, bukan atas dasar belum pernah dicoba.
+
+### Yang belum untuk keluarga OB
+
+- **30 menit dan 15 menit** di harness, keempat detektor. Chart mati.
+- **Sapuan `displacement_atr` dan `displacement_bars`** di harness TradingView.
+  Keduanya knob DETEKSI, bukan gerbang, dan sapuannya di `ob_variants.py`
+  pra-perbaikan lifecycle. Yang di dokumen ini bagian atas.
+- **Kontrol placebo IFVG di luar XAU 4 jam**, khususnya 30 menit yang jadi
+  satu-satunya sel positifnya di rig produksi.
+
+## Autodrawing OB, diperiksa 7 September 2026
+
+Sisi produk OB belum pernah dilihat di sesi ini. Diperiksa sekarang, dan
+pemeriksaannya menemukan dua cacat di INSTRUMENnya, bukan di gambarnya.
+
+### Pipanya hidup
+
+`/api/draw` XAUUSD 4 jam, 1.500 bar: **218 zona OB, 131 lolos gerbang** (60
+persen), `gate_measured` benar untuk 218 dari 218 - berbeda dari BRK yang False -
+dan lifecycle terisi (18 fresh, 3 tested, 12 mitigated, 185 broken). Tinggi kotak
+median 13,47 USD, minimum 0,892 dan maksimum 339,74.
+
+### Geometrinya terbukti
+
+`e2e/pixel-truth.mjs` diarahkan ke layer `order_block`, 9 zona di jendela:
+
+| pemeriksaan | hasil |
+|---|---|
+| setiap zona ditemukan di canvas | 9 dari 9 |
+| tepi ATAS di tempat skala harga menaruhnya | terburuk **0,3px** |
+| tepi BAWAH di tempat skala harga menaruhnya | terburuk **0,4px** |
+| kotak menutupi bar asalnya | 0,00 bar di luar kotak |
+| tepi kiri terbaca, tidak terkubur lilinnya | 9 dari 9 |
+
+7 dari 7 lolos.
+
+### PERBEDAAN PENTING DARI FVG: masalah legibilitasnya TIDAK ada di sini
+
+Gerbang FVG adalah PLAFON pada tinggi gap, jadi kohort yang lolos selalu kotak
+TERKECIL - dan itu yang membuat kotak tervalidasinya jadi garis rambut tak
+bercaption. Gerbang OB LANTAI pada kekuatan impuls, dan impuls tidak berkorelasi
+dengan tinggi badan lilinnya. Terukur di jendela audit:
+
+| tinggi CSS px | caption |
+|---|---|
+| 29,2 | OB ● |
+| 31,9 | OB ● |
+| 21,5 | OB ● |
+| 6,5 | ● |
+| 14,2 | OB ○ |
+| 16,7 | OB ○ |
+
+Yang lolos gerbang tersebar dari 6,5 sampai 31,9 piksel dan yang gagal ada di
+14,2 dan 16,7 - **tidak ada bias sistematis**. Jadi peredupan fill untuk kohort
+yang gagal gerbang bekerja seperti yang dimaksudkan di OB, dan penekanan chartnya
+tidak terbalik seperti di FVG.
+
+### Dua cacat instrumen yang ditemukan, keduanya membuat auditor melapor palsu
+
+**Penyaring `onScreen` cuma memeriksa WAKTU, bukan harga.** Sebuah zona yang
+jendela waktunya benar tapi harganya di luar skala vertikal tetap didaftarkan
+sebagai zona yang digambar. Auditor melihat gambar, tidak menemukannya, dan
+melaporkan kotak HILANG - laporan yang benar tentang daftar yang salah. Terukur:
+9 zona didaftarkan, 6 tergambar, dan tiga yang tidak duduk di 4.009 sampai 4.078
+sementara dasar chart 4.180. `priceToCoordinate` tetap mengembalikan koordinat
+untuk harga di luar pane, jadi `height_px` sendirian tidak bisa menyaringnya;
+yang diuji sekarang perpotongan vertikalnya dengan tinggi pane, dan berapa yang
+dibuang DICETAK.
+
+**Satuan pikselnya tidak dinyatakan.** `priceToCoordinate` memberi piksel CSS dan
+`LABEL_MIN_HEIGHT` dibandingkan di ruang yang sama, tapi screenshot diambil di
+`deviceScaleFactor: 2`. Auditor mengukur GAMBAR, menemukan tinggi dua kali
+`height_px`, dan melaporkan ketidakcocokan yang benar tentang dua satuan berbeda.
+Legenda sekarang menyatakannya, dan auditor berikutnya menutupnya sendiri:
+"measured image heights are consistent with the stated height_px values doubled
+for deviceScaleFactor 2".
+
+Sesudah keduanya diperbaiki, audit visualnya bersih: "nothing is drawn that is
+not in the list, and nothing in the list is missing" dan "I found no case where
+an edge sits somewhere other than where the list says."
+
+### Yang tersisa di sisi gambar, dan ini keluhan lama
+
+Auditor tetap tidak bisa membaca lifecycle dari opacity border - keluhan yang
+sama sudah muncul tiga kali untuk FVG. Terukur 1,33 sampai 1,82 banding satu
+antar state bersebelahan, jadi sinyalnya ada; ia cuma di bawah ambang yang bisa
+dibaca mata di render ini. Itu keputusan desain yang belum diambil, bukan cacat
+yang belum diperbaiki.
+
+## Adaptivitas keempat detektor, diukur 8 September 2026
+
+Sampai hari ini "adaptive" tidak pernah diuji sama sekali. Pertanyaannya dibuat
+bisa diukur: **apakah tinggi kotak melacak volatilitas, atau ia membawa besaran
+harga absolut?** Kalau melacak volatilitas, tinggi kotak dalam satuan ATR harus
+kira-kira tetap lintas instrumen dan timeframe, walau dalam dolar ia berbeda
+ratusan kali.
+
+Delapan sel, XAUUSD dan BTCUSD di 30m/1h/4h/1d, keluarga ATR MASING-MASING
+detektor (`mean_true_range` untuk fvg/ifvg, `wilder_atr` untuk
+order_block/breaker) diambil di bar sebelum bar origin zona. **32 kombinasi,
+nol sel dilewat.**
+
+| detektor | med ATR min..maks | maks/min | CV | maks/min ABSOLUT | selisih XAU lawan BTC di TF sama |
+|---|---|---|---|---|---|
+| fvg | 0,2587 .. 0,3922 | 1,516 | 13,2% | **389,9x** | 7,3% |
+| order_block | 0,3220 .. 0,4299 | 1,335 | 11,0% | **283,0x** | **2,5%** |
+| ifvg | 0,2554 .. 0,3792 | 1,485 | 12,1% | **389,5x** | 7,9% |
+| **breaker** | 0,3259 .. 0,4049 | **1,242** | **7,5%** | **316,1x** | 7,3% |
+
+**Keempatnya adaptif, dan buktinya perbandingan dua kolom terakhir.** Dalam
+dolar, tinggi kotak median bergerak 283 sampai 390 kali lintas sel - 1,168 USD
+di XAU 30m sampai 455,39 USD di BTC 1d. Dinormalkan ATR, seluruh rentang itu
+mengerut jadi 1,24 sampai 1,52 kali. Geometrinya tidak membawa besaran harga.
+
+Bukan cuma mediannya: sebaran p90/median dalam satuan ATR 2,7 sampai 4,4 dan
+tetap per detektor, dan **p90 duduk di sekitar 1,0 sampai 1,36 ATR di 32 dari
+32 kombinasi**. Jadi bentuk distribusinya yang berskala volatilitas, bukan satu
+titik ringkasannya.
+
+### Sisa variasinya timeframe, bukan instrumen - dan tandanya BERLAWANAN
+
+Di timeframe yang sama, XAU dan BTC cuma beda 2,5 sampai 7,9 persen. Yang
+tersisa hampir seluruhnya sumbu resolusi, dan dua pasang detektor bergerak ke
+arah yang berlawanan:
+
+| pasangan | arah dari 30m ke 1d | bacaan |
+|---|---|---|
+| fvg, ifvg | kotak MEMBESAR dalam ATR (0,28 ke 0,39 di XAU) | celah tiga bar melebar relatif terhadap ATR 14 bar saat resolusi melambat |
+| order_block, breaker | kotak MENGECIL dalam ATR (0,43 ke 0,34 di XAU) | badan satu lilin mengisi pecahan ATR 14 bar yang lebih kecil di TF tinggi |
+
+Tandanya berlawanan karena geometrinya memang beda jenis - satu jarak antar
+tiga bar, satu badan satu bar - jadi ini konsisten, bukan anomali. Tak satu pun
+berasal dari konstanta yang bisa disetel: `min_gap_atr` default 0,0 dan tidak
+menolak apa pun di sini.
+
+### Dua hal yang tak terduga
+
+**order_block paling invarian lintas instrumen dari keempatnya**, 2,5 persen -
+padahal ia detektor dengan angka edge TERLEMAH di repo ini. Adaptivitas
+geometri dan daya prediksi ternyata dua sifat yang terpisah, dan sel yang sama
+bisa kuat di satu dan lemah di satu lagi.
+
+**breaker paling datar dari keempatnya**, CV 7,5 persen, dan di BTC praktis rata
+di 0,36 sampai 0,39 lintas keempat resolusi. Kalau ada satu yang layak disebut
+bebas skala, itu BRK - detektor yang sama yang gerbangnya dipinjam, gambarnya
+paling sulit dibaca, dan definisinya kekurangan satu syarat kanon.
+
+ifvg berada dalam 2 sampai 3 persen dari sel fvg pasangannya di setiap sel, dan
+populasinya 96 sampai 98 persen ukuran populasi fvg - persis bentuk yang
+diharapkan dari detektor yang mewarisi geometri induknya dan cuma menambah satu
+peristiwa.
+
+## Stress test delapan periode untuk OB dan BRK, 8 September 2026
+
+Saringan terberat di repo ini - jendela dibagi delapan, tiap periode dinilai
+sendiri - belum pernah dikenakan ke OB maupun BRK. Sekarang sudah, XAUUSD
+harian, **batas periode identik dengan run IFVG** supaya bisa dibandingkan
+baris demi baris. Jendela diverifikasi di baris `win` pada SETIAP run.
+
+Baseline jendela penuh direproduksi lebih dulu: OB n=560, win 41,79%, PF 0,972,
+sama persis dengan tabel di atas.
+
+| periode | OB n | OB win% | OB PF | BRK n | BRK win% | BRK PF |
+|---|---|---|---|---|---|---|
+| 2000-2003 | 56 | 57,14 | **1,827** | 48 | 31,25 | **0,404** |
+| 2003-2006 | 63 | 34,92 | 0,729 | 55 | 58,18 | 0,973 |
+| 2006-2010 | 98 | 39,80 | 0,762 | 88 | 60,23 | **1,365** |
+| 2010-2013 | 73 | 49,32 | **1,141** | 56 | 50,00 | 0,983 |
+| 2013-2016 | 67 | 35,82 | 0,781 | 54 | 51,85 | 0,827 |
+| 2016-2020 | 73 | 36,99 | **1,012** | 62 | 66,13 | **1,738** |
+| 2020-2023 | 61 | 40,98 | **1,198** | 56 | 60,71 | **1,070** |
+| 2023-2026 | 52 | 51,92 | **1,041** | 38 | 47,37 | 0,683 |
+| **lolos** | | | **5 dari 8** | | | **3 dari 8** |
+
+### Peringkat stabilitas MEMBALIK peringkat PF
+
+Ini temuan utamanya, dan arahnya berlawanan dengan tabel benchmark harian:
+
+| detektor | PF jendela penuh XAU 1d | periode lolos | peringkat berbalik? |
+|---|---|---|---|
+| BRK | **1,181**, tertinggi dari empat | **3 dari 8**, terendah dari empat | **ya, dari teratas ke terbawah** |
+| FVG | 1,112 | 6 dari 8 (diukur di 4 jam) | - |
+| IFVG | 1,067 | 6 dari 8 | - |
+| OB | **0,972**, terendah dari empat | **5 dari 8** | **ya, dari terbawah ke ketiga** |
+
+**BRK 1,181 bersandar pada satu periode.** Paruh kedua yang sebelumnya
+disebut sebagai sumber angka itu ternyata sendiri campur aduk: 0,827 / 1,738 /
+1,070 / 0,683. Buang 2016-2020 dan tidak ada yang tersisa. Sebelumnya yang
+diketahui cuma "seluruhnya dari paruh kedua"; sekarang terlihat ia seluruhnya
+dari SATU jendela empat tahun.
+
+**OB lebih stabil daripada BRK meski PF-nya lebih rendah.** Kotak yang tidak
+bisa menghasilkan angka besar ternyata lebih konsisten daripada kotak yang
+bisa - dan untuk pemakaian sebagai INPUT analisis, itu sifat yang lebih
+berguna daripada PF puncak.
+
+### Periode sekarang, 2023-2026, memisahkan keempatnya
+
+| detektor | PF 2023-2026 | posisi di antara delapan periodenya |
+|---|---|---|
+| **OB** | **1,041** | di atas satu |
+| BRK | 0,683 | kedua terburuk dari delapan |
+| IFVG | 0,730 | **terburuk dari delapan** |
+
+IFVG dan BRK sama-sama gagal di periode yang paling relevan untuk keputusan
+hari ini; OB tidak. Jadi detektor dengan bukti historis terbaik dan detektor
+dengan PF harian tertinggi keduanya sedang berada di titik terlemahnya,
+sementara yang terlemah secara historis sedang di atas satu.
+
+> [!WARNING]
+> n per periode 38 sampai 98, jauh di bawah 135-173 milik run IFVG (yang
+> memakai lengan plafon-mati dengan sampel 2,4 kali lipat). Satu periode 38
+> trade tidak memisahkan 0,683 dari satu secara meyakinkan. Yang ditopang
+> tabel ini adalah HITUNGAN lolos-gagal dan bentuknya lintas periode, bukan
+> presisi tiap sel.
+
+### Cara mengulangnya
+
+Input Pine `in_0` detektor (0=FVG 1=OB 2=IFVG 3=BRK), `in_19`/`in_20` jendela
+sebagai epoch milidetik. Batas yang dipakai: 946684800000, 1041379200000,
+1136073600000, 1262304000000, 1356998400000, 1451606400000, 1577836800000,
+1672531200000, 1767225600000. Beri jeda sekitar 11 detik sesudah set input
+SEBELUM membaca tabel, dan cocokkan baris `cfg` dan `win` dengan yang diminta -
+pembacaan pertama sesudah ganti detektor mengembalikan tabel detektor LAMA.
+
 ## Cara mengulang
 
 ```bash

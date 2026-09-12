@@ -106,6 +106,34 @@ PORTED_QUARTERLY = {
     "dfr": "zonelab_parity_quarterly.csv",
 }
 
+#: APA YANG "PORTED" TIDAK MENCAKUP, dan ini bentuk kelalaian yang sensus di
+#: file ini tidak bisa lihat sendiri: ia memeriksa setiap ID LAYER ada di salah
+#: satu daftar, bukan setiap OBJEK yang digambar layer itu. Jadi sebuah layer
+#: yang permukaannya tumbuh tetap tercatat ported atas dump yang tidak memuat
+#: objek barunya, dan tidak ada yang merah.
+#:
+#: Dicatat 11 September 2026 bersama dua overlay yang menyebabkannya. Keduanya
+#: aritmetika jam murni, jadi mem-port-nya murah - yang mahal justru
+#: mengasumsikan mereka sudah ikut.
+PARTIAL: dict[str, str] = {
+    "session": (
+        "`zonelab_parity_quarters.csv` menutup GRID KUARTER dan true open saja. "
+        "Dua overlay yang ditambahkan 11 September 2026 tidak ada di sisi MQL5 "
+        "dan tidak ada di dump itu: QT killzone (`sequence.killzones`) dan "
+        "premium/discount berbasis waktu (`quarterly.time_premium_discount`). "
+        "Keduanya aritmetika jam tanpa satu pun pembacaan harga, jadi port-nya "
+        "kecil - tapi belum dikerjakan, dan belum ada angka apa pun untuk "
+        "keduanya di rig mana pun sehingga tidak ada parity yang perlu dijaga "
+        "dulu"
+    ),
+    "ssmt": (
+        "Sudah UNPORTED seluruhnya di bawah. Dicatat lagi di sini karena "
+        "permukaannya tumbuh: basis BODY (Hidden SSMT, `ssmt(basis=\"body\")`) "
+        "ditambahkan 11 September 2026, jadi kalau layer ini nanti di-port, "
+        "yang di-port dua pembacaan dan bukan satu"
+    ),
+}
+
 #: Bentuk KEDELAPAN, dan satu satunya yang punya EA Strategy Tester DAN dump
 #: parity. `wyckoff` tercatat UNPORTED sampai 3 September 2026 dengan alasan
 #: "measured null, bukan family ICT", dan kedua bagian alasan itu benar - yang
@@ -135,6 +163,42 @@ PORTED_WYCKOFF = {
 #: bahwa ia tidak diukur - karena "belum diukur" dan "diukur dan lolos" tidak
 #: boleh terlihat sama dari luar.
 UNPORTED: dict[str, str] = {
+    "smt_fill": (
+        "BELUM DI-PORT, ditambahkan 11 September 2026. Alasannya sama persis "
+        "dengan `ssmt`, dan itu bukan kebetulan: keduanya butuh BASKET aset "
+        "yang ter-align, dan MQL5 tidak punya `load_aligned`. Sebuah gap-fill "
+        "divergence membandingkan dua instrumen bar demi bar pada grid waktu "
+        "yang sama; menyalin itu ke sisi EA berarti menyalin penyelarasan "
+        "waktunya lebih dulu, dan menyalin penyelarasan yang salah lebih buruk "
+        "daripada tidak menyalin sama sekali. Definisi gap-nya sendiri SUDAH "
+        "diport - `FVGDetector.mqh` - jadi yang kurang penyelarasannya, bukan "
+        "objeknya. Dan sebelum itu jadi pekerjaan yang layak: layer ini belum "
+        "diukur di rig mana pun, jadi tidak ada angka yang parity-nya perlu "
+        "dijaga"
+    ),
+    "cisd_zone": (
+        "BELUM DI-PORT, ditambahkan 8 September 2026. `CISDDetector.mqh` sudah ada dan memeriksa LEVEL-nya - 0 mismatch di 349 event pada feed yang sama - jadi separuh parity-nya sudah terbukti. Yang belum: tepi KEDUA, ekstrem run, yang baru ditambahkan hari ini ke `DeliveryRun`. Port kotaknya berarti menambahkan field yang sama di sisi MQL5 dan membandingkan dua tepi, bukan satu"
+    ),
+    "liquidity_pool": (
+        "BELUM DI-PORT, ditambahkan 8 September 2026 bersama detektornya. "
+        "Sisi MQL5 sudah punya BSL/SSL tapi sebagai LEVEL periode, sama "
+        "seperti `app/liquidity.py` di sini, dan itu konstruk yang BERBEDA "
+        "dari kluster equal-highs ini - port yang menyamakan keduanya akan "
+        "membandingkan dua populasi. Yang harus di-port lebih dulu "
+        "`structure.swings`, yang juga belum ada di sana dan yang sudah "
+        "jadi prasyarat `ote`"
+    ),
+    "ote": (
+        "BELUM DI-PORT, ditambahkan 8 September 2026 bersama detektornya. "
+        "Ia detektor pertama di sini yang kotaknya tidak memuat lilin apa "
+        "pun - dua harga swing dan dua rasio - jadi parity MQL5-nya akan "
+        "menguji `structure.swings` dan aritmetika retracement, bukan "
+        "geometri lilin seperti lima yang lain. Yang lebih mendesak dari "
+        "port MQL5: pitanya SUDAH digambar di frontend sejak lama lewat "
+        "fibonacci-primitive.ts dan tidak pernah diukur sama sekali, jadi "
+        "parity yang paling berharga untuk layer ini adalah Pine lawan "
+        "Python di feed yang sama, bukan MQL5"
+    ),
     # ---- Enam layer di luar family ICT, ditambahkan 2 September 2026 supaya
     # ---- sensus ini menutup SETIAP layer dan bukan hanya family ICT. Sampai
     # ---- hari itu kelimanya plus `checklist` tidak tercatat di mana pun, jadi

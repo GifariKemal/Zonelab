@@ -35,7 +35,7 @@ from .models import Candle
 #: changes. Not fitted - stated as a choice.
 CONSOLIDATION_LOOKBACK = 20
 
-#: Four named triads. The first entry is the BASE - the chart's own symbol is
+#: The named triads. The first entry is the BASE - the chart's own symbol is
 #: substituted in by the caller, so the triad works with any asset that belongs
 #: to it. The two partners are fetched and compared against the base.
 #:
@@ -49,6 +49,26 @@ TRIAD_FAMILIES: dict[str, tuple[str, str, str]] = {
     "fx": ("XAUUSD", "USDJPY", "XPTUSD"),
     "bonds": ("XAUUSD", "US10Y", "US30Y"),
     "energy": ("XAUUSD", "WTI", "BRENT"),
+    # PRECIOUS METALS, added 11 September 2026, and it came from the owner's own
+    # TradingView layout rather than from this table's correlation source: a
+    # three-pane chart running COMEX_DL:GC1!, COMEX_DL:SI1! and NYMEX_DL:PL1!
+    # side by side at 60 minutes.
+    #
+    # It is not a duplicate of `commodity` or `fx`. `commodity` pairs gold with
+    # oil and silver, mixing an energy leg into a metals read; `fx` pairs it
+    # with the yen and platinum, mixing a currency leg in. This is the only
+    # triad here whose three legs are all precious metals, which is the
+    # comparison a metals trader actually makes - and it is also the
+    # "Gold / Silver / Copper (or Platinum)" commodity triad named in the
+    # Quarterly Theory A-Z guide.
+    #
+    # ON THE `yahoo` PROVIDER THESE ARE THE SAME CONTRACTS HIS CHART SHOWS:
+    # XAUUSD maps to GC=F, XAGUSD to SI=F, XPTUSD to PL=F - COMEX and NYMEX
+    # front month, the continuous series TradingView draws as GC1!/SI1!/PL1!.
+    # On `mt5` the same three ids resolve to the broker's spot CFDs instead,
+    # which is a DIFFERENT instrument with a different basis and a different
+    # daily break. Same triad name, two venues; pick the source deliberately.
+    "metals": ("XAUUSD", "XAGUSD", "XPTUSD"),
 }
 
 

@@ -69,6 +69,28 @@ class PSPRenderer implements IPrimitivePaneRenderer {
         ctx.moveTo(Math.round(row.xFrom * kx), y);
         ctx.lineTo(x, y);
         ctx.stroke();
+
+        // JANGKAUAN KE RUANG KOSONG, ditambahkan 8 September 2026, dan ia
+        // perbaikan LEGIBILITAS sebelum ia perbaikan pengukuran.
+        //
+        // Span di atas seluruhnya berada DI ANTARA bar yang jadi open-nya dan
+        // bar yang menyapunya - tiga bar - dan primitive ini dicat DI BAWAH
+        // lilin. Jadi level itu praktis tersembunyi di balik price action yang
+        // ia lintasi: seorang pembaca melihat tick-nya dan hampir tidak melihat
+        // levelnya. `e2e/nonbox-truth.mjs` menemukannya sebagai "kekuatan tinta
+        // 0,048", dan angka itu ternyata bukan tinta PSP melainkan satu piksel
+        // fringe - scan-nya menemukan lilin, bukan garis, karena di jendela itu
+        // memang lilin yang ada.
+        //
+        // Menaikkan alpha tidak akan menolong apa pun yang terhalang. Yang
+        // menolong adalah membiarkan levelnya keluar dari price action, jadi
+        // ia diteruskan sedikit ke kanan tick - ke ruang yang biasanya kosong -
+        // tanpa mengubah apa yang span aslinya nyatakan.
+        const reach = Math.round(28 * kx);
+        ctx.beginPath();
+        ctx.moveTo(x, y);
+        ctx.lineTo(x + reach, y);
+        ctx.stroke();
         ctx.setLineDash([]);
 
         // A solid tick at the rejecting bar, so the sweep is findable when the
@@ -87,16 +109,21 @@ class PSPRenderer implements IPrimitivePaneRenderer {
         // centre is two pixels below the top edge is a tag cut in half, and
         // `e2e/labels.mjs` fails on exactly that - it caught this one.
         if (y - h / 2 < 0 || y + h / 2 > height) continue;
-        const box = { x: x / kx, y: (y - h / 2) / ky, w: w / kx, h: h / ky };
+        // PELAT DIGESER KE UJUNG JANGKAUAN, karena menaruhnya tepat di `x`
+        // akan menutupi ruas yang baru saja dibuat terbaca dengan sebuah FILL -
+        // dan sebuah fill di atas sebuah stroke adalah persis hal yang harness
+        // laporkan sebagai "terselesaikan sebagai fill".
+        const plateX = x + reach;
+        const box = { x: plateX / kx, y: (y - h / 2) / ky, w: w / kx, h: h / ky };
         if (!labelFree(box, claimedLabels)) continue;
         claimedLabels.push(box);
         ctx.fillStyle = plateInk(0.78);
-        ctx.fillRect(x, y - h / 2, w, h);
+        ctx.fillRect(plateX, y - h / 2, w, h);
         // The triad crack is REPORTED, never filtered on: a brighter tag, not a
         // different object. Its rate is the same in both arms of the
         // measurement, so it earns emphasis and nothing more.
         ctx.fillStyle = ink(INK, row.crack ? 0.95 : 0.7);
-        ctx.fillText(row.tag, x + pad, y);
+        ctx.fillText(row.tag, plateX + pad, y);
       }
       ctx.restore();
     });

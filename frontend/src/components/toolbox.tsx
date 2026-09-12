@@ -36,9 +36,22 @@ import {
 interface Props {
   /** The registry. `config.layers` IS the menu - see `Toolbox` below. */
   config: ServerConfig | null;
-  /** Which layers are on. Membership is the only enable there is. */
+  /** Which layers are on. Membership is the only enable there is.
+   *
+   *  ON THIS TIMEFRAME. The page keys the set by interval, so this prop changes
+   *  when the reader changes the bar length and nothing here has to know that. */
   layers: string[];
   onLayers: (next: string[]) => void;
+  /** The timeframe those layers belong to, and the timeframes that already have
+   *  a set of their own. Both exist for ONE control: the empty state below,
+   *  which has to say which timeframe is empty and offer the set from a
+   *  timeframe that is not. */
+  interval: string;
+  layersElsewhere: { interval: string; layers: string[] }[];
+  /** Copy another timeframe's whole setup onto this one - the switches AND the
+   *  knobs. Separate from `onLayers` for the reason `onPreset` is: a set of
+   *  layers without the thresholds it was tuned with is a different drawing. */
+  onCopyFrom: (interval: string) => void;
   /** Every layer's knobs, keyed by the registry's own `params` name. */
   params: LayerParams;
   onParams: <K extends keyof LayerParams>(
@@ -174,6 +187,9 @@ export const Toolbox = memo(function Toolbox({
   config,
   layers,
   onLayers,
+  interval,
+  layersElsewhere,
+  onCopyFrom,
   params,
   onParams,
   onReset,
@@ -198,6 +214,14 @@ export const Toolbox = memo(function Toolbox({
   // hour-old bar while looking identical to a current one.
   const step = (meta?.bar_closed_at ?? 0) - (meta?.as_of ?? 0);
   const lag = meta?.feed_lag_seconds ?? 0;
+  // THE VENUE'S OWN DELAY, subtracted before the banner decides anything. An
+  // exchange that holds its tape back ten minutes can never produce a bar
+  // newer than that, so measuring against the wall clock leaves the banner lit
+  // on every COMEX chart at 1m and 5m forever - and a banner that is always up
+  // is read as furniture, which is the failure the comment below already warns
+  // about. Null means the feed cannot say and nothing is deducted.
+  const held = Math.max(0, meta?.feed_delay_seconds ?? 0);
+  const overdue = Math.max(0, lag - held);
 
   /** One layer's knobs, chosen by its registry `params` name rather than by its
    *  id, because several layers share a block. Unknown key returns null, so a
@@ -249,6 +273,197 @@ export const Toolbox = memo(function Toolbox({
       // first of them that is on rather than repeated under each. Four copies
       // of a slider that writes one value is a control that appears to be four
       // independent thresholds and is not.
+      case "cisd_zone":
+        return (
+          <>
+            {/* DEFINISI CISD-NYA TIDAK ADA DI SINI: `min_run` dan
+                `interrupt_tolerance` diteruskan ke `app.cisd.cisds` yang sama
+                yang dipakai overlay `cisd`, jadi menggeser slider ini menggeser
+                GARIS dan KOTAK bersamaan. */}
+            <Slider
+              label="Shortest run"
+              hint="Panjang run minimum yang boleh mempersenjatai sebuah level."
+              note="2 sama dengan overlay `cisd`, dan seperti di sana ia DIPILIH bukan diukur. Menaikkannya mengurangi kepadatan, yang di detektor ini masalahnya: level CISD membawa di 12,05 persen bar XAU harian, 3,2 kali lebih padat daripada pembanding LuxAlgo, dan dedupe membuang 271 dari 377 kandidat."
+              suffix="candles"
+              min={1}
+              max={20}
+              step={1}
+              value={params.cisd_zone.min_run}
+              onChange={(v) => onParams("cisd_zone", { min_run: v })}
+            />
+            <Slider
+              label="Interrupt tolerance"
+              hint="Berapa lilin non-conforming berturut yang diserap sebelum run putus."
+              note="Menaikkannya MENGGABUNG run, jadi ia memindahkan level DAN bar tempat event-nya mendarat. Hitungannya tidak stabil terhadap knob ini."
+              suffix="candles"
+              min={0}
+              max={5}
+              step={1}
+              value={params.cisd_zone.interrupt_tolerance}
+              onChange={(v) => onParams("cisd_zone", { interrupt_tolerance: v })}
+            />
+            <Slider
+              label="Run floor"
+              hint="Lantai tinggi kotak dalam ATR. NOL berarti tidak mengikat."
+              note="Tinggi kotak CISD ADALAH jarak stopnya, jadi menggerbanginya memilih antara 'cuma run besar' dan 'cuma stop rapat' dan tidak satu pun bersumber. Disapu di TradingView, bukan ditebak di sini."
+              suffix="ATR"
+              min={0}
+              max={20}
+              step={0.1}
+              value={params.cisd_zone.run_min_atr}
+              onChange={(v) => onParams("cisd_zone", { run_min_atr: v })}
+            />
+            <Slider
+              label="Merge overlap"
+              hint="Dua kotak sesisi yang tumpang tindih lebih dari ini dianggap satu level."
+              note="Kebutuhan di detektor ini, bukan salinan dari supply/demand: pada 0,6 ia membuang 271 dari 377 kandidat di XAUUSD harian."
+              min={0}
+              max={1}
+              step={0.05}
+              value={params.cisd_zone.merge_overlap_pct}
+              onChange={(v) => onParams("cisd_zone", { merge_overlap_pct: v })}
+            />
+            <Toggle
+              label="Show mitigated"
+              value={params.cisd_zone.show_mitigated}
+              onChange={(v) => onParams("cisd_zone", { show_mitigated: v })}
+            />
+            <Toggle
+              label="Show broken"
+              value={params.cisd_zone.show_broken}
+              onChange={(v) => onParams("cisd_zone", { show_broken: v })}
+            />
+            <Slider
+              label="Max zones per side"
+              hint="Cap TAMPILAN, memilih berdasarkan waktu. 0 berarti tanpa cap."
+              note="Setiap pengukuran wajib memakai 0."
+              min={0}
+              max={100}
+              step={1}
+              value={params.cisd_zone.max_zones_per_side}
+              onChange={(v) => onParams("cisd_zone", { max_zones_per_side: v })}
+            />
+          </>
+        );
+
+      case "liquidity_pool":
+        return (
+          <>
+            {/* BUKAN BSL/SSL YANG SAMA dengan layer `liquidity`. Yang itu
+                ekstrem periode (PDH/PDL/PWH/PWL) sebagai garis; yang ini
+                kluster equal highs / equal lows sebagai kotak. Slider di sini
+                tidak menyentuh layer itu sama sekali. */}
+            <Slider
+              label="Swing width"
+              hint="Lebar fraktal pivot, dipakai sebagai left DAN right."
+              note="Knob terpisah dari OTE walau namanya sama: kedua detektor boleh membaca struktur pada derajat berbeda. Menaikkannya memberi pivot yang lebih jarang tapi lebih dominan."
+              suffix="bars"
+              min={2}
+              max={50}
+              step={1}
+              value={params.liquidity_pool.swing_n}
+              onChange={(v) => onParams("liquidity_pool", { swing_n: v })}
+            />
+            <Slider
+              label="Equal tolerance"
+              hint="Seberapa dekat dua pivot boleh berbeda dan masih disebut sama."
+              note="MENGELOMPOKKAN, tidak menggambar: tepi kotak diambil dari sebaran pivot yang teramati, jadi slider ini tidak mengubah tinggi kotak secara langsung. DIPILIH bukan diukur, dan SEPI di default - 0,1 ATR memberi NOL kolam di 100 bar XAU harian karena pasangan swing high terdekat di sana berjarak 0,367 ATR. Populasi XAU harian: 0,1/0,25/0,5/1,0/2,0 memberi 49/99/116/112/80 zona, tidak monoton karena toleransi lebar menggabung kluster secepat ia membuatnya."
+              suffix="ATR"
+              min={0}
+              max={5}
+              step={0.05}
+              value={params.liquidity_pool.equal_tol_atr}
+              onChange={(v) => onParams("liquidity_pool", { equal_tol_atr: v })}
+            />
+            <Slider
+              label="Touches"
+              hint="Berapa pivot harus sepakat sebelum kluster jadi kolam."
+              note="Dua adalah definisi minimum equal highs. Kotaknya lahir tepat saat sentuhan ke-N DIKONFIRMASI dan tidak dipancarkan ulang saat kluster tumbuh - menunggu kluster selesai adalah lookahead, jadi kolam beranggota empat digambar oleh dua anggota pertamanya."
+              suffix="pivots"
+              min={2}
+              max={10}
+              step={1}
+              value={params.liquidity_pool.min_touches}
+              onChange={(v) => onParams("liquidity_pool", { min_touches: v })}
+            />
+            <Slider
+              label="Merge overlap"
+              hint="Dua kotak sesisi yang tumpang tindih lebih dari ini dianggap satu kolam."
+              note="Kolam bertumpuk saat satu pivot masuk dua kluster berdekatan."
+              min={0}
+              max={1}
+              step={0.05}
+              value={params.liquidity_pool.merge_overlap_pct}
+              onChange={(v) =>
+                onParams("liquidity_pool", { merge_overlap_pct: v })
+              }
+            />
+          </>
+        );
+      case "ote":
+        return (
+          <>
+            {/* SATU SATUNYA DETEKTOR YANG KOTAKNYA TIDAK MEMUAT LILIN. Lima yang
+                lain memotong celah, badan, atau base; pita ini dua HARGA swing
+                dan dua rasio, jadi knob-nya juga beda jenis - tidak ada ambang
+                geometri lilin di sini sama sekali. */}
+            <Slider
+              label="Swing fractal"
+              hint="Berapa bar sebuah pivot harus mendominasi di kedua sisi, DAN berapa lama harus ditunggu sebelum ia boleh dipakai."
+              note="5 mengikuti fractal internal `structure`, BUKAN 50 milik `dealing_range`. Perbedaan itu persis yang membuat dua definisi OTE di repo ini tidak setuju: yang digambar di chart memakai swing struktur, sementara klausa `ote` di app/ict.py memakai dealing range. Nilai di sini dipilih supaya kotaknya cocok dengan grid Fibonacci yang benar benar tampil."
+              suffix="bars"
+              min={2}
+              max={200}
+              step={1}
+              value={params.ote.swing_n}
+              onChange={(v) => onParams("ote", { swing_n: v })}
+            />
+            <Slider
+              label="Leg floor"
+              hint="Panjang leg minimum dalam ATR, diukur di bar anchor pertama. Gerbang detektor ini."
+              note="DOKTRIN OTE TIDAK PUNYA GERBANG - ia aturan tempat masuk, bukan aturan seleksi. Lantai ini padanan yang DIPILIH supaya sebanding dengan order block dan supply/demand, bukan angka yang diwarisi dari sumber, dan OTE karena itu ada di GATE_UNMEASURED_KINDS."
+              evidence="Disapu di XAUUSD harian 8 September 2026 dan naik monoton: mati 1,038, 2,0 memberi 1,066, 3,0 memberi 1,099, 4,0 memberi 1,205. TAPI HOLD-OUT MENOLAKNYA. Jendela dibelah di 2013: lantai 4,0 memberi IS 1,191 dan OOS 1,162, sementara lantai 2,0 yang di-ship memberi IS 0,848 dan OOS 1,180. Lantai 4 memang akan terpilih di paruh pertama dan ia tidak runtuh seperti lantai 4 milik BRK, tapi di luar sampel ia KALAH tipis dari 2,0 dengan separuh jumlah trade. Karena itu 2,0 tetap."
+              suffix="ATR"
+              min={0}
+              max={20}
+              step={0.1}
+              value={params.ote.leg_min_atr}
+              onChange={(v) => onParams("ote", { leg_min_atr: v })}
+            />
+            <Slider
+              label="Merge overlap"
+              hint="Dua pita sesisi yang tumpang tindih lebih dari ini, diukur terhadap tinggi yang LEBIH KECIL, dianggap satu level."
+              note="DETEKTOR INI MEMBUTUHKANNYA, bukan meniru supply/demand. Pasangan anchor berurutan berbagi satu anchor - low yang sama dengan high berikutnya - jadi pita berikutnya hampir selalu memotong pita sebelumnya. Empat detektor imbalance tidak punya masalah ini karena kotaknya dibuat dari lilin yang berbeda."
+              evidence="Audit visual 8 September 2026 pada XAUUSD harian tidak bisa memisahkan dua kotak supply yang bertumpuk: 'they render as a single banded region crossed by four solid rules'. Pada 0,6 dedupe membuang 105 dari 197 zona. Ia juga memaksa keluar tabrakan id: `_finish` menyusun id dari kind plus bar ORIGIN, dan dua pita OTE bisa berbagi origin - tak terlihat sampai survivorship jadi bergantung populasi."
+              min={0}
+              max={1}
+              step={0.05}
+              value={params.ote.merge_overlap_pct}
+              onChange={(v) => onParams("ote", { merge_overlap_pct: v })}
+            />
+            <Toggle
+              label="Show mitigated"
+              value={params.ote.show_mitigated}
+              onChange={(v) => onParams("ote", { show_mitigated: v })}
+            />
+            <Toggle
+              label="Show broken"
+              value={params.ote.show_broken}
+              onChange={(v) => onParams("ote", { show_broken: v })}
+            />
+            <Slider
+              label="Max zones per side"
+              hint="Cap TAMPILAN, dan ia memilih berdasarkan WAKTU - zona terbaru per sisi."
+              note="0 berarti tanpa cap. Setiap pengukuran wajib memakai 0: cap ini sudah dua kali membuat sebuah populasi terbaca seperti temuan detektor, termasuk parity FVG yang sempat terbaca 12 dari 22 padahal 20."
+              min={0}
+              max={100}
+              step={1}
+              value={params.ote.max_zones_per_side}
+              onChange={(v) => onParams("ote", { max_zones_per_side: v })}
+            />
+          </>
+        );
+
       case "imbalance":
         return (
           <>
@@ -258,13 +473,38 @@ export const Toolbox = memo(function Toolbox({
                 gate was off. Naming a switch and not shipping it is worse than
                 shipping neither. Order block only: the other three detectors
                 have no block candle to test. */}
+            {/* DIMATIKAN SAAT TIDAK ADA YANG MEMBACANYA, sejak 9 September 2026.
+                `ImbalanceParams` dipakai bersama empat detektor dan knob ini
+                hanya dibaca `order_block` dan `breaker`. `DrawRequest` di
+                backend MENOLAK knob ini kalau ia digeser dari default tanpa
+                salah satu layer itu menyala - guard yang sengaja, supaya
+                sebuah setelan tidak terlihat berlaku sambil menggambar chart
+                default.
+
+                Tapi UI tetap menawarkannya, jadi menekannya mengirim body yang
+                pasti ditolak: `e2e/click-everything.mjs` merah tiga gate dengan
+                422, dan karena knob itu tetap di body sesudahnya, DUA gate
+                berikutnya ikut merah tanpa ada hubungannya. Menekan saklar
+                seharusnya tidak bisa menghentikan chart.
+
+                Dimatikan, bukan disembunyikan: komentar di atas sudah menulis
+                bahwa menyebut sebuah saklar tanpa mengirimkannya lebih buruk
+                daripada tidak menyediakan keduanya. Ia tetap terlihat, tetap
+                menjelaskan dirinya, dan tidak bisa mengirim yang tak terbaca. */}
             <Toggle
               label="Require structure break"
               value={params.imbalance.require_structure_break}
+              disabled={!on("order_block") && !on("breaker")}
               onChange={(v) =>
                 onParams("imbalance", { require_structure_break: v })
               }
             />
+            {!on("order_block") && !on("breaker") ? (
+              <p className="text-[11px] leading-relaxed text-accent">
+                Hanya dibaca order block dan breaker, dan keduanya mati.
+                Nyalakan salah satunya untuk memakai gerbang ini.
+              </p>
+            ) : null}
             <Hint
               k="require-structure-break"
               hint="Order block only: the impulse must CLOSE beyond a confirmed swing, not merely travel the displacement size."
@@ -445,6 +685,45 @@ export const Toolbox = memo(function Toolbox({
               value={params.session.approximate_true_opens}
               onChange={(v) => onParams("session", { approximate_true_opens: v })}
             />
+            {/* TWO MORE CLOCK READINGS, both adopted 11 September 2026 and
+                neither measured. They live on this layer rather than on layers
+                of their own because they are the same object the quarter grid
+                is: arithmetic on the clock, no bar read, no fetch. */}
+            <Degrees
+              label="Killzones"
+              selected={params.session.killzones}
+              onChange={(v) => onParams("session", { killzones: v })}
+            />
+            {params.session.killzones.length === 1 ? (
+              <p className="text-[11px] leading-relaxed text-accent">
+                One degree is the degenerate case: every quarter of it qualifies,
+                so the whole chart is banded. Pick two or more.
+              </p>
+            ) : null}
+            <Note>
+              A killzone is a window where every degree picked is in the SAME
+              numbered quarter - the source&apos;s &quot;Q3 of Q3&quot; at
+              09:00-10:30 New York is day plus session. READ THE BASE RATE WITH
+              IT: two degrees agree on one quarter in four BY CONSTRUCTION and
+              three on one in sixteen, and `meta.session.killzones_base_rate`
+              reports the number for the set you picked. Nothing here has been
+              measured against outcomes, which is why the band is the faintest
+              ink on the pane.
+            </Note>
+            <Degrees
+              label="Premium / discount"
+              selected={params.session.premium_discount}
+              onChange={(v) => onParams("session", { premium_discount: v })}
+            />
+            <Note>
+              Time-based premium and discount: the range of the previous quarter
+              ONE DEGREE UP, with its 50% line. Trading the 90-minute cycle that
+              is the previous 6-hour session. It carries no parameter at all,
+              which is the only reason it sits beside the swing-based dealing
+              range rather than instead of it - that one has a swing width and
+              can be tuned into agreement with an outcome, this one cannot.
+              Which of the two reads price better has not been measured.
+            </Note>
             {params.session.true_opens.includes("quadrennial") &&
             !params.session.approximate_true_opens ? (
               <p className="text-[11px] leading-relaxed text-accent">
@@ -1030,7 +1309,7 @@ export const Toolbox = memo(function Toolbox({
                 the partner list, so the triad works with any instrument. */}
             <Chips
               label="Triad"
-              options={["monetary", "commodity", "risk", "fx", "bonds", "energy"]}
+              options={["monetary", "commodity", "risk", "fx", "bonds", "energy", "metals"]}
               selected={[]}
               onChange={(v) => {
                 const partners: Record<string, string[]> = {
@@ -1040,6 +1319,10 @@ export const Toolbox = memo(function Toolbox({
                   fx: ["USDJPY", "XPTUSD"],
                   bonds: ["US10Y", "US30Y"],
                   energy: ["WTI", "BRENT"],
+                  // All three legs precious metals. On the `yahoo` source these
+                  // are COMEX GC=F/SI=F and NYMEX PL=F - the same front-month
+                  // contracts TradingView draws as GC1!/SI1!/PL1!.
+                  metals: ["XAGUSD", "XPTUSD"],
                 };
                 const picked = v[v.length - 1];
                 if (!picked || !partners[picked]) return;
@@ -1066,6 +1349,22 @@ export const Toolbox = memo(function Toolbox({
               selected={params.checklist.ssmt_degrees}
               onChange={(v) => onParams("checklist", { ssmt_degrees: v })}
             />
+            <Toggle
+              label="Hidden SSMT (bodies)"
+              value={params.checklist.ssmt_hidden}
+              onChange={(v) => onParams("checklist", { ssmt_hidden: v })}
+            />
+            <Note>
+              Also read the divergence on BODY extremes, not just wicks - the
+              source&apos;s Hidden SSMT, for when no wick divergence is visible
+              but the closes diverge. Hidden ones draw DOTTED so the two are
+              never read as one population, and{" "}
+              <span className="num">meta.ssmt.hidden</span> counts them apart.
+              Off by default: every measurement in this project was taken on
+              wicks, and the source itself calls hidden the weaker of the pair
+              because no liquidity is technically swept - a claim with no number
+              behind it.
+            </Note>
             {params.checklist.ssmt_symbols.length &&
             !params.checklist.ssmt_degrees.length ? (
               <p className="text-[11px] leading-relaxed text-accent">
@@ -1354,6 +1653,63 @@ export const Toolbox = memo(function Toolbox({
           </>
         );
 
+      case "smt_fill":
+        return (
+          <>
+            {/* THE PARTNERS, RENDERED HERE TOO, and that is a fix rather than a
+                duplicate. A layer's knob panel appears only while THAT layer is
+                on, keyed by its own `params` block - so switching SMT fill on by
+                itself showed a rail with no way to pick a partner, and the layer
+                then reported "pilih minimal satu instrument" with no control in
+                sight. Found by a pixel probe, not by any harness: `wiring.mjs`
+                supplies the partners through the API and never looks for the
+                control.
+
+                ONE STATE, TWO VIEWS. Both write `params.checklist`, so this is
+                the same basket shown in a second place rather than a second
+                basket - the distinction the ssmt layer's own note draws when it
+                explains why it shares the block at all. */}
+            <Chips
+              label="SMT fill against"
+              options={(config?.symbols ?? [])
+                .map((s) => s.id)
+                .filter((id) => id !== symbol)}
+              selected={params.checklist.ssmt_symbols}
+              onChange={(v) => onParams("checklist", { ssmt_symbols: v })}
+            />
+            <Slider
+              label="Fills drawn"
+              hint="Newest gap-fill divergences kept on the canvas."
+              note="The only knob this layer has. There is deliberately no minimum gap size, no lookahead cap and no minimum depth difference: the source is explicit that size does not matter, and the three variants are defined by 0, 50% and 100% of the gap, which is its own geometry rather than tuning."
+              suffix="fills"
+              min={0}
+              max={200}
+              step={10}
+              value={params.smt_fill.max_events}
+              onChange={(v) => onParams("smt_fill", { max_events: v })}
+            />
+            <Note>
+              A fair value gap that printed on two correlated instruments at the
+              SAME bar, where one traded back into its gap further than the
+              other. Three variants: <span className="num">in</span> one entered
+              at all and the other never did, <span className="num">50</span> one
+              passed the midpoint, <span className="num">fill</span> one filled
+              through. The band drawn is this chart&apos;s own gap; the
+              partner&apos;s belongs to a different price scale and is
+              deliberately absent. A box tagged{" "}
+              <span className="num">held</span> is one where THIS instrument is
+              the one holding.
+              {" "}The partner picker above is the SAME value the SSMT layer
+              uses, shown here as well so this layer is usable on its own - one
+              basket, one fetch, two places to set it.
+              {" "}ADOPTED 11 September 2026 AND NOT MEASURED. Its two
+              neighbours from the same doctrine, SSMT and PSP, were measured null
+              over 24 and 48 cells; that is the prior this one starts from, not
+              the source&apos;s confidence.
+            </Note>
+          </>
+        );
+
       case "psp":
         return (
           <>
@@ -1529,11 +1885,25 @@ export const Toolbox = memo(function Toolbox({
           opaque background, rather than the translucent accent wash the banner
           below uses - controls scrolling under a see-through warning read as
           both at once. */}
-      {step > 0 && lag > step ? (
+      {step > 0 && overdue > step ? (
         <p className="sticky top-0 z-10 border-b border-accent/40 bg-panel px-3 py-2 text-[11px] leading-relaxed text-accent">
           The newest bar closed <span className="num">{elapsed(lag)}</span> ago and
           one bar here is <span className="num">{elapsed(step)}</span>, so
           everything below describes that bar rather than the price now.
+        </p>
+      ) : null}
+
+      {/* THE DELAY IS ITS OWN LINE, and quieter than the banner above, because
+          it is not a fault: the venue is behaving normally and the chart is
+          correct. It is still the first thing a trader needs to know before
+          reading a level off it, so it is stated rather than left to be
+          inferred from a timestamp. Muted, not accent - a warning colour on a
+          permanent condition is how the banner above got its own warning. */}
+      {held > 0 ? (
+        <p className="border-b border-line px-3 py-1.5 text-[11px] leading-relaxed text-muted">
+          This venue delays its tape by{" "}
+          <span className="num">{elapsed(held)}</span>, so the newest bar is that
+          old by entitlement rather than by fault.
         </p>
       ) : null}
 
@@ -1550,11 +1920,39 @@ export const Toolbox = memo(function Toolbox({
         </Group>
       ) : null}
 
+      {/* THE EMPTY STATE NAMES THE TIMEFRAME, because since layers became per
+          timeframe this is the state a reader lands in every time they open a
+          bar length they have not used yet - and "no layer is on" full stop
+          would read as the app having forgotten something.
+
+          The copy button exists for the same reason and does exactly one thing:
+          it puts ANOTHER timeframe's set on this one, in one click, and says
+          which timeframe it took it from. Without it the only way across is
+          twenty-four switches. It copies rather than shares - the two sets are
+          separate the moment it lands, which is the point of the feature. */}
       {layers.length === 0 && menu.length ? (
-        <p className="border-b border-accent/40 bg-accent/10 px-3 py-2 text-[11px] leading-relaxed text-accent">
-          No layer is on, so the chart is candles only. That is a valid view and
-          not a failure - switch one on below.
-        </p>
+        <div className="border-b border-accent/40 bg-accent/10 px-3 py-2 text-[11px] leading-relaxed text-accent">
+          <p>
+            No layer is on for <span className="num">{interval}</span>, so the
+            chart is candles only. Layers belong to the timeframe they are read
+            off, so switching one on here leaves every other timeframe alone.
+          </p>
+          {layersElsewhere.length ? (
+            <p className="mt-1.5 flex flex-wrap items-center gap-1">
+              <span className="text-text-faint">Copy the set from</span>
+              {layersElsewhere.map((other) => (
+                <button
+                  key={other.interval}
+                  type="button"
+                  onClick={() => onCopyFrom(other.interval)}
+                  className="num rounded-[2px] border border-accent/50 px-1.5 py-0.5 transition-colors duration-[70ms] hover:bg-accent/20 active:translate-y-px"
+                >
+                  {other.interval} ({other.layers.length})
+                </button>
+              ))}
+            </p>
+          ) : null}
+        </div>
       ) : null}
 
       {/* PRESETS FIRST, above the twenty-one toggles they exist to replace.
@@ -1677,6 +2075,13 @@ export const Toolbox = memo(function Toolbox({
         >
           Reset parameters
         </button>
+        {/* WHICH TIMEFRAME'S, said on the control. Knobs are per timeframe now,
+            so a button labelled "Reset parameters" that quietly reset all eight
+            would be the same class of surprise this whole change removes. */}
+        <p className="text-center text-[10px] leading-relaxed text-text-faint">
+          Resets the knobs for <span className="num">{interval}</span> only, and
+          leaves its layers on.
+        </p>
         {/* Twelve sliders and only two of them are backed by evidence. That is
             not something a hint under each control can say, so the handbook
             says it, and the link sits under the panel it explains. */}
@@ -2274,10 +2679,16 @@ function Toggle({
   onChange,
   swatch,
   icon,
+  disabled,
 }: {
   label: string;
   value: boolean;
   onChange: (value: boolean) => void;
+  /** Mati karena tidak ada layer yang membacanya. Dipakai satu tempat sejauh
+   *  ini - lihat catatan pada "Require structure break" - dan sengaja
+   *  `disabled` alih-alih disembunyikan: panel ini sudah pernah dikritik di
+   *  komentarnya sendiri karena menyebut sebuah saklar tanpa mengirimkannya. */
+  disabled?: boolean;
   /** CSS colours this layer actually draws in, newest-family first. Shown as a
    *  bar beside the name so the palette is documented where the layer is
    *  switched on, rather than in a legend nobody opens. Two colours for the box
@@ -2363,11 +2774,14 @@ function Toggle({
         role="switch"
         aria-checked={value}
         aria-label={label}
+        disabled={disabled}
         onClick={() => onChange(!value)}
         className={`h-4 w-8 shrink-0 border transition-colors duration-[70ms] active:translate-y-px ${
-          value
-            ? "border-accent bg-accent/25 hover:bg-accent/40"
-            : "border-line-strong bg-transparent hover:border-text-faint"
+          disabled
+            ? "cursor-not-allowed border-line opacity-40"
+            : value
+              ? "border-accent bg-accent/25 hover:bg-accent/40"
+              : "border-line-strong bg-transparent hover:border-text-faint"
         }`}
       >
         <span
@@ -2402,6 +2816,9 @@ function layerSwatch(): Record<string, readonly string[]> {
     order_block: ["var(--demand)", "var(--supply)"],
     ifvg: ["var(--demand)", "var(--supply)"],
     breaker: ["var(--demand)", "var(--supply)"],
+    ote: ["var(--demand)", "var(--supply)"],
+    cisd_zone: ["var(--demand)", "var(--supply)"],
+    liquidity_pool: ["var(--demand)", "var(--supply)"],
     structure: [ink("structure", 0.95)],
     session: [ink("grid", 0.95)],
     gaps: [ink("levels", 0.95)],
@@ -2416,6 +2833,7 @@ function layerSwatch(): Record<string, readonly string[]> {
     chart_gaps: [ink("levels", 0.95)],
     wyckoff: [ink("structure", 0.85)],
     psp: [ink("ssmt", 0.85)],
+    smt_fill: [ink("ssmt", 0.70)],
     news: ["var(--accent)"],
   };
 }

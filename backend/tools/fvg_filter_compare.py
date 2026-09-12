@@ -16,33 +16,49 @@ from app.detect import DETECTORS
 from app.detect.imbalance import detect_fvg
 from app.models.params import ImbalanceParams
 from tools.detectors_costed import cell_rows, one_sample_t, welch
+from tools.execute import MEASURED_INTERVALS
 from tools.fvg_sweep import split, walk_forward
 
-CELLS = [("XAUUSD", "30m"), ("BTCUSD", "30m")]
+#: SEL DITURUNKAN DARI REGISTRY, bukan diketik. Baris ini berbunyi
+#: `[("XAUUSD","30m"), ("BTCUSD","30m")]` sampai 6 September 2026 - dua sel yang
+#: hari itu juga diukur TIDAK punya edge sama sekali (PF 0,985 dan 0,820 dengan
+#: biaya, `docs/QA-FVG-TV.md`). Sebuah filter yang tidak menolong di sana tidak
+#: memberi tahu apa pun tentang filter itu, cuma tentang selnya, dan file ini
+#: dipakai untuk memutuskan default. Menurunkannya dari `measured_intervals`
+#: membuat alat ukur dan klaim yang ter-ship tidak bisa lagi menunjuk timeframe
+#: yang berbeda tanpa ada yang menyadarinya.
+CELLS = [
+    (symbol, interval)
+    for interval in MEASURED_INTERVALS["fvg"]
+    for symbol in ("XAUUSD", "BTCUSD")
+]
 GATE = 0.25
 
+# VARIAN F DIHAPUS 6 September 2026 bersama knob `body_gap`-nya. Ia adalah yang
+# terburuk dari tujuh di `docs/fvg_filter_compare.json` - exp_r 0,1399 lawan
+# baseline 0,4263, Welch t 0,67, dan satu-satunya yang gagal walk-forward (6
+# dari 8) - dan alasannya struktural, bukan kebetulan sampel: tepi body
+# MELEBARKAN kotak, jadi gerbang ceiling membuang hampir semuanya. Hurufnya
+# tidak dinomori ulang supaya JSON lama tetap bisa dibaca.
 VARIANTS: list[dict] = [
     {"name": "A: baseline (no filter)",
      "params": {"filter_mother": False, "min_gap_atr": 0.0,
-                "min_body_ratio": 0.0, "body_gap": False}},
+                "min_body_ratio": 0.0}},
     {"name": "B: mother candle",
      "params": {"filter_mother": True, "min_gap_atr": 0.0,
-                "min_body_ratio": 0.0, "body_gap": False}},
+                "min_body_ratio": 0.0}},
     {"name": "C: mother + min_gap 0.05",
      "params": {"filter_mother": True, "min_gap_atr": 0.05,
-                "min_body_ratio": 0.0, "body_gap": False}},
+                "min_body_ratio": 0.0}},
     {"name": "D: mother + min_gap 0.1",
      "params": {"filter_mother": True, "min_gap_atr": 0.1,
-                "min_body_ratio": 0.0, "body_gap": False}},
+                "min_body_ratio": 0.0}},
     {"name": "E: mother + body ratio 0.3",
      "params": {"filter_mother": True, "min_gap_atr": 0.0,
-                "min_body_ratio": 0.3, "body_gap": False}},
-    {"name": "F: body-based gap edges",
-     "params": {"filter_mother": False, "min_gap_atr": 0.0,
-                "min_body_ratio": 0.0, "body_gap": True}},
+                "min_body_ratio": 0.3}},
     {"name": "G: mother + body ratio 0.3 + min_gap 0.05",
      "params": {"filter_mother": True, "min_gap_atr": 0.05,
-                "min_body_ratio": 0.3, "body_gap": False}},
+                "min_body_ratio": 0.3}},
 ]
 
 
@@ -54,7 +70,6 @@ def run_variant(v: dict) -> dict:
         filter_mother=p["filter_mother"],
         min_gap_atr=p["min_gap_atr"],
         min_body_ratio=p["min_body_ratio"],
-        body_gap=p["body_gap"],
     )
     original = DETECTORS["supply_demand"]
     DETECTORS["supply_demand"] = lambda candles, _: detect_fvg(candles, params)

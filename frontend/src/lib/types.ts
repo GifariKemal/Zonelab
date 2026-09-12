@@ -85,6 +85,51 @@ export interface DefiningRangeBand {
   extensions: DFRExtension[];
 }
 
+export interface SMTFillDivergence {
+  /** Which of the source's three divergences fired. `entered`: one traded back
+   *  inside its gap at all and the other never did. `half`: both entered and
+   *  one passed the 50% mark. `full`: one filled completely and the other did
+   *  not. */
+  variant: "entered" | "half" | "full";
+  partner: string;
+  /** True when the CHART's own instrument went deeper. The gap is HOLDING on
+   *  whichever one did not fill it, so this is the whole direction. */
+  self_filled: boolean;
+  direction: number;
+  /** The chart instrument's own gap. The partner's band belongs to a different
+   *  price scale and is deliberately absent. */
+  top: number;
+  bottom: number;
+  gap_at: number;
+  self_depth: number;
+  partner_depth: number;
+  knowable_at: number;
+}
+
+export interface KillzoneWindow {
+  degrees: string[];
+  /** The quarter every degree is in. */
+  number: 1 | 2 | 3 | 4;
+  /** How many degrees agreed. READ THE BASE RATE WITH IT: two align on one
+   *  quarter in four by construction, three on one in sixteen. */
+  depth: number;
+  time_from: number;
+  time_to: number;
+}
+
+export interface TimeRangeBand {
+  degree: string;
+  parent: string;
+  time_from: number;
+  time_to: number;
+  high: number;
+  low: number;
+  /** The 50% line: premium above, discount below. */
+  mid: number;
+  source_from: number;
+  source_to: number;
+}
+
 export interface SSMTDivergence {
   degree: string;
   side: "high" | "low";
@@ -102,6 +147,11 @@ export interface SSMTDivergence {
   /** Close of the second quarter. Drawing the segment back at `time_from` is
    *  correct; ACTING on it before this is hindsight. */
   knowable_at: number;
+  /** Which extreme the comparison was made on. `wick` is the ordinary
+   *  sequential SMT and what every measurement here was taken under; `body` is
+   *  the HIDDEN one, off by default. Drawn differently so the two are never
+   *  read as one population. */
+  basis: "wick" | "body";
   /** Where this divergence's own extreme sat in the dealing range knowable at
    *  the bar it printed on: 0 at the range low, 1 at the high. Null until both
    *  sides of the range have confirmed - never a substituted 0.5.
@@ -339,6 +389,59 @@ export interface SupplyDemandParams {
  *  an FVG plus one more event, and a second gap threshold for it would let the
  *  two populations drift apart. Deliberately small: none of them carries a
  *  score, so there is nothing to weight and nothing to retract. */
+/** Knob detektor `ote`. BLOK SENDIRI, tidak menumpang `imbalance`: OTE tidak
+ *  membaca geometri lilin sama sekali - ia dibuat dari dua harga swing dan dua
+ *  rasio - jadi ia butuh `swing_n` yang keempat detektor imbalance tidak pakai,
+ *  dan menaruhnya di blok bersama akan memberi mereka slider yang tak berarti. */
+/** Knob detektor `cisd_zone`. Definisi CISD-nya diwarisi dari `app.cisd.cisds`
+ *  yang SAMA yang dipakai overlay - dua definisi yang bisa berselisih persis
+ *  cara chart tidak setuju dengan kalibrasinya sendiri. */
+export interface CisdZoneParams {
+  atr_period: number;
+  min_run: number;
+  interrupt_tolerance: number;
+  run_min_atr: number;
+  mitigation_pct: number;
+  arrival_bars: number;
+  show_broken: boolean;
+  show_mitigated: boolean;
+  max_zones_per_side: number;
+  merge_overlap_pct: number;
+}
+
+/** Knob detektor `liquidity_pool`, yang memancarkan DUA kind: BSL dan SSL.
+ *  BUKAN BSL/SSL yang sama dengan `liquidity`: yang itu ekstrem periode
+ *  (PDH/PDL/PWH/PWL) sebagai GARIS, yang ini kluster equal highs / equal lows
+ *  sebagai kotak. Dua populasi berbeda; jangan kutip angka satu untuk lainnya.
+ *
+ *  `equal_tol_atr` MENGELOMPOKKAN, ia tidak menggambar - tepi kotak diambil
+ *  dari sebaran pivot yang teramati, jadi tidak ada konstanta yang masuk ke
+ *  geometri. */
+export interface LiquidityPoolParams {
+  atr_period: number;
+  swing_n: number;
+  equal_tol_atr: number;
+  min_touches: number;
+  mitigation_pct: number;
+  arrival_bars: number;
+  show_broken: boolean;
+  show_mitigated: boolean;
+  max_zones_per_side: number;
+  merge_overlap_pct: number;
+}
+
+export interface OteParams {
+  atr_period: number;
+  swing_n: number;
+  leg_min_atr: number;
+  mitigation_pct: number;
+  arrival_bars: number;
+  show_broken: boolean;
+  show_mitigated: boolean;
+  max_zones_per_side: number;
+  merge_overlap_pct: number;
+}
+
 export interface ImbalanceParams {
   atr_period: number;
   min_gap_atr: number;
@@ -365,7 +468,6 @@ export interface ImbalanceParams {
   structure_n: number;
   filter_mother: boolean;
   min_body_ratio: number;
-  body_gap: boolean;
   show_broken: boolean;
   show_mitigated: boolean;
   max_zones_per_side: number;
@@ -538,6 +640,12 @@ export interface TrueOpenLevel {
 export interface SessionParams {
   quarters: string[];
   true_opens: string[];
+  /** Degrees to intersect, outermost first, drawing the windows where all of
+   *  them are in the same numbered quarter. Empty draws none. */
+  killzones: string[];
+  /** Degrees to draw time-based premium and discount for: the previous quarter
+   *  one degree up, with its 50% line. Empty draws none. */
+  premium_discount: string[];
   /** Let a true open be read from the first bar AFTER its boundary when no bar
    *  opened on it, flagged and drawn dashed. Off by default. Required for the
    *  quadrennial degree to produce anything at all. */
@@ -599,6 +707,9 @@ export interface ChecklistParams {
   bias_bars: number;
   ssmt_symbols: string[];
   ssmt_degrees: string[];
+  /** Also read the sequential SMT on BODY extremes - the source's Hidden SSMT.
+   *  Off by default: every measurement here was taken on wicks. */
+  ssmt_hidden: boolean;
   /** Source for the SSMT basket, the chart's own symbol included in it. null is
    *  the chart's source. Set it when the venue you trade and the complex you
    *  read divergence across are not the same one: charting the local MT5
@@ -988,6 +1099,12 @@ export interface PSPParams {
   max_events: number;
 }
 
+/** Gap-fill divergence. One knob, the ink cap - the partners come from the
+ *  checklist block, and there is deliberately no size or depth threshold. */
+export interface SMTFillParams {
+  max_events: number;
+}
+
 export const LIQUIDITY_PERIODS = ["day", "week", "friday", "monday"] as const;
 export const TIER_REDUCTIONS = ["envelope", "ce_span", "newest", "eh_span"] as const;
 
@@ -1316,6 +1433,9 @@ export interface DrawResponse {
      *  provider call, because a divergence needs a second instrument. */
     ssmt: SSMTDivergence[];
     smt: SMTDivergence[];
+    smt_fill: SMTFillDivergence[];
+    killzones: KillzoneWindow[];
+    time_pd: TimeRangeBand[];
     /** Empty unless the dfr layer was requested. Read off the bars already
      *  fetched, so it costs no provider call. */
     dfr: DefiningRangeBand[];
@@ -1374,6 +1494,10 @@ export interface DrawResponse {
      *  up to 59 minutes - and the two look identical on screen without a number.
      *  A live call returned 3531 here, and the chart said nothing. */
     feed_lag_seconds?: number;
+    /** Seconds this venue holds its tape back, read off the feed's own
+     *  protocol. Null when the provider has no way to say - which is NOT the
+     *  same as zero, and must not be rendered as "live". */
+    feed_delay_seconds?: number | null;
     fetched_at?: number;
     /** Peluang hasil terukur per layer yang BISA DIORDER, untuk simbol dan
      *  timeframe response ini. Dikirim di sini dan bukan di `/api/config`
@@ -1673,7 +1797,18 @@ export interface ServerConfig {
    *  was reproducible: at 0 the series moves one bar every time a bar
    *  closes. */
   synthetic_now: number;
-  symbols: { id: string; providers: string[] }[];
+  symbols: {
+    id: string;
+    providers: string[];
+    /** What each feed CALLS this instrument, keyed by provider id. The app id
+     *  above is what params and snapshots are keyed by; this is what the chart
+     *  is actually drawing - `XAUUSD` is `COMEX:GC1!` on TradingView and a
+     *  broker spot CFD on MT5, and those were measured 51.7 points apart. */
+    vendor?: Record<string, string>;
+  }[];
+  /** The named triads and their members, keyed by family name. Served rather
+   *  than restated in the UI, so adding a family is one edit and not three. */
+  triads?: Record<string, string[]>;
   intervals: string[];
   /** Researched broker profiles the plan can be priced at. Empty pick is the
    *  generic per-instrument row, which is what every plan used until the
@@ -1691,6 +1826,9 @@ export interface ServerConfig {
 export interface LayerParams {
   supply_demand: SupplyDemandParams;
   imbalance: ImbalanceParams;
+  ote: OteParams;
+  cisd_zone: CisdZoneParams;
+  liquidity_pool: LiquidityPoolParams;
   structure: StructureParams;
   session: SessionParams;
   dfr: DFRParams;
@@ -1705,6 +1843,7 @@ export interface LayerParams {
   chart_gaps: ChartGapParams;
   wyckoff: WyckoffParams;
   psp: PSPParams;
+  smt_fill: SMTFillParams;
 }
 
 /** THE DEFAULT CHART IS ONE DETECTOR. Everything else is opt-in, and that is a
@@ -1735,6 +1874,55 @@ export const DEFAULT_LAYER_PARAMS: LayerParams = {
     curve_lookback: 200,
     arrival_bars: 6,
   },
+  cisd_zone: {
+    atr_period: 14,
+    min_run: 2,
+    interrupt_tolerance: 0,
+    // NOL berarti tidak mengikat. Tinggi kotak CISD ADALAH jarak stopnya.
+    run_min_atr: 0.0,
+    mitigation_pct: 0.5,
+    arrival_bars: 6,
+    show_broken: false,
+    show_mitigated: true,
+    max_zones_per_side: 6,
+    // Level CISD PADAT - 12,05% bar XAU harian, 3,2x pembanding LuxAlgo - jadi
+    // dedupe di sini kebutuhan, bukan salinan. Ia membuang 271 dari 377.
+    merge_overlap_pct: 0.6,
+  },
+  liquidity_pool: {
+    atr_period: 14,
+    swing_n: 3,
+    // DIPILIH, bukan diukur, dan ia SEPI: 0,1 ATR memberi NOL kolam di 100 bar
+    // XAU harian - pasangan swing high terdekat di sana berjarak 0,367 ATR -
+    // dan 49 kolam di seluruh 3.128 bar harian. Disapu di TradingView.
+    equal_tol_atr: 0.1,
+    // Dua adalah definisi minimum "equal highs". Menaikkannya memangkas cepat.
+    min_touches: 2,
+    mitigation_pct: 0.5,
+    arrival_bars: 6,
+    show_broken: false,
+    show_mitigated: true,
+    max_zones_per_side: 6,
+    merge_overlap_pct: 0.6,
+  },
+  ote: {
+    atr_period: 14,
+    // 5 mengikuti StructureParams.structure_n, BUKAN dealing_range yang memakai
+    // 50. Perbedaan itu persis yang membuat dua definisi OTE di repo ini tidak
+    // setuju; nilai di sini dipilih supaya kotaknya cocok dengan grid Fibonacci
+    // yang benar benar DIGAMBAR oleh fibonacci-primitive.ts.
+    swing_n: 5,
+    leg_min_atr: 2.0,
+    mitigation_pct: 0.5,
+    arrival_bars: 6,
+    show_broken: false,
+    show_mitigated: true,
+    max_zones_per_side: 6,
+    // Pasangan anchor berurutan berbagi satu anchor, jadi pitanya nyaris
+    // selalu bertumpuk - detektor ini BUTUH dedupe, tidak sekadar meniru
+    // supply_demand.
+    merge_overlap_pct: 0.6,
+  },
   imbalance: {
     atr_period: 14,
     min_gap_atr: 0.0,
@@ -1745,9 +1933,15 @@ export const DEFAULT_LAYER_PARAMS: LayerParams = {
     require_structure_break: false,
     structure_break_bars: 5,
     structure_n: 5,
-    filter_mother: false,
-    min_body_ratio: 0.0,
-    body_gap: false,
+    // Dua-duanya MENYALA sejak 6 September 2026, dan keduanya diukur sebelum
+    // diubah: di XAUUSD 4h paruh 2013-2019, `filter_mother` memindahkan
+    // ekspektasi +0,0419 ke +0,0661 R dan `min_body_ratio` 0,3 memindahkannya
+    // lagi ke +0,0954, sementara margin atas kotak yang digeser naik dari
+    // +0,065 ke +0,121 R. Populasinya nyaris tidak berkurang, 1.050 jadi 933.
+    // Keduanya membuang pola yang memang bukan displacement: gap dari inside
+    // bar, dan gap yang ditinggalkan doji. docs/QA-FVG-TV.md.
+    filter_mother: true,
+    min_body_ratio: 0.3,
     show_broken: false,
     show_mitigated: true,
     max_zones_per_side: 6,
@@ -1768,6 +1962,8 @@ export const DEFAULT_LAYER_PARAMS: LayerParams = {
   session: {
     quarters: [],
     true_opens: [],
+    killzones: [],
+    premium_discount: [],
     approximate_true_opens: false,
     max_quarters: 200,
   },
@@ -1798,6 +1994,7 @@ export const DEFAULT_LAYER_PARAMS: LayerParams = {
     bias_bars: 400,
     ssmt_symbols: [],
     ssmt_degrees: [],
+    ssmt_hidden: false,
     // null, not "yahoo". The default has to be "whatever the chart is on",
     // because a shipped default of one named venue would silently read the
     // basket somewhere the user never chose - and would break outright on a
@@ -1812,6 +2009,7 @@ export const DEFAULT_LAYER_PARAMS: LayerParams = {
   chart_gaps: {},
   wyckoff: { lookback: 20 },
   psp: { max_events: 40 },
+  smt_fill: { max_events: 40 },
 };
 
 

@@ -50,6 +50,12 @@ input double InpMinProfitMargin    = 0.0;
 input double InpZoneMinAtr         = 0.05;
 input double InpMaxBaseDrift       = 0.6;
 input double InpMitigationPct      = 0.5;
+// Ditambahkan 6 September 2026 bersama port-nya di FVGDetector.mqh.
+// Default MENYALA, sama dengan `ImbalanceParams`: sebuah EA yang
+// menggambar lebih banyak zona daripada engine adalah dua jawaban
+// berbeda untuk satu chart, dan tak satu pun pesan yang menyebutnya.
+input bool   InpFilterMother  = true;   // buang FVG dari inside bar
+input double InpMinBodyRatio  = 0.3;    // lantai body/range bar tengah
 input double InpMergeOverlapPct    = 0.6;
 //--- order block ---
 input double InpDisplacementAtr    = 1.5;
@@ -559,6 +565,8 @@ int OnInit()
    fp.atr_period=InpAtrPeriod;
    fp.min_gap_atr=InpMinGapAtr;
    fp.mitigation_pct=InpMitigationPct;
+   fp.filter_mother =InpFilterMother;
+   fp.min_body_ratio=InpMinBodyRatio;
 
    SDZone sd[],ob[],fvg[],ifvg[],brk[];
    int nsd =SDDetect(open_,high_,low_,close_,time_,atr,n,sp,sd);

@@ -645,6 +645,33 @@ function Panel() {
         ]}
       />
 
+      <P>
+        Verdict gerbang itu terbaca langsung di chart, bukan cuma di panel.
+        Setiap kotak membawa satu penanda kecil di captionnya, dan penanda itu
+        dibedakan lewat bentuk isi lawan kosong dan bukan lewat warna, karena
+        project ini cuma punya satu warna status.
+      </P>
+      <Table
+        head={["Penanda", "Artinya", "Kenapa begitu"]}
+        rows={[
+          [
+            <N key="a">bulat penuh</N>,
+            "Ambangnya pernah diukur untuk kind ini, dan kotak ini lolos.",
+            "Diukur di XAUUSD 4h, 13,7 tahun dengan biaya: kohort yang lolos menang 54,56 persen di target 1R lawan 41,94 persen untuk kotak yang digeser acak.",
+          ],
+          [
+            <N key="b">bulat kosong</N>,
+            "Diukur, tapi kotak ini di luar gerbang. Kohortnya yang lebih lemah.",
+            "Sampai 7 September 2026 kotak yang lolos dan yang tidak tergambar identik, sehingga satu-satunya hal yang backtest buktikan justru tidak terlihat.",
+          ],
+          [
+            <N key="c">tanpa penanda</N>,
+            "Belum pernah ada yang mengukur ambang untuk kind ini.",
+            "Ambang yang dipakai adalah milik kotak INDUKNYA. Diamnya disengaja: tidak ada verdict, jadi tidak ada yang ditampilkan.",
+          ],
+        ]}
+      />
+
       <h3 className="mb-3 mt-8 text-[17px] font-semibold tracking-[-0.01em]">
         Knob supply dan demand, menentukan apa yang dianggap berhenti
       </h3>
@@ -1099,6 +1126,7 @@ function Istilah() {
           [<N key="r">quadrennial</N>, "Siklus empat tahun, satu tahun per kuartal, dan Q2 adalah tahun Pilpres Amerika - jadi 2024 dan 2028 Q2, dan 2026 Q4. Jangkarnya fakta, bukan angka yang dicocokkan. Siklus kuartalan Jan-Mar sampai Okt-Des sudah ada sebelumnya dengan nama derajat year."],
           [<N key="s">T4YO~</N>, "True open kuadrennial, dan tildenya wajib: Q2-nya dibuka 1 Januari, pasar tutup 1 Januari setiap tahun, jadi di bawah aturan ketat level ini terukur nol kali pada sepuluh tahun emas 1 jam. Dengan approximate menyala ia diambil dari bar pertama setelah batas, digambar putus-putus, dalam jangkauan 120 jam."],
           [<N key="u">preset</N>, "Satu set layer bernama yang Anda pilih sendiri, plus params minimum yang dibutuhkan layernya untuk menggambar - tiga dari dua puluh satu layer menggambar nol dengan params bawaan, dan angkanya terukur: cycle grid, defining range, dan SSMT. Bukan deteksi fase otomatis: layer yang disembunyikan inferensi tidak bisa dibedakan dari layer yang tidak menemukan apa-apa, dan pembedaan itu yang dijaga seluruh engine ini."],
+          [<N key="x">layer per timeframe</N>, "Sebuah layer, BERIKUT knobnya, milik timeframe tempat ia dibaca. Menyalakan supply and demand di 1H tidak menyalakannya di M15, karena kotak yang digambar di M15 adalah HIMPUNAN LAIN - diukur di docs/TIMEFRAME-AUDIT.md: 26 simbol kali 24 layer kali 8 interval, 4.992 sel, nol yang mengembalikan himpunan harga sama, dengan kontrol request identik dua kali stabil di semuanya. Knobnya ikut karena impulse_atr dan base_max_bars dibaca dalam bar dan ATR timeframe itu sendiri. Hanya timeframe awal yang lahir dengan bawaan; sisanya mulai kosong, rail menawarkan menyalin set dari timeframe yang sudah punya, dan pilihannya diingat antar reload."],
           [<N key="v">snapshot</N>, "Respons yang sedang tampil, disimpan apa adanya dengan catatan dan empat angka lag. Tidak digambar ulang, karena satu tick mendarat antara apa yang benar sekarang dan apa yang Anda lihat - jadi snapshot yang digambar ulang adalah snapshot chart yang tidak pernah dilihat siapa pun."],
           [<N key="w">overdue lawan intra-bar</N>, "feed_lag_seconds saja BUKAN staleness: ia now dikurangi bar_closed_at, jadi di chart 15 menit ia berjalan 0 sampai 900 semata karena waktu berjalan di dalam bar yang terbentuk. Yang melebihi satu bar penuh itu staleness sungguhan."],
           [<N key="t">P / D / EQ</N>, "Huruf di ekor tag SSMT: posisi ekstremnya di dealing range yang bisa diketahui saat ia tercetak. P premium (kuartil teratas), D discount (terbawah), EQ dua kuartil tengah. Tidak ada huruf berarti rentangnya belum terkonfirmasi - bukan 0,5 yang dikarang. Dilaporkan, tidak diskor."],

@@ -38,10 +38,34 @@
  * as "is this reply any good".
  */
 import { spawnSync } from "node:child_process";
-import { mkdirSync, writeFileSync } from "node:fs";
+import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { chromium } from "playwright";
+
+import { onlyLayers } from "./_layers.mjs";
+
+// DIBACA DARI SUMBERNYA, bukan ditulis ulang di sini. Sebuah salinan angka 15
+// di file ini akan hanyut dari `zone-primitive.ts` tanpa satu pun test merah,
+// dan cermin caption yang hanyut sudah tiga kali membuat auditor melaporkan
+// chart yang benar sebagai salah.
+const PRIMITIVE = resolve(
+  dirname(fileURLToPath(import.meta.url)),
+  "../src/components/zone-primitive.ts",
+);
+const LABEL_MIN_HEIGHT = (() => {
+  const m = readFileSync(PRIMITIVE, "utf8").match(
+    /const\s+LABEL_MIN_HEIGHT\s*=\s*(\d+(?:\.\d+)?)/,
+  );
+  if (!m) {
+    console.error(
+      "harness failure: LABEL_MIN_HEIGHT is gone from zone-primitive.ts, so the " +
+        "caption mirror cannot know when a box is too thin for its name",
+    );
+    process.exit(2);
+  }
+  return Number(m[1]);
+})();
 
 // RESOLVED TO AN ABSOLUTE PATH, because it crosses a process boundary into a
 // DIFFERENT working directory. The screenshot is written relative to this
@@ -90,30 +114,14 @@ await page.locator(`div[aria-label="Timeframe"] button:text-is("${INTERVAL}")`).
 await page.getByRole("combobox", { name: "Bars" }).selectOption(String(BARS));
 await page.waitForTimeout(6000);
 
-/** The switch for one layer, found by the label the REGISTRY gives it, never by
- *  a caption typed here - the menu is built from `/api/config`'s `layers`, and a
- *  second copy of those names in this file is what the registry exists to end. */
-const layerSwitch = async (id) => {
-  const label = await page.evaluate(
-    async ([api, want]) => {
-      const cfg = await (await fetch(`${api}/api/config`)).json();
-      return cfg.layers.find((l) => l.id === want)?.label ?? null;
-    },
-    [API, id],
-  );
-  if (!label) await die(`no layer "${id}" in the registry the API serves`, browser);
-  return page.getByRole("switch", { name: label, exact: true });
-};
-
 // Exactly one detector on, same reason as pixel-truth: with two on, the boxes on
 // the canvas are a superset of the list, and the model correctly reports paint
 // the record cannot account for - a finding about the harness, not the drawing.
-if (DETECTOR !== "supply_demand") {
-  await (await layerSwitch(DETECTOR)).click();
-  await page.waitForTimeout(2500);
-  await (await layerSwitch("supply_demand")).click();
-  await page.waitForTimeout(6000);
-}
+//
+// STATE-CHECKED, NOT TOGGLED, since layers became per timeframe: which layers
+// are on depends on the interval this run was pointed at, so a bare click can
+// switch a detector ON that the two clicks meant to switch off.
+await onlyLayers(page, [DETECTOR]);
 
 const drawn = await page.evaluate(
   async ([api, interval, bars, detector]) => {
@@ -139,6 +147,30 @@ if (!view || view.to < candles[0].time || view.from > candles.at(-1).time) {
   await die(`the chart is not showing the ${INTERVAL} series that was fetched`, browser);
 }
 
+// TINGGI PIKSEL, dibaca dari chart yang sama sebelum browsernya ditutup.
+// Tanpa ini cermin caption di bawah tidak bisa menerapkan aturan `thin`, dan
+// pada 7 September 2026 itu persis yang terjadi: shape list melaporkan
+// "FVG ●" untuk dua kotak yang di layar cuma titik, auditor membandingkan
+// keduanya, dan melaporkan caption yang HILANG sebagai cacat gambar. Cermin
+// yang tertinggal membuat chart yang benar terbaca salah - peringatan itu
+// sudah tertulis lima baris di atas cermin yang melanggarnya.
+//
+// `series.priceToCoordinate` adalah konversi yang dipakai `zone-primitive.ts`
+// sendiri, dan `e2e/pixel-truth.mjs` sudah memakainya untuk hal yang sama.
+const geom = await page.evaluate((pairs) => {
+  const { series, chart } = window.__zonelabChart;
+  const paneHeight = chart.paneSize ? chart.paneSize().height : chart.options().height;
+  return {
+    paneHeight,
+    rows: pairs.map(([top, bottom]) => {
+      const a = series.priceToCoordinate(top);
+      const b = series.priceToCoordinate(bottom);
+      if (a === null || b === null) return null;
+      return { yTop: Math.min(a, b), yBottom: Math.max(a, b), h: Math.abs(b - a) };
+    }),
+  };
+}, drawing.zones.map((z) => [z.top, z.bottom]));
+
 const shot = `${OUT}/chart-audit-${INTERVAL}-${DETECTOR}.png`;
 await page.locator("main").screenshot({ path: shot });
 await browser.close();
@@ -146,10 +178,43 @@ await browser.close();
 // Only the zones whose box actually reaches the screen. Listing the rest would
 // make the model report every off-screen zone as a drawing that went missing,
 // which is a true statement about a payload nobody should have sent.
-const onScreen = drawing.zones.filter((z) => z.time_to >= view.from && z.time_from <= view.to);
+// PENYARINGNYA HARGA JUGA, BUKAN CUMA WAKTU, sejak 7 September 2026.
+//
+// Sebelum ini `onScreen` hanya memeriksa `time_to`/`time_from`, jadi sebuah zona
+// yang jendelanya benar tapi harganya di LUAR skala vertikal tetap masuk daftar
+// sebagai zona yang digambar. Auditor lalu melihat gambar, tidak menemukannya,
+// dan melaporkan kotak yang HILANG - laporan yang benar tentang daftar yang
+// salah. Terukur di order_block XAUUSD 4h: 9 zona didaftarkan, 6 yang tergambar,
+// dan tiga yang tidak duduk di 4.009 sampai 4.078 sementara dasar chart 4.180.
+//
+// `priceToCoordinate` tetap mengembalikan koordinat untuk harga di luar pane -
+// itu sebabnya `height_px` sendirian tidak bisa menyaringnya - jadi yang diuji
+// perpotongan vertikalnya dengan tinggi pane.
+const onScreen = drawing.zones
+  .map((z, i) => ({ ...z, geom: geom.rows[i] }))
+  .filter((z) => {
+    if (z.time_to < view.from || z.time_from > view.to) return false;
+    if (!z.geom) return false;
+    return z.geom.yBottom >= 0 && z.geom.yTop <= geom.paneHeight;
+  })
+  .map((z) => ({ ...z, height_px: z.geom.h }));
 if (!onScreen.length) {
   console.error(`harness failure: none of the ${drawing.zones.length} zones are in view`);
   process.exit(2);
+}
+// DISUARAKAN, karena penyaring yang membuang diam-diam adalah penyaring yang
+// tidak bisa diperiksa. Kalau angka kedua jauh lebih kecil dari yang pertama,
+// jendela chartnya yang salah dan bukan gambarnya.
+{
+  const inTime = drawing.zones.filter(
+    (z) => z.time_to >= view.from && z.time_from <= view.to,
+  ).length;
+  if (inTime !== onScreen.length) {
+    console.log(
+      `  ${inTime} zona lolos jendela WAKTU, ${onScreen.length} juga masuk ` +
+        `rentang HARGA pane (${inTime - onScreen.length} di luar skala vertikal)`,
+    );
+  }
 }
 
 // What the model is told, and the only numbers it is permitted to repeat. Only
@@ -183,13 +248,73 @@ const shapes = {
     // refinement moved it. Telling the auditor to look for an interior line made
     // it report a missing line on five correct charts.
     proximal_line: "the edge price meets first, drawn as a brighter rule ON that border - the TOP of a demand box and the BOTTOM of a supply box - and its dash pattern names the detector",
-    caption: "the formation name at the box's left edge, on a dark plate",
+    caption: "the formation name at the box's left edge, on a dark plate, followed by a filled dot when the zone cleared its departure gate and a hollow dot when it did not",
+    // DIKATAKAN, bukan dibiarkan ditemukan sebagai cacat. Gerbang fvg adalah
+    // plafon pada tinggi gap, jadi kohort yang LOLOS selalu kotak terkecil -
+    // dan kotak di bawah 15px sengaja memajang titiknya tanpa nama, karena
+    // nama itu sama untuk setiap kotak di layer yang sama sementara
+    // verdictnya tidak. `height_px` ada di tiap baris supaya ini bisa dicek.
+    thin_boxes: "a box under 15 CSS px tall shows ONLY its gate dot, with no formation name; that is intended and is not a missing caption",
+    // UNITNYA DINYATAKAN, karena auditor mengukur GAMBAR dan daftar ini
+    // melaporkan CSS. `priceToCoordinate` mengembalikan piksel CSS dan
+    // `LABEL_MIN_HEIGHT` dibandingkan di ruang yang sama, sementara screenshot
+    // diambil di `deviceScaleFactor: 2`. Tanpa baris ini auditor mengukur tinggi
+    // kotak di gambar, menemukannya dua kali `height_px`, dan melaporkan
+    // ketidakcocokan yang benar tentang dua satuan yang berbeda - persis yang
+    // terjadi di audit order_block 7 September 2026.
+    pixel_units: "every height_px value and the 15px threshold are CSS pixels; this screenshot is deviceScaleFactor 2, so a box measured in the IMAGE is twice its height_px",
     z_order: "box fills are painted BENEATH the candles, captions above them",
+    // STROKE DALAM DINYATAKAN, karena tanpa itu auditor melaporkannya sebagai
+    // kotak keempat yang tidak ada di daftar - dan itu benar tentang legenda,
+    // bukan tentang gambarnya. Setiap zona IFVG dan BRK punya `inverted_at`,
+    // jadi SETIAP kotak di kedua layer itu adalah kotak di dalam kotak. Untuk
+    // fvg dan order_block hal ini tidak pernah muncul karena tak satu pun
+    // zonanya terbalik. Terjadi di audit ifvg 7 September 2026.
+    // DUA PENGGAMBARAN UNTUK PITA YANG SAMA, dan keduanya benar. Diperiksa
+    // 8 September 2026 sebelum menyarankan perubahan: grid memakai ink
+    // family `levels` (biru-abu 137,183,207) sementara zona memakai hijau
+    // dan merah, jadi keduanya SUDAH terbedakan warna dan tidak ada aturan
+    // supresi yang perlu ditambahkan. Yang kurang cuma kalimat ini.
+    fibonacci_grid_vs_ote_box: "when the structure layer is on, a neutral BLUE-GREY nine-level Fibonacci/OTE grid is drawn over the current leg (0.786, 0.705, 0.618, 0.5, extensions). When the ote layer is on, the 0.618-0.786 band is ALSO drawn as green/red zone boxes. These are two different objects and both are correct: the grid is reference levels over the CURRENT leg with no direction claim, the boxes are historical zones carrying lifecycle and gate state. Tell them apart by hue - grid is blue-grey, zones are demand-green or supply-red. Do not report the pair as a duplicate",
+    inverted_inner_stroke: "a zone with inverted_at (every IFVG and every BRK) is drawn with a SECOND border set a few pixels inside the first, and that inner border is DASH-DOT while every ordinary box border is solid. It is the cue that the band changed role, it is not an extra zone, and it will not appear as a separate entry in the list. DO NOT read two parallel SOLID lines as this cue: two boxes of the same side whose price bands overlap draw exactly that, and neither of them is inverted - the dash-dot texture is the only thing that distinguishes them, and it was made dash-dot on 8 September 2026 precisely because an audit misread an overlap as an inversion",
+    // CAPTION BISA BERGESER KE LUAR KOTAKNYA, dan itu pilihan yang disengaja di
+    // `zone-primitive.ts`: plate-nya didorong ke KIRI supaya muat, bukan
+    // teksnya yang dipotong, karena caption yang terpotong terbaca seperti
+    // salah tulis. Konsekuensinya di kotak yang tepi kanannya di ujung pane,
+    // plate bisa duduk di kiri border kotaknya sendiri - dan auditor benar
+    // menyebutnya risiko salah atribusi.
+    caption_placement: "a caption plate is pushed LEFT to fit inside the pane rather than truncated, so on a box whose right edge is at the pane edge the plate can sit left of that box's own left border, possibly over a neighbouring box",
   },
+  // CERMIN CAPTION, dan ia sudah dua kali tertinggal dari yang digambar.
+  // Ia tidak pernah memuat " flipped", dan pada 7 September 2026 penanda
+  // gerbang ditambahkan ke chart tanpa baris ini ikut - sebuah cermin yang
+  // tertinggal melaporkan chart yang BENAR sebagai salah, dan seorang auditor
+  // yang membaca laporan itu akan memperbaiki sisi yang keliru. Urutannya
+  // harus sama dengan `zone-primitive.ts`: kind, gerbang, flipped, unsettled.
   zones: onScreen.map((z) => ({
-    caption: z.kind + (z.confirmed && !z.settled ? " unsettled" : ""),
+    caption: (() => {
+      // KOTAK TIPIS MEMAJANG TITIKNYA SAJA, tanpa nama formasi. Gerbang fvg
+      // adalah plafon pada tinggi gap, jadi kohort yang lolos selalu kotak
+      // kecil - dan kotak kecil persis yang `LABEL_MIN_HEIGHT` di
+      // `zone-primitive.ts` bungkam. Cermin ini harus ikut aturannya, kalau
+      // tidak ia melaporkan setiap kotak tipis sebagai caption yang hilang.
+      // Ambangnya piksel, dan sejak 7 September 2026 file ini PUNYA pikselnya:
+      // `height_px` dibaca dari `series.priceToCoordinate` di chart yang sama.
+      // Sebelum itu cermin ini selalu memancarkan nama formasinya dan auditor
+      // melaporkan kotak tipis sebagai caption yang hilang.
+      const gate = z.gate_measured ? (z.gate_cleared ? "●" : "○") : "";
+      const thin = z.height_px !== null && z.height_px < LABEL_MIN_HEIGHT;
+      if (thin) return gate;
+      return (
+        z.kind +
+        (gate ? " " + gate : "") +
+        (z.inverted_at !== null ? " flipped" : "") +
+        (z.confirmed && !z.settled ? " unsettled" : "")
+      );
+    })(),
     side: z.side,
     state: z.state,
+    height_px: z.height_px === null ? null : Number(z.height_px.toFixed(1)),
     top: px(z.top),
     bottom: px(z.bottom),
     proximal: px(z.proximal),

@@ -408,4 +408,422 @@ cd backend && PYTHONPATH=. .venv/Scripts/python.exe -m tools.oos_symbols
 
 ---
 
+## S&D masuk rig TradingView, 8 September 2026, dan detektor kelima
+
+Sampai hari ini S&D belum pernah lewat rig TradingView. Ia sudah punya EA MQL5
+lengkap (`mql5/ZonelabSD.mq5` plus `SupplyDemandDetector.mqh`, dengan config
+backtest XAU dan BTC dari M5 sampai H4), dan cermin Pine INDIKATOR "Zonelab SD"
+yang divalidasi lewat proporsi bucket penolakan di bagian atas halaman ini. Yang
+belum ada: strategy Pine yang lewat **kode bracket yang sama** dengan keempat
+detektor imbalance, sehingga angkanya bisa disandingkan langsung.
+
+Sekarang ada. `mql5/pine/ZonelabImbalanceStrategy.pine` jadi lima detektor,
+`detektor 4=SD`.
+
+### Bentuknya beda, dan itu bukan detail implementasi
+
+Empat detektor lain tahu nilai gerbangnya di bar zona lahir. **S&D tidak.**
+`departure_atr` diukur atas jendela yang DIPOTONG DI SENTUHAN PERTAMA, dan
+`supply_demand.py` mencatat alasannya: tanpa potongan itu 34 persen zona yang
+digambar produk akan GAGAL gerbang bila dinilai pada saat seorang trader
+benar-benar bisa bertindak.
+
+Terjemahan kausalnya, dan itu yang dipakai di Pine: **gerbang lolos kalau
+excursion mencapai 2,0 ATR SEBELUM harga kembali menyentuh kotaknya, dalam 20
+bar.** Ordernya karena itu tidak dipasang saat lahir melainkan saat ambangnya
+tercapai - persis informasi yang tersedia saat itu, tanpa melihat ke depan.
+Kalau harga menyentuh lebih dulu, kandidatnya mati tanpa pernah jadi order.
+
+Konsekuensi yang harus dibaca bersama angkanya: zona S&D yang GAGAL gerbang
+tidak pernah memasang limit, sementara di FVG dan OB limitnya terpasang lalu
+barisnya disaring. Kolom `cand` karena itu **tidak sebanding antar detektor**
+pada baris tabel yang sama.
+
+### Regresi dijalankan sebelum angka S&D dipercaya
+
+Menyisipkan detektor kelima menyentuh file yang dipakai empat detektor lain,
+jadi sebelum membaca angka S&D, detektor 0 dijalankan ulang di XAUUSD harian:
+**n=598, win 51,51%, PF 1,113, cand 1.479, gate 610** - identik digit demi digit
+dengan baseline sebelum penyuntingan. Kode bersamanya utuh.
+
+### Hasil S&D
+
+| sel | n | win% | PF | placebo PF | margin PF | margin win |
+|---|---|---|---|---|---|---|
+| **XAU 1d** | 281 | 58,72 | **1,235** | 0,842 | **+0,393** | **+8,23** |
+| XAU 4h | 714 | 55,88 | **1,043** | 0,916 | +0,127 | +5,45 |
+| BTC 1d (2017+) | 119 | 42,86 | 0,744 | - | - | - |
+
+**PF tertinggi dari kelima detektor di XAU harian**, di atas BRK 1,181, FVG
+1,112, IFVG 1,067 dan OB 0,972. Dan di 4 jam ia kedua, di bawah FVG 1,091.
+
+> [!WARNING]
+> Baca margin placebo S&D dengan catatan yang LEBIH KERAS daripada di FVG.
+> Menggeser kotak S&D menggeser PROXIMAL, dan excursion diukur DARI proximal,
+> jadi geseran mengubah nilai gerbang itu sendiri - bukan cuma harga limitnya.
+> Terlihat di hitungan: `gate` 331 jadi 463 di harian dan 748 jadi 1.023 di
+> 4 jam. Lengan placebo memakai PERISTIWA yang berbeda, bukan kotak yang sama
+> di tempat yang salah. Sama seperti yang sudah dicatat untuk IFVG.
+
+## Dan run BTC membongkar cacat yang menyentuh SELURUH kolom harian BTC
+
+Run BTC harian pertama memberi **PF 6,344 dengan exp_r +2,99 R** sementara
+kolom RR-nya cuma 1,25. Itu tidak konsisten secara aritmetika - win rate 48,3%
+dengan RR 1,25 seharusnya memberi exp_r sekitar -0,11 - jadi ia artefak, bukan
+hasil, dan tidak dicatat sebagai angka.
+
+Sebabnya riwayat BTC di TradingView mulai **2011-08-18**, saat harga sekitar 10
+dolar. Sizing di rig ini `qty = risk_usd / risk`; kalau risk beberapa sen, qty
+meledak dan satu trade menghasilkan ribuan R. Beberapa trade begitu mendominasi
+seluruh sampel.
+
+Dibatasi ke 2017 dan sesudahnya, dan **keempat detektor lain diuji ulang di
+jendela yang sama**:
+
+| detektor | BTC 1d jendela penuh (2011+) | BTC 1d 2017+ | selisih |
+|---|---|---|---|
+| FVG | **1,402** | **0,737** | **-0,665** |
+| IFVG | **1,117** | **0,844** | **-0,273** |
+| SD | 6,344 | 0,744 | -5,600 |
+| BRK | 0,969 | 0,931 | -0,038 |
+| OB | 0,939 | 0,907 | -0,032 |
+
+**Tidak ada satu pun detektor di atas satu di BTC harian begitu riwayat awal
+dibuang.** Dan yang jatuh paling jauh justru dua yang sebelumnya di ATAS satu,
+sementara dua yang sudah di bawah satu nyaris tidak bergerak - persis pola yang
+diharapkan kalau kelebihannya memang datang dari artefaknya.
+
+### Apa yang ini cabut
+
+- **FVG "di atas satu di tiga sel"** jadi dua: XAU 4h 1,091 dan XAU 1d 1,112.
+  BTC 1d 1,402 dicabut.
+- **IFVG "dua sel di atas satu"** jadi SATU: XAU 1d 1,067. Dan klaim yang lebih
+  keras - "satu-satunya yang bertahan di BTC harian, 1,117 lawan placebo 0,812"
+  - tidak berlaku lagi: di 2017+ ia 0,844.
+- Setiap baris **BTC harian** di halaman benchmark empat detektor diukur di
+  jendela penuh dan karena itu terkontaminasi.
+
+Yang TIDAK tersentuh: seluruh sel XAUUSD, karena emas tidak pernah
+diperdagangkan di harga yang membuat normalisasi R runtuh. Sel BTC 4 jam dan
+1 jam belum diuji ulang dan harus dianggap tersangka sampai diuji.
+
+
+## Stress test delapan periode S&D, 8 September 2026
+
+Saringan terberat repo ini akhirnya dikenakan ke satu-satunya detektor yang
+HIDUP. Batas periode identik dengan run OB, BRK dan IFVG; jendela diverifikasi
+di baris `win` setiap run; baseline direproduksi lebih dulu (n=281, PF 1,235).
+
+### FX:XAUUSD harian, sel tempat angka 1,235 berasal
+
+| periode | n | win% | PF |
+|---|---|---|---|
+| 2000-2003 | 20 | 60,00 | **2,550** |
+| 2003-2006 | 31 | 61,29 | 0,994 |
+| 2006-2010 | 46 | 47,83 | 0,895 |
+| 2010-2013 | 40 | 55,00 | **1,326** |
+| 2013-2016 | 35 | 60,00 | **1,355** |
+| 2016-2020 | 42 | 50,00 | 0,563 |
+| 2020-2023 | 32 | 59,38 | **1,051** |
+| **2023-2026** | 26 | 69,23 | **2,629** |
+| **lolos** | | | **5 dari 8** |
+
+**Dan periode SEKARANG adalah yang TERBAIK dari delapan**, 2,629. Itu kebalikan
+dari IFVG (2023-2026 terburuk dari delapannya, 0,730) dan BRK (kedua terburuk,
+0,683). Satu periode lagi nyaris lolos: 2003-2006 di 0,994.
+
+### COMEX:GC1! harian, venue yang berbeda untuk logam yang sama
+
+| periode | n | win% | PF |
+|---|---|---|---|
+| 2000-2003 | 22 | 63,64 | **1,323** |
+| 2003-2006 | 35 | 54,29 | 0,603 |
+| 2006-2010 | 45 | 42,22 | 0,606 |
+| 2010-2013 | 24 | 62,50 | **1,164** |
+| 2013-2016 | 26 | 50,00 | 0,728 |
+| 2016-2020 | 36 | 38,89 | 0,761 |
+| 2020-2023 | 26 | 65,38 | **1,303** |
+| 2023-2026 | 27 | 55,56 | 0,752 |
+| **lolos** | | | **3 dari 8** |
+
+Baseline jendela penuh COMEX: n=251, win 51,79%, **PF 0,797** - di bawah satu,
+lawan 1,235 di spot. **Emas yang sama, timeframe yang sama, venue berbeda, dan
+putusannya berbalik.** Deret GC1! kontinu dan tidak disesuaikan, jadi ia membawa
+lompatan roll yang dibaca detektor sebagai impuls asli; itu tersangka pertama
+dan belum dipisahkan di sini.
+
+### Peringkat sesudahnya
+
+| detektor | PF XAU 1d | periode lolos | periode sekarang |
+|---|---|---|---|
+| **supply_demand** | **1,235** | **5 dari 8** | **2,629, TERBAIK dari delapannya** |
+| BRK | 1,181 | 3 dari 8 | 0,683 |
+| FVG | 1,112 | 6 dari 8 (diukur di 4 jam) | - |
+| IFVG | 1,067 | 6 dari 8 | 0,730, terburuk dari delapannya |
+| OB | 0,972 | 5 dari 8 | 1,041 |
+
+**Tidak ada satu pun yang mencapai 8 dari 8**, dan itu aturan yang menggerbangi
+`orderable`. S&D SATU-SATUNYA yang `orderable=True`, jadi ia gagal aturan yang
+mengatur statusnya sendiri - persis alasan yang membuat `ifvg.orderable` tetap
+mati. Bedanya, dan ini yang harus dibaca bersamaan: S&D gagal dengan periode
+sekarang di PUNCAKNYA, sementara IFVG gagal dengan periode sekarang di dasarnya.
+
+> [!WARNING]
+> n per periode 20 sampai 46, jauh lebih tipis daripada run IFVG (135-173).
+> Dua puluh trade tidak memisahkan 2,550 dari satu secara meyakinkan, dan
+> 2003-2006 di 0,994 berarti hitungan 5-lawan-6 bergantung pada satu sisi koin.
+> Yang ditopang tabel ini HITUNGAN lolos-gagal dan bentuknya lintas periode,
+> bukan presisi tiap sel. Perbandingan FVG juga tidak sepenuhnya setara: ia
+> satu-satunya yang delapan periodenya diukur di 4 jam, bukan harian.
+
+## Dua cacat sizing ditemukan lewat COMEX, dan keduanya diperbaiki
+
+Run COMEX pertama memberi **PF 0,800 berdampingan dengan exp_r -9,6389 R** -
+mustahil untuk win 51,79% dengan RR 0,92.
+
+**Cacat 1, `qty`.** Rig memakai `qty = risk_usd / risk`, yang diam-diam
+mengasumsikan satu unit bergerak satu dolar per poin. Benar untuk CFD spot
+(`pointvalue` 1), SALAH untuk futures: satu kontrak COMEX GC adalah 100 troy
+ounce, jadi `pointvalue` 100 dan setiap R membesar seratus kali. **PF selamat
+karena ia rasio dan pengalinya hilang; exp_r tidak.** Dikonfirmasi sampai empat
+angka penting: sesudah `qsize()` memakai `syminfo.pointvalue` dan `risk_usd`
+dinaikkan supaya `qty` tetap sama, n, win% dan PF identik sementara exp_r jadi
+**-0,0964 = -9,6389 / 100**.
+
+**Cacat 2, `notional`.** Baris biaya menghitung `entry_price * size` tanpa
+pointvalue, jadi biaya futures 100 kali terlalu kecil - terbaca 0,0001 R padahal
+XAU spot di sel sebanding membaca 0,015 R. Diperbaiki dengan pengali yang sama.
+
+**Tidak ada angka lama yang dicabut karenanya:** XAUUSD dan BTCUSD keduanya
+`pointvalue` 1, jadi kedua cacat tidak pernah menyentuh satu pun sel yang sudah
+diukur. Yang berubah: instrumen ber-pointvalue bukan 1 sekarang bisa dipakai.
+Baris `cfg` sekarang mengecho `pv` supaya skala feed terlihat.
+
+> [!CAUTION]
+> Model biaya persen SALAH KELAS untuk futures, bukan cuma salah angka. Bursa
+> menagih komisi per KONTRAK; satu GC bernilai sekitar 350.000 dolar, jadi
+> 0,0113 persen memberi 1.300 dolar per sisi padahal biaya nyatanya belasan
+> dolar. Run COMEX di atas memakai 0,002 sebagai perkiraan komisi plus satu
+> tick, dan itu angka yang DINYATAKAN, bukan turunan `app/costs.py`.
+
+
+## Parity Pine lawan Zonelab, 8 September 2026: TIDAK identik, dan bedanya bisa didaftar
+
+### Yang cocok: aritmetika gerbangnya
+
+Jendela disamakan lebih dulu, dan itu perlu dua koreksi sebelum angkanya berarti.
+
+**Koreksi pertama, denominatornya beda.** Pine menaikkan `c_cand` SESUDAH
+saringan tinggi kotak dan drift; `supply_demand.py` menaikkan `candidates`
+SEBELUM keduanya. Membandingkan keduanya apa adanya memberi selisih 5,11 poin
+persen yang seluruhnya palsu.
+
+**Koreksi kedua, jendelanya beda.** MT5 di mesin ini cuma memegang 3.128 bar
+harian XAUUSD, mulai 2016-08-09, sementara Pine punya sampai 2000. Pine
+dijalankan ulang dengan `win_from` 2016-08-09.
+
+Pada jendela dan denominator yang sama:
+
+| | kandidat mencapai gerbang | lolos | proporsi |
+|---|---|---|---|
+| Pine (FXCM) | 428 | 131 | **30,61%** |
+| Python produksi (MT5) | 520 | 147 | **28,27%** |
+| | | | **selisih 2,34 poin persen** |
+
+Itu di dalam batas kesetiaan yang sudah dipatok halaman ini: validasi cermin
+Pine 6 September mencatat selisih bucket terbesar 2,70 poin persen antara dua
+venue. Jadi **gerbang keberangkatan berperilaku sama di kedua sisi.**
+
+Hitungan kandidatnya sendiri berbeda 18 persen (428 lawan 520) dan itu memang
+tidak bisa dibandingkan lintas feed: klasifikasi lilin bergantung pada
+`range >= 1,0 x ATR[1]` dan `body_ratio >= 0,5`, keduanya sensitif terhadap OHLC
+persis, jadi FXCM dan MT5 membagi bar jadi base lawan leg secara berbeda.
+
+### Yang TIDAK ada di Pine, dan didaftar supaya tidak jadi kejutan
+
+| ada di Python | di Pine | akibat |
+|---|---|---|
+| `_dedupe` (`merge_overlap_pct` 0,6) | **tidak ada** | produksi membuang zona sesisi yang bertumpuk; Pine memperdagangkan semuanya. Dimatikan (1,0) di sisi Python untuk perbandingan di atas |
+| lifecycle dan `mitigation_pct` | tidak ada | Pine strategy, bukan penggambar; tidak ada `state` |
+| `min_profit_margin` | tidak ada | default 0,0, tidak menyaring apa pun |
+| `curve`, `formation_score`, `base_overlap`, `arrival_atr` | tidak ada | semuanya label, bukan saringan |
+| `proximal_basis` "body" | tidak ada | default "wick", jadi tidak mengikat |
+
+Satu perbedaan MEKANIK yang disengaja: Python menghitung `departure_atr` atas
+jendela yang dipotong di sentuhan pertama; Pine mendaftarkan order saat ambang
+2,0 ATR terlampaui. Keputusan lolos-gagalnya setara, mekanismenya tidak, dan
+Pine tertinggal satu bar karena order didaftarkan di akhir bar.
+
+**Jadi jawabannya: tidak identik.** Yang cocok aritmetika gerbangnya sampai 2,34
+poin persen; yang berbeda bisa dihitung dan tidak satu pun mengikat di default,
+kecuali `_dedupe` yang memang membuat populasi gambar lebih kecil dari populasi
+trade.
+
+### Catatan sampingan yang muncul dari jendela yang disamakan
+
+Pine di 2016-08-09 sampai sekarang memberi **PF 0,957** pada n=102, sementara
+jendela penuh 2000-2026 memberi 1,235. Konsisten dengan tabel delapan periode:
+2016-2020 adalah periode terburuknya (0,563).
+
+## Autodrawing S&D, diukur 8 September 2026
+
+`e2e/pixel-truth.mjs` diarahkan ke `supply_demand`, XAUUSD harian, 2.000 bar:
+
+| pemeriksaan | hasil |
+|---|---|
+| zona ditemukan di canvas | 6 dari 6 |
+| ada kotak berdiri sendiri dan cukup tinggi | 4 dari 6 terukur, 2 berbagi pita harga |
+| cukup tepi terbaca | **lolos, atas 4/4 dan bawah 4/4** |
+| tepi ATAS di tempat skala harga menaruhnya | terburuk **0,4px** |
+| tepi BAWAH di tempat skala harga menaruhnya | terburuk **0,5px** |
+| kotak menutupi bar basis asalnya | terburuk **0,01 bar** di luar kotak |
+| tepi kiri terbaca | **6 dari 6** |
+
+**7 dari 7 lolos.** Coverage border 1,000 di keenam zona, sama seperti fvg dan
+order_block, dan belahan terbalik-lawan-tidak-terbalik jadi 3 lolos lawan 2
+gagal masih persis di garis inversi.
+
+### Dua temuan yang khusus S&D
+
+**Isyarat inversi ternyata AMBIGU.** Dua zona S&D yang bertumpuk tapi TIDAK
+terbalik menghasilkan pita bergaris ganda yang tampak persis seperti
+`inverted_inner_stroke` - isyarat "kotak di dalam kotak" yang dimasukkan ke
+legenda 7 September sebagai penanda bahwa sebuah pita berganti peran. Auditor
+membacanya begitu: zona DBR dikira terbalik padahal tidak. Grounding run ini
+USABLE, jadi klaimnya tidak tercemar angka karangan.
+
+**Nol zona supply digambar, dan itu bukan cacat detektor.** Auditor menduga
+layer supply gagal render. Diperiksa langsung di detektor: XAU 1d memberi
+**34 supply lawan 61 demand** dari 95 zona. Yang nol adalah yang lolos cap
+tampilan - di pasar naik, dua belas zona terdekat harga semuanya demand. Jebakan
+`max_zones_per_side` dalam wujud ketiga, dan kali ini ia membuat pembaca
+menyimpulkan detektornya rusak.
+
+
+## Isyarat inversi diperbaiki, 8 September 2026
+
+### Apa yang ambigu
+
+Sampai hari ini zona dengan `inverted_at` digambar dengan border KEDUA beberapa
+piksel di dalam yang pertama, SOLID - "kotak di dalam kotak", satu-satunya
+isyarat yang selamat di kotak kecil. Masalahnya **dua garis sejajar sewarna
+adalah persis yang dihasilkan dua kotak SESISI yang tumpang tindih sebagian** -
+tumpukan yang biasa di `supply_demand`, yang tidak punya zona terbalik sama
+sekali.
+
+Terukur di audit visual: zona DBR yang bottom-nya 4019,06 jatuh di bawah top
+zona di bawahnya 4030,71 tergambar sebagai pita bergaris ganda, dan auditor
+melaporkannya sebagai zona yang BERGANTI PERAN. Ia tidak. Grounding run itu
+USABLE, jadi laporannya tidak tercemar angka karangan - isyaratnya memang
+bertabrakan makna.
+
+### Yang diperbaiki TEKSTURNYA, bukan geometrinya
+
+Geometri tidak bisa membedakannya: tumpang tindih memang menghasilkan dua garis
+sejajar, dan itu data yang benar. Tapi tumpang tindih **tidak bisa menghasilkan
+garis putus-titik**, karena setiap border kotak lain solid.
+
+Stroke dalam sekarang `[5 2 1 2]` dalam satuan device pixel. Polanya sengaja
+bukan `[4 3]` (dipakai border zona yang belum `confirmed`) dan bukan `[1 3]`
+(`--dash-fvg`, di rule proximal), jadi ketiganya tetap saling terbedakan. Dash
+juga DISETEL ULANG lebih dulu, karena tanpa itu zona yang belum confirmed
+mewarisi `[4 3]` dari border luarnya dan stroke dalamnya berhenti jadi isyarat
+yang tetap.
+
+### Diverifikasi tiga cara
+
+**Terlihat.** Screenshot IFVG harian: stroke dalam jelas putus-titik, berbeda
+tegas dari border luar yang solid.
+
+**Auditor sekarang menalar benar.** Run ulang `chart-audit` pada
+`supply_demand`, dan tumpukan yang sama dilaporkan sebagai: *"Per your own
+legend this is an overlap of two same-side boxes, not an inversion, and both
+lines do read as solid - so this is drawn correctly."* Ia memakai solidity
+untuk membedakannya, yang persis fungsi perbaikan ini. Grounding USABLE.
+
+**Nol regresi pengukuran.**
+
+| detektor | sebelum | sesudah |
+|---|---|---|
+| ifvg | atas 4/7, bawah 5/7, galat 0,5 / 0,4px | **sama persis** |
+| breaker | atas 1/5, bawah 3/5, galat 0,5 / 0,5px | **sama persis** |
+
+Legenda `chart-audit.mjs` juga diperbarui: ia sekarang menyebut stroke dalam
+DASH-DOT dan memperingatkan eksplisit agar dua garis SOLID sejajar TIDAK dibaca
+sebagai inversi.
+
+`pixel-truth.mjs` menyempitkan jendela pencarian jadi 3px untuk kedua kind
+terbalik dengan alasan "stroke dalam memenangkan kontes baris terkuat". Premis
+itu bergeser - stroke putus-titik tidak lagi mendarat utuh di satu baris - tapi
+penyempitannya TIDAK dicabut, karena alasannya struktural (stroke luar ADALAH
+kotaknya, yang dalam duduk 3px ke dalam), dan angkanya membuktikan tidak ada
+yang bergerak. Dicatat di file itu supaya pembaca berikutnya tahu premisnya
+sudah berubah.
+
+### Satu klaim auditor lagi, diperiksa dan ditolak
+
+Auditor melaporkan "rule vertikal hijau di tepi kiri kotak RBR atas yang
+berlanjut ke bawah melewati border bawahnya sendiri", dengan catatan ia tidak
+bisa memastikan itu bukan lilin. Diperiksa di gambarnya: itu **lilin impuls**,
+batang hijau tinggi yang memulai rally di posisi x itu, membentang dari sekitar
+4040 ke 4300. Bukan cacat gambar.
+
+
 Copyright 2026 PT Surya Inovasi Prioritas (SURIOTA).
+
+
+## CACAT SIZING KETIGA, 8 September 2026, dan ia MENCABUT setiap angka COMEX di atas
+
+Bagian COMEX di halaman ini diukur di atas seperempat sampelnya sendiri, dan
+seperempat itu dipilih oleh lebar stop.
+
+Perbaikan `pointvalue` yang dicatat di bawah membuat qty benar dalam KONTRAK, dan
+justru itu yang membuka cacat berikutnya. `risk_usd / (risk * pv)` dengan default
+`risk_usd` 1.000 dan pv 100 memberi `10 / risk`: setiap stop yang lebih lebar
+dari 10 dolar meminta kurang dari SATU kontrak, TradingView membulatkannya ke
+bawah, dan order itu tidak pernah jadi posisi - sementara penghitung `fill` di
+script tetap menghitungnya.
+
+Terukur dengan kontrol di simbol yang sama, detektor FVG di GC1! harian:
+
+| risk_usd | fill | n | porsi | PF |
+|---|---|---|---|---|
+| 1.000 (default) | 537 | 132 | 25% | 1,167 |
+| 100.000 | 537 | 496 | 92% | **0,923** |
+
+Angka di atas satu itu jatuh ke bawah satu begitu populasinya utuh, dan
+mekanismenya dikonfirmasi dengan membalikkannya: menurunkan `risk_usd` ke 10
+sesudah perbaikan mereproduksi n=132 dan PF 1,167 persis.
+
+> [!CAUTION]
+> **CATATAN DI BAWAH INI DICABUT beberapa jam setelah ditulis.** Ia menyatakan
+> S&D tidak terpengaruh, dan itu benar untuk sumbu yang diuji saat itu -
+> pembulatan kuantitas - tapi ada cacat KEDUA di fungsi sizing yang sama:
+> plafon MODAL. Pada pointvalue 100 satu trade bisa meminta notional sebesar
+> seluruh ekuitas, jadi order berikutnya dipotong sebagian. Sesudah
+> `initial_capital` dinaikkan, baseline S&D di GC1! harian terbaca **PF 1,214
+> pada n=241**, bukan 0,797. FVG 1,043 (bukan 0,923) dan OTE 1,152 (bukan
+> 0,876). Angka COMEX di halaman ini karena itu HARUS dibaca sebagai
+> pra-perbaikan sampai diukur ulang, termasuk stress test 3 dari 8. Angka spot
+> tidak bergerak satu digit pun di seluruh perubahan ini. Detailnya di
+> `docs/CALIBRATION.md`.
+
+> [!NOTE]
+> **Catatan lama, 8 September 2026 pagi - S&D tidak terpengaruh PEMBULATAN.**
+> Peringatan versi pertama di sini berbunyi "angka COMEX mana pun di halaman ini"
+> dan itu terlalu luas. Dijalankan ulang sesudah perbaikan, baseline S&D di GC1!
+> harian terbaca **n=251, win 51,79%, PF 0,797 - identik sampai digit terakhir**
+> dengan yang tercatat. Begitu juga OTE di sel yang sama (n=622, PF 0,876).
+> Yang berubah hanya FVG. Sebabnya sebaran lebar stop per detektor: kalau qty
+> lama sudah di atas satu kontrak, tidak ada yang dibulatkan hilang. Stress test
+> S&D 3 dari 8 karena itu tetap berlaku.
+
+Angka XAUUSD dan BTCUSD spot TIDAK terpengaruh: pointvalue 1 di sana, jadi
+`qty = risk_usd / risk` sudah jauh di atas satu dan tidak pernah dibulatkan
+hilang. Diperiksa, bukan diasumsikan: regresi spot sesudah perbaikan terbaca
+identik sampai digit terakhir, n=598, PF 1,113, biaya 0,015 R.
+
+Diperbaiki di `qsize` lewat `risk_eff = risk_usd * pointvalue`, dipakai di KETIGA
+tempat yang menyentuh satuan R - `qsize`, R per trade, dan baris biaya. Ketiganya
+harus ikut: menaikkan qty tanpa menaikkan pembagi R menghidupkan kembali cacat
+pointvalue yang diperbaiki tepat sebelumnya. Detailnya di `docs/CALIBRATION.md`.

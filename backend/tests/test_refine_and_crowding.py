@@ -392,8 +392,19 @@ def test_a_gap_smaller_than_the_floor_is_counted_not_silently_dropped():
 
     _, stats = detect_fvg(rows, imb(min_gap_atr=5.0))
 
+    # SETIAP kandidat harus muncul di salah satu ember penolakan, dan itu
+    # invarian yang diuji di sini - bukan angka satu ember. Versi sebelumnya
+    # menyamakan `rejected_too_small` dengan `candidates`, yang benar hanya
+    # selama dua filter di atasnya mati; keduanya menyala secara default sejak
+    # 6 September 2026 dan test ini gugur pada 1 lawan 2 tanpa ada yang rusak.
     assert stats["candidates"] >= 1
-    assert stats["rejected_too_small"] == stats["candidates"]
+    rejected = (
+        stats["rejected_too_small"]
+        + stats["rejected_body_ratio"]
+        + stats["rejected_mother"]
+    )
+    assert rejected == stats["candidates"]
+    assert stats["rejected_too_small"] >= 1
 
 
 def test_an_order_block_is_the_last_opposite_candle_before_the_move():

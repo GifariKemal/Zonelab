@@ -51,6 +51,7 @@ import pytest
 
 from app.detect import DETECTORS
 from app.drawing import _HANDLERS, HTF_LAYERS
+from app.layers import PARAMS_BY_ID
 from app.models import (
     Drawing,
     DrawRequest,
@@ -366,10 +367,16 @@ def _zones(window, layer="supply_demand"):
     #: authority and this mirrors it for two entries; a sixth detector added
     #: there and not here fails loudly with a KeyError rather than being
     #: silently skipped.
-    params = (
-        SupplyDemandParams(max_zones_per_side=0, show_broken=True)
-        if layer == "supply_demand"
-        else ImbalanceParams(max_zones_per_side=0, show_broken=True)
+    # CERMINNYA DIHAPUS 8 September 2026, bukan ditambah satu cabang lagi.
+    # Komentar di atas sudah meramalkan detektor keenam akan gagal keras di
+    # sini, dan itu yang terjadi - `ote` punya blok params sendiri dan
+    # `ImbalanceParams` tidak punya `swing_n`. Menambah `elif layer == "ote"`
+    # akan memperbaiki hari ini dan mengulang jebakan yang sama untuk detektor
+    # ketujuh. Kelasnya sekarang DITURUNKAN dari registry lewat `PARAMS_BY_ID`,
+    # jadi tidak ada lagi daftar kedua yang bisa hanyut.
+    block = PARAMS_BY_ID[layer]
+    params = type(getattr(DrawRequest(symbol="XAUUSD", interval="1h"), block))(
+        max_zones_per_side=0, show_broken=True
     )
     zones, _ = DETECTORS[layer](window, params)
     return {z.id: z for z in zones}

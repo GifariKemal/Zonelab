@@ -75,6 +75,25 @@ Konsekuensinya: kolom `qt_sequence` (grid repo) dan `qt_sequence_src` (grid
 sumber) dihitung dua-duanya, dan sisi MQL5 memakai grid sumbernya supaya kedua
 venue mengukur objek yang sama.
 
+> [!IMPORTANT]
+> **Terjawab 11 September 2026, dan jawabannya: ini bukan dua grid.** Keempat
+> angka di kolom kanan tepat +90 menit dari kolom kiri, dan 90 menit adalah satu
+> kuarter dari sesi 6 jam yang dibagi empat - jadi keempatnya adalah **Q2 tiap
+> sesi**, yaitu true open sesi itu, bukan batas sesi. Sumber ketiga
+> (`quarterly-theory-a-z-guide-v1-1.pdf` halaman 9) menyatakannya langsung:
+> "Asia Session 19:30 EST (Q2 of Asia)", "London 01:30 (Q2 of London)", "NY AM
+> 07:30 (Q2 of AM session)", dan true open HARIAN di 00:00 NY - yang hanya
+> mungkin kalau Q1 harian berjalan 18:00 sampai 00:00, persis grid repo ini.
+>
+> Dan repo sudah menggambar keempatnya: `/api/draw` dengan
+> `session.true_opens: ["session"]` pada XAUUSD 15m mengembalikan true open di
+> **01:30, 07:30, 13:30 dan 19:30 NY**, plus `day` di 00:00. Uraian lengkap di
+> `docs/ADOPSI.md`, bagian "Referensi Quarterly Theory ketiga".
+>
+> Ini belum berarti `qt_sequence_src` boleh dihapus. Yang terbukti soal penamaan
+> dan aritmetika, bukan soal hasil: kalau kedua kolom pernah memberi angka
+> berbeda, perbedaannya harus dijelaskan dulu.
+
 ### 2.2 Judas: repo ini memberi arah yang BERLAWANAN dengan tabel sumbernya
 
 `app/judas.py` menurunkan arah expansion dari bias London saja: London bullish

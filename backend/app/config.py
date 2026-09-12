@@ -12,13 +12,38 @@ class Settings(BaseSettings):
 
     # Which provider serves candles when the request does not name one.
     #
-    # The local MetaTrader 5 terminal, where one is installed and logged in. It
-    # is the broker's own tape rather than a proxy for it, it carries a real
-    # spread, and it answered 99,999 bars in 0.01s here where binance caps a
-    # page at 1000. On a machine with no terminal it probes as unavailable and
-    # the UI falls through to the next source that carries the symbol, so this
-    # default costs a clean checkout nothing but one failed probe.
-    default_provider: str = "mt5"
+    # TradingView Desktop, over the data session it is already logged in to.
+    # Not the broker's tape and not a proxy for the exchange's: gold resolves to
+    # COMEX:GC1! because that is the contract, and the same one the owner's own
+    # panes show.
+    #
+    # WHY IT SITS ABOVE YAHOO, which held this slot for one day. Both draw the
+    # same COMEX front month, so the question was depth and breadth, and it was
+    # measured on 12 September 2026 rather than argued:
+    #
+    #   XAUUSD 1d   TradingView 13,003 bars back to 1975 | yahoo 603 | mt5 3,132
+    #   XAUUSD 4h   TradingView 15,479 | yahoo 3,713 | mt5 10,649
+    #   XAUUSD 1h   TradingView 20,000 (the request cap, not its limit)
+    #   coverage    26 of 26 instruments resolve; yahoo misses 1, mt5 misses 8
+    #   speed       2.6-2.8s for 300 bars, 4.5s for 20,000
+    #
+    # WHAT IT DOES NOT BUY, because a premium account was assumed to and then
+    # checked: 21 of the 26 arrive delayed - 600s on every CME, COMEX, NYMEX
+    # and CBOT contract, 900s on XETR - and only five are live (crypto through
+    # Coinbase, FX through OANDA, and DXY). Exchange real-time is a separate
+    # subscription from TradingView Premium. The number is read per symbol off
+    # the protocol's own `series_completed` frame, never from a table here, and
+    # `Feed.delay_seconds` carries it.
+    #
+    # THE COST OF THIS DEFAULT is that it needs the desktop app running. The
+    # provider probes for it and reports itself unavailable when it is not, so
+    # the failure is a named one rather than a wrong number - but on a machine
+    # with TradingView closed, the Source selector is how the chart comes back.
+    #
+    # This is a DEFAULT, not a lock. The measurement tools in `tools/` address
+    # feeds by explicit `mt5:` and `yahoo:` prefixes through `history.load`, and
+    # the auto-trade daemon holds `mt5:` symbols, so neither reads this value.
+    default_provider: str = "tradingview"
 
     # Stempel waktu tetap untuk provider synthetic, 0 berarti ikut jam dinding.
     #

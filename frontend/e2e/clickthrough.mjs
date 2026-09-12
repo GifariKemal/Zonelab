@@ -211,9 +211,25 @@ if (await tf.count()) {
   await page.waitForTimeout(9_000);
 }
 const body = await page.locator("body").innerText();
-check("baris peluang muncul untuk layer yang bisa diorder di 30m",
-      /BISA DIORDER/i.test(body) && /ekspektasi/i.test(body),
-      body.match(/BISA DIORDER[^\n]*/gi)?.slice(0, 2).join(" | ") || "tidak ada");
+// DIBALIK 9 September 2026, dan pembalikan ini mengikuti sebuah KEPUTUSAN, bukan
+// sebuah kegagalan.
+//
+// Versi sebelumnya menuntut ada layer yang menampilkan "BISA DIORDER" di 30m.
+// Tuntutan itu benar ketika ditulis dan menjadi salah ketika `orderable`
+// dikosongkan untuk SETIAP layer - tidak satu pun dari delapan detektor kotak
+// lolos aturan yang menyalakannya (kalahkan placebo, DAN lolos hold-out, DAN
+// 8 dari 8 walk-forward), jadi tidak satu pun berhak mengklaimnya. Registry
+// mengonfirmasi: 0 dari 24 layer.
+//
+// Jadi gate-nya sekarang menjaga keputusan itu, bukan menentangnya: kalau
+// sebuah layer diam-diam kembali mengaku bisa diorder tanpa angka yang
+// membenarkannya, INI yang merah. Membalik tuntutannya lebih jujur daripada
+// menghapus tesnya, karena yang perlu dijaga memang ada - cuma arahnya
+// berlawanan dari yang dulu ditulis.
+const claimsOrderable = body.match(/BISA DIORDER[^\n]*/gi) ?? [];
+check("tidak ada layer yang mengaku bisa diorder, karena tak satu pun lolos",
+      claimsOrderable.length === 0,
+      claimsOrderable.slice(0, 3).join(" | ") || "nol klaim, sesuai registry");
 
 await page.screenshot({ path: `${SHOTS}/click-30m.png` });
 

@@ -14,6 +14,8 @@
 import { writeFileSync } from "node:fs";
 import { chromium } from "playwright";
 
+import { pickTimeframe } from "./_layers.mjs";
+
 const OUT = process.argv[2];
 const INTERVAL = process.argv[3] ?? "15m";
 const BARS = Number(process.argv[4] ?? 500);
@@ -38,7 +40,11 @@ await page.waitForTimeout(6000);
 // timestamps from another timeframe, and every screenshot silently shows the
 // wrong candles at a meaningless zoom. The arithmetic still passes, which is
 // what makes the failure mode dangerous.
-await page.locator(`div[aria-label="Timeframe"] button:text-is("${INTERVAL}")`).click();
+// SWITCHES THE LAYER ON AT THIS INTERVAL TOO. Layers are per timeframe, so the
+// boot default belongs to 15m alone - and this harness frames screenshots
+// around zones it fetches from the API, which would photograph a chart with no
+// boxes on it while every arithmetic assertion still passed.
+await pickTimeframe(page, INTERVAL, ["supply_demand"]);
 // BY NAME, NOT BY POSITION. `select").nth(3)` was the HTF picker until a
 // Broker picker landed beside it on 2026-08-20 and every index after Source
 // shifted by one - the sweep then timed out waiting for a combobox that had

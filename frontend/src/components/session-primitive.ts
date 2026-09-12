@@ -9,9 +9,15 @@ import type {
 } from "lightweight-charts";
 import type { CanvasRenderingTarget2D } from "fancy-canvas";
 
-import type { NewsEvent, SessionQuarter, TrueOpenLevel } from "@/lib/types";
+import type {
+  KillzoneWindow,
+  NewsEvent,
+  SessionQuarter,
+  TimeRangeBand,
+  TrueOpenLevel,
+} from "@/lib/types";
 import { cycleWeekday, sessionOpenName } from "@/lib/clock";
-import { INKS, monoFont } from "./ink";
+import { ink as inkOf, monoFont } from "./ink";
 import { LABEL_GUTTER, claimedLabels, labelFree } from "./structure-primitive";
 import { strokeLine } from "./pixel";
 
@@ -53,10 +59,10 @@ import { strokeLine } from "./pixel";
  *  hue and false afterwards - a comment carrying a stale rgb triple is the exact
  *  failure mode the rest of this sentence goes on to describe.
  *
- *  Stated here rather than read from a CSS variable, because the two theme
- *  tokens that once named these inks were read by nothing and had already
- *  drifted away from the values actually painted. */
-const INK = INKS.grid;
+ *  Stated in `ink.ts` rather than read from a CSS variable, because the two
+ *  theme tokens that once named these inks were read by nothing and had
+ *  already drifted away from the values actually painted. The family name is
+ *  `grid`; `ink()` below resolves it per call so the palette can change. */
 
 /** A TRUE OPEN IS NOT CONTEXT, so it does not get the context ink.
  *
@@ -78,11 +84,11 @@ const INK = INKS.grid;
  *  Sharing it is the point rather than a coincidence: a true open belongs to
  *  that family of objects, not to the grid. It is still one neutral ink per
  *  family, so nothing about "colour cannot type the object" changed - inside a
- *  family the label is still the only thing that says which object this is. */
-const LEVEL_INK = INKS.levels;
+ *  family the label is still the only thing that says which object this is.
+ *  The family name is `levels`; `levelInk()` below resolves it per call. */
 
 function levelInk(alpha: number): string {
-  return `rgba(${LEVEL_INK[0]}, ${LEVEL_INK[1]}, ${LEVEL_INK[2]}, ${alpha})`;
+  return inkOf("levels", alpha);
 }
 
 /** How loud each degree is. A month box and a micro box are the same object at
@@ -109,8 +115,22 @@ const WEIGHT: Record<string, { line: number; fill: number; label: number }> = {
   nano: { line: 0.15, fill: 0, label: 0 },
 };
 
+/** DELEGATES, and until 11 September 2026 it did not.
+ *
+ *  `const INK = INKS.grid` reads the DARK table once, at module load. `ink.ts`
+ *  swaps palettes through a module variable that `setInkTheme` writes, so a
+ *  colour captured at import time never hears about it: this whole file painted
+ *  dark-theme grid ink on a light background, and it is the one class of defect
+ *  `ink.ts` says outright is hardest to see - "warnanya BASI dan bukan salah".
+ *  Seven other primitives already call the resolver; these two were the
+ *  holdouts, and the two new overlays below would have been the ninth and tenth
+ *  had they kept the literals they were written with.
+ *
+ *  The two module constants this replaced are gone with it: a captured colour
+ *  is the bug, so keeping one around unused would only invite the next caller
+ *  to reach for it. */
 function ink(alpha: number): string {
-  return `rgba(${INK[0]}, ${INK[1]}, ${INK[2]}, ${alpha})`;
+  return inkOf("grid", alpha);
 }
 
 /** Short tags, his own vocabulary. TDO is the true daily open, TWO the weekly,
@@ -171,11 +191,30 @@ interface OpenRay {
   y: number;
 }
 
+/** A killzone window in pixels: every requested degree is in the same quarter. */
+interface ZoneBand {
+  zone: KillzoneWindow;
+  x1: number;
+  x2: number;
+}
+
+/** A time-based premium/discount band in pixels, with its 50% line. */
+interface PDBand {
+  band: TimeRangeBand;
+  x1: number;
+  x2: number;
+  yHigh: number;
+  yLow: number;
+  yMid: number;
+}
+
 class SessionRenderer implements IPrimitivePaneRenderer {
   constructor(
     private readonly boxes: readonly QuarterBox[],
     private readonly rays: readonly OpenRay[],
     private readonly news: readonly NewsMark[],
+    private readonly zones: readonly ZoneBand[] = [],
+    private readonly pd: readonly PDBand[] = [],
   ) {}
 
   draw(target: CanvasRenderingTarget2D): void {
@@ -386,6 +425,69 @@ class SessionRenderer implements IPrimitivePaneRenderer {
         }
       }
 
+      // --- QT killzones: a tinted column, and how deep the stack was ---------
+      // A FACT ABOUT THE CLOCK, drawn as the faintest thing on the pane on
+      // purpose. Two degrees agree on one quarter in four BY CONSTRUCTION, so a
+      // band here is not evidence of anything and must not look like it. The
+      // tag says the quarter and the depth, which is the only way a reader can
+      // price the base rate in while looking at it.
+      for (const band of this.zones) {
+        const x1 = Math.round(band.x1 * kx);
+        const x2 = Math.round(band.x2 * kx);
+        ctx.fillStyle = ink(0.05);
+        ctx.fillRect(x1, 0, x2 - x1, height);
+        ctx.strokeStyle = ink(0.22);
+        ctx.lineWidth = strokeLine(0, kx, 1).width;
+        ctx.beginPath();
+        ctx.moveTo(strokeLine(band.x1, kx, 1).centre, 0);
+        ctx.lineTo(strokeLine(band.x1, kx, 1).centre, height);
+        ctx.stroke();
+
+        const tag = `Q${band.zone.number}x${band.zone.depth}`;
+        const tw = ctx.measureText(tag).width;
+        const rect = { x: x1 + 3 * kx, y: 3 * ky, w: tw + 4 * kx, h: 12 * ky };
+        if (x2 - x1 > tw + 8 * kx && labelFree(rect, claimedLabels)) {
+          claimedLabels.push(rect);
+          ctx.fillStyle = ink(0.75);
+          ctx.fillText(tag, x1 + 5 * kx, 4 * ky);
+        }
+      }
+
+      // --- time-based premium and discount: the previous parent quarter ------
+      // Two edges and a dashed midline. The midline is the whole reading -
+      // above it is premium, below is discount - so it is the dashed one, the
+      // same convention the Fibonacci equilibrium uses on this chart.
+      for (const band of this.pd) {
+        const x1 = Math.round(band.x1 * kx);
+        const x2 = Math.round(band.x2 * kx);
+        const top = strokeLine(band.yHigh, ky, 1).centre;
+        const bottom = strokeLine(band.yLow, ky, 1).centre;
+        ctx.strokeStyle = ink(0.45);
+        ctx.lineWidth = strokeLine(0, kx, 1).width;
+        for (const y of [top, bottom]) {
+          ctx.beginPath();
+          ctx.moveTo(x1, y);
+          ctx.lineTo(x2, y);
+          ctx.stroke();
+        }
+        ctx.setLineDash([3 * kx, 3 * kx]);
+        ctx.strokeStyle = ink(0.65);
+        ctx.beginPath();
+        ctx.moveTo(x1, strokeLine(band.yMid, ky, 1).centre);
+        ctx.lineTo(x2, strokeLine(band.yMid, ky, 1).centre);
+        ctx.stroke();
+        ctx.setLineDash([]);
+
+        const tag = `PD ${band.band.parent}`;
+        const tw = ctx.measureText(tag).width;
+        const rect = { x: x1 + 3 * kx, y: top - 13 * ky, w: tw + 4 * kx, h: 12 * ky };
+        if (x2 - x1 > tw + 8 * kx && labelFree(rect, claimedLabels)) {
+          claimedLabels.push(rect);
+          ctx.fillStyle = ink(0.85);
+          ctx.fillText(tag, x1 + 5 * kx, top - 12 * ky);
+        }
+      }
+
       // --- true opens: a ray, and its name at the right edge ------------------
       for (const ray of this.rays) {
         const y = strokeLine(ray.y, ky, 1).centre;
@@ -488,6 +590,10 @@ export class SessionSeriesPrimitive implements ISeriesPrimitive<Time> {
   private chart: IChartApi | null = null;
   private series: ISeriesApi<"Candlestick", Time> | null = null;
   private requestUpdate: (() => void) | null = null;
+  private killzones: readonly KillzoneWindow[] = [];
+  private pdBands: readonly TimeRangeBand[] = [];
+  private zones: ZoneBand[] = [];
+  private pd: PDBand[] = [];
   private quarters: readonly SessionQuarter[] = [];
   private opens: readonly TrueOpenLevel[] = [];
   private boxes: QuarterBox[] = [];
@@ -498,7 +604,8 @@ export class SessionSeriesPrimitive implements ISeriesPrimitive<Time> {
   private readonly views: readonly IPrimitivePaneView[] = [
     {
       zOrder: () => "bottom",
-      renderer: () => new SessionRenderer(this.boxes, this.rays, this.marks),
+      renderer: () =>
+        new SessionRenderer(this.boxes, this.rays, this.marks, this.zones, this.pd),
     },
   ];
 
@@ -520,10 +627,14 @@ export class SessionSeriesPrimitive implements ISeriesPrimitive<Time> {
     quarters: readonly SessionQuarter[],
     opens: readonly TrueOpenLevel[],
     news: readonly NewsEvent[] = [],
+    killzones: readonly KillzoneWindow[] = [],
+    pd: readonly TimeRangeBand[] = [],
   ): void {
     this.quarters = quarters;
     this.opens = opens;
     this.news = [...news];
+    this.killzones = killzones;
+    this.pdBands = pd;
     this.requestUpdate?.();
   }
 
@@ -536,6 +647,8 @@ export class SessionSeriesPrimitive implements ISeriesPrimitive<Time> {
       this.boxes = [];
       this.rays = [];
       this.marks = [];
+      this.zones = [];
+      this.pd = [];
       return;
     }
     const timeScale = chart.timeScale();
@@ -573,6 +686,40 @@ export class SessionSeriesPrimitive implements ISeriesPrimitive<Time> {
       const centre = timeScale.timeToCoordinate(event.bar as Time);
       if (centre !== null) {
         this.marks.push({ event, x: centre + (event.offset - 0.5) * spacing });
+      }
+    }
+
+    // KILLZONES: a window, so the same half-bar correction the quarter boxes
+    // take. Nothing here reads price - the band spans the full pane height.
+    this.zones = [];
+    for (const zone of this.killzones) {
+      const x1 = timeScale.timeToCoordinate(zone.time_from as Time);
+      const x2 = timeScale.timeToCoordinate(zone.time_to as Time);
+      if (x1 !== null && x2 !== null) {
+        this.zones.push({ zone, x1: x1 - halfBar, x2: x2 + halfBar });
+      }
+    }
+
+    // TIME-BASED PREMIUM AND DISCOUNT: a price band over a time window, so both
+    // scales are asked. A band whose prices fall outside the visible range is
+    // dropped rather than clamped: a clamped edge is a line drawn at a price
+    // the band does not have.
+    this.pd = [];
+    for (const band of this.pdBands) {
+      const x1 = timeScale.timeToCoordinate(band.time_from as Time);
+      const x2 = timeScale.timeToCoordinate(band.time_to as Time);
+      const yHigh = series.priceToCoordinate(band.high);
+      const yLow = series.priceToCoordinate(band.low);
+      const yMid = series.priceToCoordinate(band.mid);
+      if (x1 !== null && x2 !== null && yHigh !== null && yLow !== null && yMid !== null) {
+        this.pd.push({
+          band,
+          x1: x1 - halfBar,
+          x2: x2 + halfBar,
+          yHigh,
+          yLow,
+          yMid,
+        });
       }
     }
 

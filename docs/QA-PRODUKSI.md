@@ -1587,3 +1587,87 @@ satu. Menolaknya juga akan mengubah populasi terukur: `docs/CALIBRATION.md`
 menghitung first touch SETIAP zona yang lolos gate, dan dua zona di kedalaman
 berbeda pada satu instrumen adalah dua anggota populasi itu. Alasan lengkapnya
 ada di docstring `app/portfolio.py:admits`.
+
+## 18. Sumber data pindah ke TradingView, dan tiga cacat yang muncul saat memindahkannya
+
+Ditulis 12 September 2026. Pemilik repo memutuskan MT5 turun jadi jalur eksekusi
+saja, dan sumber data plus tampilan live pindah ke TradingView.
+
+### 18.1 Verdict pertama saya salah, dan salahnya di mana
+
+Saya menolak permintaan itu dengan tiga alasan. Dua di antaranya keliru:
+
+| Klaim saya | Kenyataan terukur |
+|---|---|
+| "FastAPI tidak bisa memanggil MCP" | MCP itu server JSON-RPC stdio, dan di bawahnya `tradingview-mcp` cuma memakai CDP polos di `127.0.0.1:9222`. Proses apa pun bisa bicara ke sana. |
+| "Batas 500 bar" | Itu `MAX_OHLCV_BARS = 500`, konstanta di `src/core/data.js` milik MCP server, bukan batas TradingView. Lewat `requestMoreData` terambil 21.857 bar. |
+| "`layout_switch` berbohong" | Ini tetap benar, tapi tidak relevan: provider tidak menyetir chart sama sekali. |
+
+### 18.2 Yang akhirnya dipakai
+
+`TradingViewApi._chartApiInstance`, websocket terautentikasi milik aplikasi
+desktop. Provider membuat sesi data sendiri di atasnya, jadi chart yang dilihat
+pengguna tidak tersentuh.
+
+```mermaid
+flowchart LR
+  A[FastAPI /api/draw] -->|CDP 9222| B[TradingView Desktop]
+  B --> C[_chartApiInstance]
+  C -->|createSession, createSeries, requestMoreData| D[(Server data TradingView)]
+  D --> C --> B --> A
+  E[Chart yang dilihat user] -.tidak tersentuh.- C
+```
+
+### 18.3 Angka, 26 instrumen
+
+| | TradingView | MT5 | Yahoo |
+|---|---|---|---|
+| Resolve | 26/26 | 18/26 | 25/26 |
+| XAUUSD 1d | 13.003 bar, sejak 1975 | 3.132, sejak 2016 | 603 |
+| XAUUSD 4h | 15.479 | 10.649 | 3.713 |
+| 300 bar | 2,6-2,8 detik | 0,3 detik | 0,9 detik |
+
+> [!WARNING]
+> Akun Premium TIDAK termasuk data real-time bursa. 21 dari 26 instrumen datang
+> delay: 600 detik di semua kontrak CME, COMEX, NYMEX, CBOT; 900 detik di XETR.
+> Yang live cuma lima, yaitu kripto lewat Coinbase, FX lewat OANDA, dan DXY.
+
+### 18.4 Tiga cacat, semuanya ketemu lewat pengukuran
+
+1. **`_delay_seconds` mengembalikan 0 untuk mode delayed yang tak terbaca.**
+   Nol berarti live, jadi satu-satunya arah yang tak boleh salah. Sekarang
+   `DELAY_UNKNOWN = -1`, dan penguji tanda memakai `!= 0` bukan `> 0`.
+
+2. **Install JS dijaga `if (window.__zlFetch) return 'present'`.** Definisi basi
+   dari build sebelumnya tetap menang, dan ia menjawab MASUK AKAL: bar sama,
+   kecepatan sama, satu field berganti nama hilang. Akibatnya delay jadi null
+   untuk 26-26 dan terbaca "semua feed live". Halaman hidup lebih lama daripada
+   restart aplikasi; rutinnya sekarang selalu ditulis ulang.
+
+3. **`delay_of` ditaruh di level modul, bukan di kelas.** `exchange_delay`
+   membacanya dengan `getattr` pada INSTANCE provider, jadi ia menjawab None
+   selamanya, dan None tak terbedakan dari "feed ini tak bisa bilang".
+
+### 18.5 Delay dikurangi sebelum kebasian dinilai
+
+Tape yang ditahan bursa 600 detik tak akan pernah punya bar lebih baru dari itu.
+Diukur lawan jam dinding, setiap chart emas di 1m dan 5m jadi "tertinggal"
+permanen. Itu bukan cuma berisik: `tools/execute.py` MENOLAK order selama
+`blockers()` tidak kosong, jadi tanpa pengurangan ini setiap order emas akan
+diblokir selamanya oleh pesan yang menggambarkan operasi normal.
+
+Karena itu delay biasa TIDAK masuk `blockers()`. Ia berjalan sebagai
+`meta.feed_delay_seconds` dan dirender di rail sebagai baris redup terpisah.
+Yang tetap memblokir cuma delay yang jumlahnya tak dinyatakan, karena itu
+berarti pemeriksaannya sendiri tidak bisa dijalankan.
+
+### 18.6 Jalur eksekusi tidak ikut pindah, dan itu diperiksa
+
+- `tools/history.py` mengalamatkan feed lewat prefix eksplisit (`mt5:`,
+  `yahoo:`, dan sejak hari ini `tradingview:`).
+- Tidak ada tool di `tools/` yang membaca `default_provider` untuk order.
+- `.autotrade.json` menyimpan `mt5:XAUUSD,mt5:BTCUSD`.
+
+> [!CAUTION]
+> Zona digambar di harga COMEX, order terisi di spot CFD broker. Emas terukur
+> berselisih 51,7 poin. Level dari chart bukan harga order.

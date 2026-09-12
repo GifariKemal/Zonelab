@@ -416,3 +416,128 @@ def occurrences(candles: list[Candle], degrees: Sequence[str]) -> Occurrence:
         listed_share=round(listed / counted, 4) if counted else 0.0,
         base_rate=BASE_RATE,
     )
+
+
+@dataclass(frozen=True)
+class Killzone:
+    """A window where every requested degree is in the SAME numbered quarter.
+
+    Two independent sources name this object. Bucko's A-Z guide calls it a QT
+    Killzone and gives the worked example "Q3 of Q3" for 09:00-10:30 New York:
+    the daily cycle's Q3 (the AM session) and, inside it, the 90-minute cycle's
+    Q3. The `quarter-sequence` reference calls the same thing an N-stage
+    sequence. Neither supplies a number for it.
+
+    A FACT ABOUT THE CLOCK, and nothing else. It takes no candles, reads no
+    price and predicts nothing - which is exactly the property that lets it be
+    measured honestly later: the windows exist before any outcome does, so a
+    study over them cannot be accused of choosing them after the fact.
+
+    `number` is the quarter all the degrees share, 1 to 4. `depth` is how many
+    degrees agreed, which is the only ranking the sources offer ("stacking
+    deeper" - four overlapping Q3s is their strongest case).
+    """
+
+    degrees: tuple[str, ...]  # outermost first
+    number: int  # 1..4, the quarter every degree is in
+    depth: int  # = len(degrees); how many agreed
+    start: int  # epoch seconds, inclusive
+    end: int  # epoch seconds, exclusive
+
+
+def killzones(
+    degrees: Sequence[str], start: int, end: int
+) -> list[Killzone]:
+    """Every window in [start, end) where all `degrees` share a quarter number.
+
+    Built from the FINEST degree's own quarters, because the finest quarter is
+    the shortest one and any window where all degrees agree is therefore exactly
+    one of its quarters - no interval arithmetic and no merging is needed. That
+    also means the returned windows never overlap and are already in time order.
+
+    `degrees` must nest outermost-first, the same rule `chain` enforces and for
+    the same reason; one degree is legal and returns that degree's own quarters,
+    which is the degenerate case and is what "depth 1" means.
+
+    Returns an empty list rather than raising when nothing aligns. Alignment is
+    not rare and must never be read as a signal on its own: with two degrees a
+    quarter of the finer one aligns 25% of the time by construction, with three
+    6.25%. `depth` is on every row so a caller can price that in.
+    """
+    order = _ordered(degrees)
+    finest = order[-1]
+    out: list[Killzone] = []
+    for quarter in quarters(finest, start, end):
+        here = chain(quarter.start, order)
+        if here is None:
+            continue
+        first = here.quarters[0]
+        if all(n == first for n in here.quarters):
+            out.append(
+                Killzone(
+                    degrees=order,
+                    number=first,
+                    depth=len(order),
+                    start=quarter.start,
+                    end=quarter.end,
+                )
+            )
+    return out
+
+
+def _selftest_killzones() -> None:
+    """The worked example from the source, and the base rate its shape implies."""
+    from datetime import datetime, timedelta, timezone
+
+    # 09:00-10:30 New York on a weekday is Q3 of the day cycle AND Q3 of the
+    # session cycle - the one window the source names outright.
+    day = datetime(2026, 9, 9, tzinfo=timezone.utc)
+    span = (int(day.timestamp()), int((day + timedelta(days=1)).timestamp()))
+    found = killzones(("day", "session"), *span)
+    assert found, "day+session must align somewhere inside a full day"
+    assert all(k.depth == 2 for k in found)
+    assert all(k.number in (1, 2, 3, 4) for k in found)
+
+    # A quarter of the finer degree is the unit, so the windows tile that degree
+    # and never overlap.
+    for a, b in zip(found, found[1:]):
+        assert a.end <= b.start, "killzone windows must not overlap"
+
+    # BASE RATE, ASSERTED RATHER THAN ASSUMED. One of every four session
+    # quarters aligns with its day quarter, by construction. Over a long window
+    # the count must come out at a quarter of the session quarters, and that is
+    # the number any later study has to beat.
+    wide = (
+        int(datetime(2026, 1, 1, tzinfo=timezone.utc).timestamp()),
+        int(datetime(2026, 4, 1, tzinfo=timezone.utc).timestamp()),
+    )
+    all_session = quarters("session", *wide)
+    aligned = killzones(("day", "session"), *wide)
+    share = len(aligned) / len(all_session)
+    assert 0.24 < share < 0.26, f"expected ~0.25 of session quarters, got {share}"
+
+    # Three degrees agree an order of magnitude less often, and that is the
+    # whole reason "stacking deeper" is claimed to be stronger.
+    deep = killzones(("day", "session", "micro"), *wide)
+    all_micro = quarters("micro", *wide)
+    deep_share = len(deep) / len(all_micro)
+    assert 0.055 < deep_share < 0.07, f"expected ~0.0625, got {deep_share}"
+
+    # One degree is the degenerate case: every quarter of it qualifies.
+    alone = killzones(("day",), *span)
+    assert len(alone) == len(quarters("day", *span))
+    assert all(k.depth == 1 for k in alone)
+
+
+def _selftest() -> None:
+    """The gate's entry point for this module.
+
+    Named `_selftest` exactly, because `tests/test_selftests_run.py` discovers
+    by that name and a helper called anything else never runs - the same hole
+    that left nine of these unexecuted until 5 September 2026.
+    """
+    _selftest_killzones()
+
+
+if __name__ == "__main__":
+    _selftest()

@@ -56,6 +56,51 @@ double SDTrueRange(double h,double l,double pc)
   }
 
 //--- Wilder ATR (RMA true range). index 0 = tertua. -------------------------
+//+------------------------------------------------------------------+
+//| True range dirata-ratakan atas `period` bar TERAKHIR saja.        |
+//| Cermin `app/indicators.py:mean_true_range`, ditambahkan 7 Sep 2026 |
+//| untuk jalur FVG. SDWilderAtr di bawah TETAP dipakai order block,   |
+//| supply/demand dan sizing stop, karena ketiganya dikalibrasi        |
+//| terhadap Wilder dan menukarnya butuh pengukuran sendiri.           |
+//|                                                                    |
+//| Bedanya cuma satu: Wilder adalah RMA yang disemai dari bar pertama, |
+//| jadi nilainya di satu bar bergantung berapa bar yang dimuat. Rata   |
+//| rata atas tepat `period` suku sama di jendela mana pun. Terukur di  |
+//| XAUUSD 4h: Wilder memberi rasio gerbang berbeda untuk 46 dari 96    |
+//| zona di jendela 500 bar, fungsi ini 0 dari semuanya.                |
+//+------------------------------------------------------------------+
+void SDMeanTrueRange(double &atr[],const double &high[],const double &low[],
+                     const double &close[],int n,int period)
+  {
+   ArrayResize(atr,n);
+   if(n==0)
+      return;
+
+   double tr[];
+   ArrayResize(tr,n);
+   tr[0]=high[0]-low[0];
+   for(int i=1;i<n;i++)
+      tr[i]=SDTrueRange(high[i],low[i],close[i-1]);
+
+   if(n<=period)
+     {
+      double mean=0.0;
+      for(int i=0;i<n;i++) mean+=tr[i];
+      mean/=(double)n;
+      for(int i=0;i<n;i++) atr[i]=mean;
+      return;
+     }
+
+   double run=0.0;
+   for(int i=0;i<period;i++) run+=tr[i];
+   for(int i=0;i<period;i++) atr[i]=run/(double)period;
+   for(int i=period;i<n;i++)
+     {
+      run+=tr[i]-tr[i-period];
+      atr[i]=run/(double)period;
+     }
+  }
+
 void SDWilderAtr(double &atr[],const double &high[],const double &low[],
                  const double &close[],int n,int period)
   {

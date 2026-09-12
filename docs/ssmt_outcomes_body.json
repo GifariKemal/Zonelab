@@ -1,0 +1,1778 @@
+{
+ "question": "app/layers.py: 'Nothing connects a divergence to an outcome, by anyone.' Does a knowable SSMT separate the bracket outcome from the same instrument's non-divergence bars?",
+ "preregistered": "docstring of tools/ssmt_outcomes.py, thresholds before numbers",
+ "run": {
+  "bars": 50000,
+  "interval": "1h",
+  "degree": "day",
+  "provider": "mt5",
+  "basis": "body",
+  "widths": [
+   0.5,
+   1.0,
+   2.0
+  ],
+  "horizon": 40,
+  "folds": 6
+ },
+ "thresholds": {
+  "min_events": 30,
+  "min_control": 100,
+  "cells_eligible_K": 24,
+  "alpha": 0.05,
+  "alpha_corrected": 0.002083,
+  "z_critical_two_sided": 3.078
+ },
+ "pairs": {
+  "XAUUSD|XAGUSD": {
+   "grid": 35534,
+   "fetched_chart": 35542,
+   "fetched_partner": 35534,
+   "time_from": 1470700800,
+   "time_to": 1789156800,
+   "correlation": {
+    "full": 0.7836,
+    "recent": 0.7745,
+    "pairs": 35533,
+    "sign_changed": false
+   },
+   "events_raw": 2566,
+   "control_bars_thinned": 870,
+   "cells": {
+    "0.5|high": {
+     "n_event": 366,
+     "n_control": 788,
+     "claimed": "down",
+     "judged": true,
+     "event_rate": 0.5164,
+     "control_rate": 0.4911,
+     "delta": 0.0253,
+     "delta_ci95": [
+      -0.0367,
+      0.0872
+     ],
+     "z": 0.799,
+     "halves": [
+      0.0384,
+      0.0122
+     ],
+     "halves_agree": true,
+     "passes": false,
+     "walkforward": [
+      {
+       "fold": 1,
+       "n_event": 0,
+       "n_control": 11,
+       "event_rate": null,
+       "control_rate": 0.5455,
+       "delta": null
+      },
+      {
+       "fold": 2,
+       "n_event": 0,
+       "n_control": 12,
+       "event_rate": null,
+       "control_rate": 0.5833,
+       "delta": null
+      },
+      {
+       "fold": 3,
+       "n_event": 52,
+       "n_control": 108,
+       "event_rate": 0.5192,
+       "control_rate": 0.537,
+       "delta": -0.0178
+      },
+      {
+       "fold": 4,
+       "n_event": 100,
+       "n_control": 222,
+       "event_rate": 0.54,
+       "control_rate": 0.473,
+       "delta": 0.067
+      },
+      {
+       "fold": 5,
+       "n_event": 112,
+       "n_control": 212,
+       "event_rate": 0.5446,
+       "control_rate": 0.4764,
+       "delta": 0.0682
+      },
+      {
+       "fold": 6,
+       "n_event": 102,
+       "n_control": 223,
+       "event_rate": 0.4608,
+       "control_rate": 0.4933,
+       "delta": -0.0325
+      }
+     ]
+    },
+    "0.5|low": {
+     "n_event": 355,
+     "n_control": 788,
+     "claimed": "up",
+     "judged": true,
+     "event_rate": 0.5155,
+     "control_rate": 0.5089,
+     "delta": 0.0066,
+     "delta_ci95": [
+      -0.056,
+      0.0692
+     ],
+     "z": 0.207,
+     "halves": [
+      -0.0003,
+      0.0135
+     ],
+     "halves_agree": false,
+     "passes": false,
+     "walkforward": [
+      {
+       "fold": 1,
+       "n_event": 0,
+       "n_control": 11,
+       "event_rate": null,
+       "control_rate": 0.4545,
+       "delta": null
+      },
+      {
+       "fold": 2,
+       "n_event": 0,
+       "n_control": 12,
+       "event_rate": null,
+       "control_rate": 0.4167,
+       "delta": null
+      },
+      {
+       "fold": 3,
+       "n_event": 46,
+       "n_control": 108,
+       "event_rate": 0.5435,
+       "control_rate": 0.463,
+       "delta": 0.0805
+      },
+      {
+       "fold": 4,
+       "n_event": 107,
+       "n_control": 222,
+       "event_rate": 0.514,
+       "control_rate": 0.527,
+       "delta": -0.013
+      },
+      {
+       "fold": 5,
+       "n_event": 101,
+       "n_control": 212,
+       "event_rate": 0.5644,
+       "control_rate": 0.5236,
+       "delta": 0.0408
+      },
+      {
+       "fold": 6,
+       "n_event": 101,
+       "n_control": 223,
+       "event_rate": 0.4554,
+       "control_rate": 0.5067,
+       "delta": -0.0513
+      }
+     ]
+    },
+    "1.0|high": {
+     "n_event": 369,
+     "n_control": 849,
+     "claimed": "down",
+     "judged": true,
+     "event_rate": 0.5339,
+     "control_rate": 0.4865,
+     "delta": 0.0474,
+     "delta_ci95": [
+      -0.0136,
+      0.1084
+     ],
+     "z": 1.521,
+     "halves": [
+      0.0403,
+      0.0555
+     ],
+     "halves_agree": true,
+     "passes": false,
+     "walkforward": [
+      {
+       "fold": 1,
+       "n_event": 0,
+       "n_control": 13,
+       "event_rate": null,
+       "control_rate": 0.5385,
+       "delta": null
+      },
+      {
+       "fold": 2,
+       "n_event": 0,
+       "n_control": 13,
+       "event_rate": null,
+       "control_rate": 0.3077,
+       "delta": null
+      },
+      {
+       "fold": 3,
+       "n_event": 49,
+       "n_control": 111,
+       "event_rate": 0.5102,
+       "control_rate": 0.5225,
+       "delta": -0.0123
+      },
+      {
+       "fold": 4,
+       "n_event": 99,
+       "n_control": 239,
+       "event_rate": 0.4949,
+       "control_rate": 0.5105,
+       "delta": -0.0155
+      },
+      {
+       "fold": 5,
+       "n_event": 114,
+       "n_control": 232,
+       "event_rate": 0.614,
+       "control_rate": 0.444,
+       "delta": 0.1701
+      },
+      {
+       "fold": 6,
+       "n_event": 107,
+       "n_control": 241,
+       "event_rate": 0.4953,
+       "control_rate": 0.4938,
+       "delta": 0.0016
+      }
+     ]
+    },
+    "1.0|low": {
+     "n_event": 356,
+     "n_control": 849,
+     "claimed": "up",
+     "judged": true,
+     "event_rate": 0.5393,
+     "control_rate": 0.5135,
+     "delta": 0.0258,
+     "delta_ci95": [
+      -0.036,
+      0.0875
+     ],
+     "z": 0.817,
+     "halves": [
+      0.0482,
+      0.003
+     ],
+     "halves_agree": true,
+     "passes": false,
+     "walkforward": [
+      {
+       "fold": 1,
+       "n_event": 0,
+       "n_control": 13,
+       "event_rate": null,
+       "control_rate": 0.4615,
+       "delta": null
+      },
+      {
+       "fold": 2,
+       "n_event": 0,
+       "n_control": 13,
+       "event_rate": null,
+       "control_rate": 0.6923,
+       "delta": null
+      },
+      {
+       "fold": 3,
+       "n_event": 42,
+       "n_control": 111,
+       "event_rate": 0.5,
+       "control_rate": 0.4775,
+       "delta": 0.0225
+      },
+      {
+       "fold": 4,
+       "n_event": 110,
+       "n_control": 239,
+       "event_rate": 0.5818,
+       "control_rate": 0.4895,
+       "delta": 0.0923
+      },
+      {
+       "fold": 5,
+       "n_event": 101,
+       "n_control": 231,
+       "event_rate": 0.5644,
+       "control_rate": 0.5541,
+       "delta": 0.0102
+      },
+      {
+       "fold": 6,
+       "n_event": 103,
+       "n_control": 242,
+       "event_rate": 0.4854,
+       "control_rate": 0.5083,
+       "delta": -0.0228
+      }
+     ]
+    },
+    "2.0|high": {
+     "n_event": 372,
+     "n_control": 839,
+     "claimed": "down",
+     "judged": true,
+     "event_rate": 0.4946,
+     "control_rate": 0.5089,
+     "delta": -0.0143,
+     "delta_ci95": [
+      -0.0754,
+      0.0467
+     ],
+     "z": -0.46,
+     "halves": [
+      -0.0244,
+      -0.0018
+     ],
+     "halves_agree": true,
+     "passes": false,
+     "walkforward": [
+      {
+       "fold": 1,
+       "n_event": 0,
+       "n_control": 13,
+       "event_rate": null,
+       "control_rate": 0.4615,
+       "delta": null
+      },
+      {
+       "fold": 2,
+       "n_event": 0,
+       "n_control": 13,
+       "event_rate": null,
+       "control_rate": 0.4615,
+       "delta": null
+      },
+      {
+       "fold": 3,
+       "n_event": 48,
+       "n_control": 114,
+       "event_rate": 0.4792,
+       "control_rate": 0.5526,
+       "delta": -0.0735
+      },
+      {
+       "fold": 4,
+       "n_event": 101,
+       "n_control": 231,
+       "event_rate": 0.4851,
+       "control_rate": 0.5238,
+       "delta": -0.0387
+      },
+      {
+       "fold": 5,
+       "n_event": 117,
+       "n_control": 233,
+       "event_rate": 0.5385,
+       "control_rate": 0.4678,
+       "delta": 0.0707
+      },
+      {
+       "fold": 6,
+       "n_event": 106,
+       "n_control": 235,
+       "event_rate": 0.4623,
+       "control_rate": 0.5191,
+       "delta": -0.0569
+      }
+     ]
+    },
+    "2.0|low": {
+     "n_event": 359,
+     "n_control": 839,
+     "claimed": "up",
+     "judged": true,
+     "event_rate": 0.4819,
+     "control_rate": 0.4911,
+     "delta": -0.0092,
+     "delta_ci95": [
+      -0.0709,
+      0.0526
+     ],
+     "z": -0.291,
+     "halves": [
+      0.001,
+      -0.02
+     ],
+     "halves_agree": false,
+     "passes": false,
+     "walkforward": [
+      {
+       "fold": 1,
+       "n_event": 0,
+       "n_control": 13,
+       "event_rate": null,
+       "control_rate": 0.5385,
+       "delta": null
+      },
+      {
+       "fold": 2,
+       "n_event": 0,
+       "n_control": 13,
+       "event_rate": null,
+       "control_rate": 0.5385,
+       "delta": null
+      },
+      {
+       "fold": 3,
+       "n_event": 45,
+       "n_control": 114,
+       "event_rate": 0.3333,
+       "control_rate": 0.4474,
+       "delta": -0.114
+      },
+      {
+       "fold": 4,
+       "n_event": 110,
+       "n_control": 231,
+       "event_rate": 0.5182,
+       "control_rate": 0.4762,
+       "delta": 0.042
+      },
+      {
+       "fold": 5,
+       "n_event": 101,
+       "n_control": 232,
+       "event_rate": 0.505,
+       "control_rate": 0.5302,
+       "delta": -0.0252
+      },
+      {
+       "fold": 6,
+       "n_event": 103,
+       "n_control": 236,
+       "event_rate": 0.4854,
+       "control_rate": 0.4831,
+       "delta": 0.0024
+      }
+     ]
+    }
+   }
+  },
+  "XAUUSD|DXY": {
+   "grid": 33226,
+   "fetched_chart": 35542,
+   "fetched_partner": 34970,
+   "time_from": 1551398400,
+   "time_to": 1789156800,
+   "correlation": {
+    "full": -0.4038,
+    "recent": -0.4118,
+    "pairs": 33225,
+    "sign_changed": false
+   },
+   "events_raw": 6297,
+   "control_bars_thinned": 804,
+   "cells": {
+    "0.5|high": {
+     "n_event": 524,
+     "n_control": 721,
+     "claimed": "down",
+     "judged": true,
+     "event_rate": 0.5019,
+     "control_rate": 0.5229,
+     "delta": -0.021,
+     "delta_ci95": [
+      -0.0772,
+      0.0353
+     ],
+     "z": -0.731,
+     "halves": [
+      -0.0054,
+      -0.0365
+     ],
+     "halves_agree": true,
+     "passes": false,
+     "walkforward": [
+      {
+       "fold": 1,
+       "n_event": 0,
+       "n_control": 9,
+       "event_rate": null,
+       "control_rate": 0.7778,
+       "delta": null
+      },
+      {
+       "fold": 2,
+       "n_event": 52,
+       "n_control": 71,
+       "event_rate": 0.5192,
+       "control_rate": 0.5211,
+       "delta": -0.0019
+      },
+      {
+       "fold": 3,
+       "n_event": 114,
+       "n_control": 159,
+       "event_rate": 0.5439,
+       "control_rate": 0.5472,
+       "delta": -0.0033
+      },
+      {
+       "fold": 4,
+       "n_event": 123,
+       "n_control": 158,
+       "event_rate": 0.4959,
+       "control_rate": 0.5253,
+       "delta": -0.0294
+      },
+      {
+       "fold": 5,
+       "n_event": 115,
+       "n_control": 161,
+       "event_rate": 0.4957,
+       "control_rate": 0.4969,
+       "delta": -0.0012
+      },
+      {
+       "fold": 6,
+       "n_event": 120,
+       "n_control": 163,
+       "event_rate": 0.4667,
+       "control_rate": 0.5092,
+       "delta": -0.0425
+      }
+     ]
+    },
+    "0.5|low": {
+     "n_event": 502,
+     "n_control": 721,
+     "claimed": "up",
+     "judged": true,
+     "event_rate": 0.5,
+     "control_rate": 0.4771,
+     "delta": 0.0229,
+     "delta_ci95": [
+      -0.0341,
+      0.0798
+     ],
+     "z": 0.788,
+     "halves": [
+      0.008,
+      0.039
+     ],
+     "halves_agree": true,
+     "passes": false,
+     "walkforward": [
+      {
+       "fold": 1,
+       "n_event": 0,
+       "n_control": 9,
+       "event_rate": null,
+       "control_rate": 0.2222,
+       "delta": null
+      },
+      {
+       "fold": 2,
+       "n_event": 48,
+       "n_control": 71,
+       "event_rate": 0.3958,
+       "control_rate": 0.4789,
+       "delta": -0.083
+      },
+      {
+       "fold": 3,
+       "n_event": 126,
+       "n_control": 159,
+       "event_rate": 0.5159,
+       "control_rate": 0.4528,
+       "delta": 0.063
+      },
+      {
+       "fold": 4,
+       "n_event": 114,
+       "n_control": 158,
+       "event_rate": 0.4649,
+       "control_rate": 0.4747,
+       "delta": -0.0098
+      },
+      {
+       "fold": 5,
+       "n_event": 106,
+       "n_control": 161,
+       "event_rate": 0.6226,
+       "control_rate": 0.5031,
+       "delta": 0.1195
+      },
+      {
+       "fold": 6,
+       "n_event": 108,
+       "n_control": 163,
+       "event_rate": 0.4444,
+       "control_rate": 0.4908,
+       "delta": -0.0464
+      }
+     ]
+    },
+    "1.0|high": {
+     "n_event": 529,
+     "n_control": 784,
+     "claimed": "down",
+     "judged": true,
+     "event_rate": 0.4858,
+     "control_rate": 0.5013,
+     "delta": -0.0155,
+     "delta_ci95": [
+      -0.0706,
+      0.0397
+     ],
+     "z": -0.549,
+     "halves": [
+      0.0025,
+      -0.0329
+     ],
+     "halves_agree": false,
+     "passes": false,
+     "walkforward": [
+      {
+       "fold": 1,
+       "n_event": 0,
+       "n_control": 10,
+       "event_rate": null,
+       "control_rate": 0.6,
+       "delta": null
+      },
+      {
+       "fold": 2,
+       "n_event": 53,
+       "n_control": 79,
+       "event_rate": 0.4528,
+       "control_rate": 0.6329,
+       "delta": -0.1801
+      },
+      {
+       "fold": 3,
+       "n_event": 115,
+       "n_control": 174,
+       "event_rate": 0.5304,
+       "control_rate": 0.5057,
+       "delta": 0.0247
+      },
+      {
+       "fold": 4,
+       "n_event": 123,
+       "n_control": 172,
+       "event_rate": 0.5203,
+       "control_rate": 0.4767,
+       "delta": 0.0436
+      },
+      {
+       "fold": 5,
+       "n_event": 118,
+       "n_control": 173,
+       "event_rate": 0.4915,
+       "control_rate": 0.4566,
+       "delta": 0.0349
+      },
+      {
+       "fold": 6,
+       "n_event": 120,
+       "n_control": 176,
+       "event_rate": 0.4167,
+       "control_rate": 0.5,
+       "delta": -0.0833
+      }
+     ]
+    },
+    "1.0|low": {
+     "n_event": 521,
+     "n_control": 784,
+     "claimed": "up",
+     "judged": true,
+     "event_rate": 0.5509,
+     "control_rate": 0.4987,
+     "delta": 0.0521,
+     "delta_ci95": [
+      -0.0031,
+      0.1074
+     ],
+     "z": 1.846,
+     "halves": [
+      0.048,
+      0.0574
+     ],
+     "halves_agree": true,
+     "passes": false,
+     "walkforward": [
+      {
+       "fold": 1,
+       "n_event": 0,
+       "n_control": 10,
+       "event_rate": null,
+       "control_rate": 0.4,
+       "delta": null
+      },
+      {
+       "fold": 2,
+       "n_event": 50,
+       "n_control": 79,
+       "event_rate": 0.54,
+       "control_rate": 0.3671,
+       "delta": 0.1729
+      },
+      {
+       "fold": 3,
+       "n_event": 126,
+       "n_control": 174,
+       "event_rate": 0.5317,
+       "control_rate": 0.4943,
+       "delta": 0.0375
+      },
+      {
+       "fold": 4,
+       "n_event": 117,
+       "n_control": 172,
+       "event_rate": 0.5128,
+       "control_rate": 0.5233,
+       "delta": -0.0104
+      },
+      {
+       "fold": 5,
+       "n_event": 112,
+       "n_control": 173,
+       "event_rate": 0.625,
+       "control_rate": 0.5434,
+       "delta": 0.0816
+      },
+      {
+       "fold": 6,
+       "n_event": 116,
+       "n_control": 176,
+       "event_rate": 0.5431,
+       "control_rate": 0.5,
+       "delta": 0.0431
+      }
+     ]
+    },
+    "2.0|high": {
+     "n_event": 530,
+     "n_control": 776,
+     "claimed": "down",
+     "judged": true,
+     "event_rate": 0.4792,
+     "control_rate": 0.491,
+     "delta": -0.0117,
+     "delta_ci95": [
+      -0.0669,
+      0.0435
+     ],
+     "z": -0.417,
+     "halves": [
+      0.0132,
+      -0.0358
+     ],
+     "halves_agree": false,
+     "passes": false,
+     "walkforward": [
+      {
+       "fold": 1,
+       "n_event": 0,
+       "n_control": 10,
+       "event_rate": null,
+       "control_rate": 0.4,
+       "delta": null
+      },
+      {
+       "fold": 2,
+       "n_event": 53,
+       "n_control": 80,
+       "event_rate": 0.4906,
+       "control_rate": 0.6,
+       "delta": -0.1094
+      },
+      {
+       "fold": 3,
+       "n_event": 114,
+       "n_control": 172,
+       "event_rate": 0.5439,
+       "control_rate": 0.5,
+       "delta": 0.0439
+      },
+      {
+       "fold": 4,
+       "n_event": 122,
+       "n_control": 170,
+       "event_rate": 0.4754,
+       "control_rate": 0.4765,
+       "delta": -0.0011
+      },
+      {
+       "fold": 5,
+       "n_event": 122,
+       "n_control": 171,
+       "event_rate": 0.4672,
+       "control_rate": 0.4386,
+       "delta": 0.0286
+      },
+      {
+       "fold": 6,
+       "n_event": 119,
+       "n_control": 173,
+       "event_rate": 0.4286,
+       "control_rate": 0.5029,
+       "delta": -0.0743
+      }
+     ]
+    },
+    "2.0|low": {
+     "n_event": 518,
+     "n_control": 776,
+     "claimed": "up",
+     "judged": true,
+     "event_rate": 0.5174,
+     "control_rate": 0.509,
+     "delta": 0.0084,
+     "delta_ci95": [
+      -0.0472,
+      0.0639
+     ],
+     "z": 0.295,
+     "halves": [
+      0.0071,
+      0.0099
+     ],
+     "halves_agree": true,
+     "passes": false,
+     "walkforward": [
+      {
+       "fold": 1,
+       "n_event": 0,
+       "n_control": 10,
+       "event_rate": null,
+       "control_rate": 0.6,
+       "delta": null
+      },
+      {
+       "fold": 2,
+       "n_event": 51,
+       "n_control": 80,
+       "event_rate": 0.4314,
+       "control_rate": 0.4,
+       "delta": 0.0314
+      },
+      {
+       "fold": 3,
+       "n_event": 123,
+       "n_control": 172,
+       "event_rate": 0.5285,
+       "control_rate": 0.5,
+       "delta": 0.0285
+      },
+      {
+       "fold": 4,
+       "n_event": 118,
+       "n_control": 170,
+       "event_rate": 0.5,
+       "control_rate": 0.5235,
+       "delta": -0.0235
+      },
+      {
+       "fold": 5,
+       "n_event": 112,
+       "n_control": 171,
+       "event_rate": 0.6161,
+       "control_rate": 0.5614,
+       "delta": 0.0547
+      },
+      {
+       "fold": 6,
+       "n_event": 114,
+       "n_control": 173,
+       "event_rate": 0.4649,
+       "control_rate": 0.4971,
+       "delta": -0.0322
+      }
+     ]
+    }
+   }
+  },
+  "BTCUSD|ETHUSD": {
+   "grid": 48766,
+   "fetched_chart": 48798,
+   "fetched_partner": 48766,
+   "time_from": 1532304000,
+   "time_to": 1789160400,
+   "correlation": {
+    "full": 0.8242,
+    "recent": 0.8412,
+    "pairs": 48765,
+    "sign_changed": false
+   },
+   "events_raw": 3205,
+   "control_bars_thinned": 1195,
+   "cells": {
+    "0.5|high": {
+     "n_event": 468,
+     "n_control": 1114,
+     "claimed": "down",
+     "judged": true,
+     "event_rate": 0.5085,
+     "control_rate": 0.4847,
+     "delta": 0.0238,
+     "delta_ci95": [
+      -0.0302,
+      0.0778
+     ],
+     "z": 0.864,
+     "halves": [
+      0.0332,
+      0.0157
+     ],
+     "halves_agree": true,
+     "passes": false,
+     "walkforward": [
+      {
+       "fold": 1,
+       "n_event": 0,
+       "n_control": 6,
+       "event_rate": null,
+       "control_rate": 0.8333,
+       "delta": null
+      },
+      {
+       "fold": 2,
+       "n_event": 6,
+       "n_control": 31,
+       "event_rate": 0.8333,
+       "control_rate": 0.5806,
+       "delta": 0.2527
+      },
+      {
+       "fold": 3,
+       "n_event": 105,
+       "n_control": 271,
+       "event_rate": 0.5238,
+       "control_rate": 0.4613,
+       "delta": 0.0626
+      },
+      {
+       "fold": 4,
+       "n_event": 124,
+       "n_control": 267,
+       "event_rate": 0.5323,
+       "control_rate": 0.5318,
+       "delta": 0.0004
+      },
+      {
+       "fold": 5,
+       "n_event": 128,
+       "n_control": 272,
+       "event_rate": 0.4688,
+       "control_rate": 0.4449,
+       "delta": 0.0239
+      },
+      {
+       "fold": 6,
+       "n_event": 105,
+       "n_control": 267,
+       "event_rate": 0.4952,
+       "control_rate": 0.4831,
+       "delta": 0.0121
+      }
+     ]
+    },
+    "0.5|low": {
+     "n_event": 459,
+     "n_control": 1114,
+     "claimed": "up",
+     "judged": true,
+     "event_rate": 0.4989,
+     "control_rate": 0.5153,
+     "delta": -0.0163,
+     "delta_ci95": [
+      -0.0707,
+      0.038
+     ],
+     "z": -0.59,
+     "halves": [
+      -0.0214,
+      -0.012
+     ],
+     "halves_agree": true,
+     "passes": false,
+     "walkforward": [
+      {
+       "fold": 1,
+       "n_event": 0,
+       "n_control": 6,
+       "event_rate": null,
+       "control_rate": 0.1667,
+       "delta": null
+      },
+      {
+       "fold": 2,
+       "n_event": 10,
+       "n_control": 31,
+       "event_rate": 0.7,
+       "control_rate": 0.4194,
+       "delta": 0.2806
+      },
+      {
+       "fold": 3,
+       "n_event": 109,
+       "n_control": 271,
+       "event_rate": 0.4495,
+       "control_rate": 0.5387,
+       "delta": -0.0892
+      },
+      {
+       "fold": 4,
+       "n_event": 116,
+       "n_control": 267,
+       "event_rate": 0.4741,
+       "control_rate": 0.4682,
+       "delta": 0.006
+      },
+      {
+       "fold": 5,
+       "n_event": 113,
+       "n_control": 272,
+       "event_rate": 0.5664,
+       "control_rate": 0.5551,
+       "delta": 0.0112
+      },
+      {
+       "fold": 6,
+       "n_event": 111,
+       "n_control": 267,
+       "event_rate": 0.4865,
+       "control_rate": 0.5169,
+       "delta": -0.0304
+      }
+     ]
+    },
+    "1.0|high": {
+     "n_event": 488,
+     "n_control": 1169,
+     "claimed": "down",
+     "judged": true,
+     "event_rate": 0.5246,
+     "control_rate": 0.4782,
+     "delta": 0.0464,
+     "delta_ci95": [
+      -0.0064,
+      0.0992
+     ],
+     "z": 1.722,
+     "halves": [
+      0.0512,
+      0.0416
+     ],
+     "halves_agree": true,
+     "passes": false,
+     "walkforward": [
+      {
+       "fold": 1,
+       "n_event": 0,
+       "n_control": 6,
+       "event_rate": null,
+       "control_rate": 0.8333,
+       "delta": null
+      },
+      {
+       "fold": 2,
+       "n_event": 8,
+       "n_control": 33,
+       "event_rate": 0.875,
+       "control_rate": 0.5152,
+       "delta": 0.3598
+      },
+      {
+       "fold": 3,
+       "n_event": 111,
+       "n_control": 284,
+       "event_rate": 0.5315,
+       "control_rate": 0.4401,
+       "delta": 0.0914
+      },
+      {
+       "fold": 4,
+       "n_event": 127,
+       "n_control": 281,
+       "event_rate": 0.5039,
+       "control_rate": 0.5018,
+       "delta": 0.0022
+      },
+      {
+       "fold": 5,
+       "n_event": 132,
+       "n_control": 283,
+       "event_rate": 0.5227,
+       "control_rate": 0.47,
+       "delta": 0.0528
+      },
+      {
+       "fold": 6,
+       "n_event": 110,
+       "n_control": 282,
+       "event_rate": 0.5182,
+       "control_rate": 0.4894,
+       "delta": 0.0288
+      }
+     ]
+    },
+    "1.0|low": {
+     "n_event": 478,
+     "n_control": 1169,
+     "claimed": "up",
+     "judged": true,
+     "event_rate": 0.4916,
+     "control_rate": 0.5218,
+     "delta": -0.0302,
+     "delta_ci95": [
+      -0.0834,
+      0.023
+     ],
+     "z": -1.112,
+     "halves": [
+      -0.0356,
+      -0.0248
+     ],
+     "halves_agree": true,
+     "passes": false,
+     "walkforward": [
+      {
+       "fold": 1,
+       "n_event": 0,
+       "n_control": 6,
+       "event_rate": null,
+       "control_rate": 0.1667,
+       "delta": null
+      },
+      {
+       "fold": 2,
+       "n_event": 10,
+       "n_control": 33,
+       "event_rate": 0.4,
+       "control_rate": 0.4848,
+       "delta": -0.0848
+      },
+      {
+       "fold": 3,
+       "n_event": 117,
+       "n_control": 284,
+       "event_rate": 0.4701,
+       "control_rate": 0.5599,
+       "delta": -0.0898
+      },
+      {
+       "fold": 4,
+       "n_event": 117,
+       "n_control": 281,
+       "event_rate": 0.5128,
+       "control_rate": 0.4982,
+       "delta": 0.0146
+      },
+      {
+       "fold": 5,
+       "n_event": 117,
+       "n_control": 283,
+       "event_rate": 0.5214,
+       "control_rate": 0.53,
+       "delta": -0.0087
+      },
+      {
+       "fold": 6,
+       "n_event": 117,
+       "n_control": 282,
+       "event_rate": 0.4701,
+       "control_rate": 0.5106,
+       "delta": -0.0406
+      }
+     ]
+    },
+    "2.0|high": {
+     "n_event": 466,
+     "n_control": 1124,
+     "claimed": "down",
+     "judged": true,
+     "event_rate": 0.5172,
+     "control_rate": 0.4867,
+     "delta": 0.0305,
+     "delta_ci95": [
+      -0.0235,
+      0.0845
+     ],
+     "z": 1.108,
+     "halves": [
+      0.0502,
+      0.0116
+     ],
+     "halves_agree": true,
+     "passes": false,
+     "walkforward": [
+      {
+       "fold": 1,
+       "n_event": 0,
+       "n_control": 6,
+       "event_rate": null,
+       "control_rate": 0.6667,
+       "delta": null
+      },
+      {
+       "fold": 2,
+       "n_event": 7,
+       "n_control": 30,
+       "event_rate": 0.7143,
+       "control_rate": 0.4,
+       "delta": 0.3143
+      },
+      {
+       "fold": 3,
+       "n_event": 107,
+       "n_control": 280,
+       "event_rate": 0.5701,
+       "control_rate": 0.4929,
+       "delta": 0.0772
+      },
+      {
+       "fold": 4,
+       "n_event": 122,
+       "n_control": 273,
+       "event_rate": 0.5164,
+       "control_rate": 0.5018,
+       "delta": 0.0146
+      },
+      {
+       "fold": 5,
+       "n_event": 125,
+       "n_control": 266,
+       "event_rate": 0.512,
+       "control_rate": 0.4699,
+       "delta": 0.0421
+      },
+      {
+       "fold": 6,
+       "n_event": 105,
+       "n_control": 269,
+       "event_rate": 0.4571,
+       "control_rate": 0.487,
+       "delta": -0.0298
+      }
+     ]
+    },
+    "2.0|low": {
+     "n_event": 451,
+     "n_control": 1124,
+     "claimed": "up",
+     "judged": true,
+     "event_rate": 0.4745,
+     "control_rate": 0.5133,
+     "delta": -0.0388,
+     "delta_ci95": [
+      -0.0934,
+      0.0157
+     ],
+     "z": -1.394,
+     "halves": [
+      -0.0199,
+      -0.0584
+     ],
+     "halves_agree": true,
+     "passes": false,
+     "walkforward": [
+      {
+       "fold": 1,
+       "n_event": 0,
+       "n_control": 6,
+       "event_rate": null,
+       "control_rate": 0.3333,
+       "delta": null
+      },
+      {
+       "fold": 2,
+       "n_event": 10,
+       "n_control": 30,
+       "event_rate": 0.7,
+       "control_rate": 0.6,
+       "delta": 0.1
+      },
+      {
+       "fold": 3,
+       "n_event": 115,
+       "n_control": 280,
+       "event_rate": 0.4435,
+       "control_rate": 0.5071,
+       "delta": -0.0637
+      },
+      {
+       "fold": 4,
+       "n_event": 105,
+       "n_control": 273,
+       "event_rate": 0.5048,
+       "control_rate": 0.4982,
+       "delta": 0.0066
+      },
+      {
+       "fold": 5,
+       "n_event": 110,
+       "n_control": 266,
+       "event_rate": 0.4818,
+       "control_rate": 0.5301,
+       "delta": -0.0483
+      },
+      {
+       "fold": 6,
+       "n_event": 111,
+       "n_control": 269,
+       "event_rate": 0.4505,
+       "control_rate": 0.513,
+       "delta": -0.0626
+      }
+     ]
+    }
+   }
+  },
+  "USDJPY|EURUSD": {
+   "grid": 37125,
+   "fetched_chart": 37125,
+   "fetched_partner": 37125,
+   "time_from": 1470873600,
+   "time_to": 1789156800,
+   "correlation": {
+    "full": -0.451,
+    "recent": -0.6006,
+    "pairs": 37124,
+    "sign_changed": false
+   },
+   "events_raw": 7062,
+   "control_bars_thinned": 899,
+   "cells": {
+    "0.5|high": {
+     "n_event": 569,
+     "n_control": 820,
+     "claimed": "down",
+     "judged": true,
+     "event_rate": 0.5044,
+     "control_rate": 0.4854,
+     "delta": 0.019,
+     "delta_ci95": [
+      -0.0344,
+      0.0725
+     ],
+     "z": 0.698,
+     "halves": [
+      0.0421,
+      -0.0038
+     ],
+     "halves_agree": false,
+     "passes": false,
+     "walkforward": [
+      {
+       "fold": 1,
+       "n_event": 0,
+       "n_control": 11,
+       "event_rate": null,
+       "control_rate": 0.3636,
+       "delta": null
+      },
+      {
+       "fold": 2,
+       "n_event": 0,
+       "n_control": 13,
+       "event_rate": null,
+       "control_rate": 0.3846,
+       "delta": null
+      },
+      {
+       "fold": 3,
+       "n_event": 69,
+       "n_control": 107,
+       "event_rate": 0.5797,
+       "control_rate": 0.486,
+       "delta": 0.0937
+      },
+      {
+       "fold": 4,
+       "n_event": 166,
+       "n_control": 237,
+       "event_rate": 0.5301,
+       "control_rate": 0.4937,
+       "delta": 0.0364
+      },
+      {
+       "fold": 5,
+       "n_event": 158,
+       "n_control": 223,
+       "event_rate": 0.5316,
+       "control_rate": 0.5202,
+       "delta": 0.0115
+      },
+      {
+       "fold": 6,
+       "n_event": 176,
+       "n_control": 229,
+       "event_rate": 0.4261,
+       "control_rate": 0.4541,
+       "delta": -0.028
+      }
+     ]
+    },
+    "0.5|low": {
+     "n_event": 535,
+     "n_control": 820,
+     "claimed": "up",
+     "judged": true,
+     "event_rate": 0.5028,
+     "control_rate": 0.5146,
+     "delta": -0.0118,
+     "delta_ci95": [
+      -0.0663,
+      0.0426
+     ],
+     "z": -0.426,
+     "halves": [
+      -0.0041,
+      -0.0198
+     ],
+     "halves_agree": true,
+     "passes": false,
+     "walkforward": [
+      {
+       "fold": 1,
+       "n_event": 0,
+       "n_control": 11,
+       "event_rate": null,
+       "control_rate": 0.6364,
+       "delta": null
+      },
+      {
+       "fold": 2,
+       "n_event": 0,
+       "n_control": 13,
+       "event_rate": null,
+       "control_rate": 0.6154,
+       "delta": null
+      },
+      {
+       "fold": 3,
+       "n_event": 68,
+       "n_control": 107,
+       "event_rate": 0.4853,
+       "control_rate": 0.514,
+       "delta": -0.0287
+      },
+      {
+       "fold": 4,
+       "n_event": 140,
+       "n_control": 237,
+       "event_rate": 0.55,
+       "control_rate": 0.5063,
+       "delta": 0.0437
+      },
+      {
+       "fold": 5,
+       "n_event": 164,
+       "n_control": 222,
+       "event_rate": 0.4512,
+       "control_rate": 0.482,
+       "delta": -0.0308
+      },
+      {
+       "fold": 6,
+       "n_event": 163,
+       "n_control": 230,
+       "event_rate": 0.5215,
+       "control_rate": 0.5435,
+       "delta": -0.022
+      }
+     ]
+    },
+    "1.0|high": {
+     "n_event": 591,
+     "n_control": 885,
+     "claimed": "down",
+     "judged": true,
+     "event_rate": 0.4941,
+     "control_rate": 0.4938,
+     "delta": 0.0003,
+     "delta_ci95": [
+      -0.0518,
+      0.0523
+     ],
+     "z": 0.011,
+     "halves": [
+      0.0342,
+      -0.0337
+     ],
+     "halves_agree": false,
+     "passes": false,
+     "walkforward": [
+      {
+       "fold": 1,
+       "n_event": 0,
+       "n_control": 13,
+       "event_rate": null,
+       "control_rate": 0.3846,
+       "delta": null
+      },
+      {
+       "fold": 2,
+       "n_event": 0,
+       "n_control": 13,
+       "event_rate": null,
+       "control_rate": 0.3846,
+       "delta": null
+      },
+      {
+       "fold": 3,
+       "n_event": 75,
+       "n_control": 115,
+       "event_rate": 0.5867,
+       "control_rate": 0.5043,
+       "delta": 0.0823
+      },
+      {
+       "fold": 4,
+       "n_event": 176,
+       "n_control": 251,
+       "event_rate": 0.5341,
+       "control_rate": 0.4821,
+       "delta": 0.052
+      },
+      {
+       "fold": 5,
+       "n_event": 164,
+       "n_control": 243,
+       "event_rate": 0.4756,
+       "control_rate": 0.5021,
+       "delta": -0.0264
+      },
+      {
+       "fold": 6,
+       "n_event": 176,
+       "n_control": 250,
+       "event_rate": 0.4318,
+       "control_rate": 0.504,
+       "delta": -0.0722
+      }
+     ]
+    },
+    "1.0|low": {
+     "n_event": 555,
+     "n_control": 885,
+     "claimed": "up",
+     "judged": true,
+     "event_rate": 0.5063,
+     "control_rate": 0.5062,
+     "delta": 0.0001,
+     "delta_ci95": [
+      -0.053,
+      0.0532
+     ],
+     "z": 0.003,
+     "halves": [
+      -0.0028,
+      0.0036
+     ],
+     "halves_agree": false,
+     "passes": false,
+     "walkforward": [
+      {
+       "fold": 1,
+       "n_event": 0,
+       "n_control": 13,
+       "event_rate": null,
+       "control_rate": 0.6154,
+       "delta": null
+      },
+      {
+       "fold": 2,
+       "n_event": 0,
+       "n_control": 13,
+       "event_rate": null,
+       "control_rate": 0.6154,
+       "delta": null
+      },
+      {
+       "fold": 3,
+       "n_event": 71,
+       "n_control": 115,
+       "event_rate": 0.5352,
+       "control_rate": 0.4957,
+       "delta": 0.0396
+      },
+      {
+       "fold": 4,
+       "n_event": 151,
+       "n_control": 251,
+       "event_rate": 0.4834,
+       "control_rate": 0.5179,
+       "delta": -0.0345
+      },
+      {
+       "fold": 5,
+       "n_event": 168,
+       "n_control": 243,
+       "event_rate": 0.5357,
+       "control_rate": 0.4979,
+       "delta": 0.0378
+      },
+      {
+       "fold": 6,
+       "n_event": 165,
+       "n_control": 250,
+       "event_rate": 0.4848,
+       "control_rate": 0.496,
+       "delta": -0.0112
+      }
+     ]
+    },
+    "2.0|high": {
+     "n_event": 593,
+     "n_control": 861,
+     "claimed": "down",
+     "judged": true,
+     "event_rate": 0.489,
+     "control_rate": 0.4913,
+     "delta": -0.0023,
+     "delta_ci95": [
+      -0.0545,
+      0.05
+     ],
+     "z": -0.084,
+     "halves": [
+      0.0224,
+      -0.0279
+     ],
+     "halves_agree": false,
+     "passes": false,
+     "walkforward": [
+      {
+       "fold": 1,
+       "n_event": 0,
+       "n_control": 12,
+       "event_rate": null,
+       "control_rate": 0.5833,
+       "delta": null
+      },
+      {
+       "fold": 2,
+       "n_event": 0,
+       "n_control": 13,
+       "event_rate": null,
+       "control_rate": 0.5385,
+       "delta": null
+      },
+      {
+       "fold": 3,
+       "n_event": 74,
+       "n_control": 110,
+       "event_rate": 0.5811,
+       "control_rate": 0.5545,
+       "delta": 0.0265
+      },
+      {
+       "fold": 4,
+       "n_event": 176,
+       "n_control": 243,
+       "event_rate": 0.4943,
+       "control_rate": 0.4486,
+       "delta": 0.0458
+      },
+      {
+       "fold": 5,
+       "n_event": 162,
+       "n_control": 236,
+       "event_rate": 0.4506,
+       "control_rate": 0.4831,
+       "delta": -0.0324
+      },
+      {
+       "fold": 6,
+       "n_event": 181,
+       "n_control": 247,
+       "event_rate": 0.4807,
+       "control_rate": 0.5061,
+       "delta": -0.0254
+      }
+     ]
+    },
+    "2.0|low": {
+     "n_event": 552,
+     "n_control": 861,
+     "claimed": "up",
+     "judged": true,
+     "event_rate": 0.4837,
+     "control_rate": 0.5087,
+     "delta": -0.025,
+     "delta_ci95": [
+      -0.0784,
+      0.0284
+     ],
+     "z": -0.918,
+     "halves": [
+      -0.0366,
+      -0.012
+     ],
+     "halves_agree": true,
+     "passes": false,
+     "walkforward": [
+      {
+       "fold": 1,
+       "n_event": 0,
+       "n_control": 12,
+       "event_rate": null,
+       "control_rate": 0.4167,
+       "delta": null
+      },
+      {
+       "fold": 2,
+       "n_event": 0,
+       "n_control": 13,
+       "event_rate": null,
+       "control_rate": 0.4615,
+       "delta": null
+      },
+      {
+       "fold": 3,
+       "n_event": 69,
+       "n_control": 110,
+       "event_rate": 0.4493,
+       "control_rate": 0.4455,
+       "delta": 0.0038
+      },
+      {
+       "fold": 4,
+       "n_event": 151,
+       "n_control": 243,
+       "event_rate": 0.4702,
+       "control_rate": 0.5514,
+       "delta": -0.0812
+      },
+      {
+       "fold": 5,
+       "n_event": 170,
+       "n_control": 236,
+       "event_rate": 0.5059,
+       "control_rate": 0.5169,
+       "delta": -0.0111
+      },
+      {
+       "fold": 6,
+       "n_event": 162,
+       "n_control": 247,
+       "event_rate": 0.4877,
+       "control_rate": 0.4939,
+       "delta": -0.0063
+      }
+     ]
+    }
+   }
+  }
+ },
+ "cells_passing_all_three": [],
+ "verdict": "NULL. 0 of 24 eligible cells pass all three pre-registered conditions."
+}

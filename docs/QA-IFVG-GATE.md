@@ -222,6 +222,412 @@ persis sama dengan IFVG, jadi ia membawa bentuk keraguan yang sama. Tidak
 diukur di sesi ini supaya lingkupnya tetap satu pertanyaan, dan dicatat di
 sini supaya tidak dilupakan.
 
+## IFVG diukur, dan dua cacat jendela ditemukan lebih dulu
+
+Diminta 7 September 2026 sesudah OB. Yang ditemukan pertama bukan hasil IFVG-nya
+melainkan dua cacat di harness, dan keduanya membatalkan angka yang sudah
+dilaporkan. Ditulis lebih dulu karena itu.
+
+### Cacat 1: jendela tidak mengikat mode inversi
+
+Blok kelahiran digerbangi `in_win`, tapi blok yang memasang order untuk IFVG dan
+BRK **tidak**. Jadi induk didaftarkan hanya di dalam jendela sementara inversinya
+menembak kapan saja SESUDAHNYA - termasuk belasan tahun di luar `win_to`.
+
+Terlihat begitu satu fold diminta: jendela 1990-1994 memberi n=968 sementara
+sampel penuh 56 tahun cuma 1.311, dan satu fold 4,6 tahun tidak bisa memuat 74
+persen trade.
+
+**DIBATALKAN karena ini:** hold-out IFVG (1,001 lalu 1,101 bergerbang; 1,237 lalu
+1,123 tanpa gerbang) dan hold-out BRK (1,412 lalu 0,861). Angka jendela-penuh
+TIDAK terpengaruh, karena di sana `win_from`/`win_to` memuat seluruh deret.
+
+Isolasi jendela BRK **selamat** dan sudah diperiksa: jendelanya berakhir 2038,
+jadi inversinya memang di dalam. Diukur ulang, n=620 dan PF 1,128 identik.
+
+### Cacat 2: jendelanya tidak ada di cfg echo, jadi tabel BASI tak terdeteksi
+
+Ini yang lebih halus dan lebih berbahaya. Setiap knob lain ada di baris `cfg`
+justru supaya run yang salah setelan bisa dikenali - jendelanya tertinggal.
+
+Terbukti: `[1970, 2038]` terbaca n=1.311, lalu sub-jendelanya `[1970, 2000]`
+memberi n=5.585. Sub-jendela tidak bisa lebih besar dari induknya, jadi bacaan
+pertamanya basi - dan tanpa jendela di echo, tabel basi tidak bisa dibedakan dari
+tabel yang sudah dihitung ulang.
+
+Tabel sekarang punya baris `win`, dan baris lama `span` diganti nama jadi `data`
+karena ia SELALU rentang deret dan bukan jendela aktif.
+
+### Dan itu memperbaiki satu label yang salah di seluruh dokumen ini
+
+`win_from` default 2000-01-01. Di XAUUSD harian TradingView memberi satu bar tua
+di 1970, jadi baris `span` mencetak "1970-02-26" dan setiap tabel harian di sesi
+ini dilabeli **"56 tahun"**. Jendelanya sebenarnya **2000-2026, 26 tahun**.
+Angkanya sah; labelnya salah, dan itu berlaku untuk baris harian FVG (1,112), OB
+(0,972) dan IFVG di bawah.
+
+Data pra-2000 memang ada dan kaya - 1970-2000 memberi cand 9.259 dan n=5.585 -
+tapi biayanya 0,1084 R per trade lawan 0,0134 di 2000-2026, delapan kali, karena
+emas diperdagangkan di 35 sampai 400 dolar. Itu bukan instrumen yang sama dan
+tidak dipakai.
+
+### Hasil IFVG, jendela terverifikasi
+
+| sel | jendela | n | win% | PF | placebo PF |
+|---|---|---|---|---|---|
+| **XAU 1d** | 2000-2026 | 547 | 57,59 | **1,067** | 0,859 |
+| XAU 4h | 2013-2026 | 1.613 | 53,69 | 0,965 | 0,811 |
+| XAU 1h | 2023-2026 | 1.724 | 47,33 | 0,781 | - |
+| **BTC 1d** | 2011-2026 | 406 | 46,55 | **1,117** | 0,812 |
+| BTC 4h | 2017-2026 | 1.466 | 50,07 | 0,910 | - |
+| BTC 1h | 2024-2026 | 2.115 | 49,17 | 0,850 | - |
+
+**Dua sel di atas satu, dan kontrolnya kalah di ketiga sel yang punya kontrol.**
+Margin: +0,208 PF di XAU harian (+10,1 poin win rate), +0,154 di XAU 4 jam
+(+8,5 poin), +0,305 di BTC harian (+7,8 poin).
+
+**BTC harian adalah satu-satunya sel tempat kontrol IFVG kalah sementara kontrol
+FVG dan OB MENANG.** Di sana FVG memberi 1,402 lawan placebo 1,468 dan OB 1,200
+lawan 2,010 - keduanya kalah dari kotak yang digeser. IFVG 1,117 lawan 0,812.
+
+> [!NOTE]
+> Kontrol placebo untuk mode inversi lebih lemah daripada untuk FVG dan OB, dan
+> itu harus dikatakan. Geseran 1 ATR memindahkan kotaknya SEBELUM gerbang, jadi
+> untuk induk yang harus PECAH ia menggeser ambang pecahnya juga - bukan cuma
+> harga limitnya. Jadi lengan geser IFVG memakai peristiwa inversi yang berbeda,
+> bukan kotak yang sama di harga yang salah. n-nya tetap cocok (400 lawan 406 di
+> BTC harian), tapi mekanismenya bukan satu perubahan melainkan dua.
+
+### Plafonnya disapu, dan gerbangnya MERUGIKAN di harian
+
+XAUUSD harian, 2000-2026:
+
+| plafon | n | win% | PF |
+|---|---|---|---|
+| 0,1 | 248 | 56,05 | 1,089 |
+| 0,25 (ter-ship) | 547 | 57,59 | 1,067 |
+| 0,5 | 900 | 57,44 | 1,067 |
+| **mati** | 1.311 | 59,34 | **1,158** |
+
+Dan di sel lain, plafon mati lawan 0,25:
+
+| sel | plafon 0,25 | plafon mati |
+|---|---|---|
+| XAU 1d | 1,067 | **1,158** |
+| XAU 4h | **0,965** | 0,916 |
+| BTC 1d | 1,117 | **1,190** (placebo 0,994) |
+
+Dua dari tiga bilang gerbang-mati lebih baik - **kebalikan dari FVG**, tempat dua
+dari tiga bilang gerbangnya membayar.
+
+### Hold-out yang benar, dan gerbang-mati bertahan
+
+XAUUSD harian, jendela 2000-2026 dibelah di 2013, jendela DIVERIFIKASI di baris
+`win` tiap run:
+
+| lengan | IS 2000-2013 | OOS 2013-2026 | n OOS |
+|---|---|---|---|
+| plafon 0,25 | 1,001 (n=266) | 1,103 | 268 |
+| **plafon mati** | **1,165** (n=625) | **1,034** | **656** |
+
+Pilih di paruh pertama dan yang menang gerbang-mati (1,165 lawan 1,001), lalu
+luar-sampelnya 1,034 di 2,4 kali sampel. **Kedua lengan di atas satu luar
+sampel** - satu-satunya konfigurasi di sesi ini yang bisa dikatakan begitu.
+
+### Putusan IFVG
+
+Ia detektor terkuat dari empat di harness ini, dan itu bukan yang diperkirakan:
+
+- **dua sel di atas satu** (XAU 1d 1,067, BTC 1d 1,117), sementara FVG punya satu
+  dan OB serta BRK nol
+- **kontrolnya kalah di ketiga sel yang diuji**, dengan margin terbesar +0,305
+- **hold-out tidak roboh** - kedua lengan di atas satu luar sampel
+- dan ia satu-satunya yang **selamat dari perangkap drift BTC harian**
+
+Yang menahannya: gerbangnya sendiri merugikan di harian, jadi konfigurasi terbaik
+bukan yang ter-ship. Dan `DEPARTURE_GATE_ATR_CEILING` SATU konstanta untuk FVG
+dan IFVG - `docs/QA-IFVG-GATE.md` menyebut itu sebagai alasan ketiga
+mempertahankan 0,25 - jadi memberi IFVG plafon sendiri berarti memisahkan dua
+angka yang selama ini sengaja disatukan. Itu keputusan yang belum diambil.
+
+`ifvg.orderable` tetap mati. Tapi ia satu-satunya dari empat yang alasan
+matinya sekarang "aturan 8 dari 8 belum diuji", bukan "tidak ada edge".
+
+### Yang belum untuk IFVG
+
+- **Stabilitas delapan periode** di XAU harian. Sekarang bisa dijalankan dengan
+  benar karena jendelanya sudah mengikat, dan itu aturan yang menggerbangi
+  `orderable`.
+- **30 menit**, satu-satunya sel positif IFVG di rig produksi (1,081). Chart mati.
+- **Plafon sendiri lawan plafon bersama**: keputusan desain, bukan pengukuran.
+
+## Autodrawing IFVG, diperiksa 7 September 2026
+
+### Pipanya hidup
+
+`/api/draw` XAUUSD harian, 1.500 bar: **283 zona IFVG, 98 lolos gerbang**,
+`gate_measured` benar untuk 283 dari 283, dan **`inverted_at` terisi untuk 283
+dari 283** - setiap zona di layer ini memang hasil inversi, bukan sebagian.
+Lifecycle terisi (9 fresh, 5 tested, 20 mitigated, 249 broken).
+
+### Masalah legibilitas FVG BERLAKU di sini, dan terukur
+
+Gerbang IFVG plafon - sama dengan FVG - jadi kohort yang lolos adalah kotak
+terkecil. Diukur di 283 zona XAUUSD harian:
+
+| kohort | tinggi USD |
+|---|---|
+| LOLOS gerbang | median **3,18**, maksimum 21,94 |
+| gagal gerbang | median **17,49**, minimum 4,88 |
+
+**Yang lolos 5,5 kali lebih kecil di median.** Terlihat langsung di jendela
+audit: dua zona yang GAGAL (86 dan 63 USD) memajang caption penuh
+`IFVG ○ flipped`, sementara satu zona yang LOLOS (20,6 USD, 11,8 CSS px)
+kehilangan namanya dan cuma memajang titik. Sama seperti FVG, dan berbeda dari
+OB yang gerbangnya lantai sehingga tidak punya bias itu.
+
+### Geometrinya akurat di tempat yang bisa diukur, tapi harness piksel MERAH
+
+`e2e/pixel-truth.mjs` diarahkan ke `ifvg`, 10 zona:
+
+| pemeriksaan | hasil |
+|---|---|
+| zona ditemukan di canvas | 10 dari 10 |
+| tepi ATAS di tempat skala harga menaruhnya | terburuk **0,5px** |
+| tepi BAWAH di tempat skala harga menaruhnya | terburuk **0,4px** |
+| **cukup tepi terbaca untuk diukur** | **GAGAL: atas 4 dari 7, bawah 5 dari 7** |
+
+6 dari 7 lolos. Ambangnya menuntut 80 persen tepi atas terbaca dan IFVG memberi
+57 persen.
+
+**Itu merah pertama di harness piksel sepanjang sesi ini, dan ia TIDAK
+dilonggarkan.** Bacaannya: tepi yang DITEMUKAN akurat sampai setengah piksel,
+jadi yang gagal bukan geometrinya melainkan keterbacaannya - kotak IFVG
+berdesakan. Sebabnya struktural: setiap kotak terbalik duduk tepat di tempat
+induknya baru pecah, dan induk berkerumun, jadi tepi-tepinya saling menimbun.
+Auditor visual melihat hal yang sama tanpa diberi tahu: "this stacks the outer
+border, the inner inverted border, and the proximal rule of both boxes into a
+narrow vertical span".
+
+`pixel-truth` sudah punya dua pengecualian khusus untuk layer ini - satu untuk
+stroke dalam, satu untuk tepi kiri ("an inverted box starts ON the candle that
+broke its parent") - jadi kerumunan ini yang ketiga dan yang pertama tidak
+tertutup.
+
+### Dua cacat legenda lagi, keduanya membuat auditor melapor palsu
+
+**Stroke dalam tidak dinyatakan.** Setiap zona dengan `inverted_at` digambar
+dengan border KEDUA beberapa piksel di dalam yang pertama - kotak di dalam
+kotak, satu-satunya isyarat yang selamat di kotak tiga piksel. Auditor
+melihatnya dan melaporkannya sebagai "an extra rectangle the list does not
+account for" - benar tentang legendanya, bukan tentang gambarnya. Untuk `fvg`
+dan `order_block` ini tidak pernah muncul karena tak satu pun zonanya terbalik;
+untuk `ifvg` dan `breaker` SETIAP kotak begitu.
+
+**Penempatan caption tidak dinyatakan.** Plate-nya didorong ke KIRI supaya muat
+di pane, bukan teksnya yang dipotong - pilihan yang disengaja karena caption
+terpotong terbaca seperti salah tulis. Konsekuensinya di kotak yang tepi
+kanannya di ujung pane, plate bisa duduk di kiri border kotaknya sendiri, di
+atas kotak tetangga. Auditor menyebutnya risiko salah atribusi, dan itu adil.
+
+Sesudah keduanya masuk legenda, auditnya bersih di sisi geometri: "three
+rectangles are drawn; no extra or missing boxes" dan "both supply boxes show the
+inner second border, as expected for IFVG zones".
+
+### Yang tersisa di sisi gambar
+
+- **Kerumunan tepi**, yang membuat `pixel-truth` merah. Ini yang paling layak
+  dikerjakan dan ia bukan cacat satu baris: ia konsekuensi dari zona terbalik
+  yang berdesakan di tempat induknya pecah.
+- **Dua caption identik.** Dua zona supply sama-sama `IFVG ○ flipped` dengan
+  titik kosong yang sama, jadi dari gambar saja tidak bisa dibedakan mana yang
+  mana - dan salah satunya tergeser ke wilayah yang lain.
+- **Lifecycle tidak terbaca dari opacity border.** Keluhan yang sama untuk
+  keempat kalinya di sesi ini. Terukur 1,33 sampai 1,82 banding satu antar state
+  bersebelahan, jadi sinyalnya ada dan di bawah ambang mata. Keputusan desain.
+
+### Dan satu hal yang ter-ship dan sekarang salah
+
+`layers.py` memberi `ifvg` `measured_intervals=("15m", "30m", "1h", "4h")`.
+`tools/execute.py` menurunkan `MEASURED_INTERVALS` dari situ, jadi baris itu
+menyatakan timeframe mana yang punya pengukuran.
+
+Pengukuran hari ini membalik dua ujungnya: **1 jam ada di daftar dan memberi
+0,781**, sementara **harian TIDAK ada di daftar dan memberi 1,067** - sel terbaik
+IFVG. Daftar itu diisi 5 September dari pengukuran pra-perbaikan lifecycle, dan
+ia sekarang salah di kedua arah. Tidak diubah di sini karena `ifvg.orderable`
+mati sehingga baris itu tidak menggerbangi order apa pun, tapi ia tetap salah dan
+akan menggerbangi begitu layer ini dinyalakan.
+
+## Benchmark empat detektor, dua sel, dan banding publik
+
+Diminta 7 September 2026. Benchmark sebelumnya cuma di XAUUSD 4 jam, sementara
+sel terbaik IFVG dan BRK justru harian - jadi ia membandingkan keempatnya di
+tempat yang bukan tempat terbaik dua di antaranya.
+
+Semuanya lewat kode bracket yang IDENTIK di satu script Pine, jadi selisihnya
+milik detektornya.
+
+### XAUUSD 4 jam, jendela 2013-2026
+
+| detektor | n | win% | PF | placebo | margin PF |
+|---|---|---|---|---|---|
+| **FVG** | 1.709 | 50,56 | **1,091** | 1,014 | +0,077 |
+| IFVG | 1.613 | 53,69 | 0,965 | 0,811 | **+0,154** |
+| BRK | 1.652 | 54,48 | 0,958 | 1,010 | **-0,052** |
+| OB | 1.757 | 39,33 | 0,926 | 0,940 | -0,014 |
+
+### XAUUSD harian, jendela 2000-2026
+
+| detektor | n | win% | PF | placebo | margin PF |
+|---|---|---|---|---|---|
+| **BRK** | 511 | 58,51 | **1,181** | 0,989 | +0,192 |
+| FVG | 597 | 51,42 | 1,112 | 1,068 | +0,044 |
+| IFVG | 547 | 57,59 | 1,067 | 0,859 | **+0,208** |
+| OB | 560 | 41,79 | 0,972 | 0,928 | +0,044 |
+
+**Peringkatnya BERBEDA antar sel, dan itu temuannya.** FVG teratas di 4 jam dan
+ketiga di harian; BRK terbawah dari tiga yang di atas nol margin di 4 jam dan
+TERATAS di harian; OB terbawah di keduanya. Satu tabel di satu timeframe akan
+memberi urutan yang salah untuk dua dari empat.
+
+Tiga dari empat di atas satu di harian, satu dari empat di 4 jam.
+
+### Hold-out di harian memisahkan dua yang teratas
+
+Jendela 2000-2026 dibelah di 2013, jendela diverifikasi di baris `win` tiap run:
+
+| lengan | IS 2000-2013 | OOS 2013-2026 |
+|---|---|---|
+| **IFVG plafon mati** | **1,165** | **1,034** |
+| IFVG plafon 0,25 | 1,001 | 1,103 |
+| BRK | **0,957** | **1,357** |
+
+**BRK harian adalah fenomena paruh KEDUA.** Pilih di paruh pertama dan ia
+DITOLAK di 0,957; luar sampelnya 1,357. PF 1,181 di sampel penuh seluruhnya
+datang dari paruh kedua, jadi angka tertinggi di tabel harian adalah angka yang
+disiplin seleksi tidak akan pernah memilih.
+
+**IFVG satu-satunya yang di atas satu di KEDUA paruh** - di kedua setelan
+plafonnya. Itu, bukan PF tertingginya, alasan menyebutnya terkuat.
+
+### Banding lawan Pine publik
+
+Untuk IFVG ini SUDAH ADA dan lebih kuat dari yang dibuat untuk OB. Bagian
+"Parity geometri lawan tiga script komunitas" di atas, 5 September:
+
+| pembanding | cocok persis |
+|---|---|
+| Inversion Fair Value Gaps [LuxAlgo] | **5/5, 100%** |
+| Inversion Fair Value Gaps [ChartPrime] | 2/7, 28,6% |
+| Inversion Fair Value Gaps [TradingFinder] | tidak bisa dibandingkan, ia garis bukan box |
+
+Toleransi satu sen, dihitung `tools/box_parity.py`, **feed yang SAMA** untuk
+keduanya. Perbaikan urutan lifecycle tidak menyentuhnya: ia mengubah apakah
+sentuhan dicatat sebelum pecah, bukan apakah pecahnya terjadi, jadi himpunan
+induk BROKEN dan koordinat kotaknya tidak bergerak.
+
+**Dan itu menunjukkan banding OB yang saya buat lebih lemah dari yang repo ini
+sudah punya alatnya.** Untuk OB saya menambahkan `Order Block Detector [LuxAlgo]`
+ke chart, membaca kotaknya lewat `data_get_pine_boxes`, lalu membandingkan
+distribusi tingginya terhadap kotak kita dari feed MT5 - lintas feed, dan lewat
+statistik ringkasan alih-alih kotak per kotak. `tools/box_parity.py` sudah ada
+dan mengerjakan versi yang benar. Perbandingan OB itu tetap berlaku sebagai
+pernyataan orde besaran (kotak terkecil mereka di persentil 90 kita) tapi ia
+bukan parity, dan seharusnya memakai alat yang sudah ada.
+
+### Yang belum
+
+- **Parity `box_parity.py` untuk OB** lawan LuxAlgo di feed yang sama, menggantikan
+  perbandingan tinggi lintas feed di `docs/QA-OB-GATE.md`.
+- **BTC harian untuk BRK**, satu-satunya sel di grid empat detektor yang belum
+  punya angka BRK. BTC harian juga sel tempat kontrol FVG dan OB MENANG, jadi
+  ia pemeriksaan drift dan bukan cuma pelengkap tabel.
+- **Stabilitas delapan periode** untuk IFVG plafon-mati di harian. Sekarang bisa
+  dijalankan karena jendelanya sudah mengikat, dan itu aturan yang menggerbangi
+  `orderable`.
+
+## Grid ditutup, dan aturan 8 dari 8 dijalankan
+
+Dua item terakhir dari daftar dikerjakan, dan yang kedua mengubah cara membaca
+seluruh bagian di atas.
+
+### BTCUSD harian untuk BRK, sel terakhir grid
+
+| BRK BTC 1d | n | win% | PF |
+|---|---|---|---|
+| kotak asli | 332 | 46,39 | **0,969** |
+
+Di bawah satu, jadi BRK tidak menangkap drift BTC harian - dan grid empat
+detektor kali empat sel sekarang lengkap.
+
+Di BTC harian, tempat kontrol FVG dan OB MENANG:
+
+| detektor | PF | placebo | putusan |
+|---|---|---|---|
+| **IFVG** | **1,117** | 0,812 | satu-satunya di atas satu dengan kontrol kalah |
+| FVG | 1,402 | **1,468** | kontrol menang, drift |
+| BRK | 0,969 | - | di bawah satu |
+| OB | 0,939 | **2,010** | kontrol menang, drift |
+
+### Stabilitas delapan periode IFVG, dan ia 6 dari 8
+
+XAUUSD harian, plafon MATI (lengan yang menang di paruh pertama), jendela
+2000-2026 dibagi delapan, jendela diverifikasi di baris `win` tiap run:
+
+| periode | n | win% | PF |
+|---|---|---|---|
+| 2000-2003 | 141 | 49,65 | **0,811** |
+| 2003-2006 | 152 | 55,92 | 1,127 |
+| 2006-2010 | 172 | 66,86 | **1,978** |
+| 2010-2013 | 166 | 59,64 | 1,307 |
+| 2013-2016 | 164 | 62,80 | 1,238 |
+| 2016-2020 | 147 | 63,95 | 1,059 |
+| 2020-2023 | 173 | 57,80 | 1,023 |
+| **2023-2026** | 135 | 55,56 | **0,730** |
+
+**6 dari 8, sama dengan FVG di 4 jam.** n per periode 135 sampai 173, jadi tiap
+satu sampel yang layak.
+
+**Dan yang gagal termasuk periode SEKARANG.** 2023-2026 adalah PF terburuk dari
+delapan, 0,730. Puncaknya 2006-2010 di 1,978 lalu menurun hampir monoton: 1,307,
+1,238, 1,059, 1,023, 0,730. Itu bukan derau di sekitar rata-rata, itu bentuk
+peluruhan.
+
+### Itu mengubah putusan IFVG
+
+Yang tertulis di atas - "terkuat dari empat, satu-satunya di atas satu di kedua
+paruh" - tetap benar dan sekarang tidak cukup. Hold-out dua paruh menyembunyikan
+peluruhan itu: paruh kedua 1,034 adalah rata-rata dari 1,238 / 1,059 / 1,023 /
+0,730, dan yang terakhir sudah di bawah satu.
+
+Jadi ketiga pernyataan ini berlaku bersamaan, dan mengutip satu tanpa dua lainnya
+menyesatkan:
+
+1. IFVG detektor dengan bukti terbaik di repo ini - dua sel di atas satu,
+   kontrolnya kalah di keempat sel yang diuji, parity 5/5 lawan LuxAlgo
+2. ia 6 dari 8 di aturan yang menggerbangi `orderable`, jadi ia GAGAL aturan itu
+3. periode yang gagal adalah tiga tahun terakhir, dan itu periode yang paling
+   relevan untuk keputusan sekarang
+
+`ifvg.orderable` tetap mati, dan alasannya sekarang bukan lagi "8 dari 8 belum
+diuji" melainkan **"8 dari 8 diuji dan gagal, dengan kegagalan di periode
+sekarang"**.
+
+### Yang benar-benar tersisa
+
+- **Parity `box_parity.py` untuk OB** di feed yang sama, menggantikan
+  perbandingan tinggi lintas feed di `docs/QA-OB-GATE.md`.
+- **`pixel-truth` merah di layer ifvg**: tepi atas terbaca 4 dari 7 lawan ambang
+  80 persen. Bukan geometri - tepi yang ditemukan akurat 0,5px - melainkan
+  kotak terbalik yang berdesakan di tempat induknya pecah.
+- **30 menit dan 15 menit**, keempat detektor. Chart TradingView Desktop mati
+  setiap kali salah satu dipilih. Lubang alat.
+- **Stabilitas delapan periode untuk BRK dan OB**, yang belum dijalankan sama
+  sekali - meski keduanya sudah gagal saringan yang lebih ringan.
+- **`ifvg.measured_intervals`** salah di kedua ujung dan sengaja dibiarkan, karena
+  memperbaikinya bagian dari menyalakan layernya.
+
 ## Cara mengulang
 
 ```bash

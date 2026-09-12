@@ -134,6 +134,99 @@ OB_FILTER_TRACE = {
 }
 
 
+#: PARITY FVG, 8 September 2026, dan metodenya BERBEDA dari dua di atas.
+#:
+#: Yang di atas membandingkan Pine kita lawan Pine mereka. Yang ini menjalankan
+#: `app.detect.imbalance.detect_fvg` YANG SEBENARNYA - kode produksi, bukan
+#: cerminnya - di atas candle yang ditarik dari chart TradingView yang
+#: menggambar kotak LuxAlgo itu. Jadi feed-nya sama DAN jalur kodenya yang asli,
+#: sehingga selisih yang tersisa tidak bisa dijelaskan oleh feed maupun oleh
+#: "cerminnya tidak persis".
+#:
+#: JEBAKAN YANG HAMPIR MENGHASILKAN ANGKA PALSU: run pertama memberi 12/22 dan
+#: 12 itu adalah `max_zones_per_side` default 6 dikali dua sisi, bukan temuan
+#: detektor. Cap tampilan HARUS 0 untuk pengukuran, dan `show_broken` HARUS
+#: True karena LuxAlgo tetap menggambar celah yang sudah dilewati.
+FVG_CELL = "FX:XAUUSD 1D, 331 bar, 2025-05-30 .. 2026-09-07, diambil 2026-09-08"
+
+#: Kotak `Fair Value Gap [LuxAlgo]` yang jatuh di rentang harga jendela itu.
+FVG_THEIRS = [
+    (5259.97, 5206.14), (5148.59, 5128.42), (5054.64, 5037.93),
+    (4973.22, 4866.96), (4669.44, 4665.43), (4564.19, 4472.13),
+    (4313.21, 4304.06), (4223.30, 4106.39), (3940.83, 3891.57),
+    (3853.16, 3834.09), (3792.89, 3783.68), (3736.52, 3685.21),
+    (3683.53, 3672.96), (3624.65, 3600.08), (3579.55, 3563.98),
+    (3526.24, 3489.82), (3469.90, 3453.95), (3436.89, 3423.10),
+    (3404.17, 3398.69), (3359.71, 3352.08), (3344.78, 3314.78),
+    (3285.29, 3249.76),
+]
+
+#: Ke-77 kotak `detect_fvg` di candle yang sama, cap tampilan 0, show_broken.
+FVG_OURS = [
+    (5259.97, 5206.14), (5259.97, 5205.53), (5156.86, 5110.91),
+    (5148.59, 5128.42), (5104.3, 4884.49), (5098.85, 5022.32),
+    (5054.64, 5037.93), (4986.73, 4970.78), (4982.37, 4940.76),
+    (4973.22, 4866.96), (4899.65, 4888.26), (4806.39, 4736.46),
+    (4785.84, 4750.78), (4772.38, 4766.28), (4755.01, 4690.98),
+    (4684.58, 4586.71), (4669.44, 4665.43), (4667.07, 4610.25),
+    (4661.53, 4580.72), (4659.4, 4620.56), (4644.24, 4584.23),
+    (4594.03, 4540.88), (4568.83, 4517.11), (4564.19, 4472.13),
+    (4509.71, 4479.66), (4477.81, 4404.19), (4450.54, 4436.32),
+    (4429.66, 4356.51), (4427.45, 4402.17), (4423.48, 4353.35),
+    (4313.21, 4304.06), (4305.71, 4246.49), (4267.95, 4260.32),
+    (4257.24, 4238.57), (4236.17, 4220.13), (4223.3, 4106.39),
+    (4218.7, 4211.9), (4218.55, 4161.35), (4205.12, 4168.94),
+    (4199.36, 4179.69), (4145.08, 4106.39), (4139.53, 4117.18),
+    (4136.12, 4114.97), (4120.96, 4115.94), (4109.38, 4101.0),
+    (4096.98, 4027.43), (4090.63, 4044.02), (4089.62, 4022.94),
+    (4076.45, 4040.86), (4043.73, 4019.6), (3982.3, 3970.0),
+    (3940.83, 3891.57), (3853.16, 3834.09), (3792.89, 3783.68),
+    (3736.52, 3685.21), (3683.53, 3672.96), (3674.55, 3672.96),
+    (3674.55, 3656.64), (3624.65, 3600.08), (3579.55, 3563.98),
+    (3526.24, 3489.82), (3469.9, 3453.95), (3436.89, 3423.1),
+    (3404.17, 3398.69), (3383.24, 3361.1), (3381.36, 3373.4),
+    (3379.53, 3360.7), (3375.7, 3359.15), (3351.32, 3345.32),
+    (3346.72, 3337.08), (3344.78, 3314.78), (3340.93, 3330.23),
+    (3339.13, 3338.12), (3332.96, 3322.58), (3327.54, 3309.48),
+    (3321.78, 3316.79), (3309.85, 3309.48),
+]
+
+#: Kedua yang tak cocok SUDAH DITELUSURI, jadi tidak dibiarkan sebagai sisa.
+FVG_EXPLAINED = {
+    (3285.29, 3249.76): (
+        "di luar jendela: tidak ada satu pun dari 331 bar yang menyentuh tepi "
+        "atas maupun tepi bawahnya, jadi bar pembentuknya mendahului bar "
+        "pertama yang dimuat chart. Artefak batas, bukan selisih aturan."
+    ),
+    (3359.71, 3352.08): (
+        "DITOLAK `filter_mother`, dan hanya oleh itu: matikan knob itu dan "
+        "kotaknya muncul persis, matikan `min_body_ratio` saja dan tidak. "
+        "Bar tengahnya (H3378.77 L3321.36) menelan kedua bar luar "
+        "(H3352.08 L3325.10 dan H3376.21 L3359.71), jadi celahnya artefak "
+        "rentang bar tengah. Penyimpangan Zonelab yang disengaja."
+    ),
+}
+
+
+def fvg_parity() -> dict:
+    """Berapa banyak kotak LuxAlgo yang direproduksi `detect_fvg` produksi."""
+    hit = [z for z in FVG_THEIRS if any(matches(z, o) for o in FVG_OURS)]
+    miss = [z for z in FVG_THEIRS if z not in hit]
+    return {
+        "cell": FVG_CELL,
+        "method": "kode produksi di candle TradingView, bukan cermin Pine",
+        "theirs": len(FVG_THEIRS),
+        "ours_total": len(FVG_OURS),
+        "exact_matches": len(hit),
+        "rate": round(len(hit) / len(FVG_THEIRS), 4),
+        "unmatched": [
+            {"box": list(m), "explained": FVG_EXPLAINED.get(tuple(m), "BELUM DITELUSURI")}
+            for m in miss
+        ],
+        "all_unmatched_explained": all(tuple(m) in FVG_EXPLAINED for m in miss),
+    }
+
+
 def order_block_parity() -> dict:
     """Containment kotak, plus selisih jejak filter dalam poin persen."""
     inside = []
@@ -205,6 +298,11 @@ def main() -> int:
         for m in miss:
             print(f"      tak cocok: {m[0]} / {m[1]}", file=sys.stderr)
 
+    fv = fvg_parity()
+    out["fvg"] = fv
+    print(f"  fvg: {fv['exact_matches']}/{fv['theirs']} cocok persis lawan "
+          f"LuxAlgo, sisanya semua tertelusuri: {fv['all_unmatched_explained']}",
+          file=sys.stderr)
     ob = order_block_parity()
     out["order_block"] = ob
     print(f"  order block: containment {sum(e['count'] >= 1 for e in ob['containment'])}"
@@ -220,8 +318,14 @@ def _selftest() -> None:
     assert matches((100.0, 99.0), (100.005, 98.995))
     assert not matches((100.0, 99.0), (100.05, 99.0))
     # Tiap kotak harus punya top di atas bottom, di kedua daftar.
-    for z in OURS + BENCH["LuxAlgo"] + BENCH["ChartPrime"] + OB_OURS + OB_THEIRS:
+    for z in (OURS + BENCH["LuxAlgo"] + BENCH["ChartPrime"] + OB_OURS
+              + OB_THEIRS + FVG_OURS + FVG_THEIRS):
         assert z[0] > z[1], z
+    fv = fvg_parity()
+    # Cacat yang sebenarnya terjadi: cap tampilan default memberi 12/22 dan
+    # itu terbaca seperti temuan. Angka di bawah satu-satunya yang menahannya.
+    assert fv["exact_matches"] == 20, fv["exact_matches"]
+    assert fv["all_unmatched_explained"], fv["unmatched"]
     ob = order_block_parity()
     assert ob["all_contained"], ob["containment"]
 

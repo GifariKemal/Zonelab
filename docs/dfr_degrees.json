@@ -1,0 +1,663 @@
+{
+  "day/1h": {
+    "as_of": "2026-09-08",
+    "window": {
+      "mt5:XAUUSD 1h": [
+        "2023-04-24 02:00",
+        "2026-09-08 00:00"
+      ],
+      "mt5:BTCUSD 1h": [
+        "2024-05-28 18:00",
+        "2026-09-08 00:00"
+      ],
+      "mt5:ETHUSD 1h": [
+        "2024-05-28 18:00",
+        "2026-09-08 00:00"
+      ],
+      "mt5:EURUSD 1h": [
+        "2023-06-21 19:00",
+        "2026-09-08 00:00"
+      ]
+    },
+    "geometries": {
+      "atr": {
+        "quarter_delta_pp": {
+          "Q1": 7.868950662902115,
+          "Q2": 10.333996702244086,
+          "Q3": 9.878639731832102,
+          "Q4": 6.276078158535277
+        },
+        "q1_rank_of_four": 3,
+        "arms": {
+          "buang 0": {
+            "delta_pp": 8.236819079878636,
+            "delta_supply_pp": 7.335940094882474,
+            "delta_demand_pp": 9.133825944170773,
+            "walkforward_positive": 8,
+            "n_drawn": 6484
+          },
+          "buang 1/3": {
+            "delta_pp": 7.984687210252183,
+            "delta_supply_pp": 7.285847299813781,
+            "delta_demand_pp": 8.669481852537501,
+            "walkforward_positive": 8,
+            "n_drawn": 6462
+          },
+          "buang 1/2": {
+            "delta_pp": 7.203241077901772,
+            "delta_supply_pp": 6.938745909961376,
+            "delta_demand_pp": 7.4658634464482105,
+            "walkforward_positive": 8,
+            "n_drawn": 6416
+          },
+          "buang 2/3": {
+            "delta_pp": 5.061598961456198,
+            "delta_supply_pp": 4.618556437523345,
+            "delta_demand_pp": 5.500058629118563,
+            "walkforward_positive": 8,
+            "n_drawn": 6319
+          }
+        },
+        "holdout": {
+          "picked_on_first_half": "buang 0",
+          "second_half_delta_pp": 9.463145551543626
+        }
+      },
+      "box": {
+        "quarter_delta_pp": {
+          "Q1": 6.8805220151252655,
+          "Q2": 8.587664626549156,
+          "Q3": 8.877114828321417,
+          "Q4": 8.230693967181175
+        },
+        "q1_rank_of_four": 4,
+        "arms": {
+          "buang 0": {
+            "delta_pp": 7.832360331762352,
+            "delta_supply_pp": 8.018491792175958,
+            "delta_demand_pp": 7.646807598123708,
+            "walkforward_positive": 8,
+            "n_drawn": 6478
+          },
+          "buang 1/3": {
+            "delta_pp": 7.749927706652812,
+            "delta_supply_pp": 7.295749017900633,
+            "delta_demand_pp": 8.19677298063575,
+            "walkforward_positive": 8,
+            "n_drawn": 6460
+          },
+          "buang 1/2": {
+            "delta_pp": 7.473919695726352,
+            "delta_supply_pp": 7.767728085498355,
+            "delta_demand_pp": 7.179567877470376,
+            "walkforward_positive": 8,
+            "n_drawn": 6415
+          },
+          "buang 2/3": {
+            "delta_pp": 6.876793885680506,
+            "delta_supply_pp": 6.762436727921255,
+            "delta_demand_pp": 6.976355477840492,
+            "walkforward_positive": 8,
+            "n_drawn": 6319
+          }
+        },
+        "holdout": {
+          "picked_on_first_half": "buang 0",
+          "second_half_delta_pp": 8.452672862269715
+        }
+      }
+    }
+  },
+  "day/4h": {
+    "as_of": "2026-09-08",
+    "window": {
+      "mt5:XAUUSD 4h": [
+        "2016-08-09 00:00",
+        "2026-09-08 00:00"
+      ],
+      "mt5:BTCUSD 4h": [
+        "2018-03-27 00:00",
+        "2026-09-08 00:00"
+      ],
+      "mt5:ETHUSD 4h": [
+        "2018-07-23 00:00",
+        "2026-09-08 00:00"
+      ],
+      "mt5:EURUSD 4h": [
+        "2016-08-11 00:00",
+        "2026-09-08 00:00"
+      ]
+    },
+    "geometries": {
+      "atr": {
+        "quarter_delta_pp": {
+          "Q1": 3.7264531883782794,
+          "Q2": 4.468829524574339,
+          "Q3": 5.982231615090669,
+          "Q4": 1.8888898574201178
+        },
+        "q1_rank_of_four": 3,
+        "arms": {
+          "buang 0": {
+            "delta_pp": 4.3220211574638085,
+            "delta_supply_pp": 4.62721539536701,
+            "delta_demand_pp": 4.000870321558125,
+            "walkforward_positive": 8,
+            "n_drawn": 19991
+          },
+          "buang 1/3": {
+            "delta_pp": 4.0397906789048434,
+            "delta_supply_pp": 4.63079650826225,
+            "delta_demand_pp": 3.4363923620498866,
+            "walkforward_positive": 8,
+            "n_drawn": 17099
+          },
+          "buang 1/2": {
+            "delta_pp": 3.3923933661121595,
+            "delta_supply_pp": 5.5199058895399915,
+            "delta_demand_pp": 1.2186549606931791,
+            "walkforward_positive": 6,
+            "n_drawn": 4158
+          },
+          "buang 2/3": {
+            "delta_pp": 3.8123434675158876,
+            "delta_supply_pp": 8.112451557595278,
+            "delta_demand_pp": -0.548964272004774,
+            "walkforward_positive": 7,
+            "n_drawn": 4158
+          }
+        },
+        "holdout": {
+          "picked_on_first_half": "buang 0",
+          "second_half_delta_pp": 3.7319950231680323
+        }
+      },
+      "box": {
+        "quarter_delta_pp": {
+          "Q1": 5.799543393846548,
+          "Q2": 7.903316717262491,
+          "Q3": 9.044351158743368,
+          "Q4": 4.8429983887050625
+        },
+        "q1_rank_of_four": 3,
+        "arms": {
+          "buang 0": {
+            "delta_pp": 5.562502662993822,
+            "delta_supply_pp": 5.91959820833106,
+            "delta_demand_pp": 5.185521008647449,
+            "walkforward_positive": 8,
+            "n_drawn": 19989
+          },
+          "buang 1/3": {
+            "delta_pp": 6.993722620336328,
+            "delta_supply_pp": 6.846557394028849,
+            "delta_demand_pp": 7.141275759478418,
+            "walkforward_positive": 8,
+            "n_drawn": 17100
+          },
+          "buang 1/2": {
+            "delta_pp": 5.248628938446458,
+            "delta_supply_pp": 7.379562018133811,
+            "delta_demand_pp": 3.126035665904311,
+            "walkforward_positive": 8,
+            "n_drawn": 4157
+          },
+          "buang 2/3": {
+            "delta_pp": 6.4371785650215685,
+            "delta_supply_pp": 9.21817478920184,
+            "delta_demand_pp": 3.6069226020573453,
+            "walkforward_positive": 8,
+            "n_drawn": 4157
+          }
+        },
+        "holdout": {
+          "picked_on_first_half": "buang 1/3",
+          "second_half_delta_pp": 4.93879734581494
+        }
+      }
+    }
+  },
+  "month/1h": {
+    "as_of": "2026-09-08",
+    "window": {
+      "mt5:XAUUSD 1h": [
+        "2023-04-24 02:00",
+        "2026-09-08 00:00"
+      ],
+      "mt5:BTCUSD 1h": [
+        "2024-05-28 18:00",
+        "2026-09-08 00:00"
+      ],
+      "mt5:ETHUSD 1h": [
+        "2024-05-28 18:00",
+        "2026-09-08 00:00"
+      ],
+      "mt5:EURUSD 1h": [
+        "2023-06-21 19:00",
+        "2026-09-08 00:00"
+      ]
+    },
+    "geometries": {
+      "atr": {
+        "quarter_delta_pp": {
+          "Q1": 13.309891928227927,
+          "Q2": 6.258113001298078,
+          "Q3": 14.48624733648888,
+          "Q4": 5.311785623571247
+        },
+        "q1_rank_of_four": 2,
+        "arms": {
+          "buang 0": {
+            "delta_pp": 4.484022660791645,
+            "delta_supply_pp": 4.189227700199488,
+            "delta_demand_pp": 4.637904468412941,
+            "walkforward_positive": 5,
+            "n_drawn": 239
+          },
+          "buang 1/3": {
+            "delta_pp": 8.159677335953248,
+            "delta_supply_pp": 6.908665105386426,
+            "delta_demand_pp": 9.206767743353112,
+            "walkforward_positive": 6,
+            "n_drawn": 249
+          },
+          "buang 1/2": {
+            "delta_pp": 14.747461339350892,
+            "delta_supply_pp": 15.880314540850328,
+            "delta_demand_pp": 13.577472236911696,
+            "walkforward_positive": 7,
+            "n_drawn": 247
+          },
+          "buang 2/3": {
+            "delta_pp": 9.962545552706167,
+            "delta_supply_pp": 18.897849462365592,
+            "delta_demand_pp": 0.9555435077256718,
+            "walkforward_positive": 7,
+            "n_drawn": 248
+          }
+        },
+        "holdout": {
+          "picked_on_first_half": "buang 1/2",
+          "second_half_delta_pp": 3.722540086176444
+        }
+      },
+      "box": {
+        "quarter_delta_pp": {
+          "Q1": 9.332292073408826,
+          "Q2": -2.4060326868343083,
+          "Q3": 1.4200595829195635,
+          "Q4": 4.52194576460721
+        },
+        "q1_rank_of_four": 1,
+        "arms": {
+          "buang 0": {
+            "delta_pp": 8.676497032907747,
+            "delta_supply_pp": 6.718471750040475,
+            "delta_demand_pp": 10.64898533252964,
+            "walkforward_positive": 5,
+            "n_drawn": 166
+          },
+          "buang 1/3": {
+            "delta_pp": 7.517253179718246,
+            "delta_supply_pp": 7.291666666666668,
+            "delta_demand_pp": 7.124518613607194,
+            "walkforward_positive": 6,
+            "n_drawn": 197
+          },
+          "buang 1/2": {
+            "delta_pp": 4.918853220847929,
+            "delta_supply_pp": 4.578495232700838,
+            "delta_demand_pp": 5.25606469002696,
+            "walkforward_positive": 6,
+            "n_drawn": 213
+          },
+          "buang 2/3": {
+            "delta_pp": 3.078193832599119,
+            "delta_supply_pp": 4.893162393162392,
+            "delta_demand_pp": 0.9090909090909065,
+            "walkforward_positive": 5,
+            "n_drawn": 240
+          }
+        },
+        "holdout": {
+          "picked_on_first_half": "buang 2/3",
+          "second_half_delta_pp": 17.42979242979243
+        }
+      }
+    }
+  },
+  "month/4h": {
+    "as_of": "2026-09-08",
+    "window": {
+      "mt5:XAUUSD 4h": [
+        "2016-08-09 00:00",
+        "2026-09-08 00:00"
+      ],
+      "mt5:BTCUSD 4h": [
+        "2018-03-27 00:00",
+        "2026-09-08 00:00"
+      ],
+      "mt5:ETHUSD 4h": [
+        "2018-07-23 00:00",
+        "2026-09-08 00:00"
+      ],
+      "mt5:EURUSD 4h": [
+        "2016-08-11 00:00",
+        "2026-09-08 00:00"
+      ]
+    },
+    "geometries": {
+      "atr": {
+        "quarter_delta_pp": {
+          "Q1": 11.656516620927682,
+          "Q2": 6.8468720821662,
+          "Q3": 12.647553029544845,
+          "Q4": 10.837403602295787
+        },
+        "q1_rank_of_four": 2,
+        "arms": {
+          "buang 0": {
+            "delta_pp": 7.798946102639675,
+            "delta_supply_pp": 6.525298837399703,
+            "delta_demand_pp": 9.09474388532113,
+            "walkforward_positive": 7,
+            "n_drawn": 777
+          },
+          "buang 1/3": {
+            "delta_pp": 9.117729596950248,
+            "delta_supply_pp": 7.025390339997081,
+            "delta_demand_pp": 11.17705746557236,
+            "walkforward_positive": 7,
+            "n_drawn": 774
+          },
+          "buang 1/2": {
+            "delta_pp": 8.232294617563738,
+            "delta_supply_pp": 6.921638061512979,
+            "delta_demand_pp": 9.437141894169194,
+            "walkforward_positive": 8,
+            "n_drawn": 775
+          },
+          "buang 2/3": {
+            "delta_pp": 2.748106823573451,
+            "delta_supply_pp": 2.2118301314459075,
+            "delta_demand_pp": 3.278977301323671,
+            "walkforward_positive": 6,
+            "n_drawn": 726
+          }
+        },
+        "holdout": {
+          "picked_on_first_half": "buang 1/3",
+          "second_half_delta_pp": 14.1030033116364
+        }
+      },
+      "box": {
+        "quarter_delta_pp": {
+          "Q1": 3.397050147492621,
+          "Q2": 5.268209595477813,
+          "Q3": 7.313274570879443,
+          "Q4": 7.481407758088089
+        },
+        "q1_rank_of_four": 4,
+        "arms": {
+          "buang 0": {
+            "delta_pp": 7.276118648931572,
+            "delta_supply_pp": 3.6478791033710323,
+            "delta_demand_pp": 10.894806195768382,
+            "walkforward_positive": 7,
+            "n_drawn": 743
+          },
+          "buang 1/3": {
+            "delta_pp": 8.464801178203238,
+            "delta_supply_pp": 8.078664402942845,
+            "delta_demand_pp": 8.657152277330319,
+            "walkforward_positive": 7,
+            "n_drawn": 750
+          },
+          "buang 1/2": {
+            "delta_pp": 6.454341328721192,
+            "delta_supply_pp": 5.692203287588605,
+            "delta_demand_pp": 7.142857142857146,
+            "walkforward_positive": 7,
+            "n_drawn": 762
+          },
+          "buang 2/3": {
+            "delta_pp": 10.716641679160425,
+            "delta_supply_pp": 9.663231967831116,
+            "delta_demand_pp": 11.665226838398915,
+            "walkforward_positive": 8,
+            "n_drawn": 725
+          }
+        },
+        "holdout": {
+          "picked_on_first_half": "buang 1/2",
+          "second_half_delta_pp": 6.881931856585453
+        }
+      }
+    }
+  },
+  "week/1h": {
+    "as_of": "2026-09-08",
+    "window": {
+      "mt5:XAUUSD 1h": [
+        "2023-04-24 02:00",
+        "2026-09-08 00:00"
+      ],
+      "mt5:BTCUSD 1h": [
+        "2024-05-28 18:00",
+        "2026-09-08 00:00"
+      ],
+      "mt5:ETHUSD 1h": [
+        "2024-05-28 18:00",
+        "2026-09-08 00:00"
+      ],
+      "mt5:EURUSD 1h": [
+        "2023-06-21 19:00",
+        "2026-09-08 00:00"
+      ]
+    },
+    "geometries": {
+      "atr": {
+        "quarter_delta_pp": {
+          "Q1": 11.236372459608937,
+          "Q2": 11.065801668211307,
+          "Q3": 12.690994335218292,
+          "Q4": 15.458634694108703
+        },
+        "q1_rank_of_four": 3,
+        "arms": {
+          "buang 0": {
+            "delta_pp": 11.454066043017278,
+            "delta_supply_pp": 12.284667364614073,
+            "delta_demand_pp": 10.58227987399755,
+            "walkforward_positive": 8,
+            "n_drawn": 1109
+          },
+          "buang 1/3": {
+            "delta_pp": 10.542238810361425,
+            "delta_supply_pp": 14.864521478628369,
+            "delta_demand_pp": 6.185092877843573,
+            "walkforward_positive": 8,
+            "n_drawn": 1117
+          },
+          "buang 1/2": {
+            "delta_pp": 15.563877042979172,
+            "delta_supply_pp": 19.66415525424651,
+            "delta_demand_pp": 11.486677337350528,
+            "walkforward_positive": 8,
+            "n_drawn": 1115
+          },
+          "buang 2/3": {
+            "delta_pp": 13.187206345101082,
+            "delta_supply_pp": 14.435111989459813,
+            "delta_demand_pp": 11.88445886455495,
+            "walkforward_positive": 8,
+            "n_drawn": 1110
+          }
+        },
+        "holdout": {
+          "picked_on_first_half": "buang 1/2",
+          "second_half_delta_pp": 16.496778173841513
+        }
+      },
+      "box": {
+        "quarter_delta_pp": {
+          "Q1": 8.791717853989844,
+          "Q2": 11.136501954051695,
+          "Q3": 9.993335572209858,
+          "Q4": 8.12675417506454
+        },
+        "q1_rank_of_four": 3,
+        "arms": {
+          "buang 0": {
+            "delta_pp": 9.210130310889127,
+            "delta_supply_pp": 10.696517412935322,
+            "delta_demand_pp": 7.745676448990963,
+            "walkforward_positive": 8,
+            "n_drawn": 1077
+          },
+          "buang 1/3": {
+            "delta_pp": 10.547704278773125,
+            "delta_supply_pp": 15.455446947159654,
+            "delta_demand_pp": 5.768468625065182,
+            "walkforward_positive": 8,
+            "n_drawn": 1093
+          },
+          "buang 1/2": {
+            "delta_pp": 10.064943587805097,
+            "delta_supply_pp": 14.321059057901167,
+            "delta_demand_pp": 5.904761904761905,
+            "walkforward_positive": 8,
+            "n_drawn": 1101
+          },
+          "buang 2/3": {
+            "delta_pp": 9.460673095103047,
+            "delta_supply_pp": 8.934362934362937,
+            "delta_demand_pp": 9.967586221349784,
+            "walkforward_positive": 8,
+            "n_drawn": 1107
+          }
+        },
+        "holdout": {
+          "picked_on_first_half": "buang 0",
+          "second_half_delta_pp": 13.556145442877352
+        }
+      }
+    }
+  },
+  "week/4h": {
+    "as_of": "2026-09-08",
+    "window": {
+      "mt5:XAUUSD 4h": [
+        "2016-08-09 00:00",
+        "2026-09-08 00:00"
+      ],
+      "mt5:BTCUSD 4h": [
+        "2018-03-27 00:00",
+        "2026-09-08 00:00"
+      ],
+      "mt5:ETHUSD 4h": [
+        "2018-07-23 00:00",
+        "2026-09-08 00:00"
+      ],
+      "mt5:EURUSD 4h": [
+        "2016-08-11 00:00",
+        "2026-09-08 00:00"
+      ]
+    },
+    "geometries": {
+      "atr": {
+        "quarter_delta_pp": {
+          "Q1": 11.223027609498864,
+          "Q2": 6.830199359252489,
+          "Q3": 10.106606261558497,
+          "Q4": 9.134918932172738
+        },
+        "q1_rank_of_four": 1,
+        "arms": {
+          "buang 0": {
+            "delta_pp": 7.829496584872253,
+            "delta_supply_pp": 8.080309845945429,
+            "delta_demand_pp": 7.548845575257886,
+            "walkforward_positive": 8,
+            "n_drawn": 3350
+          },
+          "buang 1/3": {
+            "delta_pp": 10.642031347245407,
+            "delta_supply_pp": 11.418278925090917,
+            "delta_demand_pp": 9.85401556496479,
+            "walkforward_positive": 8,
+            "n_drawn": 2202
+          },
+          "buang 1/2": {
+            "delta_pp": 11.115603310064628,
+            "delta_supply_pp": 13.997247464676391,
+            "delta_demand_pp": 8.25542484258407,
+            "walkforward_positive": 8,
+            "n_drawn": 2199
+          },
+          "buang 2/3": {
+            "delta_pp": 7.482430756510958,
+            "delta_supply_pp": 7.354133370393534,
+            "delta_demand_pp": 7.567579877479446,
+            "walkforward_positive": 6,
+            "n_drawn": 2124
+          }
+        },
+        "holdout": {
+          "picked_on_first_half": "buang 1/3",
+          "second_half_delta_pp": 13.138565761911124
+        }
+      },
+      "box": {
+        "quarter_delta_pp": {
+          "Q1": 10.559806338992345,
+          "Q2": 9.130888395739532,
+          "Q3": 9.735789714164042,
+          "Q4": 8.597028022186109
+        },
+        "q1_rank_of_four": 1,
+        "arms": {
+          "buang 0": {
+            "delta_pp": 7.901703795167293,
+            "delta_supply_pp": 8.549359562112748,
+            "delta_demand_pp": 7.210943005507723,
+            "walkforward_positive": 8,
+            "n_drawn": 3344
+          },
+          "buang 1/3": {
+            "delta_pp": 10.088762536629403,
+            "delta_supply_pp": 11.080307542825757,
+            "delta_demand_pp": 9.037014125167538,
+            "walkforward_positive": 8,
+            "n_drawn": 2199
+          },
+          "buang 1/2": {
+            "delta_pp": 8.554758371554179,
+            "delta_supply_pp": 9.280920213972152,
+            "delta_demand_pp": 7.852771681921176,
+            "walkforward_positive": 8,
+            "n_drawn": 2196
+          },
+          "buang 2/3": {
+            "delta_pp": 8.836599748385673,
+            "delta_supply_pp": 7.842728086878651,
+            "delta_demand_pp": 9.80347452517335,
+            "walkforward_positive": 8,
+            "n_drawn": 2123
+          }
+        },
+        "holdout": {
+          "picked_on_first_half": "buang 1/2",
+          "second_half_delta_pp": 8.83219768771017
+        }
+      }
+    }
+  },
+  "_summary": {
+    "cells": 12,
+    "q1_rank_mean": 2.5,
+    "q1_rank_chance": 2.5,
+    "q1_best_in_cells": 3,
+    "note": "Dua belas sel, enam kombinasi derajat kali timeframe, dua geometri bracket masing-masing. Sel TIDAK independen: dua geometri berbagi populasi yang sama dan instrumennya sama di semua sel, jadi rerata peringkat di sini ringkasan, bukan uji."
+  }
+}

@@ -174,12 +174,16 @@ def audit_imbalance(candles: list[Candle], label: str) -> dict:
     two numbers copied off two bars, and a copy is the kind of thing that is
     either always right or wrong in a way no eye catches.
     """
-    from app.detect.imbalance import detect_fvg, detect_order_block
+    from app.detect.imbalance import (
+        MIN_OB_BOX_RANGE, detect_fvg, detect_order_block,
+    )
     from app.models import ImbalanceParams
 
     params = ImbalanceParams(max_zones_per_side=0, show_broken=True, min_gap_atr=0.0)
     high = np.array([c.high for c in candles])
     low = np.array([c.low for c in candles])
+    opn = np.array([c.open for c in candles])
+    cls = np.array([c.close for c in candles])
     time = np.array([c.time for c in candles], dtype=np.int64)
     at = {int(t): i for i, t in enumerate(time)}
 
@@ -205,10 +209,38 @@ def audit_imbalance(candles: list[Candle], label: str) -> dict:
     blocks, _ = detect_order_block(candles, params)
     out["ob"] = len(blocks)
     for zone in blocks:
+        # THE BODY GROWN TO A FLOOR, NOT THE WHOLE RANGE. This rule read
+        # `high[i]`/`low[i]` until 6 September 2026, four days after
+        # `detect_order_block` moved its box to the candle body - so the harness
+        # that certifies drawing accuracy reported 19,433 violations out of
+        # 53,629 boxes, none of them real. A stale checker that fails LOUDLY is
+        # still a checker nobody reads.
+        #
+        # The floor is the second half and it cost another 2,506 false
+        # violations on the first attempt at this fix: a body under
+        # `MIN_OB_BOX_RANGE` of the candle's range is grown SYMMETRICALLY to
+        # meet it, then clamped back inside the candle. Re-derived here rather
+        # than imported so the check stays independent of the code it checks -
+        # importing the arithmetic would make this loop agree with a wrong
+        # detector as readily as with a right one.
         i = at[zone.time_from]
-        if abs(zone.top - float(high[i])) > 1e-9 or abs(zone.bottom - float(low[i])) > 1e-9:
+        want_top = float(max(opn[i], cls[i]))
+        want_bottom = float(min(opn[i], cls[i]))
+        floor = (float(high[i]) - float(low[i])) * MIN_OB_BOX_RANGE
+        short = floor - (want_top - want_bottom)
+        if short > 0.0:
+            want_top += short / 2.0
+            want_bottom -= short / 2.0
+            if want_top > float(high[i]):
+                want_bottom -= want_top - float(high[i])
+                want_top = float(high[i])
+            elif want_bottom < float(low[i]):
+                want_top += float(low[i]) - want_bottom
+                want_bottom = float(low[i])
+        if abs(zone.top - want_top) > 1e-9 or abs(zone.bottom - want_bottom) > 1e-9:
             out["violations"].append(
-                f"{label} {zone.id}: block box is not the candle's whole range"
+                f"{label} {zone.id}: block box is not the body grown to floor "
+                f"{zone.bottom:.6f}-{zone.top:.6f} != {want_bottom:.6f}-{want_top:.6f}"
             )
 
     for zone in gaps + blocks:

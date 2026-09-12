@@ -10,12 +10,14 @@ from ..models import Candle
 from .base import INTERVALS, Provider, ProviderError
 from .dukascopy import DukascopyProvider
 from .mt5 import MT5Provider
+from .tradingview import TradingViewProvider
 from .sources import (
     SYMBOLS,
     BinanceProvider,
     PolygonProvider,
     TwelveDataProvider,
     YahooProvider,
+    carries,
 )
 from .synthetic import SyntheticProvider
 
@@ -26,6 +28,11 @@ PROVIDERS: dict[str, Provider] = {
         # terminal beats every network source on depth, latency and on being
         # the venue the user actually trades. It reports itself unavailable
         # where no terminal exists, so this costs nothing on a machine without.
+        # First, and above MT5, since 12 September 2026: this is the exchange
+        # tape the user's own TradingView shows, it carries every instrument
+        # here, and it reports itself unavailable when the desktop app is not
+        # running - so on a machine without it the order below is unchanged.
+        TradingViewProvider(),
         MT5Provider(),
         BinanceProvider(),
         DukascopyProvider(),
@@ -320,10 +327,30 @@ async def get_candles(
         return candles, provider.name
 
 
+def exchange_delay(provider: str | None, symbol: str) -> int | None:
+    """Seconds this feed's venue delays `symbol`, or None when it cannot say.
+
+    DUCK-TYPED ON PURPOSE. Only TradingView reports a delay today, because only
+    its protocol states one; widening `Provider` to demand the method would
+    make six other providers answer a question they have no source for, and an
+    invented zero from a feed that never checked is exactly the wrong answer -
+    it reads as "verified live".
+
+    None means unknown, 0 means the venue said live, and a negative value means
+    the venue said delayed without saying by how much.
+    """
+    feed = PROVIDERS.get(provider or settings.default_provider)
+    getter = getattr(feed, "delay_of", None)
+    return getter(symbol) if callable(getter) else None
+
+
 __all__ = [
     "INTERVALS",
     "PROVIDERS",
     "SYMBOLS",
+    "TradingViewProvider",
+    "carries",
+    "exchange_delay",
     "Provider",
     "ProviderError",
     "availability",

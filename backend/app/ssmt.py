@@ -145,10 +145,24 @@ class SSMTEvent:
     #: The kill zone active at `knowable_at`, for session quality. None when no
     #: zone is active. Asia is weaker than London or NY per the practitioner.
     session: str | None = None
+    #: Which extreme the reading was taken from. "wick" is the ordinary SSMT and
+    #: the default everything in this project has been measured under. "body" is
+    #: the HIDDEN sequential SMT: the same comparison run on body extremes, for
+    #: the case where no wick divergence is visible but the closes diverge.
+    #:
+    #: STAMPED ON THE EVENT because the two are DIFFERENT CLAIMS and a list
+    #: holding both without a label is one fact reported as two. The source says
+    #: hidden is the weaker of the pair "because no liquidity is technically
+    #: being swept" - that is a claim with no number behind it, and this field is
+    #: what makes it measurable rather than assumed.
+    basis: Literal["wick", "body"] = "wick"
+
 
 
 def ssmt(
-    series: dict[str, list[Candle]], degree: str
+    series: dict[str, list[Candle]],
+    degree: str,
+    basis: Literal["wick", "body"] = "wick",
 ) -> tuple[list[SSMTEvent], dict[str, float]]:
     """Every consecutive-quarter divergence at `degree`, per instrument pair.
 
@@ -248,15 +262,26 @@ def ssmt(
     # bar comes back with it. On a tie the FIRST bar wins, which is Python's own
     # rule for both and is the earlier one - deterministic, and the earlier
     # print is the one that actually set the level.
+    #: HOW HIGH AND LOW ARE READ, and the only thing `basis` changes.
+    #:
+    #: "wick" takes the extreme of the bar's range, which is the ordinary
+    #: sequential SMT. "body" takes the extreme of open-to-close, which is the
+    #: hidden one: the source's two variants (neither asset wicks through, or
+    #: both wick through but only one CLOSES through) are the same comparison
+    #: once both sides are read off bodies, so there is one switch here rather
+    #: than two code paths.
+    up = (lambda c: max(c.open, c.close)) if basis == "body" else (lambda c: c.high)
+    down = (lambda c: min(c.open, c.close)) if basis == "body" else (lambda c: c.low)
+
     ext: dict[tuple[int, str, str], tuple[float, int]] = {}
     for q, lo, hi in closed:
         for symbol in symbols:
             rows = series[symbol][lo:hi]
             if rows:
-                top = max(rows, key=lambda c: c.high)
-                bottom = min(rows, key=lambda c: c.low)
-                ext[q.start, symbol, "high"] = (top.high, top.time)
-                ext[q.start, symbol, "low"] = (bottom.low, bottom.time)
+                top = max(rows, key=up)
+                bottom = min(rows, key=down)
+                ext[q.start, symbol, "high"] = (up(top), top.time)
+                ext[q.start, symbol, "low"] = (down(bottom), bottom.time)
 
     # Candle lookup by symbol and timestamp, for the candle validation rule:
     # "bullish SSMT needs a bearish candle, bearish SSMT needs a bullish one."
@@ -324,12 +349,14 @@ def ssmt(
                         knowable_at=now.end,
                         candle_valid=cv,
                         session=sess,
+                        basis=basis,
                     )
                 )
                 stats[f"side.{side}"] += 1.0
                 stats[f"pair:{a}|{b}"] += 1.0
 
     stats["events"] = float(len(events))
+    stats["basis.body"] = 1.0 if basis == "body" else 0.0
     return events, stats
 
 
@@ -411,6 +438,13 @@ def divergences_for(
                 ),
                 candle_valid=event.candle_valid,
                 session=event.session,
+                # CARRIED, not defaulted. The model has a `basis` field and this
+                # constructor did not set it, so every hidden divergence arrived
+                # at the chart labelled `wick` - six of them in the first live
+                # request, counted correctly in `meta` and mislabelled on the
+                # object. A label that exists and is never populated is worse
+                # than no label: it reads as an assurance.
+                basis=event.basis,
             )
         )
     return out

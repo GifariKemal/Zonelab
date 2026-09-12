@@ -213,6 +213,30 @@ export class DFRSeriesPrimitive implements ISeriesPrimitive<Time> {
       // clock's own Q1, so it is context the candles sit ON rather than a level
       // to compare them against - and its evidence is one paragraph, which is
       // not enough to earn ink over a wick.
+      //
+      // KEPT AT `bottom` ON 9 September 2026, AFTER MEASURING WHAT IT COSTS,
+      // and the measurement is the reason rather than an argument against it.
+      //
+      // `nonbox-truth`'s dfr pass read this primitive back for the first time.
+      // The band edges land at duty 0.99, because only wick tips cross a row at
+      // the extreme of the range. The 50% line reads 0.38 against the 0.50 a
+      // 3-on-3-off dash would give unoccluded, and on one band of four it read
+      // 0.00 - covered end to end by candle bodies, invisible on a band 227
+      // pixels tall. So the cost of `bottom` is real and now quantified: the
+      // midpoint line is partly, and sometimes wholly, unreadable.
+      //
+      // Raising it was considered and REJECTED. The evidence that this comment
+      // called "one paragraph" is no longer thin - it is measured, and it is
+      // NULL: the band beats a price-shifted placebo, but Q1 is the weakest or
+      // third-weakest of the four quarters under the identical construct, in
+      // both bracket geometries and again on COMEX. See the `dfr` entry in
+      // `app/layers.py`. A layer whose evidence got worse does not get promoted
+      // over the candles; that would be paying out ink for a result that went
+      // the wrong way. The rule stands, and the line stays under the wicks.
+      //
+      // What changed instead is the harness: it now records `band_px` and duty
+      // per row, so an absent 50% line can be told apart from a misplaced one.
+      // Silence about the cost was the actual defect here, not the z-order.
       zOrder: () => "bottom",
       renderer: () => new DFRRenderer(this.bands, this.showEquilibrium),
     },

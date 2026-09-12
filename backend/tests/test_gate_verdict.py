@@ -80,6 +80,17 @@ EXPECTED_GATE_ATR = {
     ZoneKind.BRK: 2.0,   # mengikut induknya OB; belum diukur untuk BRK sendiri
     ZoneKind.FVG: 0.25,   # DIUKUR, docs/QA-FVG-RECALIBRATION.md
     ZoneKind.IFVG: 0.25,  # DIUKUR, docs/QA-IFVG-GATE.md
+    # BELUM DIUKUR, dan doktrinnya memang tidak membawa gerbang: OTE aturan
+    # tempat masuk. 2,0 pada panjang leg adalah padanan yang dinyatakan, dan
+    # OTE karena itu ada di GATE_UNMEASURED_KINDS.
+    ZoneKind.OTE: 2.0,
+    # NOL, dinyatakan: lihat FLOOR_GATE_ATR dan detect/cisd_zone.py.
+    ZoneKind.CISD: 0.0,
+    # NOL, dinyatakan: tinggi kotaknya sebaran teramati di dalam
+    # `equal_tol_atr`, jadi menggerbanginya menggerbangi toleransi lewat
+    # pintu belakang. Lihat detect/liquidity_pool.py.
+    ZoneKind.BSL: 0.0,
+    ZoneKind.SSL: 0.0,
 }
 
 #: KEDUANYA SEKARANG TERUKUR, dan urutan kejadiannya layak dicatat karena satu
@@ -150,6 +161,22 @@ def test_the_floor_kinds_clear_by_being_large():
         if kind in CEILING_KINDS:
             continue
         floor = FLOOR_GATE_ATR[kind]
+        # LANTAI NOL BUKAN LANTAI, dan MSS memilihnya dengan alasan tertulis:
+        # tinggi kotaknya ADALAH jarak stop, jadi menggerbanginya berarti
+        # memilih antara "cuma leg besar" dan "cuma stop rapat" - keduanya bisa
+        # dipertahankan dan tidak satu pun bersumber. Invarian di bawah adalah
+        # "lolos karena BESAR", dan sebuah kind yang menyatakan tidak punya
+        # ambang tidak ikut invarian itu. Ia tetap wajib punya ENTRI di peta -
+        # `test_every_floor_kind_declares_its_own_threshold` yang menjaga itu -
+        # dan wajib ada di GATE_UNMEASURED_KINDS supaya permukaan yang
+        # menampilkan verdict menahan diri.
+        if floor == 0.0:
+            assert kind in GATE_UNMEASURED_KINDS, (
+                f"{kind} menyatakan lantai 0,0 tapi tidak ada di "
+                "GATE_UNMEASURED_KINDS, jadi panel akan membaca 'lolos gerbang' "
+                "untuk sesuatu yang tidak pernah digerbangi"
+            )
+            continue
         assert _zone(kind, floor + 0.01).gate_cleared, kind
         assert not _zone(kind, floor - 0.01).gate_cleared, kind
         # 0,10 ATR lolos plafon FVG dan GAGAL di sini, arah yang berlawanan.

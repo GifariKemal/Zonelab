@@ -36,11 +36,37 @@ PROVENANCE, said plainly so that nobody later claims something this is not.
     could not be equivalent to it even by accident, and no claim of equivalence
     should ever be made on the strength of the shared name "DFR".
 
-  - VERIFICATION STATUS, and this is the weak link: the thirds rule reached us
-    SINGLE-SOURCED, through a summarising fetch, corroborated only by the
-    author's own site. That is one voice, twice. It must be verified against the
-    course video itself before any number is scored on it. Until then, treat
-    every DFR this module draws as provisional.
+  - VERIFICATION STATUS, checked 9 September 2026 and now PARTLY resolved. Two
+    different questions were tangled together here, and they have different
+    answers.
+
+    DOES THIS CODE IMPLEMENT BUCKO'S RULE? Yes, and that is now corroborated
+    through a second channel, independent of the site the rule first reached us
+    from. His own TradingView script `Quarterly Theory Toolkit [Oracle+]`,
+    published under `buckotrades`, states it in one line: "The Defining Range
+    marks the high and low of the 2nd and 3rd thirds of Q1", and describes its
+    own implementation as locating the one-third point between Q1's start and
+    Q2's start, then scanning from there for the highest high and lowest low.
+    That is this function, including the direction of the discard.
+
+    IS THE RULE ITSELF CORROBORATED BY ANYONE ELSE? No, and this is what remains
+    open. It is still ONE AUTHOR. LuxAlgo's Quarterly Theory reference page,
+    which is independent and covers the framework in detail, does not mention a
+    Defining Range at all. And the highest-ranked TradingView script carrying the
+    name - `Quarterly DFR [Dango]` - explicitly does NOT use the thirds rule: its
+    own description says the logic is proprietary and cites price momentum,
+    volatility and volume. It shares only the name and the midpoint-equilibrium
+    shape.
+
+    So: draw it as Bucko's DFR, correctly implemented. Do not draw it as a
+    concept the wider field agrees on, because outside his own material there is
+    no second voice describing it at all.
+
+  - AND IT HAS NOW BEEN SCORED AGAINST OUTCOMES, which the previous version of
+    this note said had to wait. It measures null for the claim that makes it a
+    DFR: see `tools/dfr_zone.py` and the `dfr` entry in `app/layers.py`. Q1 is
+    the WEAKEST or third-weakest of the four quarters under the identical
+    construct, so what the numbers measure is not Q1 and not the thirds rule.
 
 --------------------------------------------------------------------------------
 2. THE CYCLE PROFILE, AMDX VERSUS XAMD
@@ -136,7 +162,7 @@ from typing import Literal
 
 from .detect.structure import breaks
 from .models import Candle
-from .quarters import Quarter, quarters
+from .quarters import DEGREES, Quarter, quarters
 
 
 @dataclass(frozen=True)
@@ -406,3 +432,144 @@ def manipulation_done(
                 sweep_time=event.time,
             )
     return None
+
+
+@dataclass(frozen=True)
+class TimeRange:
+    """The previous PARENT quarter's range, which is this cycle's premium/discount.
+
+    The rule, from the A-Z guide chapter 19: go one cycle higher than the one
+    you are trading, and mark the range of the PREVIOUS quarter on that higher
+    cycle. Trading the 90-minute cycle, that is the previous 6-hour session.
+    Trading the daily cycle, it is the previous day.
+
+    WHY IT IS WORTH HAVING BESIDE `dealing_range.py`. Both answer "is price at a
+    premium or a discount", and they answer it from different places: the
+    dealing range reads confirmed swings and carries a `swing_n` knob, this
+    reads the clock and carries NO parameter at all. A reading with no knob
+    cannot be tuned into agreement with an outcome, which is the only reason it
+    is interesting - it is falsifiable in a way the tuned one is not.
+
+    KNOWABLE THE MOMENT IT APPLIES, and that is asserted rather than assumed.
+    The band covering quarter q is the range of quarter q-1, which finished at
+    q's start. Nothing here can see forward.
+    """
+
+    degree: str  # the cycle being traded
+    parent: str  # the degree the range was read from
+    start: int  # this band applies from here, inclusive - a parent quarter's start
+    end: int  # to here, exclusive
+    high: float
+    low: float
+    mid: float  # the 50% line: above is premium, below is discount
+    source_start: int  # the parent quarter the range came from
+    source_end: int
+
+
+def _parent_of(degree: str) -> str | None:
+    """The degree one step coarser, or None at the coarsest.
+
+    Read off `quarters.DEGREES` at call time rather than a table written here,
+    so a degree added to the grid needs no edit in this file - the same rule
+    `sequence._ordered` follows.
+    """
+    if degree not in DEGREES:
+        raise ValueError(f"unknown degree {degree!r}, expected one of {DEGREES}")
+    i = DEGREES.index(degree)
+    return DEGREES[i - 1] if i > 0 else None
+
+
+def time_premium_discount(candles: list[Candle], degree: str) -> list[TimeRange]:
+    """One band per parent quarter: the range of the parent quarter before it.
+
+    Empty when `degree` is the coarsest on the grid (nothing above it to read a
+    parent quarter from), when there are no candles, and for any parent quarter
+    whose predecessor had no bars - a band invented over a closed market would
+    be a premium/discount line with no trading behind it.
+
+    The first parent quarter in the window never gets a band, because its
+    predecessor is outside the window and reading a partial range would report a
+    high and a low that the feed did not actually contain.
+    """
+    parent = _parent_of(degree)
+    if parent is None or not candles:
+        return []
+
+    grid = quarters(parent, candles[0].time, candles[-1].time)
+    out: list[TimeRange] = []
+    for before, now in zip(grid, grid[1:]):
+        rows = _bars(candles, before.start, before.end)
+        if not rows:
+            continue
+        high = max(c.high for c in rows)
+        low = min(c.low for c in rows)
+        out.append(
+            TimeRange(
+                degree=degree,
+                parent=parent,
+                start=now.start,
+                end=now.end,
+                high=high,
+                low=low,
+                mid=(high + low) / 2,
+                source_start=before.start,
+                source_end=before.end,
+            )
+        )
+    return out
+
+
+def _selftest_time_pd() -> None:
+    """The band is the previous parent quarter, and it never sees forward."""
+    from datetime import datetime, timedelta, timezone
+
+    assert _parent_of("session") == "day"
+    assert _parent_of("micro") == "session"
+    assert _parent_of("day") == "week"
+    assert _parent_of(DEGREES[0]) is None
+
+    # Two days of hourly bars whose price is a function of the hour, so every
+    # quarter's extremes are known by construction rather than by inspection.
+    start = datetime(2026, 9, 7, tzinfo=timezone.utc)
+    rows = [
+        Candle(
+            time=int((start + timedelta(hours=h)).timestamp()),
+            open=100.0 + h,
+            high=100.5 + h,
+            low=99.5 + h,
+            close=100.0 + h,
+            volume=1.0,
+        )
+        for h in range(48)
+    ]
+    bands = time_premium_discount(rows, "session")
+    assert bands, "two days of hourly bars must produce day-quarter bands"
+    assert all(b.parent == "day" and b.degree == "session" for b in bands)
+
+    for band in bands:
+        # KNOWABILITY, the property everything else here rests on: the range was
+        # complete before the window it describes opened.
+        assert band.source_end <= band.start
+        assert band.low < band.mid < band.high
+        # And the range really is the source quarter's, recomputed here from the
+        # bars rather than trusted from the object.
+        rows_in = _bars(rows, band.source_start, band.source_end)
+        assert band.high == max(c.high for c in rows_in)
+        assert band.low == min(c.low for c in rows_in)
+
+    # Bands tile the parent grid and never overlap.
+    for a, b in zip(bands, bands[1:]):
+        assert a.end <= b.start
+
+    # The coarsest degree has no parent, so it has no band. Not an error.
+    assert time_premium_discount(rows, DEGREES[0]) == []
+    assert time_premium_discount([], "session") == []
+
+
+def _selftest() -> None:
+    """The gate's entry point for this module. See `sequence._selftest`."""
+    _selftest_time_pd()
+
+
+if __name__ == "__main__":
+    _selftest()

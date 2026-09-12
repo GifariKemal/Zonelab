@@ -25,6 +25,7 @@ from zoneinfo import ZoneInfo
 import numpy as np
 from fastapi import FastAPI, HTTPException, Query, Request
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.middleware.gzip import GZipMiddleware
 
 from . import autotrade, journal, snapshots
 from . import agent as agent_mod
@@ -50,6 +51,7 @@ from .models import (
     DrawResponse,
     Drawing,
     PSPModel,
+    SMTFillDivergence,
     RangeLiquidityReport,
     SMTDivergence,
     SSMTDivergence,
@@ -62,6 +64,8 @@ from .plan import build as plan_for
 from .pools import killzones_at
 from .psp import after_ssmt as psp_after_ssmt
 from .psp import in_same_candle
+from .smt_fill import fills as smt_fills
+from .smt_fill import for_symbol as fills_for
 from .ssmt import divergences_for
 from .ssmt import smt as smt_read
 from .ssmt import smt_positions_for
@@ -73,6 +77,7 @@ from .providers import (
     SYMBOLS,
     ProviderError,
     availability,
+    carries,
     get_forming,
     resolve,
 )
@@ -82,6 +87,27 @@ app = FastAPI(
     version="0.1.0",
     summary="Automatic technical drawing engine for chart analysis",
 )
+
+# COMPRESSION, and it is not a micro-optimisation here. Measured 12 September
+# 2026: one draw of 5,000 bars with eight layers on returns 904,790 bytes of
+# JSON, and 500 bars still returns 181,353. That cost nothing while the browser
+# and the API shared a machine, which is the only way this has ever been run -
+# and it is why the omission survived. Over a link to a hosted box it becomes
+# the dominant latency of every interaction, because the chart redraws on each
+# one: at 10 Mbps those 904 KB are seven tenths of a second of pure transfer,
+# more than the 0.24s the drawing itself takes to compute.
+#
+# The payload is candle arrays and zone geometry - long runs of similar decimal
+# text - which is close to the best case for deflate.
+#
+# ABOVE CORS in source order, which puts it INSIDE the CORS layer at runtime:
+# Starlette applies middleware bottom-up, so the compressor runs first on the
+# way out and CORS still gets to write its headers onto the compressed
+# response. The other order strips them.
+#
+# `minimum_size` skips the small answers - health, config, autotrade - where the
+# gzip header would be most of the reply and the CPU is pure waste.
+app.add_middleware(GZipMiddleware, minimum_size=1024)
 
 app.add_middleware(
     CORSMiddleware,
@@ -128,9 +154,26 @@ async def config() -> dict:
         # menu that made every row look equally endorsed would be the most
         # misleading thing on the screen.
         "layers": catalogue(),
+        # `vendor` carries what each feed CALLS this instrument, not just which
+        # feeds have it. The app id is a convenience - `XAUUSD` is the name the
+        # params, presets and snapshots are keyed by - but it is not what the
+        # chart is drawing: on TradingView it resolves to COMEX:GC1!, the
+        # exchange's front-month future, and on MT5 to a broker spot CFD. Those
+        # two were measured 51.7 points apart. A picker that says XAUUSD over
+        # either of them is telling the reader the one thing this repo tries
+        # hardest not to: a real price under a name that is not its own.
         "symbols": [
-            {"id": sid, "providers": sorted(vendors)} for sid, vendors in SYMBOLS.items()
+            {"id": sid, "providers": sorted(vendors), "vendor": dict(vendors)}
+            for sid, vendors in SYMBOLS.items()
         ],
+        # SERVED, not restated in the UI. `posko-panel.tsx` carried its own copy
+        # of these seven families with hand-written descriptions, which is the
+        # drift this endpoint's docstring exists to prevent - and it drifted the
+        # moment `metals` was added, because that meant editing the backend
+        # tuple and two frontend lists by hand. The panel now labels each family
+        # from this, and can name the members in whatever the active feed calls
+        # them rather than in abbreviations nobody can map back.
+        "triads": {name: list(members) for name, members in TRIAD_FAMILIES.items()},
         "intervals": list(INTERVALS),
         # Served so the UI can offer them without a second copy of the list.
         # An empty pick is the generic per-instrument row, which is what the
@@ -492,13 +535,38 @@ async def triad_read(
 
     base = symbol.split(":")[-1]
     symbols = [base, *[p for p in family[1:] if p != base]]
-    # Binance and Yahoo only carry a handful of the twenty instruments. The
-    # triad partners - DXY, EURUSD, WTI, NAS100, etc. - are not among them,
-    # so a triad read on those providers would always fail. MT5 carries all
-    # twenty and is the fallback.
-    triad_provider = provider
-    if provider in ("binance", "yahoo", None):
-        triad_provider = "mt5"
+    # WHICH FEED ACTUALLY SERVES THE TRIAD. A triad needs all three legs or
+    # none, and no feed carries every instrument, so the feed has to be chosen
+    # against the legs before the load rather than discovered by a 502 after it.
+    #
+    # ASKED PER LEG, NOT PER FEED NAME. This was a flat list - "binance, yahoo
+    # or unset means mt5" - and it was wrong in both directions. It sent
+    # `metals` (XAU/XAG/XPT, all three of which Yahoo maps to their COMEX and
+    # NYMEX front months) to MT5 spot CFDs, quietly answering a question about
+    # exchange-traded futures with broker CFDs. And it sent `bonds` to MT5,
+    # which carries neither US10Y nor US30Y, so that triad returned 502 to every
+    # caller on every provider for as long as the list existed - the flat list
+    # could not express "the fallback is the thing that cannot serve this".
+    #
+    # The order is preference, not correctness: the caller's own feed first,
+    # then MT5 because it is the widest and by far the fastest here, then Yahoo
+    # which is the only feed carrying the treasury yields. If NOTHING carries
+    # the triad the caller's provider is kept, so `load_aligned` raises naming
+    # the leg that is actually missing instead of a substitute feed's problem.
+    # The app default leads, NOT a name written here. An unnamed provider means
+    # "whatever the chart is on", and this route spelling that as `mt5` was only
+    # ever indistinguishable from the default because the default happened to be
+    # mt5 too. That stopped being true the day the default moved to the exchange
+    # tape, and the triad would have kept answering from the broker's tape while
+    # every other route answered from the exchange's.
+    triad_provider = next(
+        (
+            p
+            for p in (provider, settings.default_provider, "mt5", "yahoo")
+            if p and carries(p, symbols)
+        ),
+        provider or settings.default_provider,
+    )
     try:
         series, load_stats = await load_aligned(
             symbols, interval, bars, triad_provider
@@ -616,19 +684,56 @@ async def _draw_ssmt(
     """
     params = request.checklist
     stats: dict[str, object] = {"drawn": 0}
-    if not (params.ssmt_symbols and params.ssmt_degrees):
-        # SATU BAHASA DI SATU RAIL. Kalimat ini English sejak layer-nya dikirim,
-        # lalu `session` dan `dfr` menyusul dengan kalimat Bahasa Indonesia pada
-        # 2 September 2026, dan rail-nya menampilkan ketiganya berdampingan.
-        # Diselaraskan ke Bahasa Indonesia karena dua dari tiga sudah begitu.
-        # Aman diubah: `e2e/rails.mjs` membaca string ini DARI API lalu
-        # memeriksa ia muncul di DOM, jadi tidak ada harness yang mengeja
-        # kalimatnya.
-        stats["reason"] = "pilih minimal satu instrument dan satu degree"
+    # DUA SYARAT, DAN HANYA SATU YANG BERLAKU UNTUK SEMUA PENUMPANG BLOK INI.
+    #
+    # Partner wajib bagi ketiganya: tanpa instrumen kedua tidak ada yang bisa
+    # dibandingkan, jadi itu pintu pertama dan ia menutup semuanya.
+    #
+    # DERAJAT TIDAK. `smt_fill` tidak punya derajat kuarter sama sekali - ia
+    # membandingkan gap yang tercetak di bar yang sama, dan kuarter tidak ada
+    # dalam definisinya. Sampai 11 September 2026 ia tetap ter-gate di sini,
+    # jadi menyalakan layer itu sendirian mengharuskan pembaca memilih sebuah
+    # SSMT stage yang tidak dipakainya untuk apa pun. Ditemukan oleh probe
+    # piksel, bukan oleh harness: `wiring.mjs` menyuplai kedua field lewat API
+    # sekaligus, jadi kombinasi "partner ada, degree tidak" tidak pernah diuji.
+    #
+    # SATU BAHASA DI SATU RAIL. Kalimat-kalimat ini English sejak layer-nya
+    # dikirim, lalu `session` dan `dfr` menyusul dengan kalimat Bahasa Indonesia
+    # pada 2 September 2026. Diselaraskan ke Bahasa Indonesia. Aman diubah:
+    # `e2e/rails.mjs` membaca string ini DARI API lalu memeriksa ia muncul di
+    # DOM, jadi tidak ada harness yang mengeja kalimatnya.
+    if not params.ssmt_symbols:
+        stats["reason"] = "pilih minimal satu instrument sebagai partner"
+        return stats
+
+    wanted_layers = set(request.layers)
+    if not params.ssmt_degrees and not ("smt_fill" in wanted_layers):
+        stats["reason"] = "pilih minimal satu degree"
         return stats
 
     source = params.ssmt_provider or used
     symbols = list(dict.fromkeys([request.symbol, *params.ssmt_symbols]))
+    # THE PARTNER LIST CAN COLLAPSE TO THE CHART'S OWN SYMBOL, and until now that
+    # was a 500. `ssmt()` raises ValueError when it is handed fewer than two
+    # instruments, this block catches only ProviderError, and the docstring above
+    # promises every failure here is reported and survived - so one unlucky pick
+    # took down a drawing whose own bars had already arrived.
+    #
+    # REACHABLE FROM THE UI, not just from a hand-written request: the partner
+    # picker excludes the chart's symbol from its OPTIONS but does not prune a
+    # choice already made, so picking silver as gold's partner and then moving
+    # the chart to silver leaves `ssmt_symbols == ["XAGUSD"]` on `symbol
+    # "XAGUSD"`. Found by `tools/tf_audit --all`, which swept XAGUSD against the
+    # partner table and got HTTP 500 twice in the control.
+    #
+    # Reported in the same shape as the "nothing picked" case above, because it
+    # is the same fact from the reader's side: there is no second instrument.
+    if len(symbols) < 2:
+        stats["reason"] = (
+            f"{request.symbol} tidak bisa dibandingkan dengan dirinya sendiri - "
+            "pilih instrument lain sebagai partner"
+        )
+        return stats
     try:
         series, load_stats = await load_aligned(
             symbols, request.interval, request.bars, source
@@ -652,9 +757,17 @@ async def _draw_ssmt(
     # basket twice to read the same thing. Filled only when the layer is asked
     # for, so a chart with `ssmt` alone carries no PSP cost at all.
     want_psp = "psp" in set(request.layers)
+    #: Body-basis divergences found across every degree, counted apart from the
+    #: wick ones so `meta` can say how much of the population is hidden.
+    hidden_count = 0
     psp_rows: list[PSPModel] = []
     partners = [series[k] for k in series if k != request.symbol]
     index_of = {c.time: i for i, c in enumerate(rows)}
+    if not params.ssmt_degrees:
+        # Reached only when `smt_fill` is the reason this block ran at all. The
+        # fill pass below needs none of the per-degree work, so saying so beats
+        # an empty SSMT count the reader has to diagnose.
+        stats["reason"] = "tidak ada degree, hanya SMT fill"
     for degree in dict.fromkeys(params.ssmt_degrees):
         events, _ = ssmt_read(series, degree)
         if want_psp:
@@ -689,6 +802,26 @@ async def _draw_ssmt(
                 events, request.symbol, rows, request.structure.swing_n
             )
         )
+
+        # HIDDEN SSMT: the same comparison on BODY extremes, when asked for.
+        #
+        # A second pass rather than a widened first one, because the two are
+        # different claims and the events carry `basis` to keep them apart. The
+        # source says hidden is the weaker of the pair "because no liquidity is
+        # technically being swept"; that is a claim with no number, so it ships
+        # switched off and counted separately rather than folded into the
+        # population every existing measurement was taken on.
+        #
+        # PSP DELIBERATELY DOES NOT READ THIS PASS. `psp_after_ssmt` was
+        # measured against wick divergences, and quietly feeding it a second
+        # kind of event would change what its null result was a null about.
+        if params.ssmt_hidden:
+            hidden_events, _ = ssmt_read(series, degree, basis="body")
+            hidden_found = divergences_for(
+                hidden_events, request.symbol, rows, request.structure.swing_n
+            )
+            hidden_count += len(hidden_found)
+            found.extend(hidden_found)
     if want_psp:
         # One row per bar: two degrees can point at the same sweep, and the same
         # sweep drawn twice is one fact reported as two.
@@ -701,10 +834,70 @@ async def _draw_ssmt(
         stats["psp_found"] = len(seen)
         stats["psp_drawn"] = len(drawing.psp)
 
+    # ---------------------------------------------------------- SMT fill
+    # Same basket, different question: not "which instrument took the previous
+    # quarter's extreme" but "which instrument came back into its gap". Filled
+    # only when the layer is asked for, so a chart with ssmt alone pays nothing
+    # for it.
+    if "smt_fill" in set(request.layers):
+        try:
+            fill_events, fill_stats = smt_fills(series)
+        except ValueError as exc:
+            # An unaligned basket, which `load_aligned` should make impossible.
+            # Reported rather than raised, the same choice everything else in
+            # this function makes.
+            stats["smt_fill_error"] = str(exc)[:160]
+        else:
+            mine = fills_for(fill_events, request.symbol)
+            rendered = [
+                SMTFillDivergence(
+                    variant=event.variant,
+                    partner=(
+                        event.held if event.filled == request.symbol
+                        else event.filled
+                    ),
+                    self_filled=event.filled == request.symbol,
+                    direction=event.direction,
+                    top=(
+                        event.filled_gap.top
+                        if event.filled == request.symbol
+                        else event.held_gap.top
+                    ),
+                    bottom=(
+                        event.filled_gap.bottom
+                        if event.filled == request.symbol
+                        else event.held_gap.bottom
+                    ),
+                    gap_at=event.gap_at,
+                    self_depth=(
+                        event.filled_depth
+                        if event.filled == request.symbol
+                        else event.held_depth
+                    ),
+                    partner_depth=(
+                        event.held_depth
+                        if event.filled == request.symbol
+                        else event.filled_depth
+                    ),
+                    knowable_at=event.knowable_at,
+                )
+                for event in mine
+            ]
+            cap = request.smt_fill.max_events
+            drawing.smt_fill = rendered[-cap:] if cap > 0 else rendered
+            stats["fill_gaps"] = fill_stats["gaps"]
+            stats["fill_simultaneous"] = fill_stats["simultaneous"]
+            stats["fill_found"] = float(len(mine))
+            stats["fill_drawn"] = float(len(drawing.smt_fill))
+            for variant in ("entered", "half", "full"):
+                stats[f"fill.{variant}"] = fill_stats[f"variant.{variant}"]
+
     # Oldest first, so the newest segment is drawn last and sits on top where
     # two divergences share an extreme.
     found.sort(key=lambda d: (d.time_from, d.degree, d.partner))
     stats["found"] = len(found)
+    if params.ssmt_hidden:
+        stats["hidden"] = float(hidden_count)
     # FOUND against DRAWN, both reported, the same shape every other capped
     # overlay uses. The cap trims the tail so the newest survive; see `ssmt_max`
     # for why this layer needs one more than the others do.
@@ -886,7 +1079,11 @@ async def draw(request: DrawRequest, http: Request) -> DrawResponse:
     # one dict lookup. The alternative was a second copy of the basket settings.
     # PSP reads the SSMT events, so asking for it asks for the same fetch. The
     # block fills whichever of the two layers was requested and no more.
-    if ("ssmt" in wanted or "psp" in wanted) and rows:
+    # SMT FILL RIDES THE SAME BASKET, which is the whole reason it is not its
+    # own async block: a fill divergence needs the identical aligned series a
+    # sequential SMT needs, and fetching it twice would pay for the same
+    # partners twice. Three layers, one fetch.
+    if ("ssmt" in wanted or "psp" in wanted or "smt_fill" in wanted) and rows:
         meta["ssmt"] = await _draw_ssmt(rows, request, drawing, used)
 
     # Plans and advice are computed for what SURVIVED to the screen, and that is

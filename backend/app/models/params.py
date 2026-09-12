@@ -41,6 +41,13 @@ class ParamBlock(BaseModel):
 class SupplyDemandParams(ParamBlock):
     """Every knob the UI exposes. Defaults are the ones the test fixtures pin."""
 
+    # 14 DIUKUR, BUKAN DIWARISI, sejak 6 September 2026. Ia menskalakan gerbang
+    # DAN stop sekaligus, jadi ia disapu pada margin atas kontrol placebo dan
+    # bukan pada PF mentah. XAUUSD 4h, paruh 2013-2019, dengan biaya: margin
+    # +0,1223 di periode 7, +0,1213 di 14, +0,1135 di 28. Rentang empat kali
+    # lipat menggeser jawabannya 0,009 R, yaitu nol di dalam noise. Knob ini
+    # tidak menggigit; nilainya dipertahankan karena mengubahnya juga tidak
+    # membeli apa-apa.
     atr_period: int = Field(default=14, ge=2, le=200)
 
     # A candle is "exciting" (part of a leg) when its body dominates its range
@@ -169,6 +176,167 @@ class SupplyDemandParams(ParamBlock):
     merge_overlap_pct: float = Field(default=0.6, ge=0.0, le=1.0)
 
 
+#: Knob di `ImbalanceParams` yang HANYA dibaca `detect_order_block`. Blok ini
+#: dipakai bersama oleh empat detektor, jadi mengirim salah satu dari lima ini
+#: dengan hanya `fvg` atau `ifvg` menyala adalah 200 tanpa efek apa pun - bentuk
+#: yang persis sama dengan insiden `source` yang membuat `ParamBlock` di atas
+#: menolak field tak dikenal. Bedanya field-field ini DIKENAL, cuma tidak dibaca,
+#: jadi `extra="forbid"` tidak menangkapnya.
+#:
+#: Daftarnya konstanta dan bukan turunan AST saat runtime, karena yang menjaga
+#: kebenarannya adalah test: `tests/test_shared_param_block.py` menurunkan
+#: himpunan yang sama dari kode dan menyamakannya dengan baris ini. Runtime tetap
+#: bodoh dan cepat; drift ketahuan di gate, bukan di produksi.
+ORDER_BLOCK_ONLY = (
+    "displacement_atr",
+    "displacement_bars",
+    "require_structure_break",
+    "structure_break_bars",
+    "structure_n",
+)
+
+
+class CisdZoneParams(ParamBlock):
+    """Knob detektor `cisd_zone`. Definisi CISD-nya diwarisi, tidak diulang.
+
+    `min_run` dan `interrupt_tolerance` diteruskan apa adanya ke `app.cisd.cisds`
+    - fungsi yang SAMA yang dipakai overlay dan `recent_in_band`. Dua definisi
+    CISD yang bisa berselisih persis cara chart tidak setuju dengan
+    kalibrasinya sendiri.
+    """
+
+    atr_period: int = Field(default=14, ge=2, le=200)
+
+    #: Panjang run minimum yang boleh mempersenjatai sebuah level. Default 2
+    #: sama dengan `CISDParams`, dan seperti di sana ia DIPILIH bukan diukur.
+    min_run: int = Field(default=2, ge=1, le=20)
+
+    #: Berapa lilin non-conforming berturut yang diserap sebelum run putus.
+    #: Menaikkannya MENGGABUNG run, jadi ia memindahkan level DAN barnya.
+    interrupt_tolerance: int = Field(default=0, ge=0, le=5)
+
+    #: Lantai tinggi kotak dalam ATR. NOL berarti tidak mengikat - lihat
+    #: catatan di `FLOOR_GATE_ATR`. Disediakan supaya bisa disapu.
+    run_min_atr: float = Field(default=0.0, ge=0.0, le=20.0)
+
+    mitigation_pct: float = Field(default=0.5, ge=0.0, le=1.0)
+    arrival_bars: int = Field(default=6, ge=1, le=50)
+    show_broken: bool = False
+    show_mitigated: bool = True
+    max_zones_per_side: int = Field(default=6, ge=0, le=100)
+
+    #: Level CISD PADAT - 12,05 persen bar di XAUUSD harian membawa satu, tiga
+    #: kali lebih padat daripada pembanding LuxAlgo - jadi kotaknya sering
+    #: bertumpuk dan dedupe di sini bukan salinan melainkan kebutuhan.
+    merge_overlap_pct: float = Field(default=0.6, ge=0.0, le=1.0)
+
+
+class LiquidityPoolParams(ParamBlock):
+    """Knob detektor `liquidity_pool`, yang memancarkan kotak BSL dan SSL.
+
+    BSL/SSL SUDAH ADA DI REPO INI SEBAGAI LEVEL, dan itu harus dibaca sebelum
+    knob mana pun di sini disentuh. `app/liquidity.py` membawa `PeriodLevel`
+    dengan `side: Literal["BSL","SSL"]` untuk PDH/PDL/PWH/PWL/FRI/MON, plus ERL
+    dan IRL dari dealing range. Semua itu GARIS, dan tak satu pun diukur
+    terhadap outcome. Detektor ini pertanyaan yang BERBEDA: bukan "di mana
+    ekstrem periode kemarin" melainkan "di mana beberapa pivot sepakat harga",
+    yaitu kluster equal highs / equal lows. Dua konstruk, dua populasi; jangan
+    mengutip pengukuran yang satu untuk yang lain.
+
+    TOLERANSI MENGELOMPOKKAN, IA TIDAK MENGGAMBAR. Ini pemisahan yang disengaja
+    dan ia yang menjaga jumlah konstanta tetap: `equal_tol_atr` hanya memutuskan
+    pivot mana yang masuk satu kluster, sementara tepi kotaknya diambil dari
+    sebaran pivot yang TERAMATI di dalam kluster itu. Alternatifnya - kotak
+    selebar toleransi, diangkur di pivot terekstrem, yang dipakai beberapa
+    script publik - ditolak karena ia memindahkan sebuah konstanta ke dalam
+    geometri, dan tinggi kotak adalah jarak stop. Konsekuensinya kluster yang
+    seluruh pivotnya berharga PERSIS sama memberi kotak setinggi nol; itu
+    ditolak dan dihitung di `rejected_zero_height`, bukan ditambal dengan lantai
+    karangan. Terukur nol dari 100 bar XAUUSD harian, jadi ia kasus tepi nyata
+    tapi jarang di feed ini.
+    """
+
+    atr_period: int = Field(default=14, ge=2, le=200)
+
+    #: Lebar fraktal pivot, diteruskan ke `structure.swings` sebagai left DAN
+    #: right. Sama dengan `OteParams.swing_n`, dan sengaja knob terpisah: kedua
+    #: detektor boleh membaca struktur pada derajat yang berbeda.
+    swing_n: int = Field(default=3, ge=2, le=50)
+
+    #: Seberapa dekat dua pivot boleh berbeda dan masih disebut "sama", dalam
+    #: ATR. DIPILIH, bukan diukur, dan itu dinyatakan: 0,1 ATR adalah tebakan
+    #: awal yang disapu di TradingView, bukan angka yang punya sumber.
+    equal_tol_atr: float = Field(default=0.1, ge=0.0, le=5.0)
+
+    #: Berapa pivot yang harus sepakat sebelum kluster jadi kolam. Dua adalah
+    #: definisi minimum "equal highs"; menaikkannya menuntut kolam yang lebih
+    #: sering disentuh dan memangkas populasi dengan cepat.
+    min_touches: int = Field(default=2, ge=2, le=10)
+
+    mitigation_pct: float = Field(default=0.5, ge=0.0, le=1.0)
+    arrival_bars: int = Field(default=6, ge=1, le=50)
+    show_broken: bool = False
+    show_mitigated: bool = True
+    max_zones_per_side: int = Field(default=6, ge=0, le=100)
+
+    #: Kolam bertumpuk saat satu pivot masuk dua kluster yang berdekatan.
+    merge_overlap_pct: float = Field(default=0.6, ge=0.0, le=1.0)
+
+
+class OteParams(ParamBlock):
+    """Knob detektor `ote`: pita retracement di atas satu leg struktur.
+
+    BLOK SENDIRI, BUKAN MENUMPANG `imbalance`. Empat detektor imbalance berbagi
+    satu blok karena mereka membaca GEOMETRI yang sama - celah dan badan lilin -
+    dan memberi mereka ambang terpisah akan membiarkan populasinya hanyut. OTE
+    tidak membaca satu pun dari itu: ia dibuat dari dua HARGA swing dan dua
+    rasio. Menaruhnya di `imbalance` berarti empat detektor lain tiba tiba punya
+    slider `swing_n` yang tidak mereka pakai.
+
+    Field lifecycle (`mitigation_pct`, `arrival_bars`, `show_broken`,
+    `show_mitigated`, `max_zones_per_side`) DIULANG dengan nama yang sama karena
+    `_finish` dan `_present` di `imbalance.py` membacanya lewat nama - itu
+    kontraknya, dan menyimpangi namanya akan memutus keduanya diam diam.
+    """
+
+    #: Skala ATR untuk gerbang panjang leg. Sama dengan default detektor lain.
+    atr_period: int = Field(default=14, ge=2, le=200)
+
+    #: Berapa bar sebuah pivot harus mendominasi, DAN berapa lama harus ditunggu
+    #: sebelum ia boleh diketahui. `structure.swings` memakai angka ini di kedua
+    #: sisi, jadi menaikkannya menunda kelahiran zona sebanyak itu juga.
+    #:
+    #: 5 MENGIKUTI `StructureParams.structure_n`, BUKAN `dealing_range`. Yang
+    #: terakhir memakai 50, dan perbedaan itu persis yang membuat dua definisi
+    #: OTE di repo ini tidak setuju - lihat docstring `detect/ote.py`. Nilai di
+    #: sini dipilih supaya kotaknya cocok dengan grid yang DIGAMBAR.
+    swing_n: int = Field(default=5, ge=2, le=200)
+
+    #: Lantai gerbang: panjang leg dalam ATR di bar anchor pertama.
+    #:
+    #: DOKTRIN OTE TIDAK PUNYA GERBANG. Ia aturan tempat masuk, bukan aturan
+    #: seleksi, jadi angka ini padanan yang DIPILIH agar sebanding dengan empat
+    #: detektor lain - bukan sesuatu yang diwarisi dari sumber. Default 2,0
+    #: menyamai `DEPARTURE_GATE_ATR`.
+    leg_min_atr: float = Field(default=2.0, ge=0.0, le=20.0)
+
+    mitigation_pct: float = Field(default=0.5, ge=0.0, le=1.0)
+    arrival_bars: int = Field(default=6, ge=1, le=50)
+    show_broken: bool = False
+    show_mitigated: bool = True
+    max_zones_per_side: int = Field(default=6, ge=0, le=100)
+
+    #: DIPERLUKAN OLEH GEOMETRINYA, bukan disalin dari supply_demand.
+    #: Pasangan anchor BERURUTAN berbagi satu anchor - low yang sama dengan
+    #: high berikutnya - jadi pita yang dihasilkannya nyaris selalu
+    #: bertumpuk. Audit visual 8 September 2026 pada XAUUSD harian tidak
+    #: bisa memisahkan dua kotak supply yang bertumpuk di sebagian besar
+    #: rentangnya: "they render as a single banded region crossed by four
+    #: solid rules". Empat detektor imbalance tidak punya masalah ini
+    #: karena kotaknya dibuat dari lilin yang berbeda.
+    merge_overlap_pct: float = Field(default=0.6, ge=0.0, le=1.0)
+
+
 class ImbalanceParams(ParamBlock):
     """Knobs for the four detectors that read imbalance: fvg, order_block,
     ifvg and breaker.
@@ -196,22 +364,44 @@ class ImbalanceParams(ParamBlock):
             "population is dominated by noise."
         ),
     )
+    # KEDUA FILTER DI BAWAH MENYALA ATAS ARGUMEN DEFINISI, BUKAN ATAS EDGE, dan
+    # baris ini dikoreksi pada hari yang sama ia ditulis. Sore itu ia berbunyi
+    # bahwa keduanya "diukur sebelum diubah" - benar, tapi di SATU bracket.
+    # Diukur ulang di bracket produksi (stop 0,25 ATR, target zona lawan,
+    # XAU+BTC digabung) hasilnya bergantung bracket dan berada di dalam noise:
+    #
+    #   1h+4h   A 0,954 PF  ->  B mother 0,950  ->  E mother+body 0,969
+    #   30m     A 1,008 PF  ->  B mother 0,998  ->  E mother+body 0,990
+    #   TV 4h   margin atas placebo +0,065 -> +0,080 -> +0,121
+    #
+    # Dua dari tiga bilang pasangan ini lebih baik dari baseline, satu bilang
+    # lebih buruk, dan ketiganya di dalam +/-0,03 R pada n dua sampai tiga ribu.
+    # Bacaan yang jujur: keduanya tidak menggerakkan hasil ke arah mana pun.
+    #
+    # Mereka tetap menyala karena alasan yang tidak bergantung P&L: pola yang
+    # mereka buang memang bukan displacement. Sebuah inside bar tidak
+    # menggambarkan harga terbang melewati pita, ia menggambarkan dua bar kecil
+    # di dalam satu bar besar; dan sebuah doji meninggalkan celahnya dengan
+    # sumbu, bukan dengan pengiriman. Itu klaim tentang APA YANG DIGAMBAR, dan
+    # pengukuran di atas menyatakannya tidak berbiaya. Jangan kutip keduanya
+    # sebagai edge.
     filter_mother: bool = Field(
-        default=False,
-        description="Skip FVG where middle bar engulfs both neighbors.",
-    )
-    min_body_ratio: float = Field(
-        default=0.0, ge=0.0, le=1.0,
+        default=True,
         description=(
-            "Middle bar body/range ratio floor. 0.0 = no filter, "
-            "0.3 = skip dojis whose body is <30% of the bar range."
+            "Skip FVG where the middle bar engulfs both neighbours. An inside "
+            "bar pair does not describe price flying through a band; it "
+            "describes two small bars inside one large one, and the gap it "
+            "leaves is an artefact of that geometry."
         ),
     )
-    body_gap: bool = Field(
-        default=False,
+    min_body_ratio: float = Field(
+        default=0.3, ge=0.0, le=1.0,
         description=(
-            "Use close/open boundaries instead of high/low for gap edges. "
-            "Stricter: only counts gaps between candle bodies, not wicks."
+            "Middle bar body/range ratio floor. 0.0 = no filter, "
+            "0.3 = skip dojis whose body is <30% of the bar range. A doji that "
+            "leaves a gap left it with wicks rather than with delivery, which "
+            "is the opposite of the displacement the pattern is supposed to "
+            "mark."
         ),
     )
 
@@ -238,6 +428,20 @@ class ImbalanceParams(ParamBlock):
 
     # Read by the shared lifecycle replay, which is why they are named exactly
     # as the supply/demand block names them.
+    #
+    # KEDUANYA DIUKUR 6 September 2026 dan keduanya TIDAK BISA menggerakkan apa
+    # yang tergambar untuk fvg, jadi jangan menyapunya lagi berharap edge.
+    #
+    # `mitigation_pct` disapu 0,1 sampai 0,9 di XAUUSD 4h: himpunan zona yang
+    # tergambar IDENTIK di kelimanya, 139 kotak dengan id yang sama persis, dan
+    # cacah `fresh` diam di 45. Yang bergerak hanya pembagian TESTED lawan
+    # MITIGATED (4/90 menjadi 43/51), dan default `show_mitigated` menerima
+    # keduanya - jadi ia mengubah label dan alpha isian, bukan populasi. Jalur
+    # order menyaring `fresh`, yang juga tidak bergerak.
+    #
+    # `arrival_bars` hanya masuk ke `arrival_atr`, dan field itu dicatat lalu
+    # dibiarkan tanpa skor - doktrinnya sendiri tidak sepakat apakah kedatangan
+    # cepat itu baik atau buruk. Ia tidak menyentuh `state`.
     mitigation_pct: float = Field(default=0.5, ge=0.0, le=1.0)
     arrival_bars: int = Field(default=6, ge=1, le=50)
 
@@ -405,6 +609,33 @@ class SessionParams(ParamBlock):
             "measurement must pass 0 - a recency cap silently confines a sample "
             "to the tail of the history, which has already cost this project "
             "one full round of calibration."
+        ),
+    )
+    killzones: list[str] = Field(
+        default_factory=list,
+        description=(
+            "Degrees to intersect, OUTERMOST FIRST, drawing the windows where "
+            "all of them are in the same numbered quarter - the source's QT "
+            "Killzone, and the `quarter-sequence` reference's N-stage sequence. "
+            "`[\"day\", \"session\"]` gives the worked example, Q3 of Q3 at "
+            "09:00-10:30 New York. Empty draws none.\n\n"
+            "READ THE BASE RATE BEFORE READING THE WINDOWS. Two degrees align "
+            "on one quarter in four BY CONSTRUCTION and three on one in "
+            "sixteen; the drawing says when they line up, not that lining up "
+            "means anything. Nothing here has been measured."
+        ),
+    )
+    premium_discount: list[str] = Field(
+        default_factory=list,
+        description=(
+            "Degrees to draw time-based premium and discount for: the range of "
+            "the PREVIOUS quarter one degree up, with its 50% line. Empty "
+            "draws none.\n\n"
+            "It carries NO parameter, which is the only reason it is here "
+            "beside the swing-based dealing range rather than instead of it - "
+            "that one has `swing_n` and can be tuned into agreement with an "
+            "outcome, this one is arithmetic on the clock and cannot. Which of "
+            "the two reads price better has not been measured."
         ),
     )
 
@@ -801,6 +1032,19 @@ class ChecklistParams(ParamBlock):
             "one full round of calibration."
         ),
     )
+    ssmt_hidden: bool = Field(
+        default=False,
+        description=(
+            "Also read the sequential SMT on BODY extremes, not just wicks - "
+            "the source's Hidden SSMT. Events from the body pass are stamped "
+            "`basis: body` so the two are never mixed into one count. Off by "
+            "default because every measurement in this project was taken on "
+            "wicks, and because the source itself calls hidden the weaker of "
+            "the pair - a claim with no number behind it, which is exactly why "
+            "it ships as a switch rather than as an always-on widening of the "
+            "population."
+        ),
+    )
     ssmt_provider: str | None = Field(
         default=None,
         description=(
@@ -848,6 +1092,25 @@ class WyckoffParams(ParamBlock):
             "chosen number, not a measured one - the Wyckoff method names no "
             "window, so this is stated rather than fitted."
         ),
+    )
+
+
+class SMTFillParams(ParamBlock):
+    """Gap-fill divergence across correlated instruments. One knob, the ink cap.
+
+    NO THRESHOLD ANYWHERE ELSE, on purpose. There is no minimum gap size, no
+    lookahead cap and no minimum depth difference: the source is explicit that
+    size does not matter, and the three variants are defined by 0, 0.5 and 1.0,
+    which is the gap's own geometry rather than tuning. The partners come from
+    the SSMT block, because a divergence needs a second instrument and this
+    layer rides the basket that block already fetches.
+    """
+
+    max_events: int = Field(
+        default=40,
+        ge=0,
+        le=500,
+        description="Newest fill divergences drawn, 0 for no cap.",
     )
 
 

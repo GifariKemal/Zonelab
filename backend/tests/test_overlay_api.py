@@ -81,8 +81,9 @@ def test_the_layer_catalogue_is_advertised_in_draw_order_and_says_what_each_is()
     """
     config = client.get("/api/config").json()
     assert [layer["id"] for layer in config["layers"]] == [
-        "supply_demand", "fvg", "order_block", "ifvg", "breaker",
-        "structure", "session", "vortex", "gaps", "chart_gaps", "psp", "wyckoff", "cisd", "dfr", "ssmt", "pools",
+        "supply_demand", "fvg", "order_block", "ifvg", "breaker", "ote", "cisd_zone", "liquidity_pool",
+        "structure", "session", "vortex", "gaps", "chart_gaps", "psp", "wyckoff", "cisd", "dfr", "ssmt",
+        "smt_fill", "pools",
         "liquidity", "projections", "expectation", "news", "checklist",
     ]
     for layer in config["layers"]:
@@ -896,7 +897,12 @@ def test_every_registered_layer_is_actually_dispatched():
     # rather than paying for the same basket twice. This test is what caught it
     # being registered before it was dispatched, which is the job it was written
     # for.
-    ASYNC_DISPATCHED = {"ssmt", "news", "checklist", "psp"}
+    #
+    # `smt_fill` is the fifth, added 11 September 2026, and it rides the SAME
+    # aligned basket for the same reason psp does: a gap-fill divergence needs a
+    # second instrument, and paying for that basket twice would be paying twice
+    # for one fetch.
+    ASYNC_DISPATCHED = {"ssmt", "news", "checklist", "psp", "smt_fill"}
 
     dispatched = set(_HANDLERS) | set(BAR_OVERLAYS) | ASYNC_DISPATCHED
     orphans = sorted(layer.id for layer in LAYERS if layer.id not in dispatched)

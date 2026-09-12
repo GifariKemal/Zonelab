@@ -18,6 +18,17 @@ pytest>=8.0
 # client picks up the new one.
 httpx2>=2.12
 
+# The TradingView provider's transport. It IMPORTS this directly, and until now
+# it arrived only as a transitive extra of `uvicorn[standard]` - so the default
+# data source depended on a dependency nobody had declared, and a plain
+# `uvicorn` install or a change to that extra would have broken it at import
+# rather than at the provider probe. Declared here because this file's rule is
+# that what the code imports, the file names.
+#
+# NOT platform-marked: unlike MetaTrader5 below, this is pure Python and the
+# provider it serves talks CDP over TCP, which is the same on every OS.
+websockets>=13.0
+
 # Windows ships no system timezone database, so stdlib `zoneinfo` reads this
 # package instead. app/clock.py needs America/New_York with real DST, because
 # the quarter grid is nailed to New York wall time and a fixed UTC offset would

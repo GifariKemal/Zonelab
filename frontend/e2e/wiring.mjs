@@ -57,6 +57,9 @@ const MINIMUM = {
   // does. Without them it correctly draws nothing, and this harness would then
   // be reporting a missing partner as a dead layer.
   psp: { checklist: { ssmt_symbols: ["XAGUSD"], ssmt_degrees: ["day"] } },
+  // Same reason as psp: a gap-fill divergence needs a second instrument, and
+  // it rides the very basket the ssmt layer fetches.
+  smt_fill: { checklist: { ssmt_symbols: ["XAGUSD"], ssmt_degrees: ["day"] } },
 };
 
 /** Which response array each layer fills. `checklist` is a report, not a shape. */
@@ -66,6 +69,9 @@ const DRAWS = {
   order_block: "zones",
   ifvg: "zones",
   breaker: "zones",
+  ote: "zones",
+  cisd_zone: "zones",
+  liquidity_pool: "zones",
   structure: "swings",
   session: "quarters",
   vortex: "vortex",
@@ -81,6 +87,7 @@ const DRAWS = {
   chart_gaps: "chart_gaps",
   wyckoff: "wyckoff",
   psp: "psp",
+  smt_fill: "smt_fill",
 };
 
 const results = [];
@@ -210,6 +217,9 @@ check("every registry row carries an evidence disclosure", bukti === registry.le
 const OWNERS = [
   ["supply_demand", "Supply and demand", "Zones per side"],
   ["fvg", "Fair value gap", "Boxes per side"],
+  ["ote", "Optimal trade entry", "Swing fractal"],
+  ["cisd_zone", "CISD zone", "Shortest run"],
+  ["liquidity_pool", "Liquidity BSL/SSL", "Equal tolerance"],
   ["structure", "Market structure", "Major fractal"],
   ["session", "Cycle grid", "Quarters kept"],
   ["gaps", "Opening gaps", "Gaps kept"],
@@ -221,6 +231,7 @@ const OWNERS = [
   ["projections", "Deviation projections", "Sessions"],
   ["expectation", "Expectation fan", "Expected path line"],
   ["psp", "Precision swing point", "Swing points drawn"],
+  ["smt_fill", "SMT fill", "Fills drawn"],
   ["wyckoff", "Wyckoff phases", "Trading range width"],
   ["news", "Economic calendar", "Impact"],
 ];

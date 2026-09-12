@@ -27,7 +27,7 @@ from app.models import Candle
 from app.providers.base import INTERVALS
 from app.providers.dukascopy import DIVISOR as DUKASCOPY_SYMBOLS
 
-from tools import dukascopy, mt5, yahoo
+from tools import dukascopy, mt5, tradingview, yahoo
 
 CACHE = Path(__file__).resolve().parent.parent / ".cache"
 PAGE = 1000  # vendor hard cap
@@ -146,6 +146,15 @@ def _load(symbol: str, interval: str, bars: int, refresh: bool = False) -> list[
     # on real broker gold possible at all; see tools/mt5.py.
     if source.lower() == "mt5":
         return mt5.load(ticker, interval, bars, refresh)
+
+    # The desktop app's own data session, on the same rule again. It is here
+    # for depth the other two do not have at the slow end - XAUUSD daily goes
+    # back to 1975 against MT5's 2016 - and `tradingview:XAUUSD` is COMEX:GC1!,
+    # the front-month future, which is a third instrument alongside the broker
+    # CFD and Dukascopy spot rather than a third view of one. It needs the
+    # desktop app running and says so plainly when it is not.
+    if source.lower() == "tradingview":
+        return tradingview.load(ticker, interval, bars, refresh)
 
     # XAUUSD here is real spot gold with a measured spread, not PAXG; only
     # Dukascopy carries it, and everything else this project measures on is a

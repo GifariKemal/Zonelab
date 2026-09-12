@@ -41,7 +41,21 @@ const API = "http://127.0.0.1:8100";
 //: dan `session` ikut sebagai pembanding - keduanya menggambar banyak sekali
 //: objek, jadi kalau pools terlihat besar, angka itu butuh tetangga untuk
 //: dibaca.
-const LAYERS = ["pools", "liquidity", "gaps", "projections", "structure", "session"];
+// `dfr`, `ssmt` dan `psp` DITAMBAHKAN 9 September 2026, dan sampai hari itu
+// ketiganya ada di `EMPTY_BY_DEFAULT` di bawah tanpa pernah dijalankan sekali
+// pun. Komentar di sana menjanjikan jaminan DUA ARAH - yang di luar daftar
+// harus menggambar, yang di dalam daftar harus tetap kosong - dan janji itu
+// hanya berlaku untuk `session`, satu-satunya nama yang muncul di kedua tempat.
+// Kalau default `dfr` berubah dan ia mulai menggambar, tidak ada satu pun gate
+// di sini yang akan merah.
+const LAYERS = [
+  "pools", "liquidity", "gaps", "projections", "structure",
+  "session", "dfr", "ssmt", "psp",
+  // Ditambahkan bersama layernya, 11 September 2026. Ia kosong dengan default
+  // karena butuh partner, jadi ia masuk `EMPTY_BY_DEFAULT` di bawah juga -
+  // dan justru itu yang membuat jaminan dua arahnya berlaku untuknya.
+  "smt_fill",
+];
 
 //: Layer yang menggambar NOL dengan setelan default, dan hitungannya diukur -
 //: bukan didaftar dari ingatan. `e2e/wiring.mjs` menemukannya dengan
@@ -54,7 +68,7 @@ const LAYERS = ["pools", "liquidity", "gaps", "projections", "structure", "sessi
 //: masuk ke sini dan gate-nya tetap hijau. Jadi yang di luar daftar HARUS
 //: menggambar, dan yang di dalam daftar harus TETAP kosong: sebuah default yang
 //: berubah tanpa ada yang memutuskannya juga merah.
-const EMPTY_BY_DEFAULT = new Set(["session", "dfr", "ssmt", "psp"]);
+const EMPTY_BY_DEFAULT = new Set(["session", "dfr", "ssmt", "psp", "smt_fill"]);
 
 //: Ambang yang sudah dikutip di repo ini tanpa pernah diukur, dinyatakan di sini
 //: sebagai apa adanya: sebuah RUJUKAN, bukan gerbang. Tidak ada satu pun angka

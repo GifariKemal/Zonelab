@@ -296,14 +296,41 @@ def by_method_ranked(row: tuple) -> tuple:
 #: 30 menit dan menemukan +0,2188 R di n=3.799 dengan t lawan nol +8,53 dan
 #: walk-forward 8 dari 8, bertahan +0,1354 dan +0,1235 di kontrol resolusi 1
 #: menit. Karena itu `fvg` masuk dengan gerbang `ceiling` dan hanya di 30m.
+    #
+    # TIGA-TIGANYA SUDAH TIDAK BERLAKU sejak 8 September 2026, dan paragraf
+    # di atas dipertahankan hanya sebagai riwayat alasan. (1) `fvg.orderable`
+    # mati 7 September, jadi ia tidak ada di `ORDERABLE_LAYERS`. (2)
+    # `measured_intervals` sekarang ("1h", "4h"), bukan 30m. (3) angka
+    # +0,2188 R dan walk-forward 8 dari 8 itu diukur pada lifecycle yang
+    # memeriksa pecah sebelum sentuh; sesudah diperbaiki ia +0,0919 R di
+    # t=+1,88, di bawah ambang Bonferroni sapuannya sendiri, dan 30m di
+    # TradingView memberi PF 0,906. Lihat docs/QA-FVG-TV.md bagian 1.
 #:
 #: TIDAK SATU PUN POSITIF SENDIRI di rig 1 jam: supply_demand -0,0153 R,
 #: order_block -0,0429 dengan t sendiri -6,21.
 ORDERABLE_LAYERS: tuple[str, ...] = tuple(
     layer.id for layer in LAYERS if layer.orderable
 )
+#: ARAH GERBANG ADALAH SIFAT DETEKTOR, BUKAN SIFAT "BOLEH DIORDER", dan baris
+#: ini menyaring `layer.orderable` sampai 7 September 2026. Dua hal ikut salah
+#: karenanya.
+#:
+#: `grounds()` dan `cleared_gate` membaca peta ini dengan fallback "floor", jadi
+#: layer ber-`ceiling` yang tidak orderable menghilang dari peta dan kalimatnya
+#: berbalik: sebuah zona yang lolos karena berada DI BAWAH plafon dilaporkan
+#: "clears" gerbangnya. Itu persis cacat yang dibawa enam order hidup pada
+#: 3 September 2026 dan yang `tests/test_execute.py` kunci untuk fvg - tapi
+#: `ifvg` sudah `orderable=False` dengan `gate="ceiling"` sejak sebelum itu,
+#: jadi lubang yang sama sudah menganga untuknya, cuma tidak ada yang menguji.
+#: Dan begitu `fvg` ikut dimatikan, ia akan jatuh ke lubang yang sama.
+#:
+#: Sekarang diturunkan dari `layer.gate`: setiap layer yang MENYATAKAN arah
+#: gerbang punya entri, terlepas dari apakah ia boleh diorder. Yang membatasi
+#: order tetap `ORDERABLE_LAYERS` di atas, dan memisahkan keduanya adalah
+#: intinya - satu menjawab "bagaimana membaca gerbang zona ini", satu lagi
+#: menjawab "bolehkah memasang order untuknya".
 GATE_DIRECTION: dict[str, str] = {
-    layer.id: (layer.gate or "floor") for layer in LAYERS if layer.orderable
+    layer.id: layer.gate for layer in LAYERS if layer.gate
 }
 MEASURED_INTERVALS: dict[str, tuple[str, ...]] = {
     layer.id: layer.measured_intervals
@@ -567,6 +594,11 @@ def candidates(
         # persinggungan. Tanpa batas kebaruan 18 dari 20 kena, yang persis
         # kondisi degenerate 95 persen yang studinya tolak.
         # Jadi angka -0,1363 R itu BELUM terpasang di jalur order, dan flag ini
+        # DIUKUR ULANG 8 September 2026 dan angkanya sekarang -0,1441 pada
+        # t=-4,098; pemisahannya bertahan. Kedua lengan PASCA negatif, tapi
+        # kohortnya bukan kohort PRA - lengan ber-CISD kehilangan 58
+        # persen populasinya sementara lengan satunya 2,6 persen, jadi
+        # premis 'filter ini menyelamatkan order_block' sudah gugur.
         # tidak boleh dibaca sebagai sudah. Yang benar mengevaluasinya di saat
         # pending terisi, dan hook itu belum ada. Flag-nya tetap di sini karena
         # ia benar untuk pemanggil yang memang punya bar sentuhan, dan karena
@@ -1495,8 +1527,16 @@ def main() -> None:
         "--no-cisd-in-band", action="store_true",
         help="buang order block yang memuat level CISD baru (dalam 50 bar) di "
              "dalam band-nya. Diukur pada order_block: -0,1119 R dengan, "
-             "+0,0244 R tanpa, delta -0,1363 t=-7,07, 8 dari 8 fold. Filter "
-             "ini yang membuat order_block layak dipilih sama sekali")
+             "+0,0244 R tanpa, delta -0,1363 t=-7,07, 8 dari 8 fold. "
+             "DIUKUR ULANG 8 September 2026 pasca perbaikan lifecycle: "
+             "-0,2568 dengan, -0,1127 tanpa, delta -0,1441 t=-4,098, tetap "
+             "8 dari 8 fold dan 8 dari 9 sel negatif. Pemisahannya bertahan, "
+             "TAPI kalimat lama di sini - filter ini yang membuat order_block "
+             "layak dipilih sama sekali - TIDAK BERLAKU LAGI: kedua lengan "
+             "PASCA negatif (dan kohortnya bukan kohort PRA, lihat "
+             "docs/CALIBRATION.md bagian 6) "
+             "sekarang negatif, jadi membuang block ber-CISD cuma menghindari "
+             "yang terburuk dari sebuah kerugian")
     parser.add_argument("--max-orders", type=int, default=2)
     parser.add_argument("--risk-pct", type=float, default=0.01,
                         help="fraction of equity risked per trade. Stated on the "

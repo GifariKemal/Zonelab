@@ -316,8 +316,47 @@ class ZoneFillRenderer implements IPrimitivePaneRenderer {
         // fill is the whole treatment: dimmer than its neighbours, still
         // clickable, still carrying its evidence in the inspector.
         const crowded = zone.crowded_at !== null;
+        // KOHORT YANG GAGAL GERBANG DIREDUPKAN, sejak 7 September 2026, dan ini
+        // idiom `crowded` di atas yang dipakai ulang - bukan kosakata baru.
+        //
+        // Sebabnya penekanan chart-nya TERBALIK dari buktinya. Gerbang fvg
+        // adalah PLAFON pada tinggi gap, jadi kohort yang lolos selalu kotak
+        // TERKECIL. Terukur di audit XAUUSD 4h: delapan zona di jendela, dua
+        // yang lolos tingginya 2,5px dan 9px sementara enam yang gagal 22
+        // sampai 62 satuan harga - jadi setiap kotak yang tergambar besar dan
+        // bercaption lengkap adalah kotak yang backtest TIDAK validasi.
+        //
+        // Yang diukur bukan "sebuah FVG ada di sini" melainkan kohortnya: di
+        // XAUUSD 4h, 13,7 tahun dengan biaya, yang lolos memberi PF 1,091 dan
+        // win 50,56 persen, dan kotak yang digeser acak memberi 1,014 di 38,72
+        // persen. Zona yang gagal gerbang tidak punya angka itu.
+        //
+        // MENGUATKAN yang lolos ditolak, dan alasannya bisa dinamai: `lineWidth`
+        // sudah membawa tiga arti (selected 2,5 - projected 2 - biasa 1) dan
+        // arti keempat di kanal yang sama persis kesalahan yang dilarang di
+        // komentar border di bawah. Meredupkan yang gagal tidak menambah kanal
+        // apa pun. Geometrinya TIDAK disentuh: kotak setipis dua piksel tetap
+        // digambar setipis dua piksel, karena menggembungkannya berarti
+        // berbohong soal rentang harga.
+        //
+        // DI FILL SAJA, BUKAN DI BORDER, dan versi pertama perubahan ini salah
+        // soal itu. Border membawa lifecycle - 1,33 sampai 1,82 banding satu
+        // antar state bersebelahan - jadi mengalikannya dengan faktor gerbang
+        // membuat fresh yang gagal (0,9 x 0,5 = 0,45) tergambar kembar dengan
+        // mitigated yang lolos (0,40). Fill tidak punya masalah itu: terukur
+        // 1,03 sampai 1,10 antar state, artinya lifecycle memang TIDAK terbaca
+        // di sana, jadi langkah 0,45 di kanal ini tidak menimpa sinyal apa pun
+        // dan besarnya sekitar dua kali - jauh di atas yang bisa dibaca mata.
+        //
+        // DIAM DI KIND YANG AMBANGNYA TIDAK PERNAH DIUKUR - `gate_measured`
+        // yang membawa perbedaan antara "tidak lolos" dan "tidak ada yang
+        // mengukur". Hari ini yang diam cuma BRK.
+        const gateFailed = zone.gate_measured && !zone.gate_cleared;
         const alpha =
-          (box.near || box.lit ? near : far) * LIFECYCLE[zone.state] * (crowded ? 0.45 : 1);
+          (box.near || box.lit ? near : far) *
+          LIFECYCLE[zone.state] *
+          (crowded ? 0.45 : 1) *
+          (gateFailed ? 0.45 : 1);
         // `--zone-fill-far` ships at 0, so this is the far tier costing nothing
         // at all rather than costing a transparent fillRect per box per frame.
         if (alpha <= 0) continue;
@@ -409,6 +448,14 @@ class ZoneEdgeRenderer implements IPrimitivePaneRenderer {
           // degree of the same thing. Detector identity did NOT take this over -
           // it is on the proximal rule below, see KIND_DASH.
           ctx.save();
+          // GERBANG TIDAK MEREDUPKAN BORDER, dan itu dicoba lalu dicabut pada
+          // hari yang sama. Border membawa LIFECYCLE - terukur 1,33 sampai 1,82
+          // banding satu antar state bersebelahan, lawan 1,03 sampai 1,10 di
+          // fill - jadi mengalikannya dengan faktor gerbang menaruh dua klaim di
+          // satu kanal. Aritmetikanya langsung menunjukkannya: fresh yang gagal
+          // gerbang jadi 0,9 x 0,5 = 0,45 dan mitigated yang lolos 0,40, dua
+          // hal berbeda yang tergambar kembar. Peredupan gerbang tinggal di
+          // fill, tempat lifecycle memang tidak terbaca.
           ctx.strokeStyle = rgba(zone.side, edge * (crowded ? 0.5 : 1));
           // OFFSET-NYA SETENGAH LEBAR STROKE, bukan tetap 0,5. Keduanya sama
           // saat lebarnya 1, yang berlaku pada skala 1; pada skala 2 lebarnya
@@ -441,12 +488,38 @@ class ZoneEdgeRenderer implements IPrimitivePaneRenderer {
             // tiga pixel adalah "kotak di dalam kotak", dan cue itu hilang
             // kalau kedua kotaknya bersentuhan.
             const inset = 3 * ky;
+            // DASH-DOT, DAN ITU MEMPERBAIKI ISYARAT YANG AMBIGU. Sampai
+            // 8 September 2026 stroke dalam ini SOLID, dan "dua garis sejajar
+            // sewarna" adalah persis yang dihasilkan dua kotak SESISI yang
+            // saling tumpang tindih sebagian - tumpukan yang biasa terjadi di
+            // supply_demand, yang tidak punya zona terbalik sama sekali.
+            //
+            // Terukur di audit `e2e/chart-audit.mjs` pada supply_demand, XAUUSD
+            // harian: sebuah zona DBR yang bottom-nya (4019,06) jatuh di bawah
+            // top zona di bawahnya (4030,71) tergambar sebagai pita bergaris
+            // ganda, dan auditor melaporkannya sebagai zona yang BERGANTI PERAN.
+            // Ia tidak. Grounding run itu USABLE, jadi laporannya tidak
+            // tercemar angka karangan - isyaratnya memang bertabrakan makna.
+            //
+            // Yang diperbaiki TEKSTURNYA, bukan geometrinya, karena geometri
+            // tidak bisa membedakannya: tumpang tindih memang menghasilkan dua
+            // garis sejajar dan itu data yang benar. Tumpang tindih TIDAK bisa
+            // menghasilkan garis putus-titik, karena setiap border kotak lain
+            // solid. Polanya sengaja bukan `[4 3]` (dipakai border zona yang
+            // belum confirmed) dan bukan `[1 3]` (`--dash-fvg`, di rule
+            // proximal), jadi ketiganya tetap saling terbedakan.
+            //
+            // Dash DISETEL ULANG lebih dulu: tanpa itu zona yang belum
+            // confirmed mewarisi `[4 3]` dari border luarnya dan stroke
+            // dalamnya berhenti jadi isyarat yang tetap.
+            ctx.setLineDash([5 * kx, 2 * kx, 1 * kx, 2 * kx]);
             ctx.strokeRect(
               x + inset + lw / 2,
               y + inset + lw / 2,
               Math.max(w - 2 * inset - lw, 1),
               Math.max(h - 2 * inset - lw, 1),
             );
+            ctx.setLineDash([]);
           }
           ctx.restore();
         }
@@ -558,7 +631,33 @@ class ZoneLabelRenderer implements IPrimitivePaneRenderer {
       for (const box of captioned) {
         const { zone } = box;
         const h = box.bottom - box.top;
-        if (h < LABEL_MIN_HEIGHT || box.right - box.left < 34) continue;
+        // VERDICT GERBANG DI CHART, bukan cuma di panel. Sampai 7 September
+        // 2026 kotak yang lolos gerbang dan yang tidak tergambar IDENTIK, dan
+        // verdictnya hanya muncul kalau pembaca mengklik zonanya - yang
+        // menyembunyikan satu-satunya hal yang backtest buktikan. Diukur di
+        // XAUUSD 4h, 13,7 tahun dengan biaya: kohort yang lolos menang 54,56
+        // persen di target 1R lawan 41,94 persen untuk kotak yang digeser acak.
+        //
+        // Kosakatanya sama dengan panel, dan ia DIAM di kind yang ambangnya
+        // tidak pernah diukur - `gate_cleared` selalu menjawab karena ia
+        // aritmetika, `gate_measured` yang membawa perbedaan antara "tidak
+        // lolos" dan "tidak pernah ada yang mengukur".
+        const gateMark = zone.gate_measured
+          ? zone.gate_cleared
+            ? "●"
+            : "○"
+          : "";
+        // KOTAK TIPIS TETAP DAPAT TITIKNYA, dan tanpa baris ini penandanya tak
+        // terlihat justru di tempat ia paling berarti. Gerbang fvg adalah
+        // PLAFON pada tinggi gap, jadi kohort yang lolos SELALU kotak kecil -
+        // dan kotak kecil persis yang `LABEL_MIN_HEIGHT` bungkam. Terlihat di
+        // screenshot audit 4h: delapan zona, dua lolos gerbang, dan tidak satu
+        // pun dari yang dua itu memajang penandanya. Nama formasinya yang
+        // dibuang di ruang sempit, bukan verdictnya: nama itu sama untuk setiap
+        // kotak di layer yang sama, verdictnya tidak.
+        const thin = h < LABEL_MIN_HEIGHT;
+        if (box.right - box.left < 34) continue;
+        if (thin && !gateMark) continue;
 
         // Formation name only. The caption used to carry the composite score,
         // which reads as a quality rating on a chart; calibration showed it
@@ -600,10 +699,31 @@ class ZoneLabelRenderer implements IPrimitivePaneRenderer {
         // does not say the flip makes the box stronger or points anywhere, and it
         // must not, because H8 measured a post-inversion touch as significantly
         // WORSE than a control with no box at all.
-        const text =
-          (box.projected ? `${zone.timeframe} ${zone.kind}` : zone.kind) +
-          (zone.inverted_at !== null ? " flipped" : "") +
-          (zone.confirmed && !zone.settled ? " unsettled" : "");
+        // VERDICT GERBANG DI CHART, bukan cuma di panel, sejak 7 September 2026.
+        // Sampai hari itu kotak yang lolos gerbang dan yang tidak tergambar
+        // IDENTIK, dan verdictnya hanya muncul kalau pembaca mengklik zonanya.
+        // Itu menyembunyikan satu-satunya hal yang dibuktikan backtest: yang
+        // diukur bukan "sebuah FVG ada di sini", melainkan kohort yang lolos
+        // gerbangnya. Di XAUUSD 4h, 13,7 tahun dengan biaya, kohort itu menang
+        // 54,56 persen di target 1R lawan 41,94 persen untuk kotak yang digeser
+        // acak - selisih 12,6 poin yang seluruhnya milik LETAK kotaknya.
+        //
+        // SATU TITIK, BUKAN GAYA GARIS BARU. Kosakata yang sama dengan panel
+        // (`●` lolos, `○` tidak), dan alasan tidak memakai garis putus-putus
+        // ada di komentar di atas: dashed sudah berarti "kotaknya bisa bergeser"
+        // dan satu kosakata visual tidak bisa membawa dua klaim berbeda.
+        //
+        // DIAM DI KIND YANG AMBANGNYA TIDAK PERNAH DIUKUR. `gate_cleared` selalu
+        // menjawab karena ia aritmetika; `gate_measured` yang membawa perbedaan
+        // antara "tidak lolos" dan "tidak pernah ada yang mengukur". Hari ini
+        // yang diam cuma BRK.
+        const text = thin
+          ? gateMark
+          : (box.projected ? `${zone.timeframe} ${zone.kind}` : zone.kind) +
+            " " +
+            gateMark +
+            (zone.inverted_at !== null ? " flipped" : "") +
+            (zone.confirmed && !zone.settled ? " unsettled" : "");
         // CLAMPED AT BOTH EDGES, and the right one was missing.
         //
         // A zone whose origin is scrolled off the left needs the first clamp to

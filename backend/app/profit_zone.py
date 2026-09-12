@@ -12,6 +12,8 @@ set, and it has to be recomputed whenever the set changes.
 
 from __future__ import annotations
 
+from bisect import bisect_left, bisect_right
+
 from .models import Zone, ZoneSide, ZoneState
 
 
@@ -54,9 +56,52 @@ def profit_zone_at(zone: Zone, zones: list[Zone], when: int) -> float | None:
 
 
 def mark_profit_zones(zones: list[Zone], now: int) -> None:
-    """Stamp every zone with its profit zone as of `now`. Mutates in place."""
+    """Stamp every zone with its profit zone as of `now`. Mutates in place.
+
+    NOT a loop over `profit_zone_at`, which is what this was until 12 September
+    2026 and which made it O(zones squared). Profiled with all 25 layers on and
+    5,000 bars, that was 0.111s of a 0.625s draw - about 1,900 zones each
+    scanning all 1,900, so 3.4 million comparisons to answer 1,900 questions.
+
+    Every question shares one `now`, so the set of live walls is the same for
+    all of them and can be built once. Sorted per side, "the nearest opposing
+    proximal ahead of me" is a bisect, and the pass becomes O(n log n).
+    `profit_zone_at` is left exactly as it was: it answers the same question at
+    an ARBITRARY `when`, which is what the measurement tools need and what no
+    shared precomputation can serve.
+
+    `tests/test_profit_zone_bulk.py` runs this against that loop and requires
+    the stamps to be identical.
+    """
+    live_up: list[float] = []    # supply proximals: the wall above a demand zone
+    live_down: list[float] = []  # demand proximals: the wall below a supply zone
+    for other in zones:
+        if other.time_from > now:
+            continue
+        if other.state is ZoneState.BROKEN and other.time_to <= now:
+            continue
+        if other.side is ZoneSide.SUPPLY:
+            live_up.append(other.proximal)
+        else:
+            live_down.append(other.proximal)
+    live_up.sort()
+    live_down.sort()
+
     for zone in zones:
-        zone.profit_zone_rr = profit_zone_at(zone, zones, now)
+        height = zone.top - zone.bottom
+        if height <= 0:
+            zone.profit_zone_rr = None
+            continue
+        if zone.side is ZoneSide.DEMAND:
+            # Strictly above, because the loop required `gap > 0`.
+            i = bisect_right(live_up, zone.proximal)
+            nearest = live_up[i] - zone.proximal if i < len(live_up) else None
+        else:
+            i = bisect_left(live_down, zone.proximal)
+            nearest = zone.proximal - live_down[i - 1] if i > 0 else None
+        zone.profit_zone_rr = (
+            round(nearest / height, 2) if nearest is not None else None
+        )
 
 
 def mark_crowding(zones: list[Zone], min_rr: float) -> None:

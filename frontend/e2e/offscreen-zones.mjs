@@ -25,6 +25,8 @@
  */
 import { chromium } from "playwright";
 
+import { pickTimeframe } from "./_layers.mjs";
+
 const INTERVAL = process.argv[2] ?? "1h";
 const BARS = Number(process.argv[3] ?? 500);
 
@@ -36,7 +38,11 @@ const page = await browser.newPage({ viewport: { width: 1400, height: 800 }, dev
 await page.goto("http://127.0.0.1:3100/", { waitUntil: "networkidle" });
 await page.waitForTimeout(6000);
 
-await page.locator(`div[aria-label="Timeframe"] button:text-is("${INTERVAL}")`).click();
+// SWITCHES THE LAYER ON AT THIS TIMEFRAME, because layers are per timeframe
+// and the default this harness relies on belongs to 15m alone. Without it the
+// panel reported "0 drawn" against five zones the API returned, and the
+// failure read as the panel having lost the count.
+await pickTimeframe(page, INTERVAL, ["supply_demand"]);
 // BY NAME, NOT BY POSITION. `select").nth(3)` was the HTF picker until a
 // Broker picker landed beside it on 2026-08-20 and every index after Source
 // shifted by one - the sweep then timed out waiting for a combobox that had

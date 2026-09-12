@@ -34,7 +34,14 @@ import {
 import { CLOCK_ZONES, type ClockZone } from "@/lib/clock";
 import { priceDecimals } from "@/lib/price";
 import {
-  DEFAULT_LAYERS,
+  BOOT_INTERVAL,
+  setSetupAt,
+  setupAt,
+  subscribeTimeframes,
+  timeframesServerSnapshot,
+  timeframesSnapshot,
+} from "@/lib/timeframes";
+import {
   DEFAULT_LAYER_PARAMS,
   type Candle,
   type DrawResponse,
@@ -178,7 +185,7 @@ function ChartError({
 export default function Page() {
   const [config, setConfig] = useState<ServerConfig | null>(null);
   const [symbol, setSymbol] = useState("XAUUSD");
-  const [interval, setInterval] = useState("15m");
+  const [interval, setInterval] = useState(BOOT_INTERVAL);
   const [provider, setProvider] = useState("binance");
   const [bars, setBars] = useState(500);
   // Supply and demand is top-down: the zone belongs to the higher timeframe,
@@ -203,10 +210,46 @@ export default function Page() {
   // Supply and demand alone by default, and that is measured rather than taste:
   // five detectors alone paint 31.6% of the chart, and past about a third the
   // boxes stop annotating price and become its background.
-  const [layers, setLayers] = useState<string[]>(DEFAULT_LAYERS);
-  // Every layer's knobs in ONE record, keyed by the name the registry gives
-  // each params block. A `DrawRequest` body is then `{ ...params, layers }`.
-  const [params, setParams] = useState<LayerParams>(DEFAULT_LAYER_PARAMS);
+  //
+  // KEYED BY TIMEFRAME, and that is the whole of the per-timeframe rule. A
+  // drawing belongs to the bars it was read off: a supply zone switched on at
+  // 1h is a claim about 1h candles, and carrying that switch to M1 draws a
+  // DIFFERENT set of boxes under the same name - the reader turned one thing on
+  // and got another. Measured before it was changed - `backend/tools/tf_audit.py`,
+  // written up in `docs/TIMEFRAME-AUDIT.md`: every layer the registry carries,
+  // alone, at all eight intervals the app offers, across every symbol, and not
+  // one returned the same price set twice - against a control where the same
+  // request twice at one interval was identical every time. So the geometry was
+  // already the timeframe's own; the SWITCH and its KNOBS were what followed the
+  // reader around, and both are keyed by interval here.
+  //
+  // THE KNOBS TRAVEL WITH THE SWITCH. `impulse_atr`, `base_max_bars` and
+  // `min_gap_atr` are read in bars and ATRs of the chart's own timeframe, so a
+  // threshold tuned until 15m looked right is a threshold nobody chose for 1d.
+  // Splitting the switch while sharing the knobs would have left half the
+  // drawing following the reader around.
+  //
+  // THROUGH A STORE, not `useState`, and that is what makes it survive a reload:
+  // per-timeframe setup that is wiped every refresh is worse than none, because
+  // the reader now has eight of them to rebuild instead of one. Same pattern as
+  // `lib/rails.ts` - reading `localStorage` in an effect is a hydration mismatch
+  // and `react-hooks/set-state-in-effect` refuses it.
+  const perTf = useSyncExternalStore(
+    subscribeTimeframes,
+    timeframesSnapshot,
+    timeframesServerSnapshot,
+  );
+  const { layers, params } = setupAt(perTf, interval);
+
+  /** Turn layers on or off FOR THE TIMEFRAME ON SCREEN, never for all of them.
+   *
+   *  Same signature as the `useState` setter it replaces, so the Toolbox's
+   *  contract is unchanged and no caller had to learn about the map. */
+  const setLayers = useCallback(
+    (next: string[]) => setSetupAt(interval, { layers: next, params }),
+    [interval, params],
+  );
+
   // How many drawn zones the price scale is currently hiding. Reported by the
   // chart, because the scale autoscales to the VISIBLE candles and nothing here
   // can predict where it lands.
@@ -273,7 +316,23 @@ export default function Page() {
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [hovered, setHovered] = useState<Candle | null>(null);
 
-  const inflight = useRef<AbortController | null>(null);
+  //: Floor and ceiling for the live redraw, in milliseconds.
+//:
+//: The floor guards the narrow case of a bar closing a second or two from now,
+//: where firing at once would fetch twice for one bar.
+//:
+//: THE CEILING IS A FALLBACK, NOT A CAP, and it was 30s for one wrong version.
+//: Thirty seconds is SHORTER THAN EVERY TIMEFRAME THIS APP OFFERS, so it won
+//: every comparison and the schedule it was supposed to bound never applied:
+//: measured on BTCUSD 1m with the next close 57s away, the redraws still landed
+//: 27-31s apart, exactly the fixed timer this replaced. Five minutes is above
+//: 1m and below the rest, so a 1m chart now waits for its own bar while a 4h
+//: chart still checks often enough for the things that move inside a bar -
+//: news, sessions, the forming candle's own zone.
+const LIVE_MIN_MS = 2_000;
+const LIVE_MAX_MS = 300_000;
+
+const inflight = useRef<AbortController | null>(null);
 
   // Live refresh. A counter rather than a timestamp, because a timestamp in the
   // dependency array re-fires on every render.
@@ -292,16 +351,53 @@ export default function Page() {
 
   useEffect(() => {
     if (!live) return;
-    // ponytail: a fixed 30s poll, not a WebSocket and not a cadence derived
-    // from the timeframe. Polling faster than the bar length only re-fetches a
-    // bar that is still forming, and the engine already marks a zone built on
-    // the newest run as unconfirmed. Move to a stream when someone needs
-    // sub-bar latency, which is a different product than this one.
+    // REDRAWN WHEN A BAR CLOSES, not every thirty seconds.
+    //
+    // A fixed 30s poll was wrong in both directions at once and this is the
+    // complaint it produced. On a 15m chart it fired thirty times per bar to
+    // fetch geometry that cannot have changed, because a zone only moves when a
+    // bar closes. On a 1m chart it could sit up to thirty seconds on a closed
+    // bar, which is the "not realtime" the boxes and lines actually showed.
+    //
+    // The response already says when the next bar closes - `meta.next_close_at`
+    // is `as_of` plus two intervals, so it is the close of the bar currently
+    // forming - and since 12 September it also says how long this venue holds
+    // its tape back. Both are needed: on a feed delayed 600s the bar exists ten
+    // minutes before it arrives here, and waking at the close would fetch the
+    // same picture and go back to sleep.
+    //
+    // Clamped at both ends, because this schedules itself off a number the
+    // server sent: a floor so a bad `meta` cannot spin, a ceiling so a stalled
+    // one cannot park the chart for an hour. The ceiling doubles as the old
+    // behaviour - a feed with no usable meta still refreshes on a timer.
+    const meta = data?.meta;
+    const closeAt = Number(meta?.next_close_at) || 0;
+    const held = Math.max(0, Number(meta?.feed_delay_seconds) || 0);
+    // A second of margin: the bar has to be written before it can be read, and
+    // arriving early costs a whole extra round trip to learn nothing.
+    const due = closeAt ? (closeAt + held + 1) * 1000 - Date.now() : 0;
+    // A CLOSE ALREADY IN THE PAST MEANS THE HEARTBEAT, NOT AN IMMEDIATE RETRY,
+    // and getting that backwards was measured doing real damage. The first
+    // version clamped with `Math.max(due, LIVE_MIN_MS)`, so a market that had
+    // been shut for hours - `next_close_at` 7.8 hours behind on a weekend -
+    // produced a large negative `due`, hit the floor, and redrew every 2.3
+    // seconds forever: 62 requests in 150 seconds where the fixed timer it
+    // replaced would have made 5. The floor was written to prevent a spin and
+    // instead set its rate.
+    //
+    // Only a close in the FUTURE schedules precisely. The floor now guards just
+    // the narrow case of a close a second or two away, where firing at once
+    // would fetch twice for one bar.
+    const wait =
+      due > 0 ? Math.min(Math.max(due, LIVE_MIN_MS), LIVE_MAX_MS) : LIVE_MAX_MS;
     // `window.` is load-bearing: the chart's timeframe state is called
     // `interval`, so its setter is `setInterval` and it shadows the global.
-    const timer = window.setInterval(() => setTick((n) => n + 1), 30_000);
-    return () => window.clearInterval(timer);
-  }, [live]);
+    const timer = window.setTimeout(() => setTick((n) => n + 1), wait);
+    return () => window.clearTimeout(timer);
+    // `data` is in the deps on purpose: each response carries the schedule for
+    // the next one, so a landed draw re-arms the timer. `tick` is not, because
+    // the response it causes is what re-arms this.
+  }, [live, data]);
 
   useEffect(() => {
     fetchConfig()
@@ -526,10 +622,19 @@ export default function Page() {
   // the memo on Toolbox that the crosshair makes worth having.
   const patchParams = useCallback(
     <K extends keyof LayerParams>(key: K, patch: Partial<LayerParams[K]>) =>
-      setParams((prev) => ({ ...prev, [key]: { ...prev[key], ...patch } })),
-    [],
+      setSetupAt(interval, {
+        layers,
+        params: { ...params, [key]: { ...params[key], ...patch } },
+      }),
+    [interval, layers, params],
   );
-  const resetParams = useCallback(() => setParams(DEFAULT_LAYER_PARAMS), []);
+  // RESETS THIS TIMEFRAME'S KNOBS, not every timeframe's. The layers stay on:
+  // the button is called "Reset parameters" and switching the chart blank is
+  // not what it says.
+  const resetParams = useCallback(
+    () => setSetupAt(interval, { layers, params: DEFAULT_LAYER_PARAMS }),
+    [interval, layers],
+  );
 
   /** A preset lands as ONE state change over both, not two.
    *
@@ -540,10 +645,50 @@ export default function Page() {
    *  one handler is also one fetch rather than two. */
   const applyPresetToState = useCallback(
     (nextLayers: string[], nextParams: LayerParams) => {
-      setLayers(nextLayers);
-      setParams(nextParams);
+      setSetupAt(interval, { layers: nextLayers, params: nextParams });
     },
-    [],
+    // A preset lands on THE TIMEFRAME ON SCREEN, like every other layer switch.
+    // ONE write rather than two, which is also why it no longer needs the
+    // batching argument above: layers and params reach the store together, so
+    // there is no intermediate render with new layers and old params.
+    [interval],
+  );
+
+  /** The other timeframes that already have a set, in the order they were
+   *  first configured - `Object.entries` is insertion order, and no other
+   *  ordering was worth a sort here.
+   *
+   *  Only feeds the empty state's copy buttons, so it is filtered to the ones
+   *  worth copying: the timeframe on screen is excluded because copying a set
+   *  onto itself does nothing, and an empty set is excluded because a button
+   *  offering to switch nothing on is a button that appears to do nothing.
+   *
+   *  MEMOISED because `Toolbox` is wrapped in `memo`, and a fresh array every
+   *  render is all it takes to defeat that - the same argument the patch
+   *  callback above is hoisted for. */
+  const layersElsewhere = useMemo(
+    () =>
+      Object.entries(perTf)
+        .filter(([tf, setup]) => tf !== interval && setup.layers.length > 0)
+        .map(([tf, setup]) => ({ interval: tf, layers: setup.layers })),
+    [perTf, interval],
+  );
+
+  /** Put another timeframe's whole setup on this one: switches AND knobs.
+   *
+   *  A COPY, not a share. The two are separate the moment it lands, which is
+   *  the point of the feature - and it carries the params because a layer set
+   *  without the thresholds it was tuned with is a different drawing, the same
+   *  argument `onPreset` exists for. */
+  const copyFrom = useCallback(
+    (from: string) => {
+      const source = setupAt(perTf, from);
+      setSetupAt(interval, {
+        layers: [...source.layers],
+        params: { ...source.params },
+      });
+    },
+    [perTf, interval],
   );
 
   const allIntervals = useMemo(() => config?.intervals ?? [], [config?.intervals]);
@@ -614,8 +759,12 @@ export default function Page() {
                 registry is the one version of this line that cannot go stale the
                 next time a layer lands. */}
             <span className="text-[10px] uppercase tracking-[0.16em] text-text-faint">
+              {/* NAMES THE TIMEFRAME, because the count is now per timeframe
+                  and a bare "1 of 24 layers on" would read as a global fact
+                  while changing under the reader every time they change the
+                  bar length. */}
               {config
-                ? `${layers.length} of ${config.layers.length} layers on`
+                ? `${layers.length} of ${config.layers.length} layers on ${interval}`
                 : "Layers"}
             </span>
           </div>
@@ -626,8 +775,16 @@ export default function Page() {
             label="Symbol"
             value={symbol}
             onChange={setSymbol}
+            // LABELLED WITH WHAT THE FEED CALLS IT, valued with the app id.
+            // `XAUUSD` on TradingView is COMEX:GC1!, the exchange's front-month
+            // future; on MT5 it is the broker's spot CFD, and the two were
+            // measured 51.7 points apart. Showing one name over both is how a
+            // reader ends up taking a level off a chart of a different
+            // instrument. Falls back to the app id for any feed with no entry,
+            // which is the honest answer for a provider that passes the ticker
+            // through untouched.
             options={(config?.symbols ?? [{ id: "XAUUSD", providers: [] }]).map(
-              (s) => s.id,
+              (s) => ({ value: s.id, label: s.vendor?.[usable] ?? s.id }),
             )}
           />
           <Picker
@@ -680,7 +837,9 @@ export default function Page() {
           <button
             onClick={() => setLive((v) => !v)}
             aria-pressed={live}
-            title="Muat ulang tiap 30 detik"
+            // Was "Muat ulang tiap 30 detik" and stopped being true on
+            // 12 September 2026, when the redraw moved onto the bar close.
+            title="Gambar ulang saat bar tutup, ditambah jeda tape venue ini. Paling lambat 30 detik."
             className={`num flex items-center gap-1.5 border px-2 py-1 text-[11px] uppercase tracking-wider transition-colors duration-[70ms] ${
               live
                 ? "border-accent text-accent"
@@ -1025,6 +1184,9 @@ export default function Page() {
             config={config}
             layers={layers}
             onLayers={setLayers}
+            interval={interval}
+            layersElsewhere={layersElsewhere}
+            onCopyFrom={copyFrom}
             params={params}
             onParams={patchParams}
             onReset={resetParams}
@@ -1059,6 +1221,9 @@ export default function Page() {
                 vortex={data?.drawing.vortex ?? null}
                 ssmt={data?.drawing.ssmt ?? []}
                 smt={data?.drawing.smt ?? []}
+                smtFill={data?.drawing.smt_fill ?? []}
+                killzones={data?.drawing.killzones ?? []}
+                timePd={data?.drawing.time_pd ?? []}
                 dfr={data?.drawing.dfr ?? []}
                 dfrEquilibrium={params.dfr.equilibrium}
                 expectation={data?.drawing.expectation ?? null}
@@ -1119,6 +1284,7 @@ export default function Page() {
             interval={interval}
             bars={bars}
             provider={usable}
+            config={config}
           />
           <ZonePanel
                 clock={clock}
@@ -1163,7 +1329,10 @@ function Picker({
   label: string;
   value: string;
   onChange: (value: string) => void;
-  options: string[];
+  /** A bare string is its own label. A pair separates the two, which the symbol
+   *  picker needs: the VALUE stays the app id every other part of this app is
+   *  keyed by, while the LABEL says what the chosen feed calls it. */
+  options: (string | { value: string; label: string })[];
 }) {
   return (
     <label className="flex items-center gap-1.5">
@@ -1180,11 +1349,15 @@ function Picker({
         onChange={(e) => onChange(e.target.value)}
         className="num min-w-[60px] border border-line-strong bg-panel px-1.5 py-1 text-[11px] text-text"
       >
-        {options.map((id) => (
-          <option key={id} value={id}>
-            {id}
-          </option>
-        ))}
+        {options.map((option) => {
+          const value = typeof option === "string" ? option : option.value;
+          const text = typeof option === "string" ? option : option.label;
+          return (
+            <option key={value} value={value}>
+              {text}
+            </option>
+          );
+        })}
       </select>
     </label>
   );

@@ -44,6 +44,8 @@ from app.judas import classify as judas_classify
 from app.m4 import in_judas_window
 from app.poi import confluence, other_boxes
 from app.psp import detect as psp_detect
+from app.quarterly import time_premium_discount
+from app.sequence import chain as qt_chain
 from app.detect.structure import swings
 from app.quarters import ALL_DEGREES, true_opens
 from app.resample import STEP_UP, resample
@@ -75,6 +77,24 @@ COLUMNS = (
 #:
 #: `app/ladder.py` dihapus 4 September 2026. Ia tabel lookup tanpa input pasar
 #: (dinyatakan di praregistrasi), dan nol caller di luar test-nya sendiri.
+#: Kolom praregistrasi KEEMPAT, 11 September 2026, daftarnya di
+#: `docs/PRAREGISTRASI-QT-AZ.md`. Terpisah dari tiga daftar lain untuk alasan
+#: yang sama: menggabungkannya menyembunyikan pertanyaan mana yang diajukan
+#: sebelum jawabannya ada.
+#:
+#: `kz_depth` BUKAN turunan sepele dari `quarter_day` dan `quarter_session` yang
+#: sudah ada di `COLUMNS`. Kedua kolom itu menanyakan "kuarter berapa", dan ini
+#: menanyakan KONJUNGSINYA - dan konjungsi itu punya tingkat dasar yang harus
+#: dibaca bersamanya: dua degree sepakat pada satu dari empat kuarter BY
+#: CONSTRUCTION, tiga pada satu dari enam belas.
+QTAZ_COLUMNS = (
+    "kz_depth",
+    "kz_number",
+    "tpd_band",
+    "tpd_outside",
+)
+
+
 ORPHAN_COLUMNS = (
     "in_judas_window",
     "judas_template",
@@ -238,12 +258,84 @@ def _corr_band(
     return ">=0.80"
 
 
-def rows_with_state(symbol: str, interval: str, bars: int, flat: bool) -> list[dict]:
+def _tpd_at(bands: list, at: int):
+    """The premium/discount band covering an instant, or None.
+
+    Linear scan over a list that holds one entry per parent quarter, so on the
+    windows this tool reads it is short. Written as a scan rather than a
+    bisect because the bands are half-open and non-overlapping by construction
+    and a wrong bisect edge here would silently read the neighbouring quarter's
+    range - the one error this column exists to avoid.
+    """
+    for band in bands:
+        if band.start <= at < band.end:
+            return band
+    return None
+
+
+def _tpd_band(band, price: float) -> str:
+    """Premium, discount or equilibrium against the previous parent quarter.
+
+    The SAME quartile convention `range_band` uses, deliberately, because the
+    whole point of this column is to be compared against that one: two readings
+    of the same question on two different bases, and a different bucketing
+    would make the comparison about the buckets.
+    """
+    if band is None:
+        return "none"
+    span = band.high - band.low
+    if span <= 0:
+        return "none"
+    pos = (price - band.low) / span
+    if pos >= 0.75:
+        return "premium"
+    if pos <= 0.25:
+        return "discount"
+    return "equilibrium"
+
+
+def _tpd_outside(band, price: float) -> str:
+    """Outside the previous parent quarter's range entirely, and which side.
+
+    A state of its own rather than a rounding of the band above, because the
+    source calls it "extreme premium/discount" and treats it as the strongest
+    case - so folding it into `premium` would erase the distinction the claim
+    rests on.
+    """
+    if band is None:
+        return "none"
+    if price > band.high:
+        return "above"
+    if price < band.low:
+        return "below"
+    return "inside"
+
+
+def rows_with_state(symbol: str, interval: str, bars: int, flat: bool,
+                    state_lag: int = 0) -> list[dict]:
     """Every gate-clearing trade, with layer state AND the ICT checklist attached.
 
     The checklist is evaluated at the TOUCH bar, not at the last bar, and the POI
     stack is capped at that instant. A study that scored the clauses with today's
     boxes would be grading the method on information the trade never had.
+
+    `state_lag` MOVES THE READ BACK THAT MANY BARS, and 1 is the honest setting
+    for this population even though 0 is the default that every recorded result
+    was produced with. The reason is a half-bar of hindsight that is easy to
+    miss: `costed.trades` fills INTRABAR, at the moment price first touches the
+    proximal line - `low[j] <= proximal <= high[j]` - and its own comment says
+    "the rest of that bar can stop you out". So the outcome starts mid-bar,
+    while every column here reads bar `touch` COMPLETE: its close, and the ADX
+    and BB Width windows that end on it. None of that existed at the fill.
+
+    `costed.py` already knows this and says so in code rather than in prose - it
+    scales risk with `atr[touch - 1]`, not `atr[touch]`. This parameter is what
+    lets the conditioning columns be held to the same rule, and lets the
+    difference be MEASURED rather than argued: run the same column at 0 and at 1
+    and the gap is the size of the hindsight.
+
+    The default stays 0 so that re-running an old study reproduces its old
+    number. A result that only survives at 0 is not a result.
     """
     candles = history.load(symbol, interval, bars)
     # PARTNER SSMT PADA GRID IRISAN KETAT, praregistrasi 29 Agustus 2026.
@@ -320,49 +412,77 @@ def rows_with_state(symbol: str, interval: str, bars: int, flat: bool) -> list[d
     adx_arr = wilder_adx(high_arr, low_arr, close_arr, 14)
     bb_arr = bb_width(close_arr, 20, 2.0)
 
+    # ONE PASS for the whole window, not one per touch. The bands are a pure
+    # function of the clock and the bars, so recomputing them per row would be
+    # the same list rebuilt thousands of times.
+    pd_bands = time_premium_discount(candles, "session")
+
     out = []
     for row in base:
         touch = int(row["at"])
-        state = at_bar(candles, touch, interval)
+        # THE BAR THE STATE IS READ ON, which is not always the bar the trade
+        # started on. Clamped at 0 so the first rows in a window degrade to the
+        # old behaviour instead of wrapping to the end of the array.
+        seen = max(0, touch - state_lag)
+        state = at_bar(candles, seen, interval)
         state["dfr_band"] = _dfr_band(state.get("dfr_pos"))
         # Properti bar, bukan properti zona, jadi ia dipasang di luar penjaga
         # `zone is not None` di bawah.
         state["partner_corr_band"] = _corr_band(
-            aligned, symbol, corr_times, times[touch]
+            aligned, symbol, corr_times, times[seen]
         )
-        state["adx_band"] = _adx_band(float(adx_arr[touch]))
-        state["bb_width_regime"] = _bb_regime(bb_arr, touch)
+        state["adx_band"] = _adx_band(float(adx_arr[seen]))
+        state["bb_width_regime"] = _bb_regime(bb_arr, seen)
         zone = by_id.get(row["zone_id"])
         if zone is not None:
             anatomy = zone.anatomy
             born_from = times[max(0, anatomy.leg_in_from - POI_SLACK_BARS)]
             born_to = times[min(len(times) - 1, anatomy.leg_out_to + POI_SLACK_BARS)]
-            levels = [level for when, level in cisd_by_time if when <= times[touch]]
-            stack = confluence(zone, others, times[touch], born_from, born_to,
+            levels = [level for when, level in cisd_by_time if when <= times[seen]]
+            stack = confluence(zone, others, times[seen], born_from, born_to,
                                cisd_levels=levels)
-            checklist = evaluate(zone, state, stack, rules, at=times[touch])
+            checklist = evaluate(zone, state, stack, rules, at=times[seen])
             for condition in checklist:
                 state[condition.name] = condition.met
             state["poi_family_count"] = stack.families
 
             # ---- kolom praregistrasi 28 Agustus 2026 ----
-            when = datetime.fromtimestamp(times[touch], NY)
+            when = datetime.fromtimestamp(times[seen], NY)
             state["in_judas_window"] = in_judas_window(when)
             # Bias London hari itu, dibaca dari bar 01:30-07:30 NY yang SUDAH
             # lewat pada bar sentuhan. Tidak ada bar sesudah sentuhan yang
             # ikut, jadi tidak ada hindsight.
             state["judas_template"] = judas_classify(
-                *_london_bias(candles, touch)).template
-            near = [lv for at, lv in psp_levels if at <= touch]
+                *_london_bias(candles, seen)).template
+            near = [lv for at, lv in psp_levels if at <= seen]
             state["psp_before_touch"] = bool(near) and psp_detect(
-                candles, max(0, touch - 10), near, lookback=10) is not None
+                candles, max(0, seen - 10), near, lookback=10) is not None
             inside = sum(1 for at, price in open_by_time
-                         if at <= times[touch] and zone.bottom <= price <= zone.top)
+                         if at <= times[seen] and zone.bottom <= price <= zone.top)
             state["true_opens_in_zone"] = (
                 "0" if inside == 0 else "1-3" if inside <= 3
                 else "4-9" if inside <= 9 else "10+")
             state["ote_band"] = _ote_band(zone.dealing_range_pos,
                                           zone.side.value)
+
+            # ---- kolom praregistrasi 11 September 2026, QT A-Z ----
+            # Semuanya dibaca pada BAR SENTUHAN dan tidak satu pun menyentuh
+            # bar sesudahnya. Killzone murni jam, jadi tidak ada pertanyaan
+            # lookahead sama sekali; band premium/discount berasal dari kuarter
+            # parent SEBELUMNYA, yang sudah tutup saat jendelanya dibuka.
+            here = qt_chain(times[seen], ("day", "session"))
+            aligned_now = (
+                here is not None
+                and len(set(here.quarters)) == 1
+            )
+            state["kz_depth"] = "2" if aligned_now else "0"
+            state["kz_number"] = (
+                f"Q{here.quarters[0]}" if aligned_now and here else "none"
+            )
+            band = _tpd_at(pd_bands, times[seen])
+            price = float(close_arr[seen])
+            state["tpd_band"] = _tpd_band(band, price)
+            state["tpd_outside"] = _tpd_outside(band, price)
             # Bucketed, because "how much of the method was satisfied" is the
             # question a reader asks, and 11 separate counts would each be too
             # thin to judge.
@@ -440,7 +560,7 @@ def main() -> None:
     # groups are judged, so the count has to happen in a first pass or the
     # threshold becomes a function of what the reader has already seen.
     judged = 0
-    for column in COLUMNS + ICT_COLUMNS + ORPHAN_COLUMNS + CORRELATION_COLUMNS + REGIME_COLUMNS:
+    for column in COLUMNS + ICT_COLUMNS + ORPHAN_COLUMNS + CORRELATION_COLUMNS + REGIME_COLUMNS + QTAZ_COLUMNS:
         seen: dict[object, int] = {}
         for row in rows:
             key = row["state"].get(column)
@@ -450,7 +570,7 @@ def main() -> None:
     print(f"{judged} grup layak dinilai, alpha {ALPHA}/{judged} = "
           f"{ALPHA / judged:.5f}, |t| kritis {critical:.2f}\n")
 
-    for column in COLUMNS + ICT_COLUMNS + ORPHAN_COLUMNS + CORRELATION_COLUMNS + REGIME_COLUMNS:
+    for column in COLUMNS + ICT_COLUMNS + ORPHAN_COLUMNS + CORRELATION_COLUMNS + REGIME_COLUMNS + QTAZ_COLUMNS:
         buckets: dict[object, list[dict]] = {}
         for row in rows:
             buckets.setdefault(row["state"].get(column), []).append(row)

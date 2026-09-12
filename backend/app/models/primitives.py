@@ -55,6 +55,32 @@ class ZoneKind(StrEnum):
     IFVG = "IFVG"  # Inversion fair value gap: a gap price closed through
     BRK = "BRK"  # Breaker block: the order block version of the same inversion
 
+    # Pita retracement 0,618-0,786 di atas satu leg struktur. BEDA JENIS
+    # dari enam di atas: keenamnya kotak yang dibuat LILIN - celah, badan,
+    # atau base - sementara yang ini kotak yang dibuat DUA HARGA dan tidak
+    # memuat lilin apa pun. Ia sudah digambar sebagai grid sejak lama di
+    # `fibonacci-primitive.ts`; yang baru ia jadi kotak yang bisa diukur.
+    OTE = "OTE"  # Optimal trade entry: pita 0,618-0,786 dari satu leg
+
+    # Level delivery yang ditembus lawan ekstrem run yang menembusnya.
+    # Konstruknya menyebut SATU harga; tepi keduanya ekstrem run, dicatat di
+    # loop yang sudah mengunjungi tiap lilin conforming - lihat cisd.py.
+    CISD = "CISD"  # Change in state of delivery: level ditembus sampai ekstrem run
+
+    # Kluster pivot yang sepakat harga: tempat stop beristirahat. BSL di atas
+    # (equal highs, buy stop), SSL di bawah (equal lows, sell stop). Ia sudah
+    # ada di repo ini sebagai LEVEL - `liquidity.PeriodLevel` membawa
+    # `side: Literal["BSL","SSL"]` untuk PDH/PDL/PWH/PWL - dan yang baru di sini
+    # kotaknya, dibangun dari sebaran pivot yang TERAMATI, bukan dari toleransi.
+    #
+    # SISINYA TERBALIK DARI INTUISI NAMANYA, dan itu benar. BSL adalah likuiditas
+    # BELI yang beristirahat di atas harga, jadi harga naik MENUJU-nya dan ia
+    # duduk di sisi SUPPLY dari peta ini; SSL cerminnya. Menamainya "buy side"
+    # lalu menaruhnya di sisi demand akan membuat setiap pembaca salah baca.
+    BSL = "BSL"  # Buy-side liquidity: kluster equal highs
+    SSL = "SSL"  # Sell-side liquidity: kluster equal lows
+
+
 
 class ZoneSide(StrEnum):
     DEMAND = "demand"

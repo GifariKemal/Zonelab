@@ -41,6 +41,7 @@ import { writeFileSync } from "node:fs";
 import { chromium } from "playwright";
 
 import { clockStamp, clockTick, sessionOpenName } from "../src/lib/clock.ts";
+import { setPressed } from "./_layers.mjs";
 
 // Set after the imports because ESM hoists them anyway, and it changes nothing
 // that matters: every reading below names its zone, so the only thing this pins
@@ -152,16 +153,17 @@ await settle(7000);
 // click-everything.mjs has to fall back to it.
 await page.getByRole("switch", { name: "Cycle grid" }).click();
 await settle(1500);
-await page
-  .locator('[role="group"][aria-label="True opens"] button:text-is("session")')
-  .click();
+// `setPressed` and not `.click()`: these are toggles carrying `aria-pressed`,
+// so a blind click turns OFF whatever was already on. It has bitten this repo
+// once for real - `qt-az-ink.mjs` deselected the partner it meant to select and
+// reported 0 px for a pass that paints 927 - and this file was clicking the
+// same way.
+await setPressed(page, "True opens", "session", true, { settle: 0 });
 await settle(4000);
 // Quarter boxes too, only so the ribbon under the chart has rows to draw: it is
 // built from the quarters, and with none it renders nothing and cannot be
 // checked for having survived anything.
-await page
-  .locator('[role="group"][aria-label="Quarter boxes"] button:text-is("day")')
-  .click();
+await setPressed(page, "Quarter boxes", "day", true, { settle: 0 });
 await settle(5000);
 
 const withGrid = await painted();

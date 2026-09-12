@@ -204,6 +204,10 @@ MEASURED_AGAINST: dict[str, str] = {
         "2 dari 4 instrumen setanda. Populasinya kecil, dan itu batas metode. "
         "Objek yang sama MEMISAHKAN kuat di pertanyaan yang berbeda: CISD di "
         "dalam order block memberi delta -0,136 R pada t=-7,07 dengan 8 dari 8 "
+        "fold, dan DIUKUR ULANG 8 September 2026 pasca perbaikan lifecycle "
+        "jadi -0,1441 pada t=-4,098, tetap 8 dari 8 dan 8 dari 9 sel negatif "
+        "walau kedua lengan PASCA negatif - pada kohort yang BUKAN kohort "
+        "pra-perbaikan, lihat docs/CALIBRATION.md bagian 6 - "
         "fold (docs/csid_ob_intrabar.json), jadi yang gagal di sini klausanya, "
         "bukan objeknya"),
     "manipulation_quarter": (

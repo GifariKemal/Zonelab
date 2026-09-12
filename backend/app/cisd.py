@@ -136,6 +136,19 @@ class DeliveryRun:
     open_price: float
     confirmed_at: int  # bar index at which the run's end became knowable
     length: int  # conforming candles only, so absorbed interruptions do not count
+    # TEPI KEDUA, ditambahkan 8 September 2026, dan ia GRATIS: loop di
+    # `delivery_runs` sudah mengunjungi setiap lilin conforming, jadi ekstremnya
+    # dicatat di sana tanpa pass tambahan.
+    #
+    # Sampai hari ini konstruk ini menyebut TEPAT SATU harga - `open_price`, open
+    # lilin PERTAMA - dan `CISDDetector.mqh` menuliskannya: "INI BUKAN BOX. Ia
+    # EVENT plus satu level horizontal". Sebuah detektor kotak butuh tepi kedua,
+    # dan ada tiga kandidat yang bukan bilangan karangan: ekstrem run, close
+    # lilin terakhir, atau open lilin terakhir. Yang dipilih EKSTREM RUN, karena
+    # ia satu-satunya yang merupakan sifat RUN-nya dan bukan sifat satu lilin di
+    # dalamnya - dan karena open lilin terakhir justru anchor SALAH yang lima
+    # paragraf di docstring modul ini ada untuk mencegah.
+    extreme: float  # low terjauh run turun, high terjauh run naik
 
 
 @dataclass(frozen=True)
@@ -149,6 +162,8 @@ class CISD:
     run_start: int
     run_end: int
     run_length: int
+    #: Ekstrem run, tepi KEDUA. Lihat catatan di `DeliveryRun.extreme`.
+    run_extreme: float
 
 
 def delivery_runs(
@@ -181,11 +196,21 @@ def delivery_runs(
         opposing = 0
         j = i + 1
         confirmed_at = -1
+        # Ekstrem HANYA atas lilin conforming, sama dengan `length` dan `end`:
+        # interupsi yang diserap tidak menyumbang tepi, karena ia bukan bagian
+        # dari delivery-nya.
+        # ARAHNYA KE MANA RUN MENGANTAR, dan versi pertama membaliknya: run NAIK
+        # dicatat low-nya. Akibatnya `open_price` dan `extreme` jatuh di sisi
+        # yang sama dan SELURUH 377 kotak di XAUUSD harian tinggi nol - kegagalan
+        # yang keras, bukan kotak yang salah bentuk diam-diam.
+        far = candles[start].high if direction > 0 else candles[start].low
         while j < n:
             if _delivery(candles[j]) == direction:
                 end = j
                 length += 1
                 opposing = 0
+                far = (max(far, candles[j].high) if direction > 0
+                       else min(far, candles[j].low))
             else:
                 opposing += 1
                 if opposing > interrupt_tolerance:
@@ -200,7 +225,8 @@ def delivery_runs(
         if confirmed_at >= 0:
             out.append(
                 DeliveryRun(
-                    start, end, direction, candles[start].open, confirmed_at, length
+                    start, end, direction, candles[start].open, confirmed_at,
+                    length, far,
                 )
             )
         i = end + 1
@@ -280,6 +306,7 @@ def _event(index: int, time: int, direction: int, run: DeliveryRun) -> CISD:
         run_start=run.start,
         run_end=run.end,
         run_length=run.length,
+        run_extreme=run.extreme,
     )
 
 

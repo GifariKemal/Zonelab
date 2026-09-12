@@ -1,0 +1,16 @@
+mt5:EURUSD 1h 50000 bar, n=1177, state_lag=1
+walking tpd_outside == 'inside' over 8 folds
+
+whole sample: n=562 of 1177  exp R -0.177  delta -0.051  t -0.95
+
+  fold 1: n=  40/ 107  delta +0.016  t +0.11  DISAGREES
+  fold 2: n=  73/  74  delta +0.073  t +0.50  DISAGREES
+  fold 3: n=  73/  74  delta -0.351  t -2.16  agrees
+  fold 4: n=  78/  69  delta -0.340  t -1.95  agrees
+  fold 5: n=  73/  74  delta -0.030  t -0.21  agrees
+  fold 6: n=  73/  74  delta +0.077  t +0.54  DISAGREES
+  fold 7: n=  76/  71  delta -0.042  t -0.24  agrees
+  fold 8: n=  76/  72  delta +0.107  t +0.84  DISAGREES
+
+4 of 8 usable folds agree with the whole-sample sign
+FAILS it

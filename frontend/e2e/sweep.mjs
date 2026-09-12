@@ -280,6 +280,13 @@ check("only supply and demand ships on",
 const SD_SLIDERS = [
   "Zones per side",
 ];
+// DIPERBARUI 9 September 2026, dan sebelumnya BASI. Layer `cisd_zone` dan
+// `liquidity_pool` mendarat membawa knob sendiri dan daftar ini tidak ikut
+// tumbuh, jadi sensusnya melaporkan dua belas "extra" - yang terbaca seperti UI
+// membocorkan knob yang tidak seharusnya ada, padahal justru daftar inilah yang
+// tertinggal. Daftar yang di-hardcode memang disengaja: gunanya menangkap knob
+// yang DIAM-DIAM HILANG. Tapi daftar emas yang tidak pernah diperbarui berhenti
+// jadi gate dan mulai jadi derau.
 const REVEALED_SLIDERS = [
   // The imbalance block: gap size, displacement size/window and mitigation depth
   // moved to engine internals alongside the supply_demand sliders (4 Sep 2026).
@@ -304,6 +311,22 @@ const REVEALED_SLIDERS = [
   // third is exactly what this layer is not allowed to do.
   "Bands drawn",
   "Pools drawn",
+  // TIGA LAYER YANG MENDARAT SESUDAH DAFTAR INI TERAKHIR DISENTUH, ditambahkan
+  // 9 September 2026. Sampai hari itu sensusnya melaporkan dua belas "extra",
+  // yang terbaca seperti UI membocorkan knob liar - padahal knob-knobnya benar
+  // dan daftar inilah yang tertinggal. Ini KETIGA KALINYA pola yang sama, dan
+  // dua yang sebelumnya sudah ditulis beberapa baris di atas.
+  //
+  // `ote`. Empat knob, dan dua di antaranya menyandang nama yang layer lain
+  // juga pakai - lihat catatan pada `census` soal kenapa itu tidak apa-apa.
+  "Swing fractal", "Leg floor", "Merge overlap", "Max zones per side",
+  // `cisd_zone`. `Shortest run` di sini berbeda dari `Shortest run` milik
+  // `cisd`, yang sudah terdaftar di atas: satu mengukur run di dalam kotak,
+  // satu di dalam peristiwa. Nama yang sama, dua panel, dua arti.
+  "Run floor", "Interrupt tolerance", "Shortest run",
+  "Merge overlap", "Max zones per side",
+  // `liquidity_pool`. Tidak punya cap per sisi - kolam bukan kotak berarah.
+  "Swing width", "Equal tolerance", "Touches", "Merge overlap",
   // The Wyckoff layer's only slider, and it arrived without this line. The
   // layer shipped on 31 August 2026 in a6577e0 and this list was last touched on
   // 28 August, so this census read "extra [Trading range width]" and `sweep.mjs`
@@ -316,15 +339,43 @@ const REVEALED_SLIDERS = [
   // The PSP layer's only slider, added with the layer on 1 September 2026 and in
   // the same commit, which is the whole lesson of the line above it.
   "Swing points drawn",
+  // The SMT fill layer's only slider, added with the layer on 11 September 2026
+  // and in the same commit, for the third time and for the same reason.
+  "Fills drawn",
 ];
 const sliders = page.locator('input[type="range"]');
 const sliderLabels = async () =>
   sliders.evaluateAll((els) =>
     els.map((el) => el.closest("label")?.innerText.split("\n")[0] ?? "?"));
 
+// SENSUS MENGHITUNG KEMUNCULAN, bukan menyamakan himpunan. Beberapa layer
+// mengekspos slider dengan LABEL YANG SAMA - `Merge overlap` muncul di tiga
+// panel, `Max zones per side` dan `Shortest run` di dua - karena label itu
+// dibaca manusia DI DALAM panel layernya, tempat ia sudah tidak ambigu.
+//
+// Perbandingan himpunan tidak bisa menyatakan itu: ia melaporkan kemunculan
+// kedua sebagai "extra" walaupun ia memang seharusnya ada, dan ia akan diam
+// kalau salah satu dari tiga `Merge overlap` HILANG. Menghitung menangkap
+// keduanya.
+const tally = (xs) => {
+  const m = new Map();
+  for (const x of xs) m.set(x, (m.get(x) ?? 0) + 1);
+  return m;
+};
+
 const census = (labels, expected) => {
-  const missing = expected.filter((l) => !labels.includes(l));
-  const extra = labels.filter((l) => !expected.includes(l));
+  const got = tally(labels);
+  const want = tally(expected);
+  const missing = [];
+  const extra = [];
+  for (const [k, n] of want) {
+    const have = got.get(k) ?? 0;
+    if (have < n) missing.push(`${k} x${n - have}`);
+  }
+  for (const [k, n] of got) {
+    const wanted = want.get(k) ?? 0;
+    if (n > wanted) extra.push(`${k} x${n - wanted}`);
+  }
   return { ok: missing.length === 0 && extra.length === 0, missing, extra };
 };
 
@@ -360,10 +411,30 @@ check("thirteen layers at once still renders", (await appAlert(page)).length ===
 // The names come from `aria-label` on each input, which is stable because the
 // wrapping label carries the live value and the input does not.
 const allLabels = await sliderLabels();
-for (const label of allLabels) {
-  const s = page.getByRole("slider", { name: label, exact: true });
-  if ((await s.count()) !== 1) {
-    check(`slider ${label} is addressable`, false, `${await s.count()} matches`);
+// DIGERAKKAN LEWAT ELEMEN KE-i, BUKAN LEWAT NAMA, dan indeksnya di-resolve ULANG
+// tiap putaran. Versi sebelumnya memakai `getByRole("slider", {name})` dan
+// menuntut tepat satu kecocokan, yang membuat DELAPAN gate merah begitu layer
+// `cisd_zone` dan `liquidity_pool` mendarat membawa label yang sudah dipakai
+// layer lain. Tidak satu pun dari delapan itu cacat aplikasi: `Merge overlap`
+// memang ada tiga, satu per layer yang punya knob itu.
+//
+// Peringatan yang dulu ditulis di sini tetap berlaku dan tetap dipatuhi -
+// jangan menyimpan indeks lalu memakainya lagi setelah panel me-render ulang.
+// Karena itu label di indeks itu DIPERIKSA ULANG sebelum dipakai: kalau panel
+// bergeser di tengah loop, gate ini merah dengan menyebutkan pergeserannya,
+// bukan timeout 30 detik yang menyebut ordinal.
+for (let i = 0; i < allLabels.length; i++) {
+  const label = allLabels[i];
+  const s = sliders.nth(i);
+  const now = await s.evaluate(
+    (el) => el.closest("label")?.innerText.split("\n")[0] ?? "?",
+  );
+  if (now !== label) {
+    check(
+      `slider ${label} masih di posisinya`,
+      false,
+      `indeks ${i} sekarang "${now}" - panel bergeser di tengah loop`,
+    );
     continue;
   }
   const min = await s.getAttribute("min");
