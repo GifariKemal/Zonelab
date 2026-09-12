@@ -645,6 +645,33 @@ function Panel() {
         ]}
       />
 
+      <P>
+        Verdict gerbang itu terbaca langsung di chart, bukan cuma di panel.
+        Setiap kotak membawa satu penanda kecil di captionnya, dan penanda itu
+        dibedakan lewat bentuk isi lawan kosong dan bukan lewat warna, karena
+        project ini cuma punya satu warna status.
+      </P>
+      <Table
+        head={["Penanda", "Artinya", "Kenapa begitu"]}
+        rows={[
+          [
+            <N key="a">bulat penuh</N>,
+            "Ambangnya pernah diukur untuk kind ini, dan kotak ini lolos.",
+            "Diukur di XAUUSD 4h, 13,7 tahun dengan biaya: kohort yang lolos menang 54,56 persen di target 1R lawan 41,94 persen untuk kotak yang digeser acak.",
+          ],
+          [
+            <N key="b">bulat kosong</N>,
+            "Diukur, tapi kotak ini di luar gerbang. Kohortnya yang lebih lemah.",
+            "Sampai 7 September 2026 kotak yang lolos dan yang tidak tergambar identik, sehingga satu-satunya hal yang backtest buktikan justru tidak terlihat.",
+          ],
+          [
+            <N key="c">tanpa penanda</N>,
+            "Belum pernah ada yang mengukur ambang untuk kind ini.",
+            "Ambang yang dipakai adalah milik kotak INDUKNYA. Diamnya disengaja: tidak ada verdict, jadi tidak ada yang ditampilkan.",
+          ],
+        ]}
+      />
+
       <h3 className="mb-3 mt-8 text-[17px] font-semibold tracking-[-0.01em]">
         Knob supply dan demand, menentukan apa yang dianggap berhenti
       </h3>
