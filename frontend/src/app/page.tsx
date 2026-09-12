@@ -316,7 +316,23 @@ export default function Page() {
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [hovered, setHovered] = useState<Candle | null>(null);
 
-  const inflight = useRef<AbortController | null>(null);
+  //: Floor and ceiling for the live redraw, in milliseconds.
+//:
+//: The floor guards the narrow case of a bar closing a second or two from now,
+//: where firing at once would fetch twice for one bar.
+//:
+//: THE CEILING IS A FALLBACK, NOT A CAP, and it was 30s for one wrong version.
+//: Thirty seconds is SHORTER THAN EVERY TIMEFRAME THIS APP OFFERS, so it won
+//: every comparison and the schedule it was supposed to bound never applied:
+//: measured on BTCUSD 1m with the next close 57s away, the redraws still landed
+//: 27-31s apart, exactly the fixed timer this replaced. Five minutes is above
+//: 1m and below the rest, so a 1m chart now waits for its own bar while a 4h
+//: chart still checks often enough for the things that move inside a bar -
+//: news, sessions, the forming candle's own zone.
+const LIVE_MIN_MS = 2_000;
+const LIVE_MAX_MS = 300_000;
+
+const inflight = useRef<AbortController | null>(null);
 
   // Live refresh. A counter rather than a timestamp, because a timestamp in the
   // dependency array re-fires on every render.
@@ -335,16 +351,53 @@ export default function Page() {
 
   useEffect(() => {
     if (!live) return;
-    // ponytail: a fixed 30s poll, not a WebSocket and not a cadence derived
-    // from the timeframe. Polling faster than the bar length only re-fetches a
-    // bar that is still forming, and the engine already marks a zone built on
-    // the newest run as unconfirmed. Move to a stream when someone needs
-    // sub-bar latency, which is a different product than this one.
+    // REDRAWN WHEN A BAR CLOSES, not every thirty seconds.
+    //
+    // A fixed 30s poll was wrong in both directions at once and this is the
+    // complaint it produced. On a 15m chart it fired thirty times per bar to
+    // fetch geometry that cannot have changed, because a zone only moves when a
+    // bar closes. On a 1m chart it could sit up to thirty seconds on a closed
+    // bar, which is the "not realtime" the boxes and lines actually showed.
+    //
+    // The response already says when the next bar closes - `meta.next_close_at`
+    // is `as_of` plus two intervals, so it is the close of the bar currently
+    // forming - and since 12 September it also says how long this venue holds
+    // its tape back. Both are needed: on a feed delayed 600s the bar exists ten
+    // minutes before it arrives here, and waking at the close would fetch the
+    // same picture and go back to sleep.
+    //
+    // Clamped at both ends, because this schedules itself off a number the
+    // server sent: a floor so a bad `meta` cannot spin, a ceiling so a stalled
+    // one cannot park the chart for an hour. The ceiling doubles as the old
+    // behaviour - a feed with no usable meta still refreshes on a timer.
+    const meta = data?.meta;
+    const closeAt = Number(meta?.next_close_at) || 0;
+    const held = Math.max(0, Number(meta?.feed_delay_seconds) || 0);
+    // A second of margin: the bar has to be written before it can be read, and
+    // arriving early costs a whole extra round trip to learn nothing.
+    const due = closeAt ? (closeAt + held + 1) * 1000 - Date.now() : 0;
+    // A CLOSE ALREADY IN THE PAST MEANS THE HEARTBEAT, NOT AN IMMEDIATE RETRY,
+    // and getting that backwards was measured doing real damage. The first
+    // version clamped with `Math.max(due, LIVE_MIN_MS)`, so a market that had
+    // been shut for hours - `next_close_at` 7.8 hours behind on a weekend -
+    // produced a large negative `due`, hit the floor, and redrew every 2.3
+    // seconds forever: 62 requests in 150 seconds where the fixed timer it
+    // replaced would have made 5. The floor was written to prevent a spin and
+    // instead set its rate.
+    //
+    // Only a close in the FUTURE schedules precisely. The floor now guards just
+    // the narrow case of a close a second or two away, where firing at once
+    // would fetch twice for one bar.
+    const wait =
+      due > 0 ? Math.min(Math.max(due, LIVE_MIN_MS), LIVE_MAX_MS) : LIVE_MAX_MS;
     // `window.` is load-bearing: the chart's timeframe state is called
     // `interval`, so its setter is `setInterval` and it shadows the global.
-    const timer = window.setInterval(() => setTick((n) => n + 1), 30_000);
-    return () => window.clearInterval(timer);
-  }, [live]);
+    const timer = window.setTimeout(() => setTick((n) => n + 1), wait);
+    return () => window.clearTimeout(timer);
+    // `data` is in the deps on purpose: each response carries the schedule for
+    // the next one, so a landed draw re-arms the timer. `tick` is not, because
+    // the response it causes is what re-arms this.
+  }, [live, data]);
 
   useEffect(() => {
     fetchConfig()
@@ -776,7 +829,9 @@ export default function Page() {
           <button
             onClick={() => setLive((v) => !v)}
             aria-pressed={live}
-            title="Muat ulang tiap 30 detik"
+            // Was "Muat ulang tiap 30 detik" and stopped being true on
+            // 12 September 2026, when the redraw moved onto the bar close.
+            title="Gambar ulang saat bar tutup, ditambah jeda tape venue ini. Paling lambat 30 detik."
             className={`num flex items-center gap-1.5 border px-2 py-1 text-[11px] uppercase tracking-wider transition-colors duration-[70ms] ${
               live
                 ? "border-accent text-accent"
