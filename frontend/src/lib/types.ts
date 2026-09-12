@@ -1806,6 +1806,9 @@ export interface ServerConfig {
      *  broker spot CFD on MT5, and those were measured 51.7 points apart. */
     vendor?: Record<string, string>;
   }[];
+  /** The named triads and their members, keyed by family name. Served rather
+   *  than restated in the UI, so adding a family is one edit and not three. */
+  triads?: Record<string, string[]>;
   intervals: string[];
   /** Researched broker profiles the plan can be priced at. Empty pick is the
    *  generic per-instrument row, which is what every plan used until the

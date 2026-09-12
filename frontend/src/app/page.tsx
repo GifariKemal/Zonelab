@@ -1284,6 +1284,7 @@ const inflight = useRef<AbortController | null>(null);
             interval={interval}
             bars={bars}
             provider={usable}
+            config={config}
           />
           <ZonePanel
                 clock={clock}

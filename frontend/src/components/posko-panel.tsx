@@ -3,20 +3,30 @@
 import { memo, useCallback, useEffect, useState } from "react";
 
 import { fetchTriad } from "@/lib/api";
-import type { TriadResponse } from "@/lib/types";
+import type { ServerConfig, TriadResponse } from "@/lib/types";
+import { vendorName } from "@/lib/vendor";
 
-/** The named triads, each with a label and a short description. The keys
- *  match `TRIAD_FAMILIES` in `backend/app/triad.py`, and the descriptions
- *  match the assets listed there. */
-const TRIADS = [
-  { key: "monetary", label: "Monetary", desc: "XAU · DXY · EUR" },
-  { key: "commodity", label: "Commodity", desc: "XAU · WTI · XAG" },
-  { key: "risk", label: "Risk", desc: "XAU · NAS · US30" },
-  { key: "fx", label: "FX", desc: "XAU · JPY · XPT" },
-  { key: "bonds", label: "Bonds", desc: "XAU · 10Y · 30Y" },
-  { key: "energy", label: "Energy", desc: "XAU · WTI · Brent" },
-  { key: "metals", label: "Metals", desc: "XAU · XAG · XPT" },
-];
+/** Display order and button text, keyed by the family names the server sends.
+ *
+ *  THE MEMBERS ARE NOT LISTED HERE ANY MORE. This file used to carry its own
+ *  copy of all seven families with hand-written descriptions like
+ *  "XAU - 10Y - 30Y", which is exactly the drift `/api/config` exists to
+ *  prevent - and it drifted the day `metals` was added, because that took one
+ *  edit to the backend tuple and two more to lists in this folder. The members
+ *  now come from `config.triads`, which also lets them be named in whatever the
+ *  feed actually calls them. A family the server adds and this map has not
+ *  heard of still renders, under its own name. */
+const TRIAD_LABELS: Record<string, string> = {
+  monetary: "Monetary",
+  commodity: "Commodity",
+  risk: "Risk",
+  fx: "FX",
+  bonds: "Bonds",
+  energy: "Energy",
+  metals: "Metals",
+};
+
+const titleCase = (key: string) => key.charAt(0).toUpperCase() + key.slice(1);
 
 /**
  * POSKO 618 panel — the triad framework in the right rail.
@@ -35,11 +45,14 @@ export const PoskoPanel = memo(function PoskoPanel({
   interval,
   bars,
   provider,
+  config,
 }: {
   symbol: string;
   interval: string;
   bars: number;
   provider?: string;
+  /** For naming instruments as the serving feed names them. */
+  config: ServerConfig | null;
 }) {
   const [triad, setTriad] = useState<string | null>(null);
   const [data, setData] = useState<TriadResponse | null>(null);
@@ -97,22 +110,29 @@ export const PoskoPanel = memo(function PoskoPanel({
           #0f1216 is the one step of elevation this theme has, which is what the
           state needs to say: pickable, not picked. */}
       <div className="flex gap-1 px-2 py-1.5">
-        {TRIADS.map((t) => (
+        {Object.keys(config?.triads ?? TRIAD_LABELS).map((key) => (
           <button
-            key={t.key}
-            onClick={() => pick(t.key)}
+            key={key}
+            onClick={() => pick(key)}
             // `text-white` adalah SATU SATUNYA kelas palet Tailwind tetap di
             // seluruh `src/`, dan di theme terang ia mencetak putih di atas
             // accent emas gelap: 2,1:1, di bawah floor mana pun. `--bg` selalu
             // permukaan yang paling kontras dengan accent theme-nya sendiri.
             className={`flex-1 rounded px-1.5 py-1 text-[10px] font-medium transition-colors duration-[70ms] active:translate-y-px ${
-              triad === t.key
+              triad === key
                 ? "bg-accent text-bg hover:bg-accent/85"
                 : "bg-panel-2 text-text-dim hover:bg-line/60 hover:text-text"
             }`}
-            title={t.desc}
+            // Named in the feed's own vocabulary, and by the feed that will
+            // actually SERVE this triad - `data.provider`, which the route
+            // substitutes when the chart's source cannot carry all three legs.
+            // Before a reading lands there is no such answer yet, so the
+            // chart's provider stands in.
+            title={(config?.triads?.[key] ?? [])
+              .map((member: string) => vendorName(config, data?.provider ?? provider, member))
+              .join(" · ")}
           >
-            {t.label}
+            {TRIAD_LABELS[key] ?? titleCase(key)}
           </button>
         ))}
       </div>
@@ -124,7 +144,7 @@ export const PoskoPanel = memo(function PoskoPanel({
           <div className="mb-1 text-[11px] text-text-dim">Truth Asset</div>
           <div className="flex items-baseline justify-between gap-2">
             <span className="num text-[13px] font-semibold text-accent">
-              {data.truth_asset.symbol}
+              {vendorName(config, data.provider, data.truth_asset.symbol)}
             </span>
             <span className="num text-[11px] text-text-faint">
               {data.time.session ?? "between sessions"}
@@ -144,7 +164,7 @@ export const PoskoPanel = memo(function PoskoPanel({
                       : "text-text-dim"
                   }`}
                 >
-                  {sym}
+                  {vendorName(config, data.provider, sym)}
                 </span>
                 <span className="num text-[11px] text-text-faint">
                   {score.toFixed(1)}
@@ -164,7 +184,7 @@ export const PoskoPanel = memo(function PoskoPanel({
                   className="flex items-baseline justify-between gap-2"
                 >
                   <span className="num text-[11px] text-text-dim">
-                    {c.symbol}
+                    {vendorName(config, data.provider, c.symbol)}
                   </span>
                   <span className="num text-[11px] text-text">
                     {c.full === null ? "—" : c.full.toFixed(3)}

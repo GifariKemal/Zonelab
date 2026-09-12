@@ -166,6 +166,14 @@ async def config() -> dict:
             {"id": sid, "providers": sorted(vendors), "vendor": dict(vendors)}
             for sid, vendors in SYMBOLS.items()
         ],
+        # SERVED, not restated in the UI. `posko-panel.tsx` carried its own copy
+        # of these seven families with hand-written descriptions, which is the
+        # drift this endpoint's docstring exists to prevent - and it drifted the
+        # moment `metals` was added, because that meant editing the backend
+        # tuple and two frontend lists by hand. The panel now labels each family
+        # from this, and can name the members in whatever the active feed calls
+        # them rather than in abbreviations nobody can map back.
+        "triads": {name: list(members) for name, members in TRIAD_FAMILIES.items()},
         "intervals": list(INTERVALS),
         # Served so the UI can offer them without a second copy of the list.
         # An empty pick is the generic per-instrument row, which is what the
