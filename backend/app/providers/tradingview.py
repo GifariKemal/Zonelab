@@ -30,6 +30,25 @@ real-time is a separate subscription from TradingView Premium. Crypto and FX,
 whose venues do not charge for the tape, arrive live. `Feed.delay_seconds`
 carries this per symbol so a caller can see it rather than infer it.
 
+WHAT THE `1!` SUFFIX COSTS, measured 12 September 2026 because a repo whose
+detectors are built on gaps cannot take a continuous contract on trust. These
+map to TradingView's front-month continuous series - COMEX:GC1! and the rest -
+which roll, and a roll prints a price step that is not a market gap.
+
+On 1,500 daily bars of gold, 21 overnight gaps exceed 0.8 of that day's range
+and 12 of those fall in the last week of a month, July heaviest with 6 - which
+is where the June-to-August roll sits. That is a roll signature. WTI shows the
+opposite: 11 such gaps, only 1 in the last week, spread across months like news.
+
+It is a SMALLER problem than the tape it replaced, which is the reason it is
+documented rather than fixed. MT5 spot gold over the same 1,500 days printed 30
+gaps over one full range against this feed's 12, and a maximum of 3.01 ranges
+against 2.19 - weekend gaps on a CFD are larger and more frequent than roll
+steps on the future. Anyone wanting them gone entirely would pass
+`backadjustment` in the symbol spec `feed()` builds, and would then be reading
+prices that never traded at those levels, which is wrong for drawing zones even
+where it is right for a backtest.
+
 THE DEPENDENCY ON A RUNNING DESKTOP is the real cost of this provider, and it is
 why `available()` probes rather than assuming. No TradingView, no bars; there is
 no headless fallback, and pretending otherwise would turn "the app is closed"
