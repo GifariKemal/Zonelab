@@ -124,6 +124,7 @@ _INSTALL_JS = r"""
       if (!api) return resolve({ error: 'no chart api' });
       var S = 'cs_zl' + Math.random().toString(36).slice(2, 10);
       var acc = {}, mode = null, resolved = null, settled = false, rounds = 0, errs = [];
+      var onConnected = null, onResolved = null, sawConnected = false;
       function finish() {
         if (settled) return;
         settled = true;
@@ -136,7 +137,11 @@ _INSTALL_JS = r"""
         try {
           if (!m) return;
           var meth = m.method || m.m, p = m.params || m.p;
-          if (meth === 'symbol_resolved' && p && p[1]) resolved = p[1].pro_name || p[1].name;
+          if (meth === 'connected') { sawConnected = true; if (onConnected) onConnected(); }
+          if (meth === 'symbol_resolved') {
+            if (p && p[1]) resolved = p[1].pro_name || p[1].name;
+            if (onResolved) onResolved();
+          }
           if (meth === 'data_update' && p && p.plots) {
             p.plots.forEach(function (pt) { if (pt && pt.value) acc[pt.value[0]] = pt.value; });
           }
@@ -164,22 +169,52 @@ _INSTALL_JS = r"""
          to others. Reading one shape and assuming the other is what made the
          first working version of this return zero bars with no error at all. */
       var rec = function (m) { if (Array.isArray(m)) m.forEach(one); else one(m); };
-      try {
-        api.createSession(S, { onMessage: rec });
-        api.chartCreateSession(S, {});
-      } catch (e) { return resolve({ error: 'session: ' + e.message }); }
-      setTimeout(function () {
-        try {
-          api.resolveSymbol(S, 'sds_sym_1',
-            '={"symbol":' + JSON.stringify(sym) + ',"adjustment":"splits"}', rec);
-        } catch (e) { errs.push('resolve: ' + e.message); }
-      }, 500);
-      setTimeout(function () {
+      /* EACH STEP WAITS FOR THE FRAME BEFORE IT, not for a stopwatch. The first
+         version slept 500ms then 2000ms, which made a 2-bar read cost the same
+         2.6s as a 300-bar one - all of it setup, none of it data. That is
+         tolerable for a draw and not for the forming-bar poll, which is why
+         this provider must NOT set `local = True`: at ttl 0 a once-a-second
+         poll would queue 2.6s requests forever. Driving off the protocol's own
+         `connected` and `symbol_resolved` frames removes the floor instead of
+         hiding it behind a cache.
+
+         Every step keeps a fallback timer well past its observed latency, so a
+         frame that never arrives degrades to the old behaviour rather than
+         hanging: a missed `symbol_resolved` still gets a series request, and
+         `finish` still runs on `budgetMs` regardless. */
+      var didResolve = false, didSeries = false;
+      function askSeries() {
+        if (didSeries) return;
+        didSeries = true;
         try {
           api.createSeries(S, 'sds_1', 's1', 'sds_sym_1', String(res),
             Math.min(want, 5000), null, rec);
         } catch (e) { errs.push('series: ' + e.message); }
-      }, 2000);
+      }
+      function askResolve() {
+        if (didResolve) return;
+        didResolve = true;
+        try {
+          api.resolveSymbol(S, 'sds_sym_1',
+            '={"symbol":' + JSON.stringify(sym) + ',"adjustment":"splits"}', rec);
+        } catch (e) { errs.push('resolve: ' + e.message); askSeries(); }
+      }
+      /* THE HANDLERS ARE ARMED AFTER BOTH CREATE CALLS, and `sawConnected`
+         exists because of what happens if they are not. `createSession`
+         delivers `connected` SYNCHRONOUSLY when the socket is already up - the
+         normal case - so arming first makes `resolveSymbol` run before
+         `chart_create_session` has been sent, against a chart session the
+         server does not have yet. Measured: every symbol came back "no bars
+         returned". */
+      try {
+        api.createSession(S, { onMessage: rec });
+        api.chartCreateSession(S, {});
+      } catch (e) { return resolve({ error: 'session: ' + e.message }); }
+      onConnected = askResolve;
+      onResolved = askSeries;
+      if (sawConnected) askResolve();
+      setTimeout(askResolve, 1500);
+      setTimeout(askSeries, 4000);
       setTimeout(finish, budgetMs);
     });
   };
